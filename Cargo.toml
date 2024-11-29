@@ -44,3 +44,7 @@ let_and_return = "allow"
 redundant_closure = "allow"
 single_match = "allow"
 clone_on_copy = "allow"
+
+[patch.crates-io]
+cssparser = { git = "https://github.com/LastLeaf/rust-cssparser", branch = "no-std-support" }
+cssparser-color = { git = "https://github.com/LastLeaf/rust-cssparser", branch = "no-std-support" }

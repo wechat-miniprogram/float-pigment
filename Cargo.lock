@@ -533,30 +533,29 @@ checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 [[package]]
 name = "cssparser"
 version = "0.34.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7c66d1cd8ed61bf80b38432613a7a2f09401ab8d0501110655f8b341484a3e3"
+source = "git+https://github.com/LastLeaf/rust-cssparser?branch=no-std-support#a7aa3989a52c77e08a1a012f57b892a0cbddb35b"
 dependencies = [
  "cssparser-macros",
  "dtoa-short",
  "itoa",
+ "libm",
  "phf",
  "smallvec",
 ]
 
 [[package]]
 name = "cssparser-color"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "698ae2b751218cfd23849bcac355aa1a36e9cc26c64c70b911714d95b0cb14e6"
+version = "0.1.0"
+source = "git+https://github.com/LastLeaf/rust-cssparser?branch=no-std-support#a7aa3989a52c77e08a1a012f57b892a0cbddb35b"
 dependencies = [
  "cssparser",
+ "libm",
 ]
 
 [[package]]
 name = "cssparser-macros"
 version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13b588ba4ac1a99f7f2964d24b3d896ddc6bf847ee3855dbd4366f058cfcd331"
+source = "git+https://github.com/LastLeaf/rust-cssparser?branch=no-std-support#a7aa3989a52c77e08a1a012f57b892a0cbddb35b"
 dependencies = [
  "quote",
  "syn 2.0.90",

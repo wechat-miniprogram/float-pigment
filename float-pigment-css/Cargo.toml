@@ -58,7 +58,7 @@ js-sys = { version = "0.3", optional = true }
 log = "0.4"
 console_log = { version = "0.1", optional = true }
 cssparser = { version = "0.34", default-features = false }
-cssparser-color = { version = "0.2", default-features = false }
+cssparser-color = { version = "0.1", default-features = false }
 float-pigment-css-macro = { workspace = true }
 float-pigment-consistent-bincode = { workspace = true }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
