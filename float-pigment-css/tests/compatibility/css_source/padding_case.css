@@ -1,0 +1,6 @@
+.intro {
+  margin: 50px;
+  background: red;
+  padding: 0 24px;
+  padding: 0 calc(24px + constant(safe-area-inset-right)) constant(safe-area-inset-bottom) calc(24px+constant (safe-area-inset-left));
+}

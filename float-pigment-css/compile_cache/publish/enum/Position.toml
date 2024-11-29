@@ -1,0 +1,2 @@
+key = "Position"
+value = ["typing = \"Unit\"\nident = \"Static\"\nfield = []\n", "typing = \"Unit\"\nident = \"Relative\"\nfield = []\n", "typing = \"Unit\"\nident = \"Absolute\"\nfield = []\n", "typing = \"Unit\"\nident = \"Fixed\"\nfield = []\n", "typing = \"Unit\"\nident = \"Sticky\"\nfield = []\n"]

@@ -1,0 +1,2 @@
+key = "Number"
+value = ["typing = \"Unnamed\"\nident = \"F32\"\nfield = [\"f32\"]\n", "typing = \"Unnamed\"\nident = \"I32\"\nfield = [\"i32\"]\n", "typing = \"Unnamed\"\nident = \"Calc\"\nfield = [\"Box < CalcExpr >\"]\n"]

@@ -1,0 +1,2 @@
+key = "Color"
+value = ["typing = \"Unit\"\nident = \"Undefined\"\nfield = []\n", "typing = \"Unit\"\nident = \"CurrentColor\"\nfield = []\n", "typing = \"Unnamed\"\nident = \"Specified\"\nfield = [\"u8\", \"u8\", \"u8\", \"u8\"]\n"]

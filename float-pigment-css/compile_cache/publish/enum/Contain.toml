@@ -1,0 +1,2 @@
+key = "Contain"
+value = ["typing = \"Unit\"\nident = \"None\"\nfield = []\n", "typing = \"Unit\"\nident = \"Strict\"\nfield = []\n", "typing = \"Unit\"\nident = \"Content\"\nfield = []\n", "typing = \"Unnamed\"\nident = \"Multiple\"\nfield = [\"Array < ContainKeyword >\"]\n"]

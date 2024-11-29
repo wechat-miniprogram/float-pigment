@@ -1,0 +1,2 @@
+key = "TextDecorationLineItem"
+value = ["typing = \"Unit\"\nident = \"Overline\"\nfield = []\n", "typing = \"Unit\"\nident = \"LineThrough\"\nfield = []\n", "typing = \"Unit\"\nident = \"Underline\"\nfield = []\n", "typing = \"Unit\"\nident = \"Blink\"\nfield = []\n"]

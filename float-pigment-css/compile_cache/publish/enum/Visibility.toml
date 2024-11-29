@@ -1,0 +1,2 @@
+key = "Visibility"
+value = ["typing = \"Unit\"\nident = \"Visible\"\nfield = []\n", "typing = \"Unit\"\nident = \"Hidden\"\nfield = []\n", "typing = \"Unit\"\nident = \"Collapse\"\nfield = []\n"]

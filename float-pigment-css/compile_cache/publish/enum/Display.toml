@@ -1,0 +1,2 @@
+key = "Display"
+value = ["typing = \"Unit\"\nident = \"None\"\nfield = []\n", "typing = \"Unit\"\nident = \"Block\"\nfield = []\n", "typing = \"Unit\"\nident = \"Flex\"\nfield = []\n", "typing = \"Unit\"\nident = \"Inline\"\nfield = []\n", "typing = \"Unit\"\nident = \"InlineBlock\"\nfield = []\n", "typing = \"Unit\"\nident = \"Grid\"\nfield = []\n", "typing = \"Unit\"\nident = \"FlowRoot\"\nfield = []\n", "typing = \"Unit\"\nident = \"InlineFlex\"\nfield = []\n"]

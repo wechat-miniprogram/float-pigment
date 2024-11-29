@@ -1,0 +1,9 @@
+/target
+Cargo.lock
+**/*.rs.bk
+.DS_store
+/pkg
+/dist
+/cbindgen/src
+/compile_cache/enum
+/compile_cache/struct

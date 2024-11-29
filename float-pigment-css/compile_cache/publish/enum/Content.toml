@@ -1,0 +1,2 @@
+key = "Content"
+value = ["typing = \"Unit\"\nident = \"None\"\nfield = []\n", "typing = \"Unit\"\nident = \"Normal\"\nfield = []\n", "typing = \"Unnamed\"\nident = \"Str\"\nfield = [\"StrRef\"]\n", "typing = \"Unnamed\"\nident = \"Url\"\nfield = [\"StrRef\"]\n"]

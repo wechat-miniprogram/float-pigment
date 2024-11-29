@@ -1,0 +1,2 @@
+key = "AnimateableFeature"
+value = ["typing = \"Unit\"\nident = \"Contents\"\nfield = []\n", "typing = \"Unit\"\nident = \"ScrollPosition\"\nfield = []\n", "typing = \"Unnamed\"\nident = \"CustomIdent\"\nfield = [\"StrRef\"]\n"]

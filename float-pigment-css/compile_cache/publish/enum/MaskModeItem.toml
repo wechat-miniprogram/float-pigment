@@ -1,0 +1,2 @@
+key = "MaskModeItem"
+value = ["typing = \"Unit\"\nident = \"MatchSource\"\nfield = []\n", "typing = \"Unit\"\nident = \"Alpha\"\nfield = []\n", "typing = \"Unit\"\nident = \"Luminance\"\nfield = []\n"]

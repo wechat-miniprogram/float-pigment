@@ -1,0 +1,2 @@
+key = "BackgroundImageGradientItem"
+value = ["typing = \"Unnamed\"\nident = \"LinearGradient\"\nfield = [\"Angle\", \"Array < GradientColorItem >\"]\n", "typing = \"Unnamed\"\nident = \"RadialGradient\"\nfield = [\"GradientShape\", \"GradientSize\", \"GradientPosition\", \"Array < GradientColorItem >\"]\n", "typing = \"Unnamed\"\nident = \"ConicGradient\"\nfield = [\"ConicGradientItem\"]\n"]

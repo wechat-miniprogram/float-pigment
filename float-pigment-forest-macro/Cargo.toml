@@ -1,0 +1,22 @@
+[package]
+name = "float-pigment-forest-macro"
+description = "Helper macros for float-pigment-forest."
+version.workspace = true
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "1.0", features = ["full"] }
+
+[lints]
+workspace = true

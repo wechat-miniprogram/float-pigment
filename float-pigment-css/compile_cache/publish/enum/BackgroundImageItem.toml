@@ -1,0 +1,2 @@
+key = "BackgroundImageItem"
+value = ["typing = \"Unit\"\nident = \"None\"\nfield = []\n", "typing = \"Unnamed\"\nident = \"Url\"\nfield = [\"StrRef\"]\n", "typing = \"Unnamed\"\nident = \"Gradient\"\nfield = [\"BackgroundImageGradientItem\"]\n", "typing = \"Unnamed\"\nident = \"Image\"\nfield = [\"ImageTags\", \"ImageSource\", \"Color\"]\n", "typing = \"Unnamed\"\nident = \"Element\"\nfield = [\"StrRef\"]\n"]

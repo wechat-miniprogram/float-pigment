@@ -1,0 +1,2 @@
+key = "TransitionTime"
+value = ["typing = \"Unnamed\"\nident = \"List\"\nfield = [\"Array < u32 >\"]\n", "typing = \"Unnamed\"\nident = \"ListI32\"\nfield = [\"Array < i32 >\"]\n"]

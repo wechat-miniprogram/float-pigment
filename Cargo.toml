@@ -1,0 +1,45 @@
+[workspace]
+resolver = "2"
+members = [
+    "float-pigment-css",
+    "float-pigment-css-macro",
+    "float-pigment-layout",
+    "float-pigment-consistent-bincode",
+    "float-pigment-forest",
+    "float-pigment-forest-macro",
+    "float-pigment-mlp",
+    "float-pigment",
+]
+
+[workspace.package]
+version = "0.1.0-alpha.1"
+authors = ["LastLeaf <bqfu@163.com>", "TtTRz <romc1224@gmail.com>"]
+categories = ["gui", "wasm"]
+edition = "2021"
+homepage = "https://github.com/wechat-miniprogram/float-pigment"
+keywords = ["CSS", "flexbox", "layout"]
+license = "MIT"
+repository = "https://github.com/wechat-miniprogram/float-pigment"
+
+[workspace.dependencies]
+float-pigment = { version = "0.1.0-alpha.1", path = "./float-pigment" }
+float-pigment-consistent-bincode = { version = "0.1.0-alpha.1", path = "./float-pigment-consistent-bincode", default-features = false }
+float-pigment-css = { version = "0.1.0-alpha.1", path = "./float-pigment-css", default-features = false }
+float-pigment-css-macro = { version = "0.1.0-alpha.1", path = "./float-pigment-css-macro" }
+float-pigment-forest = { version = "0.1.0-alpha.1", path = "./float-pigment-forest" }
+float-pigment-forest-macro = { version = "0.1.0-alpha.1", path = "./float-pigment-forest-macro" }
+float-pigment-layout = { version = "0.1.0-alpha.1", path = "./float-pigment-layout" }
+float-pigment-mlp = { version = "0.1.0-alpha.1", path = "./float-pigment-mlp" }
+
+[profile.release]
+opt-level = 's'
+lto = "fat"
+codegen-units = 1
+
+[workspace.lints.clippy]
+collapsible_else_if = "allow"
+while_let_on_iterator = "allow"
+get_first = "allow"
+let_and_return = "allow"
+redundant_closure = "allow"
+single_match = "allow"

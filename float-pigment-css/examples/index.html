@@ -1,0 +1,29 @@
+<head>
+  <style>
+    .a {
+      height: 300px;
+      width: 300px;
+      background: blue center/10% url("https://developer.mozilla.org/samples/cssref/images/startransparent.gif");
+    }
+  </style>
+</head>
+<div>
+  <div class="a"></div>
+</div>
+<script type="module">
+  import init, { compileStyleSheetToJson } from "../pkg/float_pigment_css.js";
+  init().then((res) => {
+    let result = compileStyleSheetToJson("text", `
+    .my-class {
+      color: #abc;
+      height: 100px;
+      pointer-events: auto;
+    }
+    .my-second-class {
+      color: 199px;
+    }
+    `)
+    console.log(result)
+    console.log(JSON.parse(result))
+  })
+</script>

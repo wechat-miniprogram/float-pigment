@@ -1,0 +1,2 @@
+key = "FlexDirection"
+value = ["typing = \"Unit\"\nident = \"Row\"\nfield = []\n", "typing = \"Unit\"\nident = \"RowReverse\"\nfield = []\n", "typing = \"Unit\"\nident = \"Column\"\nfield = []\n", "typing = \"Unit\"\nident = \"ColumnReverse\"\nfield = []\n"]

@@ -1,0 +1,2 @@
+key = "GradientColorItem"
+value = ["typing = \"Unnamed\"\nident = \"ColorHint\"\nfield = [\"Color\", \"Length\"]\n", "typing = \"Unnamed\"\nident = \"SimpleColorHint\"\nfield = [\"Color\"]\n", "typing = \"Unnamed\"\nident = \"AngleOrPercentageColorHint\"\nfield = [\"Color\", \"AngleOrPercentage\"]\n"]

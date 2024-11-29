@@ -1,0 +1,2 @@
+key = "AnimationDirectionItem"
+value = ["typing = \"Unit\"\nident = \"Normal\"\nfield = []\n", "typing = \"Unit\"\nident = \"Reverse\"\nfield = []\n", "typing = \"Unit\"\nident = \"Alternate\"\nfield = []\n", "typing = \"Unit\"\nident = \"AlternateReverse\"\nfield = []\n"]

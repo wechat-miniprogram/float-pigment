@@ -1,0 +1,2 @@
+key = "LengthExpr"
+value = ["typing = \"Unit\"\nident = \"Invalid\"\nfield = []\n", "typing = \"Unnamed\"\nident = \"Env\"\nfield = [\"StrRef\", \"Box < Length >\"]\n", "typing = \"Unnamed\"\nident = \"Calc\"\nfield = [\"Box < CalcExpr >\"]\n"]
