@@ -23,7 +23,7 @@ paste = "1.0"
 log = "0.4"
 euclid = { version = "0.22", default-features = false, features = ["libm"] }
 lru = "0.7.8"
-float-pigment-css = { workspace = true }
+float-pigment-css = { workspace = true, features = ["no-std-lock"] }
 
 [lints]
 workspace = true

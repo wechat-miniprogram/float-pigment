@@ -8,6 +8,14 @@ fi
 VERSION="$1"
 PROJECTS=$(egrep '^[ \t]*"(.+)",$' Cargo.toml | sed -E 's/^[ \t]*"(.+)",$/\1/g')
 
+# test arm build
+if cargo build --target armv7a-none-eabi -p float-pigment-layout --no-default-features; then
+    echo 'Build no-std version done.'
+else
+    echo 'Build no-std version failed! Abort.'
+    exit -1
+fi
+
 # run tests
 if cargo test; then
     echo 'Cargo test done.'
