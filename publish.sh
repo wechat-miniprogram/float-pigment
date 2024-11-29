@@ -11,6 +11,13 @@ PROJECTS=(
     float-pigment
 )
 
+if cargo build --target armv7a-none-eabi -p float-pigment-layout --no-default-features; then
+    echo 'Build no-std version done.'
+else
+    echo 'Build no-std version failed! Abort.'
+    exit -1
+fi
+
 if cargo clippy -- -D warnings; then
     echo 'Clippy check done.'
 else
