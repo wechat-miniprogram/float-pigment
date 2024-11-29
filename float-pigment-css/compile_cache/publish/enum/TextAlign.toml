@@ -1,0 +1,2 @@
+key = "TextAlign"
+value = ["typing = \"Unit\"\nident = \"Left\"\nfield = []\n", "typing = \"Unit\"\nident = \"Center\"\nfield = []\n", "typing = \"Unit\"\nident = \"Right\"\nfield = []\n", "typing = \"Unit\"\nident = \"Justify\"\nfield = []\n", "typing = \"Unit\"\nident = \"JustifyAll\"\nfield = []\n", "typing = \"Unit\"\nident = \"Start\"\nfield = []\n", "typing = \"Unit\"\nident = \"End\"\nfield = []\n", "typing = \"Unit\"\nident = \"MatchParent\"\nfield = []\n"]

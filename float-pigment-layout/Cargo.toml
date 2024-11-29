@@ -1,0 +1,32 @@
+[package]
+name = "float-pigment-layout"
+description = "A light-weight layout engine which supports common web layout algorithms."
+version.workspace = true
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "float_pigment_layout"
+crate-type = ["rlib"]
+
+[features]
+default = ["std"]
+std = ["float-pigment-css/std"]
+
+[dependencies]
+paste = "1.0"
+log = "0.4"
+euclid = { version = "0.22", default-features = false, features = ["libm"] }
+lru = "0.7.8"
+float-pigment-css = { workspace = true }
+
+[target.'cfg(target_os="android")'.dependencies]
+android_logger = "0.13.0"
+
+[lints]
+workspace = true

@@ -1,0 +1,2 @@
+key = "NullablePtr"
+value = ["typing = \"Unit\"\nident = \"None\"\nfield = []\n", "typing = \"Unnamed\"\nident = \"Some\"\nfield = [\"Box < T >\"]\n"]

@@ -1,0 +1,2 @@
+key = "Angle"
+value = ["typing = \"Unnamed\"\nident = \"Deg\"\nfield = [\"f32\"]\n", "typing = \"Unnamed\"\nident = \"Grad\"\nfield = [\"f32\"]\n", "typing = \"Unnamed\"\nident = \"Rad\"\nfield = [\"f32\"]\n", "typing = \"Unnamed\"\nident = \"Turn\"\nfield = [\"f32\"]\n", "typing = \"Unnamed\"\nident = \"Calc\"\nfield = [\"Box < CalcExpr >\"]\n"]

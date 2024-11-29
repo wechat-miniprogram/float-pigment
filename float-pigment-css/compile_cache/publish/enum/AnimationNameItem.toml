@@ -1,0 +1,2 @@
+key = "AnimationNameItem"
+value = ["typing = \"Unit\"\nident = \"None\"\nfield = []\n", "typing = \"Unnamed\"\nident = \"CustomIdent\"\nfield = [\"StrRef\"]\n"]

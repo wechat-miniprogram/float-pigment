@@ -1,0 +1,2 @@
+key = "WritingMode"
+value = ["typing = \"Unit\"\nident = \"HorizontalTb\"\nfield = []\n", "typing = \"Unit\"\nident = \"VerticalLr\"\nfield = []\n", "typing = \"Unit\"\nident = \"VerticalRl\"\nfield = []\n"]

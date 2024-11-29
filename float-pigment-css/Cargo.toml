@@ -1,0 +1,91 @@
+[package]
+name = "float-pigment-css"
+description = "The CSS parser for the float-pigment project."
+version.workspace = true
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "float_pigment_css"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "float_pigment_css_cpp_binding_gen_tool"
+path = "cbindgen/main.rs"
+required-features = ["build-cpp-header"]
+
+[[bin]]
+name = "float_pigment_css_update_version"
+path = "compile_cache/bin/main.rs"
+required-features = ["compile_cache"]
+
+[[bin]]
+name = "publish"
+path = "compile_cache/bin/publish.rs"
+required-features = ["compile_cache"]
+
+[[bin]]
+name = "bincode_test"
+path = "tests/compatibility/main.rs"
+required-features = ["compatibility_test"]
+
+[[bench]]
+name = "parse"
+harness = false
+
+[features]
+default = ["std", "deserialize", "serialize", "ffi"]
+std = ["serde/std", "serde_json/std", "bit-set/std", "num-traits/std", "half/std", "float-pigment-consistent-bincode/std"]
+no-std-lock = []
+wasm-entrance = ["wasm-bindgen", "console_log", "console_error_panic_hook", "js-sys"]
+build-cpp-header = ["cbindgen", "fs_extra"]
+flutter = []
+serialize = []
+deserialize = []
+serialize_json = []
+deserialize_json = []
+write_cache = []
+compatibility_test = []
+compile_cache = ["toml", "colorful"]
+ffi = []
+
+[dependencies]
+wasm-bindgen = { version = "0.2", optional = true }
+console_error_panic_hook = { version = "0.1", optional = true }
+js-sys = { version = "0.3", optional = true }
+log = "0.4"
+console_log = { version = "0.1", optional = true }
+cssparser = { version = "0.34", default-features = false }
+cssparser-color = { version = "0.2", default-features = false }
+float-pigment-css-macro = { workspace = true }
+float-pigment-consistent-bincode = { workspace = true }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+cbindgen = { version = "0.19", optional = true }
+bit-set = { version = "0.5.2", default-features = false }
+toml = { version = "0.5.8", optional = true }
+colorful = { version = "0.2.1", optional = true }
+hashbrown = { version = "0.14" }
+ahash = { version = "0.8", default-features = false }
+num-traits = { version = "0.2", default-features = false }
+az = "1.2"
+fixed = { version = "=1.23", default-features = false, features = ["num-traits", "serde"] }
+half = { version = "^2.0.0,<2.3.0", default-features = false }
+spin = "0.9"
+fs_extra = { version = "1.3", optional = true }
+
+[dev-dependencies]
+env_logger = "0.6"
+rand = "0.8.5"
+bencher = "0.1.5"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[lints]
+workspace = true

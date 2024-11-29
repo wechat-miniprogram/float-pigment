@@ -1,0 +1,2 @@
+key = "BackgroundOriginItem"
+value = ["typing = \"Unit\"\nident = \"BorderBox\"\nfield = []\n", "typing = \"Unit\"\nident = \"PaddingBox\"\nfield = []\n", "typing = \"Unit\"\nident = \"ContentBox\"\nfield = []\n"]

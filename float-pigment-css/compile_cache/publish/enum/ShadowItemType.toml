@@ -1,0 +1,2 @@
+key = "ShadowItemType"
+value = ["typing = \"Unit\"\nident = \"Inset\"\nfield = []\n", "typing = \"Unnamed\"\nident = \"OffsetX\"\nfield = [\"Length\"]\n", "typing = \"Unnamed\"\nident = \"OffsetY\"\nfield = [\"Length\"]\n", "typing = \"Unnamed\"\nident = \"BlurRadius\"\nfield = [\"Length\"]\n", "typing = \"Unnamed\"\nident = \"SpreadRadius\"\nfield = [\"Length\"]\n", "typing = \"Unnamed\"\nident = \"Color\"\nfield = [\"Color\"]\n"]

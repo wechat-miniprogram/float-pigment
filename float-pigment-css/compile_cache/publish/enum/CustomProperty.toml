@@ -1,0 +1,2 @@
+key = "CustomProperty"
+value = ["typing = \"Unit\"\nident = \"None\"\nfield = []\n", "typing = \"Unnamed\"\nident = \"Expr\"\nfield = [\"StrRef\", \"StrRef\"]\n"]

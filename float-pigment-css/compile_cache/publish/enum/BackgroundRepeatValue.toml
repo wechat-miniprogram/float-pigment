@@ -1,0 +1,2 @@
+key = "BackgroundRepeatValue"
+value = ["typing = \"Unit\"\nident = \"Repeat\"\nfield = []\n", "typing = \"Unit\"\nident = \"NoRepeat\"\nfield = []\n", "typing = \"Unit\"\nident = \"Space\"\nfield = []\n", "typing = \"Unit\"\nident = \"Round\"\nfield = []\n"]

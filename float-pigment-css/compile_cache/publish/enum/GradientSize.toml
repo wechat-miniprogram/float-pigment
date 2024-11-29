@@ -1,0 +1,2 @@
+key = "GradientSize"
+value = ["typing = \"Unit\"\nident = \"FarthestCorner\"\nfield = []\n", "typing = \"Unit\"\nident = \"ClosestSide\"\nfield = []\n", "typing = \"Unit\"\nident = \"ClosestCorner\"\nfield = []\n", "typing = \"Unit\"\nident = \"FarthestSide\"\nfield = []\n", "typing = \"Unnamed\"\nident = \"Len\"\nfield = [\"Length\", \"Length\"]\n"]

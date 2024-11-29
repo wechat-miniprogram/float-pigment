@@ -1,0 +1,2 @@
+key = "SelectorRelationType"
+value = ["typing = \"Unit\"\nident = \"None\"\nfield = []\n", "typing = \"Unnamed\"\nident = \"Ancestor\"\nfield = [\"SelectorFragment\"]\n", "typing = \"Unnamed\"\nident = \"DirectParent\"\nfield = [\"SelectorFragment\"]\n", "typing = \"Unnamed\"\nident = \"NextSibling\"\nfield = [\"SelectorFragment\"]\n", "typing = \"Unnamed\"\nident = \"SubsequentSibling\"\nfield = [\"SelectorFragment\"]\n"]

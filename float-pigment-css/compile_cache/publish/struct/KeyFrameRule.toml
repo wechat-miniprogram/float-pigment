@@ -1,0 +1,2 @@
+key = "KeyFrameRule"
+value = ["Array<KeyFrame>", "Array<Property>"]

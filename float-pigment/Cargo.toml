@@ -1,0 +1,27 @@
+[package]
+name = "float-pigment"
+description = "A collection of major float-pigment crates."
+version.workspace = true
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "float_pigment"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "float_pigment_cpp_binding_gen_tool"
+path = "src/cpp_binding_gen_tools.rs"
+
+[dependencies]
+float-pigment-css = { workspace = true }
+float-pigment-forest = { workspace = true }
+float-pigment-layout = { workspace = true }
+
+[lints]
+workspace = true

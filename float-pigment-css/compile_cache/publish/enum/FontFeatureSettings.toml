@@ -1,0 +1,2 @@
+key = "FontFeatureSettings"
+value = ["typing = \"Unit\"\nident = \"Normal\"\nfield = []\n", "typing = \"Unnamed\"\nident = \"FeatureTags\"\nfield = [\"Array < FeatureTag >\"]\n"]

@@ -1,0 +1,2 @@
+key = "KeyFrame"
+value = ["typing = \"Unit\"\nident = \"From\"\nfield = []\n", "typing = \"Unit\"\nident = \"To\"\nfield = []\n", "typing = \"Unnamed\"\nident = \"Ratio\"\nfield = [\"f32\"]\n"]

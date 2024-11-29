@@ -1,0 +1,2 @@
+key = "FontFace"
+value = ["FontFamilyName", "Array<FontSrc>", "Nullable<FontStyleType>", "Nullable<FontWeightType>", "Nullable<FontDisplay>"]

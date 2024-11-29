@@ -1,0 +1,10 @@
+/target
+**/*.rs.bk
+.DS_store
+/pkg
+/dist
+.idea
+.vscode
+build_stamp
+.cargo
+.history

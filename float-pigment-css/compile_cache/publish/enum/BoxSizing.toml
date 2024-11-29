@@ -1,0 +1,2 @@
+key = "BoxSizing"
+value = ["typing = \"Unit\"\nident = \"ContentBox\"\nfield = []\n", "typing = \"Unit\"\nident = \"PaddingBox\"\nfield = []\n", "typing = \"Unit\"\nident = \"BorderBox\"\nfield = []\n"]

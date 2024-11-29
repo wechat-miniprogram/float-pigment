@@ -1,0 +1,2 @@
+key = "TextDecorationLine"
+value = ["typing = \"Unit\"\nident = \"None\"\nfield = []\n", "typing = \"Unit\"\nident = \"SpellingError\"\nfield = []\n", "typing = \"Unit\"\nident = \"GrammarError\"\nfield = []\n", "typing = \"Unnamed\"\nident = \"List\"\nfield = [\"Array < TextDecorationLineItem >\"]\n"]
