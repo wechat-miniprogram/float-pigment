@@ -1,0 +1,2 @@
+key = "Attribute"
+value = ["AttributeOperator", "AttributeFlags", "bool", "String", "Option<String>"]

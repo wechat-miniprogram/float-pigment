@@ -1,0 +1,2 @@
+key = "AttributeOperator"
+value = ["typing = \"Unit\"\nident = \"Set\"\nfield = []\n", "typing = \"Unit\"\nident = \"Exact\"\nfield = []\n", "typing = \"Unit\"\nident = \"List\"\nfield = []\n", "typing = \"Unit\"\nident = \"Hyphen\"\nfield = []\n", "typing = \"Unit\"\nident = \"Begin\"\nfield = []\n", "typing = \"Unit\"\nident = \"End\"\nfield = []\n", "typing = \"Unit\"\nident = \"Contain\"\nfield = []\n"]

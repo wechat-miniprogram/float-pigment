@@ -1,2 +1,2 @@
 key = "SelectorFragment"
-value = ["String", "String", "Vec<String>", "Option<Box<SelectorRelationType>>", "Cell<u16>", "Option<Box<PseudoClasses>>", "Option<Box<PseudoElements>>"]
+value = ["String", "String", "Vec<String>", "Option<Box<SelectorRelationType>>", "Cell<u16>", "Option<Box<PseudoClasses>>", "Option<Box<PseudoElements>>", "Option<Box<Vec<Attribute>>>"]
