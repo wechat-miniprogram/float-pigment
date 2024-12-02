@@ -441,7 +441,7 @@ pub(crate) fn compare_enum_cache(
             }
         }
     }
-    if !cfg!(feature = "skip_compare_cache") && cfg!(profile = "release") {
+    if !cfg!(feature = "skip_compare_cache") && !cfg!(debug_assertions) {
         let next_cache_toml = toml::to_string(&next_cache).unwrap();
         let mut file = file_creator("enum", &enum_name, EXTENSION, true, true).unwrap();
         file.write_all(next_cache_toml.as_bytes())
@@ -545,7 +545,7 @@ pub(crate) fn compare_struct_cache(
             }
         }
     }
-    if !cfg!(feature = "skip_compare_cache") && cfg!(profile = "release") {
+    if !cfg!(feature = "skip_compare_cache") && !cfg!(debug_assertions) {
         let next_cache_toml = toml::to_string(&next_cache).unwrap();
         let mut file = file_creator("struct", &struct_name, EXTENSION, true, true).unwrap();
         file.write_all(next_cache_toml.as_bytes())
