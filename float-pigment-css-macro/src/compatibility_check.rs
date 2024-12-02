@@ -36,22 +36,24 @@ fn file_creator(
 
 fn folder_checker() {
     // check folder
-    let mut path_buffer = PathBuf::new();
-    path_buffer.push(std::env::var("CARGO_MANIFEST_DIR").unwrap());
-    path_buffer.push(Path::new(CACHE_ROOT));
-    path_buffer.push("struct");
-    std::fs::create_dir_all(&path_buffer).unwrap_or_default();
-    path_buffer.pop();
-    path_buffer.push("enum");
-    std::fs::create_dir(&path_buffer).unwrap_or_default();
-    path_buffer.pop();
-    path_buffer.push("publish");
-    path_buffer.push("enum");
-    std::fs::create_dir_all(&path_buffer).unwrap_or_default();
-    path_buffer.pop();
-    path_buffer.push("struct");
-    std::fs::create_dir(&path_buffer).unwrap_or_default();
-    path_buffer.pop();
+    if !cfg!(feature = "skip_compare_cache") && !cfg!(debug_assertions) {
+        let mut path_buffer = PathBuf::new();
+        path_buffer.push(std::env::var("CARGO_MANIFEST_DIR").unwrap());
+        path_buffer.push(Path::new(CACHE_ROOT));
+        path_buffer.push("struct");
+        std::fs::create_dir_all(&path_buffer).unwrap_or_default();
+        path_buffer.pop();
+        path_buffer.push("enum");
+        std::fs::create_dir(&path_buffer).unwrap_or_default();
+        path_buffer.pop();
+        path_buffer.push("publish");
+        path_buffer.push("enum");
+        std::fs::create_dir_all(&path_buffer).unwrap_or_default();
+        path_buffer.pop();
+        path_buffer.push("struct");
+        std::fs::create_dir(&path_buffer).unwrap_or_default();
+        path_buffer.pop();
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
