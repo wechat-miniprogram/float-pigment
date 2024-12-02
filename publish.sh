@@ -72,6 +72,14 @@ if [ -z "$(git status --porcelain)" ]; then
         exit -1
     fi
 
+    # run cargo check again to update cargo lock
+    if cargo check; then
+        echo 'Cargo check done.'
+    else
+        echo 'Cargo check failed! Abort.'
+        exit -1
+    fi
+
     # generate a new commit and tag it
     if git add Cargo.toml Cargo.lock float-pigment-css/compile_cache && git commit -m "chore: update version to publish"; then
         echo 'Generated a new version commit.'
@@ -97,16 +105,6 @@ else
     echo 'Git working tree is not clean! Abort.'
     exit -1
 fi
-
-# dry run publish to see if there is any problem
-for PROJECT in $PROJECTS; do
-    if cargo publish --dry-run -p "${PROJECT}"; then
-        echo "Dry-run publishing ${PROJECT} done."
-    else
-        echo "Dry-run publishing ${PROJECT} error! Abort."
-        exit -1
-    fi
-done
 
 # cargo publish
 echo "Ready to publish version ${VERSION}."
