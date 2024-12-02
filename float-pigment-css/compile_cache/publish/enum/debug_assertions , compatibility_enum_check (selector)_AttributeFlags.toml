@@ -1,0 +1,2 @@
+key = "AttributeFlags"
+value = ["typing = \"Unit\"\nident = \"CaseSensitivityDependsOnName\"\nfield = []\n", "typing = \"Unit\"\nident = \"CaseSensitive\"\nfield = []\n", "typing = \"Unit\"\nident = \"CaseInsensitive\"\nfield = []\n"]
