@@ -63,10 +63,5 @@ struct Hello {
 }
 ```
 
-To update the `compile_cache`, this steps should be followed:
-
-* Make sure the HEAD have the published commit merged.
-* Update the cargo version of float-pigment-css.
-* Run `cargo run --bin float_pigment_css_update_version`.
-* The `compile_cache/publish/version.toml` should be updated.
-* Run `cargo run --bin publish` (it will git-tag and git-push).
+To update the `compile_cache`, run `cargo run --bin float_pigment_css_update_version`.
+(This will be automatically done by the publish script.)

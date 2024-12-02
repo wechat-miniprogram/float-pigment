@@ -24,15 +24,11 @@ name = "float_pigment_css_update_version"
 path = "compile_cache/bin/main.rs"
 required-features = ["compile_cache"]
 
-[[bin]]
-name = "publish"
-path = "compile_cache/bin/publish.rs"
-required-features = ["compile_cache"]
-
-[[bin]]
+[[test]]
 name = "bincode_test"
 path = "tests/compatibility/main.rs"
 required-features = ["compatibility_test"]
+test = false
 
 [[bench]]
 name = "parse"
