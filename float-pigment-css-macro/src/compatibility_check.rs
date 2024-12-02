@@ -17,6 +17,7 @@ fn file_creator(
     name: &str,
     extension: &str,
     truncate: bool,
+    write: bool,
 ) -> std::result::Result<std::fs::File, std::io::Error> {
     let mut path_buffer = PathBuf::new();
     path_buffer.push(std::env::var("CARGO_MANIFEST_DIR").unwrap());
@@ -26,7 +27,7 @@ fn file_creator(
     let mut options = OpenOptions::new();
     let file = options
         .read(true)
-        .write(true)
+        .write(write)
         .truncate(truncate)
         .create(true)
         .open(&path_buffer);
@@ -293,7 +294,7 @@ pub(crate) fn compare_enum_cache(
     pb.push("publish");
     pb.push("enum");
     let folder = pb.to_str().unwrap();
-    let file = file_creator(folder, &enum_name, EXTENSION, false);
+    let file = file_creator(folder, &enum_name, EXTENSION, false, false);
     if let Ok(file) = file {
         let mut reader = BufReader::new(&file);
         let mut string = String::new();
@@ -441,14 +442,17 @@ pub(crate) fn compare_enum_cache(
         }
     }
     let next_cache_toml = toml::to_string(&next_cache).unwrap();
-    let mut file = file_creator("enum", &enum_name, EXTENSION, true).unwrap();
-    file.write_all(next_cache_toml.as_bytes())
-        .unwrap_or_else(|_| {
-            panic!(
-                "[CompatibilityEnumCheck] {:?}.{:?}: write cache error",
-                enum_name, EXTENSION
-            )
-        });
+    if !cfg!(feature = "skip_compare_cache") {
+        let mut file = file_creator("enum", &enum_name, EXTENSION, true, true).unwrap();
+        file.write_all(next_cache_toml.as_bytes())
+            .unwrap_or_else(|_| {
+                panic!(
+                    "[CompatibilityEnumCheck] {:?}.{:?}: write cache error",
+                    enum_name, EXTENSION
+                )
+            });
+    }
+
     Ok(token)
 }
 
@@ -503,7 +507,7 @@ pub(crate) fn compare_struct_cache(
     pb.push("publish");
     pb.push("struct");
     let folder = pb.to_str().unwrap();
-    let file = file_creator(folder, &struct_name, EXTENSION, false);
+    let file = file_creator(folder, &struct_name, EXTENSION, false, false);
     if let Ok(file) = file {
         let mut reader = BufReader::new(&file);
         let mut string = String::new();
@@ -542,14 +546,16 @@ pub(crate) fn compare_struct_cache(
         }
     }
     let next_cache_toml = toml::to_string(&next_cache).unwrap();
-    let mut file = file_creator("struct", &struct_name, EXTENSION, true).unwrap();
-    file.write_all(next_cache_toml.as_bytes())
-        .unwrap_or_else(|_| {
-            panic!(
-                "[CompatibilityStructCheck] {:?}.{:?}: write cache error",
-                struct_name, EXTENSION
-            )
-        });
+    if !cfg!(feature = "skip_compare_cache") {
+        let mut file = file_creator("struct", &struct_name, EXTENSION, true, true).unwrap();
+        file.write_all(next_cache_toml.as_bytes())
+            .unwrap_or_else(|_| {
+                panic!(
+                    "[CompatibilityStructCheck] {:?}.{:?}: write cache error",
+                    struct_name, EXTENSION
+                )
+            });
+    }
     Ok(token)
 }
 
