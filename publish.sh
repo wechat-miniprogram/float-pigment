@@ -53,11 +53,11 @@ else
 fi
 
 # git operations
-if test -z '$(git status --porcelain)'; then
+if [ -z "$(git status --porcelain)" ]; then
     echo 'Git status OK.'
 
     # update compile cache for float-pigment-css
-    if cargo run --bin float_pigment_css_update_version; then
+    if cargo run --bin float_pigment_css_update_version --features compile_cache; then
         echo 'Compile cache for float-pigment-css updated.'
     else
         echo 'Failed to update compile cache for float-pigment-css! Abort'

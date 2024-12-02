@@ -63,5 +63,5 @@ struct Hello {
 }
 ```
 
-To update the `compile_cache`, run `cargo run --bin float_pigment_css_update_version`.
+To update the `compile_cache`, run `cargo run --bin float_pigment_css_update_version --features compile_cache`.
 (This will be automatically done by the publish script.)
