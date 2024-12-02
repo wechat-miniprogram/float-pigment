@@ -2,16 +2,21 @@
 
 CSS and layout utilities for building user interfaces.
 
+[![Crates.io Version](https://img.shields.io/crates/v/float-pigment?style=flat-square)](https://crates.io/crates/float-pigment)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/wechat-miniprogram/float-pigment/rust.yml?style=flat-square)](https://github.com/wechat-miniprogram/float-pigment/actions/workflows/rust.yml)
+
 float-pigment is a group of low-level rust crates. It helps builds GUI applications with CSS-like technologies. These crates serve as low-level dependencies of UI frameworks.
 
 Major crates:
 
-* `float-pigment-css` - CSS parser.
-* `float-pigment-layout` - Layout engine which supports common CSS `display`, including `flex` `block` and `inline`.
-* `float-pigment-forest` - Tree implementation that works with `float-pigment-layout`.
-* `float-pigment` - The collection of all crates above, with C++ bindings.
-
-Visit [docs.rs](https://docs.rs) for docs of each module.
+* `float-pigment-css` [![docs.rs](https://img.shields.io/docsrs/float-pigment-css?style=flat-square)
+](https://docs.rs/float-pigment-css) CSS parser.
+* `float-pigment-layout` [![docs.rs](https://img.shields.io/docsrs/float-pigment-layout?style=flat-square)
+](https://docs.rs/float-pigment-layout) Layout engine which supports common CSS `display`, including `flex` `block` and `inline`.
+* `float-pigment-forest` [![docs.rs](https://img.shields.io/docsrs/float-pigment-forest?style=flat-square)
+](https://docs.rs/float-pigment-forest) Tree implementation that works with `float-pigment-layout`.
+* `float-pigment` [![docs.rs](https://img.shields.io/docsrs/float-pigment?style=flat-square)
+](https://docs.rs/float-pigment) The collection of all crates above, with C++ bindings.
 
 
 ## float-pigment-css
