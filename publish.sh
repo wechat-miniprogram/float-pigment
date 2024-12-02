@@ -1,22 +1,12 @@
 #!/bin/bash
 
-PROJECTS=(
-    float-pigment-consistent-bincode
-    float-pigment-mlp
-    float-pigment-css-macro
-    float-pigment-css
-    float-pigment-layout
-    float-pigment-forest-macro
-    float-pigment-forest
-    float-pigment
-)
-
 if [ "$1" == "" ]; then
     echo "Missing version. Usage: $0 [VERSION]"
     exit -1
 fi
 
 VERSION="$1"
+PROJECTS=$(egrep '^[ \t]*"(.+)",$' Cargo.toml | sed -E 's/^[ \t]*"(.+)",$/\1/g')
 
 # run tests
 if cargo test; then
@@ -66,6 +56,14 @@ fi
 if test -z '$(git status --porcelain)'; then
     echo 'Git status OK.'
 
+    # update compile cache for float-pigment-css
+    if cargo run --bin float_pigment_css_update_version --features compile_cache; then
+        echo 'Compile cache for float-pigment-css updated.'
+    else
+        echo 'Failed to update compile cache for float-pigment-css! Abort'
+        exit -1
+    fi
+
     # update version fields in cargo.toml
     if sed -i '' -E "s/version = \"[^\"]+\"/version = \"${VERSION}\"/" Cargo.toml; then
         echo 'Modified versions in Cargo.toml.'
@@ -75,7 +73,7 @@ if test -z '$(git status --porcelain)'; then
     fi
 
     # generate a new commit and tag it
-    if git add Cargo.toml && git commit -m "chore: update version to publish"; then
+    if git add Cargo.toml float-pigment-css/compile_cache && git commit -m "chore: update version to publish"; then
         echo 'Generated a new version commit.'
     else
         echo 'Failed to commit! Abort.'
@@ -102,8 +100,8 @@ fi
 
 # cargo publish
 echo "Ready to publish version ${VERSION}."
-for PROJECT in "${PROJECTS[@]}"; do
+for PROJECT in $PROJECTS; do
     echo ""
     echo "Publishing ${PROJECT}..."
-    cargo publish --no-verify -p "${PROJECT}"
+    cargo publish -p "${PROJECT}"
 done

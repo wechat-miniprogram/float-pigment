@@ -1,13 +1,13 @@
 [workspace]
 resolver = "2"
 members = [
-    "float-pigment-css",
-    "float-pigment-css-macro",
-    "float-pigment-layout",
     "float-pigment-consistent-bincode",
-    "float-pigment-forest",
-    "float-pigment-forest-macro",
     "float-pigment-mlp",
+    "float-pigment-css-macro",
+    "float-pigment-css",
+    "float-pigment-layout",
+    "float-pigment-forest-macro",
+    "float-pigment-forest",
     "float-pigment",
 ]
 
