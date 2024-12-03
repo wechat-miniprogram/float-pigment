@@ -11,10 +11,10 @@ Major crates:
 
 | Crate Name | Description | Docs |
 | ---------- | ----------- | ---- |
-| <nobr>[float-pigment-css](https://crates.io/crates/float-pigment-css)</nobr> | CSS parser. | [![docs.rs](https://img.shields.io/docsrs/float-pigment-css?style=flat-square)](https://docs.rs/float-pigment-css) |
-| <nobr>[float-pigment-layout](https://crates.io/crates/float-pigment-layout)</nobr> | Layout engine which supports common CSS `display`, including `flex` `block` and `inline`. | [![docs.rs](https://img.shields.io/docsrs/float-pigment-layout?style=flat-square)](https://docs.rs/float-pigment-layout) |
-| <nobr>[float-pigment-forest](https://crates.io/crates/float-pigment-forest)</nobr> | Tree implementation that works with `float-pigment-layout`. | [![docs.rs](https://img.shields.io/docsrs/float-pigment-forest?style=flat-square)](https://docs.rs/float-pigment-forest) |
-| <nobr>[float-pigment](https://crates.io/crates/float-pigment)</nobr> | The collection of all crates above, with C++ bindings. | [![docs.rs](https://img.shields.io/docsrs/float-pigment?style=flat-square)](https://docs.rs/float-pigment) |
+| <span style="white-space: nowrap">[float-pigment-css](https://crates.io/crates/float-pigment-css)</span> | CSS parser. | [![docs.rs](https://img.shields.io/docsrs/float-pigment-css?style=flat-square)](https://docs.rs/float-pigment-css) |
+| <span style="white-space: nowrap">[float-pigment-layout](https://crates.io/crates/float-pigment-layout)</span> | Layout engine which supports common CSS `display`, including `flex` `block` and `inline`. | [![docs.rs](https://img.shields.io/docsrs/float-pigment-layout?style=flat-square)](https://docs.rs/float-pigment-layout) |
+| <span style="white-space: nowrap">[float-pigment-forest](https://crates.io/crates/float-pigment-forest)</span> | Tree implementation that works with `float-pigment-layout`. | [![docs.rs](https://img.shields.io/docsrs/float-pigment-forest?style=flat-square)](https://docs.rs/float-pigment-forest) |
+| <span style="white-space: nowrap">[float-pigment](https://crates.io/crates/float-pigment)</span> | The collection of all crates above, with C++ bindings. | [![docs.rs](https://img.shields.io/docsrs/float-pigment?style=flat-square)](https://docs.rs/float-pigment) |
 
 
 ## float-pigment-css
