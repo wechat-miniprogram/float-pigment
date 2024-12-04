@@ -66,9 +66,7 @@ pub(crate) type MeasureCache = LruCache<
     ),
     Size<Len>,
 >;
-pub(crate) type MeasureCachePtr = *mut MeasureCache;
 pub(crate) type BaselineCache = LruCache<Size<<Len as LengthNum>::Hashable>, Len>;
-pub(crate) type BaselineCachePtr = *mut BaselineCache;
 
 const CACHE_SIZE: usize = 3;
 
@@ -95,11 +93,11 @@ pub enum DumpStyleMode {
 }
 
 pub trait DumpNode {
-    fn dump_to_html(&self, options: DumpOptions, current_depth: u8) -> String;
+    unsafe fn dump_to_html(&self, options: DumpOptions, current_depth: u8) -> String;
 }
 
 impl DumpNode for Node {
-    fn dump_to_html(&self, options: DumpOptions, current_depth: u8) -> String {
+    unsafe fn dump_to_html(&self, options: DumpOptions, current_depth: u8) -> String {
         let layout = options.layout.then_some(format!(
             "left: {}, top: {}, width: {}, height: {}",
             self.layout_position().left,
@@ -193,27 +191,12 @@ pub struct Node {
     children: RefCell<Vec<NodePtr>>,
     style_manager: RefCell<StyleManager>,
     pub(crate) layout_node: LayoutNode<Node>,
-    measure_cache: Cell<MeasureCachePtr>,
-    baseline_cache: Cell<BaselineCachePtr>,
+    measure_cache: UnsafeCell<Option<Box<MeasureCache>>>,
+    baseline_cache: UnsafeCell<Option<Box<BaselineCache>>>,
     baseline_func: UnsafeCell<Option<Box<BaselineFn<Len>>>>,
     measure_func: UnsafeCell<Option<Box<MeasureFn<Len>>>>,
     resolve_calc: UnsafeCell<Option<Box<ResolveCalcFn<Len>>>>,
     dirty_callback: UnsafeCell<Option<Box<DirtyCallbackFn>>>,
-}
-
-impl Drop for Node {
-    fn drop(&mut self) {
-        unsafe {
-            let measure_cache_ptr = self.measure_cache.get();
-            if !measure_cache_ptr.is_null() {
-                drop(Box::from_raw(measure_cache_ptr));
-            }
-            let baseline_cache_ptr = self.baseline_cache.get();
-            if !baseline_cache_ptr.is_null() {
-                drop(Box::from_raw(baseline_cache_ptr));
-            }
-        }
-    }
 }
 
 impl Node {
@@ -230,21 +213,24 @@ impl Node {
             measure_func: UnsafeCell::new(None),
             resolve_calc: UnsafeCell::new(None),
             dirty_callback: UnsafeCell::new(None),
-            measure_cache: Cell::new(std::ptr::null_mut()),
-            baseline_cache: Cell::new(std::ptr::null_mut()),
+            measure_cache: UnsafeCell::new(None),
+            baseline_cache: UnsafeCell::new(None),
         }
+    }
+    pub fn new_typed(node_type: NodeType) -> Self {
+        let ret = Self::new();
+        ret.node_type.set(node_type);
+        ret
     }
     pub fn new_ptr() -> NodePtr {
         let self_node = Box::new(Self::new());
         Box::into_raw(self_node)
     }
-    pub fn parent(&self) -> Option<&Node> {
-        unsafe {
-            if self.parent.get().is_null() {
-                None
-            } else {
-                Some(&*self.parent.get())
-            }
+    pub unsafe fn parent(&self) -> Option<&Node> {
+        if self.parent.get().is_null() {
+            None
+        } else {
+            Some(&*self.parent.get())
         }
     }
     pub fn set_parent(&self, parent: Option<NodePtr>) {
@@ -261,11 +247,11 @@ impl Node {
             Some(self.parent.get())
         }
     }
-    pub fn children(&self) -> Vec<&Node> {
+    pub unsafe fn children(&self) -> Vec<&Node> {
         self.children
             .borrow()
             .iter()
-            .map(|node| unsafe { &**node })
+            .map(|node| &**node)
             .collect::<Vec<_>>()
     }
     pub fn children_len(&self) -> usize {
@@ -280,38 +266,36 @@ impl Node {
     pub(crate) fn computed_style(&self) -> ComputedStyle<Len> {
         self.layout_node.computed_style()
     }
-    pub fn set_node_type(&self, node_type: NodeType) {
+    pub unsafe fn set_node_type(&self, node_type: NodeType) {
         if self.node_type.get() != node_type {
             self.node_type.replace(node_type);
         }
         if node_type == NodeType::Text {
-            self.measure_cache
-                .replace(Box::into_raw(Box::new(LruCache::new(CACHE_SIZE))));
-            self.baseline_cache
-                .replace(Box::into_raw(Box::new(LruCache::new(CACHE_SIZE))));
+            *self.measure_cache.get() = Some(Box::new(LruCache::new(CACHE_SIZE)));
+            *self.baseline_cache.get() = Some(Box::new(LruCache::new(CACHE_SIZE)));
         }
     }
 
-    pub(crate) fn measure_cache(&self) -> Option<&mut MeasureCache> {
-        if self.measure_cache.get().is_null() {
-            None
-        } else {
-            unsafe { Some(&mut *self.measure_cache.get()) }
-        }
+    #[inline(always)]
+    pub(crate) unsafe fn measure_cache(&self) -> Option<&mut MeasureCache> {
+        let ret: *mut _ = self.measure_cache.get();
+        (*ret).as_deref_mut()
     }
-    pub(crate) fn clear_measure_cache(&self) {
+
+    pub(crate) unsafe fn clear_measure_cache(&self) {
         if let Some(cache) = self.measure_cache() {
             cache.clear();
         }
+        
     }
-    pub(crate) fn baseline_cache(&self) -> Option<&mut BaselineCache> {
-        if self.baseline_cache.get().is_null() {
-            None
-        } else {
-            unsafe { Some(&mut *self.baseline_cache.get()) }
-        }
+
+    #[inline(always)]
+    pub(crate) unsafe fn baseline_cache(&self) -> Option<&mut BaselineCache> {
+        let ret: *mut _ = self.baseline_cache.get();
+        (*ret).as_deref_mut()
     }
-    pub(crate) fn clear_baseline_cache(&self) {
+
+    pub(crate) unsafe fn clear_baseline_cache(&self) {
         if let Some(cache) = self.baseline_cache() {
             cache.clear();
         }
@@ -319,20 +303,20 @@ impl Node {
     pub(crate) fn node_type(&self) -> NodeType {
         self.node_type.get()
     }
-    pub(crate) fn baseline_func(&self) -> Option<&BaselineFn<Len>> {
-        unsafe { (*self.baseline_func.get()).as_deref() }
+    pub(crate) unsafe fn baseline_func(&self) -> Option<&BaselineFn<Len>> {
+        (*self.baseline_func.get()).as_deref()
     }
-    pub fn set_baseline_func(&self, baseline_func: Option<Box<BaselineFn<Len>>>) {
+    pub unsafe fn set_baseline_func(&self, baseline_func: Option<Box<BaselineFn<Len>>>) {
         drop(std::mem::replace(
-            unsafe { &mut *self.baseline_func.get() },
+            &mut *self.baseline_func.get(),
             baseline_func,
         ));
     }
-    pub fn has_baseline_func(&self) -> bool {
-        unsafe { (*self.baseline_func.get()).is_some() }
+    pub unsafe fn has_baseline_func(&self) -> bool {
+        (*self.baseline_func.get()).is_some()
     }
-    pub(crate) fn measure_func(&self) -> Option<&MeasureFn<Len>> {
-        unsafe { (*self.measure_func.get()).as_deref() }
+    pub(crate) unsafe fn measure_func(&self) -> Option<&MeasureFn<Len>> {
+        (*self.measure_func.get()).as_deref()
     }
     pub fn set_measure_func(&self, measure_func: Option<Box<MeasureFn<Len>>>) {
         drop(std::mem::replace(
@@ -384,7 +368,7 @@ impl Node {
     pub(crate) fn clear_dirty(&self) {
         self.is_dirty.set(false)
     }
-    pub(crate) fn clear_dirty_recursive(&self) {
+    pub(crate) unsafe fn clear_dirty_recursive(&self) {
         if self.is_dirty() {
             self.clear_dirty();
             self.children()
@@ -392,7 +376,7 @@ impl Node {
                 .for_each(|child| child.clear_dirty_recursive());
         }
     }
-    pub fn mark_self_dirty(&self) {
+    pub unsafe fn mark_self_dirty(&self) {
         if self.is_dirty() {
             return;
         }
@@ -406,7 +390,7 @@ impl Node {
         }
         self.layout_node.mark_dirty(self);
     }
-    pub fn mark_dirty_propagate_to_descendants(&self) {
+    pub unsafe fn mark_dirty_propagate_to_descendants(&self) {
         self.mark_self_dirty();
         unsafe {
             self.children
@@ -415,7 +399,7 @@ impl Node {
                 .for_each(|node| (**node).mark_dirty_propagate_to_descendants())
         }
     }
-    pub fn mark_dirty_propagate(&self) {
+    pub unsafe fn mark_dirty_propagate(&self) {
         if !self.is_dirty() {
             self.mark_self_dirty();
             if let Some(parent) = self.parent() {
@@ -439,7 +423,7 @@ impl Node {
             available_size,
         );
     }
-    pub fn layout(
+    pub unsafe fn layout(
         &self,
         available_size: OptionSize<Len>,
         viewport_size: float_pigment_layout::Size<Len>,
@@ -457,7 +441,7 @@ impl Node {
         self.clear_dirty_recursive();
     }
 
-    pub fn layout_with_containing_size(
+    pub unsafe fn layout_with_containing_size(
         &self,
         available_size: OptionSize<Len>,
         viewport_size: float_pigment_layout::Size<Len>,
@@ -492,191 +476,183 @@ impl Default for Node {
     }
 }
 pub trait ChildOperation {
-    fn get_child_at(&self, idx: usize) -> Option<&Node>;
-    fn get_child_ptr_at(&self, idx: usize) -> Option<NodePtr>;
-    fn get_child_index(&self, child: NodePtr) -> Option<usize>;
-    fn append_child(&self, child: NodePtr);
-    fn insert_child_at(&self, child: NodePtr, idx: usize);
-    fn insert_child_before(&self, child: NodePtr, pivot: NodePtr);
-    fn remove_child(&self, child: NodePtr);
-    fn remove_child_at(&self, idx: usize);
-    fn remove_all_children(&self);
-    fn for_each_child_node<'a, 'b: 'a, F>(&'b self, func: F)
+    unsafe fn get_child_at(&self, idx: usize) -> Option<&Node>;
+    unsafe fn get_child_ptr_at(&self, idx: usize) -> Option<NodePtr>;
+    unsafe fn get_child_index(&self, child: NodePtr) -> Option<usize>;
+    unsafe fn append_child(&self, child: NodePtr);
+    unsafe fn insert_child_at(&self, child: NodePtr, idx: usize);
+    unsafe fn insert_child_before(&self, child: NodePtr, pivot: NodePtr);
+    unsafe fn remove_child(&self, child: NodePtr);
+    unsafe fn remove_child_at(&self, idx: usize);
+    unsafe fn remove_all_children(&self);
+    unsafe fn for_each_child_node<'a, 'b: 'a, F>(&'b self, func: F)
     where
         F: FnMut(&'a Self, usize);
 }
 
 impl ChildOperation for Node {
-    fn get_child_at(&self, idx: usize) -> Option<&Node> {
+    unsafe fn get_child_at(&self, idx: usize) -> Option<&Node> {
         self.children().get(idx).copied()
     }
-    fn get_child_ptr_at(&self, idx: usize) -> Option<NodePtr> {
+    unsafe fn get_child_ptr_at(&self, idx: usize) -> Option<NodePtr> {
         self.children.borrow().get(idx).copied()
     }
-    fn get_child_index(&self, child: NodePtr) -> Option<usize> {
+    unsafe fn get_child_index(&self, child: NodePtr) -> Option<usize> {
         self.children()
             .iter()
             .position(|node| ptr::eq(*node, child))
     }
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    fn append_child(&self, child: NodePtr) {
-        unsafe { (*child).set_parent(Some(convert_node_ref_to_ptr(self))) }
+    unsafe fn append_child(&self, child: NodePtr) {
+        (*child).set_parent(Some(convert_node_ref_to_ptr(self)));
         self.children.borrow_mut().push(child);
         self.mark_dirty_propagate()
     }
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    fn insert_child_at(&self, child: NodePtr, idx: usize) {
-        unsafe { (*child).set_parent(Some(convert_node_ref_to_ptr(self))) }
+    unsafe fn insert_child_at(&self, child: NodePtr, idx: usize) {
+        (*child).set_parent(Some(convert_node_ref_to_ptr(self)));
         self.children.borrow_mut().insert(idx, child);
         self.mark_dirty_propagate()
     }
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    fn insert_child_before(&self, child: NodePtr, pivot: NodePtr) {
-        unsafe {
-            (*child).set_parent(Some(convert_node_ref_to_ptr(self)));
-            let idx = self
-                .children
-                .borrow()
-                .iter()
-                .position(|node| std::ptr::eq(*node, pivot));
-            if let Some(idx) = idx {
-                self.children.borrow_mut().insert(idx, child)
-            }
+    unsafe fn insert_child_before(&self, child: NodePtr, pivot: NodePtr) {
+        (*child).set_parent(Some(convert_node_ref_to_ptr(self)));
+        let idx = self
+            .children
+            .borrow()
+            .iter()
+            .position(|node| std::ptr::eq(*node, pivot));
+        if let Some(idx) = idx {
+            self.children.borrow_mut().insert(idx, child)
         }
         self.mark_dirty_propagate();
     }
-    fn remove_child(&self, child: NodePtr) {
+    unsafe fn remove_child(&self, child: NodePtr) {
         if self.children_len() == 0 {
             return;
         }
-        unsafe {
-            if let Some((idx, node)) = self
-                .children
-                .borrow()
-                .iter()
-                .enumerate()
-                .find(|(_, node)| std::ptr::eq(**node, child))
-            {
-                (**node).set_parent(None);
-                (*self.children.as_ptr()).remove(idx);
-            }
+        if let Some((idx, node)) = self
+            .children
+            .borrow()
+            .iter()
+            .enumerate()
+            .find(|(_, node)| std::ptr::eq(**node, child))
+        {
+            (**node).set_parent(None);
+            (*self.children.as_ptr()).remove(idx);
         }
         self.mark_dirty_propagate();
     }
-    fn remove_child_at(&self, idx: usize) {
+    unsafe fn remove_child_at(&self, idx: usize) {
         let len = self.children_len();
         if len == 0 || idx >= len {
             return;
         }
-        unsafe {
-            if let Some(node) = self.children.borrow().get(idx) {
-                (**node).set_parent(None);
-            }
+        if let Some(node) = self.children.borrow().get(idx) {
+            (**node).set_parent(None);
         }
         self.children.borrow_mut().remove(idx);
         self.mark_dirty_propagate();
     }
-    fn remove_all_children(&self) {
+    unsafe fn remove_all_children(&self) {
         self.for_each_child_node(|node, _| {
             (*node).set_parent(None);
         });
         self.children.borrow_mut().clear();
         self.mark_dirty_propagate()
     }
-    fn for_each_child_node<'a, 'b: 'a, F>(&'b self, func: F)
+    unsafe fn for_each_child_node<'a, 'b: 'a, F>(&'b self, func: F)
     where
         F: FnMut(&'a Self, usize),
     {
         let mut func = func;
-        unsafe {
-            self.children
-                .borrow_mut()
-                .iter_mut()
-                .enumerate()
-                .for_each(|(idx, node)| func(&**node, idx))
-        }
+        self.children
+            .borrow_mut()
+            .iter_mut()
+            .enumerate()
+            .for_each(|(idx, node)| func(&**node, idx))
     }
 }
 
 pub trait StyleSetter {
-    fn set_display(&self, value: Display);
-    fn set_box_sizing(&self, value: BoxSizing);
-    fn set_direction(&self, value: Direction);
-    fn set_writing_mode(&self, value: WritingMode);
-    fn set_position(&self, value: Position);
-    fn set_left(&self, value: Length);
-    fn set_top(&self, value: Length);
-    fn set_right(&self, value: Length);
-    fn set_bottom(&self, value: Length);
-    fn set_overflow_x(&self, value: Overflow);
-    fn set_overflow_y(&self, value: Overflow);
-    fn set_width(&self, value: Length);
-    fn set_height(&self, value: Length);
-    fn set_min_width(&self, value: Length);
-    fn set_min_height(&self, value: Length);
-    fn set_max_width(&self, value: Length);
-    fn set_max_height(&self, value: Length);
-    fn set_margin(&self, value: Length);
-    fn set_margin_left(&self, value: Length);
-    fn set_margin_top(&self, value: Length);
-    fn set_margin_right(&self, value: Length);
-    fn set_margin_bottom(&self, value: Length);
-    fn set_padding(&self, value: Length);
-    fn set_padding_left(&self, value: Length);
-    fn set_padding_top(&self, value: Length);
-    fn set_padding_right(&self, value: Length);
-    fn set_padding_bottom(&self, value: Length);
-    fn set_border(&self, value: Length);
-    fn set_border_left(&self, value: Length);
-    fn set_border_top(&self, value: Length);
-    fn set_border_right(&self, value: Length);
-    fn set_border_bottom(&self, value: Length);
-    fn set_flex_grow(&self, value: f32);
-    fn set_flex_shrink(&self, value: f32);
-    fn set_flex_basis(&self, value: Length);
-    fn set_flex_direction(&self, value: FlexDirection);
-    fn set_flex_wrap(&self, value: FlexWrap);
-    fn set_justify_content(&self, value: JustifyContent);
-    fn set_align_content(&self, value: AlignContent);
-    fn set_align_items(&self, value: AlignItems);
-    fn set_align_self(&self, value: AlignSelf);
-    fn set_aspect_ratio(&self, value: Option<f32>);
-    fn set_order(&self, value: i32);
-    fn set_text_align(&self, value: TextAlign);
+    unsafe fn set_display(&self, value: Display);
+    unsafe fn set_box_sizing(&self, value: BoxSizing);
+    unsafe fn set_direction(&self, value: Direction);
+    unsafe fn set_writing_mode(&self, value: WritingMode);
+    unsafe fn set_position(&self, value: Position);
+    unsafe fn set_left(&self, value: Length);
+    unsafe fn set_top(&self, value: Length);
+    unsafe fn set_right(&self, value: Length);
+    unsafe fn set_bottom(&self, value: Length);
+    unsafe fn set_overflow_x(&self, value: Overflow);
+    unsafe fn set_overflow_y(&self, value: Overflow);
+    unsafe fn set_width(&self, value: Length);
+    unsafe fn set_height(&self, value: Length);
+    unsafe fn set_min_width(&self, value: Length);
+    unsafe fn set_min_height(&self, value: Length);
+    unsafe fn set_max_width(&self, value: Length);
+    unsafe fn set_max_height(&self, value: Length);
+    unsafe fn set_margin(&self, value: Length);
+    unsafe fn set_margin_left(&self, value: Length);
+    unsafe fn set_margin_top(&self, value: Length);
+    unsafe fn set_margin_right(&self, value: Length);
+    unsafe fn set_margin_bottom(&self, value: Length);
+    unsafe fn set_padding(&self, value: Length);
+    unsafe fn set_padding_left(&self, value: Length);
+    unsafe fn set_padding_top(&self, value: Length);
+    unsafe fn set_padding_right(&self, value: Length);
+    unsafe fn set_padding_bottom(&self, value: Length);
+    unsafe fn set_border(&self, value: Length);
+    unsafe fn set_border_left(&self, value: Length);
+    unsafe fn set_border_top(&self, value: Length);
+    unsafe fn set_border_right(&self, value: Length);
+    unsafe fn set_border_bottom(&self, value: Length);
+    unsafe fn set_flex_grow(&self, value: f32);
+    unsafe fn set_flex_shrink(&self, value: f32);
+    unsafe fn set_flex_basis(&self, value: Length);
+    unsafe fn set_flex_direction(&self, value: FlexDirection);
+    unsafe fn set_flex_wrap(&self, value: FlexWrap);
+    unsafe fn set_justify_content(&self, value: JustifyContent);
+    unsafe fn set_align_content(&self, value: AlignContent);
+    unsafe fn set_align_items(&self, value: AlignItems);
+    unsafe fn set_align_self(&self, value: AlignSelf);
+    unsafe fn set_aspect_ratio(&self, value: Option<f32>);
+    unsafe fn set_order(&self, value: i32);
+    unsafe fn set_text_align(&self, value: TextAlign);
 }
 
 impl StyleSetter for Node {
-    fn set_flex_direction(&self, flex_direction: FlexDirection) {
+    unsafe fn set_flex_direction(&self, flex_direction: FlexDirection) {
         if self.style_manager_mut().set_flex_direction(flex_direction) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_direction(&self, direction: Direction) {
+    unsafe fn set_direction(&self, direction: Direction) {
         if self.style_manager_mut().set_direction(direction) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_align_content(&self, align_content: AlignContent) {
+    unsafe fn set_align_content(&self, align_content: AlignContent) {
         if self.style_manager_mut().set_align_content(align_content) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_align_items(&self, align_items: AlignItems) {
+    unsafe fn set_align_items(&self, align_items: AlignItems) {
         if self.style_manager_mut().set_align_items(align_items) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_align_self(&self, align_self: AlignSelf) {
+    unsafe fn set_align_self(&self, align_self: AlignSelf) {
         if self.style_manager_mut().set_align_self(align_self) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_aspect_ratio(&self, aspect_ratio: Option<f32>) {
+    unsafe fn set_aspect_ratio(&self, aspect_ratio: Option<f32>) {
         if self.style_manager_mut().set_aspect_ratio(aspect_ratio) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_border(&self, border: Length) {
+    unsafe fn set_border(&self, border: Length) {
         let top_changed = self.style_manager_mut().set_border_top(border);
         let right_changed = self.style_manager_mut().set_border_right(border);
         let bottom_changed = self.style_manager_mut().set_border_bottom(border);
@@ -685,87 +661,87 @@ impl StyleSetter for Node {
             self.mark_dirty_propagate();
         }
     }
-    fn set_border_left(&self, border_left: Length) {
+    unsafe fn set_border_left(&self, border_left: Length) {
         if self.style_manager_mut().set_border_left(border_left) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_border_right(&self, border_right: Length) {
+    unsafe fn set_border_right(&self, border_right: Length) {
         if self.style_manager_mut().set_border_right(border_right) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_border_top(&self, border_top: Length) {
+    unsafe fn set_border_top(&self, border_top: Length) {
         if self.style_manager_mut().set_border_top(border_top) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_border_bottom(&self, border_bottom: Length) {
+    unsafe fn set_border_bottom(&self, border_bottom: Length) {
         if self.style_manager_mut().set_border_bottom(border_bottom) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_box_sizing(&self, box_sizing: BoxSizing) {
+    unsafe fn set_box_sizing(&self, box_sizing: BoxSizing) {
         if self.style_manager_mut().set_box_sizing(box_sizing) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_display(&self, display: Display) {
+    unsafe fn set_display(&self, display: Display) {
         if self.style_manager_mut().set_display(display) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_height(&self, height: Length) {
+    unsafe fn set_height(&self, height: Length) {
         if self.style_manager_mut().set_height(height) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_width(&self, width: Length) {
+    unsafe fn set_width(&self, width: Length) {
         if self.style_manager_mut().set_width(width) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_left(&self, left: Length) {
+    unsafe fn set_left(&self, left: Length) {
         if self.style_manager_mut().set_left(left) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_right(&self, right: Length) {
+    unsafe fn set_right(&self, right: Length) {
         if self.style_manager_mut().set_right(right) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_top(&self, top: Length) {
+    unsafe fn set_top(&self, top: Length) {
         if self.style_manager_mut().set_top(top) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_bottom(&self, bottom: Length) {
+    unsafe fn set_bottom(&self, bottom: Length) {
         if self.style_manager_mut().set_bottom(bottom) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_flex_shrink(&self, flex_shrink: f32) {
+    unsafe fn set_flex_shrink(&self, flex_shrink: f32) {
         if self.style_manager_mut().set_flex_shrink(flex_shrink) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_flex_grow(&self, flex_grow: f32) {
+    unsafe fn set_flex_grow(&self, flex_grow: f32) {
         if self.style_manager_mut().set_flex_grow(flex_grow) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_flex_wrap(&self, flex_wrap: FlexWrap) {
+    unsafe fn set_flex_wrap(&self, flex_wrap: FlexWrap) {
         if self.style_manager_mut().set_flex_wrap(flex_wrap) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_flex_basis(&self, flex_basis: Length) {
+    unsafe fn set_flex_basis(&self, flex_basis: Length) {
         if self.style_manager_mut().set_flex_basis(flex_basis) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_justify_content(&self, justify_content: JustifyContent) {
+    unsafe fn set_justify_content(&self, justify_content: JustifyContent) {
         if self
             .style_manager_mut()
             .set_justify_content(justify_content)
@@ -773,27 +749,27 @@ impl StyleSetter for Node {
             self.mark_dirty_propagate();
         }
     }
-    fn set_position(&self, position: Position) {
+    unsafe fn set_position(&self, position: Position) {
         if self.style_manager_mut().set_position(position) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_overflow_x(&self, overflow_x: Overflow) {
+    unsafe fn set_overflow_x(&self, overflow_x: Overflow) {
         if self.style_manager_mut().set_overflow_x(overflow_x) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_overflow_y(&self, overflow_y: Overflow) {
+    unsafe fn set_overflow_y(&self, overflow_y: Overflow) {
         if self.style_manager_mut().set_overflow_y(overflow_y) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_writing_mode(&self, writing_mode: WritingMode) {
+    unsafe fn set_writing_mode(&self, writing_mode: WritingMode) {
         if self.style_manager_mut().set_writing_mode(writing_mode) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_margin(&self, margin: Length) {
+    unsafe fn set_margin(&self, margin: Length) {
         let top_changed = self.style_manager_mut().set_margin_top(margin);
         let right_changed = self.style_manager_mut().set_margin_right(margin);
         let bottom_changed = self.style_manager_mut().set_margin_bottom(margin);
@@ -802,48 +778,48 @@ impl StyleSetter for Node {
             self.mark_dirty_propagate();
         }
     }
-    fn set_margin_bottom(&self, margin_bottom: Length) {
+    unsafe fn set_margin_bottom(&self, margin_bottom: Length) {
         if self.style_manager_mut().set_margin_bottom(margin_bottom) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_margin_left(&self, margin_left: Length) {
+    unsafe fn set_margin_left(&self, margin_left: Length) {
         if self.style_manager_mut().set_margin_left(margin_left) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_margin_right(&self, margin_right: Length) {
+    unsafe fn set_margin_right(&self, margin_right: Length) {
         if self.style_manager_mut().set_margin_right(margin_right) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_margin_top(&self, margin_top: Length) {
+    unsafe fn set_margin_top(&self, margin_top: Length) {
         if self.style_manager_mut().set_margin_top(margin_top) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_max_height(&self, max_height: Length) {
+    unsafe fn set_max_height(&self, max_height: Length) {
         if self.style_manager_mut().set_max_height(max_height) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_max_width(&self, max_width: Length) {
+    unsafe fn set_max_width(&self, max_width: Length) {
         if self.style_manager_mut().set_max_width(max_width) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_min_height(&self, min_height: Length) {
+    unsafe fn set_min_height(&self, min_height: Length) {
         if self.style_manager_mut().set_min_height(min_height) {
             self.mark_dirty_propagate();
         }
     }
 
-    fn set_min_width(&self, min_width: Length) {
+    unsafe fn set_min_width(&self, min_width: Length) {
         if self.style_manager_mut().set_min_width(min_width) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_padding(&self, padding: Length) {
+    unsafe fn set_padding(&self, padding: Length) {
         let top_changed = self.style_manager_mut().set_padding_top(padding);
         let right_changed = self.style_manager_mut().set_padding_right(padding);
         let bottom_changed = self.style_manager_mut().set_padding_bottom(padding);
@@ -852,32 +828,32 @@ impl StyleSetter for Node {
             self.mark_dirty_propagate();
         }
     }
-    fn set_padding_left(&self, padding_left: Length) {
+    unsafe fn set_padding_left(&self, padding_left: Length) {
         if self.style_manager_mut().set_padding_left(padding_left) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_padding_right(&self, padding_right: Length) {
+    unsafe fn set_padding_right(&self, padding_right: Length) {
         if self.style_manager_mut().set_padding_right(padding_right) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_padding_top(&self, padding_top: Length) {
+    unsafe fn set_padding_top(&self, padding_top: Length) {
         if self.style_manager_mut().set_padding_top(padding_top) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_padding_bottom(&self, padding_bottom: Length) {
+    unsafe fn set_padding_bottom(&self, padding_bottom: Length) {
         if self.style_manager_mut().set_padding_bottom(padding_bottom) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_order(&self, order: i32) {
+    unsafe fn set_order(&self, order: i32) {
         if self.style_manager_mut().set_order(order) {
             self.mark_dirty_propagate();
         }
     }
-    fn set_text_align(&self, text_align: TextAlign) {
+    unsafe fn set_text_align(&self, text_align: TextAlign) {
         if self.style_manager_mut().set_text_align(text_align) {
             self.mark_dirty_propagate();
         }
@@ -897,10 +873,10 @@ mod test {
     fn append_child() {
         let (node_a, node_a_ptr) = new_node();
         let (node_b, node_b_ptr) = new_node();
-        node_a.append_child(node_b_ptr);
-        assert!(std::ptr::eq(node_a, node_b.parent().unwrap()));
-        assert!(std::ptr::eq(node_a.get_child_at(0).unwrap(), node_b));
         unsafe {
+            node_a.append_child(node_b_ptr);
+            assert!(std::ptr::eq(node_a, node_b.parent().unwrap()));
+            assert!(std::ptr::eq(node_a.get_child_at(0).unwrap(), node_b));
             drop(Box::from_raw(node_a_ptr));
             drop(Box::from_raw(node_b_ptr));
         }
@@ -910,13 +886,13 @@ mod test {
         let (node_a, node_a_ptr) = new_node();
         let (node_b, node_b_ptr) = new_node();
         let (node_c, node_c_ptr) = new_node();
-        node_a.insert_child_at(node_b_ptr, 0);
-        node_a.insert_child_at(node_c_ptr, 0);
-        assert!(std::ptr::eq(node_a, node_b.parent().unwrap()));
-        assert!(std::ptr::eq(node_a, node_c.parent().unwrap()));
-        assert!(std::ptr::eq(node_a.get_child_at(0).unwrap(), node_c));
-        assert!(std::ptr::eq(node_a.get_child_at(1).unwrap(), node_b));
         unsafe {
+            node_a.insert_child_at(node_b_ptr, 0);
+            node_a.insert_child_at(node_c_ptr, 0);
+            assert!(std::ptr::eq(node_a, node_b.parent().unwrap()));
+            assert!(std::ptr::eq(node_a, node_c.parent().unwrap()));
+            assert!(std::ptr::eq(node_a.get_child_at(0).unwrap(), node_c));
+            assert!(std::ptr::eq(node_a.get_child_at(1).unwrap(), node_b));
             drop(Box::from_raw(node_a_ptr));
             drop(Box::from_raw(node_b_ptr));
             drop(Box::from_raw(node_c_ptr));
@@ -927,13 +903,13 @@ mod test {
     fn remove_child() {
         let (node_a, node_a_ptr) = new_node();
         let (node_b, node_b_ptr) = new_node();
-        node_a.insert_child_at(node_b_ptr, 0);
-        assert!(std::ptr::eq(node_a, node_b.parent().unwrap()));
-        assert!(std::ptr::eq(node_a.get_child_at(0).unwrap(), node_b));
-        node_a.remove_child(node_b_ptr);
-        assert!(node_b.parent().is_none());
-        assert_eq!(node_a.children_len(), 0usize);
         unsafe {
+            node_a.insert_child_at(node_b_ptr, 0);
+            assert!(std::ptr::eq(node_a, node_b.parent().unwrap()));
+            assert!(std::ptr::eq(node_a.get_child_at(0).unwrap(), node_b));
+            node_a.remove_child(node_b_ptr);
+            assert!(node_b.parent().is_none());
+            assert_eq!(node_a.children_len(), 0usize);
             drop(Box::from_raw(node_a_ptr));
             drop(Box::from_raw(node_b_ptr));
         }
@@ -943,13 +919,13 @@ mod test {
     fn remove_child_at() {
         let (node_a, node_a_ptr) = new_node();
         let (node_b, node_b_ptr) = new_node();
-        node_a.insert_child_at(node_b_ptr, 0);
-        assert!(std::ptr::eq(node_a, node_b.parent().unwrap()));
-        assert!(std::ptr::eq(node_a.get_child_at(0).unwrap(), node_b));
-        node_a.remove_child_at(0);
-        assert_eq!(node_a.children_len(), 0usize);
-        assert!(node_b.parent().is_none());
         unsafe {
+            node_a.insert_child_at(node_b_ptr, 0);
+            assert!(std::ptr::eq(node_a, node_b.parent().unwrap()));
+            assert!(std::ptr::eq(node_a.get_child_at(0).unwrap(), node_b));
+            node_a.remove_child_at(0);
+            assert_eq!(node_a.children_len(), 0usize);
+            assert!(node_b.parent().is_none());
             drop(Box::from_raw(node_a_ptr));
             drop(Box::from_raw(node_b_ptr));
         }

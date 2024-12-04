@@ -147,15 +147,17 @@ impl TestCtx {
             );
         }
 
-        node.for_each_child_node(|node, _| {
-            self.update_layout_pos_recursive(
-                node,
-                Some((
-                    parent_offset.unwrap_or((Len::zero(), Len::zero())).0 + position.left,
-                    parent_offset.unwrap_or((Len::zero(), Len::zero())).1 + position.top,
-                )),
-            )
-        });
+        unsafe {
+            node.for_each_child_node(|node, _| {
+                self.update_layout_pos_recursive(
+                    node,
+                    Some((
+                        parent_offset.unwrap_or((Len::zero(), Len::zero())).0 + position.left,
+                        parent_offset.unwrap_or((Len::zero(), Len::zero())).1 + position.top,
+                    )),
+                )
+            });
+        }
     }
     #[inline]
     pub fn layout(&mut self, dump_style: bool) {
@@ -278,7 +280,7 @@ impl TestCtx {
                 };
                 let mut node_props = NodeProperties::new(parent_node_props);
                 if let Some(style) = e.attributes().get("style") {
-                    TestCtx::set_style(&*node, &style, &mut node_props, parent_node_props);
+                    unsafe { TestCtx::set_style(&*node, &style, &mut node_props, parent_node_props); }
                 }
                 self.set_expect_layout_pos(node, e.attributes());
                 e.children_mut().iter().for_each(|item| {
@@ -316,7 +318,7 @@ impl TestCtx {
     }
 
     // style
-    pub fn set_style(
+    pub unsafe fn set_style(
         node: &Node,
         style: &str,
         node_props: &mut NodeProperties,
