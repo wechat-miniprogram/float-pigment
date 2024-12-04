@@ -280,7 +280,9 @@ impl TestCtx {
                 };
                 let mut node_props = NodeProperties::new(parent_node_props);
                 if let Some(style) = e.attributes().get("style") {
-                    unsafe { TestCtx::set_style(&*node, &style, &mut node_props, parent_node_props); }
+                    unsafe {
+                        TestCtx::set_style(&*node, &style, &mut node_props, parent_node_props);
+                    }
                 }
                 self.set_expect_layout_pos(node, e.attributes());
                 e.children_mut().iter().for_each(|item| {

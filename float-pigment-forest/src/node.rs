@@ -286,7 +286,6 @@ impl Node {
         if let Some(cache) = self.measure_cache() {
             cache.clear();
         }
-        
     }
 
     #[inline(always)]
