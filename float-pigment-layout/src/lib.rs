@@ -317,7 +317,6 @@ impl<T: LayoutTreeNode> LayoutNode<T> {
     /// The `env` will be received in measure functions.
     #[inline]
     pub fn update(&self, env: &mut T::Env, node: &T, available_size: OptionSize<T::Length>) {
-        init_debug_logger();
         self.unit.borrow_mut().compute(env, node, available_size)
     }
 
@@ -335,7 +334,6 @@ impl<T: LayoutTreeNode> LayoutNode<T> {
         available_size: OptionSize<T::Length>,
         containing_size: OptionSize<T::Length>,
     ) {
-        init_debug_logger();
         self.unit.borrow_mut().compute_with_containing_size(
             env,
             node,
@@ -443,10 +441,4 @@ impl<L: LengthNum> Default for ComputedStyle<L> {
             },
         }
     }
-}
-
-#[doc(hidden)]
-pub fn init_debug_logger() {
-    #[cfg(target_os = "android")]
-    android_logger::init_once(android_logger::Config::default().with_max_level(LevelFilter::Trace));
 }
