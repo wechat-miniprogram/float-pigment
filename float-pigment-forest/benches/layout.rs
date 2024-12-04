@@ -24,13 +24,15 @@ fn gen_tree() -> &'static Node {
 }
 
 fn layout_test(root: &Node) {
-    root.layout(
-        OptionSize::new(
-            OptionNum::some(30000.0.to_fixed()),
-            OptionNum::some(800.0.to_fixed()),
-        ),
-        Size::new(375.0.to_fixed(), 800.0.to_fixed()),
-    );
+    unsafe {
+        root.layout(
+            OptionSize::new(
+                OptionNum::some(30000.0.to_fixed()),
+                OptionNum::some(800.0.to_fixed()),
+            ),
+            Size::new(375.0.to_fixed(), 800.0.to_fixed()),
+        );
+    }
 }
 
 fn criterion_benchmark(c: &mut Criterion) {

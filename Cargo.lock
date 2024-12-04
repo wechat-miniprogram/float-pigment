@@ -825,6 +825,7 @@ dependencies = [
  "float-pigment-forest-macro",
  "float-pigment-layout",
  "float-pigment-mlp",
+ "fs_extra",
  "lazy_static",
  "lru",
  "piston_window",

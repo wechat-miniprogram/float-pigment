@@ -101,7 +101,7 @@ impl LayoutTreeNode for Node {
             }
         }
         if !skip_measure {
-            if let Some(func) = self.measure_func() {
+            if let Some(func) = unsafe { self.measure_func() } {
                 let mut width_measure_mode = MeasureMode::AtMost;
                 let mut height_measure_mode = MeasureMode::AtMost;
                 let (min_width, max_width) = if let Some(req_size_width) = req_size.width.val() {
@@ -135,7 +135,7 @@ impl LayoutTreeNode for Node {
                 };
                 let mut size_from_cache = false;
                 if self.node_type() == NodeType::Text {
-                    if let Some(cache) = self.measure_cache().as_mut() {
+                    if let Some(cache) = unsafe { self.measure_cache() }.as_mut() {
                         if let Some(size_cache) = cache.get(&(
                             OptionSize::new(
                                 OptionNum::some(min_width).to_hashable(),
@@ -183,7 +183,7 @@ impl LayoutTreeNode for Node {
                         measure_size.height.clamp(min.height, max.height),
                     );
                     if self.node_type() == NodeType::Text {
-                        if let Some(cache) = self.measure_cache().as_mut() {
+                        if let Some(cache) = unsafe { self.measure_cache() }.as_mut() {
                             cache.put(
                                 (
                                     OptionSize::new(
@@ -209,7 +209,7 @@ impl LayoutTreeNode for Node {
         let mut baseline = size.to_vector();
         let mut baseline_from_cache = false;
         if self.node_type() == NodeType::Text {
-            if let Some(cache) = self.baseline_cache().as_mut() {
+            if let Some(cache) = unsafe { self.baseline_cache() }.as_mut() {
                 if let Some(baseline_cache) = cache.get(&Size::new(size.width, size.height)) {
                     baseline_from_cache = true;
                     baseline = Vector::new(Len::zero(), *baseline_cache);
@@ -217,10 +217,10 @@ impl LayoutTreeNode for Node {
             }
         }
         if !baseline_from_cache {
-            if let Some(func) = self.baseline_func() {
+            if let Some(func) = unsafe { self.baseline_func() } {
                 let ret = func(convert_node_ref_to_ptr(self), size.width, size.height);
                 baseline = Vector::new(Len::zero(), ret);
-                if let Some(cache) = self.baseline_cache().as_mut() {
+                if let Some(cache) = unsafe { self.baseline_cache() }.as_mut() {
                     cache.put(Size::new(size.width, size.height), ret);
                 }
             }
@@ -262,7 +262,7 @@ impl LayoutTreeNode for Node {
 impl LayoutTreeVisitor<Node> for Node {
     #[inline]
     fn parent(&self) -> Option<&Node> {
-        Node::parent(self)
+        unsafe { Node::parent(self) }
     }
 
     #[inline]
@@ -271,7 +271,7 @@ impl LayoutTreeVisitor<Node> for Node {
         F: FnMut(&'a Node, usize),
         Node: 'a,
     {
-        self.for_each_child_node(f)
+        unsafe { self.for_each_child_node(f) }
     }
 
     #[inline]
@@ -281,7 +281,7 @@ impl LayoutTreeVisitor<Node> for Node {
 
     #[inline]
     fn child_at(&self, index: usize) -> Option<&Node> {
-        self.get_child_at(index)
+        unsafe { self.get_child_at(index) }
     }
 }
 #[derive(Debug, Clone)]

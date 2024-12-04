@@ -13,7 +13,7 @@ Major crates:
 | ---------- | ----------- | ---- |
 | [float-pigment-css](https://crates.io/crates/float-pigment-css) | CSS parser. | [![docs.rs](https://img.shields.io/docsrs/float-pigment-css?style=flat-square)](https://docs.rs/float-pigment-css) |
 | [float-pigment-layout](https://crates.io/crates/float-pigment-layout) | Layout engine which supports common CSS `display`, including `flex` `block` and `inline`. | [![docs.rs](https://img.shields.io/docsrs/float-pigment-layout?style=flat-square)](https://docs.rs/float-pigment-layout) |
-| [float-pigment-forest](https://crates.io/crates/float-pigment-forest) | Tree implementation that works with `float-pigment-layout`. | [![docs.rs](https://img.shields.io/docsrs/float-pigment-forest?style=flat-square)](https://docs.rs/float-pigment-forest) |
+| [float-pigment-forest](https://crates.io/crates/float-pigment-forest) | Tree implementation that works with `float-pigment-layout` for C++ bondings. | [![docs.rs](https://img.shields.io/docsrs/float-pigment-forest?style=flat-square)](https://docs.rs/float-pigment-forest) |
 | [float-pigment](https://crates.io/crates/float-pigment) | The collection of all crates above, with C++ bindings. | [![docs.rs](https://img.shields.io/docsrs/float-pigment?style=flat-square)](https://docs.rs/float-pigment) |
 
 
@@ -57,9 +57,9 @@ Supported `position`:
 
 float-pigment-layout requires an external node tree implementation.
 
-Usually the node tree should be implemented in high-level code or some other dedicated modules, but that is not always this case.
+Usually the node tree should be implemented in high-level code or some other dedicated modules.
 
-If you do not implement a node tree yourself, or the tree implementation is not in rust, this crate can help.
+However, if the main implementation is in C++, this crate can help you builds a tree in rust.
 
 
 ## LICENSE
