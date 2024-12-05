@@ -1785,3 +1785,14 @@ pub struct FeatureTag {
     /// The optional number value in `font-feature-settings`.
     pub value: Number,
 }
+
+#[allow(missing_docs)]
+#[repr(C)]
+#[property_value_type(PropertyValueWithGlobal for GapType)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ResolveFontSize)]
+#[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
+pub enum Gap {
+    Normal,
+    #[resolve_font_size(Length::resolve_em_and_ratio)]
+    Length(Length),
+}
