@@ -14,28 +14,6 @@ fn sum_axis_gaps<L: LengthNum>(gap: L, num_items: usize) -> L {
     }
 }
 
-#[inline(always)]
-fn main_gap<T: LayoutTreeNode>(
-    style: &T::Style,
-    dir: AxisDirection,
-) -> DefLength<T::Length, T::LengthCustom> {
-    match dir {
-        AxisDirection::Horizontal => style.row_gap(),
-        AxisDirection::Vertical => style.column_gap(),
-    }
-}
-
-#[inline(always)]
-fn cross_gap<T: LayoutTreeNode>(
-    style: &T::Style,
-    dir: AxisDirection,
-) -> DefLength<T::Length, T::LengthCustom> {
-    match dir {
-        AxisDirection::Horizontal => style.column_gap(),
-        AxisDirection::Vertical => style.row_gap(),
-    }
-}
-
 pub(crate) fn align_self<T: LayoutTreeNode>(child: &T::Style, parent: &T::Style) -> AlignSelf {
     let s = child.align_self();
     if s == AlignSelf::Auto {
@@ -369,7 +347,8 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                 });
             } else {
                 let mut flex_items = &mut flex_items[..];
-                let main_axis_gap = main_gap::<T>(style, dir)
+                let main_axis_gap = style
+                    .row_gap()
                     .resolve(requested_inner_size.main_size(dir), node)
                     .or_zero();
                 while !flex_items.is_empty() {
@@ -413,7 +392,8 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
         let multi_flex_line = flex_lines.len() > 1;
         for line in &mut flex_lines {
             let total_main_axis_gap = sum_axis_gaps(
-                main_gap::<T>(style, dir)
+                style
+                    .row_gap()
                     .resolve(requested_inner_size.main_size(dir), node)
                     .or_zero(),
                 line.items.len(),
@@ -903,7 +883,8 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
             let min_inner_cross =
                 self_min_max_limit.cross_size(requested_cross_size, dir) - padding_border_cross;
             let total_cross_axis_gap = sum_axis_gaps(
-                cross_gap::<T>(style, dir)
+                style
+                    .column_gap()
                     .resolve(requested_inner_size.main_size(dir), node)
                     .or_zero(),
                 flex_lines.len(),
@@ -1037,7 +1018,8 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
 
         for line in &mut flex_lines {
             let total_main_axis_gap = sum_axis_gaps(
-                main_gap::<T>(style, dir)
+                style
+                    .row_gap()
                     .resolve(requested_inner_size.main_size(dir), node)
                     .or_zero(),
                 line.items.len(),
@@ -1087,7 +1069,8 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                 let is_reversed = main_dir_rev == AxisReverse::Reversed;
                 for (index, flex_child) in line.items.iter_mut().enumerate() {
                     let is_first = index == 0;
-                    let gap = main_gap::<T>(style, dir)
+                    let gap = style
+                        .row_gap()
                         .resolve(requested_inner_size.main_size(dir), node)
                         .or_zero();
                     flex_child.extra_offset_main = if is_first {
@@ -1231,7 +1214,8 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
         // 16. Align all flex lines per align-content.
 
         let num_lines = flex_lines.len() as i32;
-        let gap = cross_gap::<T>(style, dir)
+        let gap = style
+            .column_gap()
             .resolve(requested_inner_size.main_size(dir), node)
             .or_zero();
         let total_cross_axis_gap = sum_axis_gaps(gap, flex_lines.len());
