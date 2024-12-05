@@ -7,7 +7,7 @@ pub use float_pigment_css::length_num::LengthNum;
 use float_pigment_css::{
     parser::parse_inline_style,
     property::NodeProperties,
-    typing::{AspectRatio, Display},
+    typing::{AspectRatio, Display, Gap},
 };
 pub use float_pigment_forest::Len;
 use float_pigment_forest::{layout::LayoutPosition, node::Length, *};
@@ -389,6 +389,36 @@ impl TestCtx {
                 },
                 "order" => node.set_order(node_props.order().to_i32()),
                 "text-align" => node.set_text_align(node_props.text_align()),
+                "gap" => {
+                    node.set_row_gap({
+                        match node_props.row_gap() {
+                            Gap::Length(l) => def_length(l),
+                            Gap::Normal => Length::Undefined,
+                        }
+                    });
+                    node.set_column_gap({
+                        match node_props.column_gap() {
+                            Gap::Length(l) => def_length(l),
+                            Gap::Normal => Length::Undefined,
+                        }
+                    });
+                }
+                "column-gap" => {
+                    node.set_column_gap({
+                        match node_props.column_gap() {
+                            Gap::Length(l) => def_length(l),
+                            Gap::Normal => Length::Undefined,
+                        }
+                    });
+                }
+                "row-gap" => {
+                    node.set_row_gap({
+                        match node_props.row_gap() {
+                            Gap::Length(l) => def_length(l),
+                            Gap::Normal => Length::Undefined,
+                        }
+                    });
+                }
                 _ => {}
             }
         });

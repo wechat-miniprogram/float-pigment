@@ -2327,3 +2327,12 @@ impl fmt::Display for FontFeatureSettings {
         write!(f, "{}", ret.join(","))
     }
 }
+
+impl fmt::Display for Gap {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Gap::Normal => write!(f, "normal"),
+            Gap::Length(length) => write!(f, "{}", length),
+        }
+    }
+}
