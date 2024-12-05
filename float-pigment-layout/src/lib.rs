@@ -253,6 +253,12 @@ pub trait LayoutStyle<L: LengthNum, T: PartialEq = i32> {
     fn text_align(&self) -> TextAlign {
         TextAlign::Start
     }
+    fn column_gap(&self) -> DefLength<L, T> {
+        DefLength::Undefined
+    }
+    fn row_gap(&self) -> DefLength<L, T> {
+        DefLength::Undefined
+    }
 }
 
 /// The layout information of a tree node.
