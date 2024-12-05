@@ -55,6 +55,8 @@ property_list! (PropertyValueWithGlobal, {
     0x28 FlexBasis: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
     0x29 JustifyItems: JustifyItemsType as Initial default JustifyItems::Stretch;
     0x2a Order: NumberType as Initial default Number::I32(0);
+    0x2b RowGap: GapType as Initial default Gap::Normal;
+    0x2c ColumnGap: GapType as Initial default Gap::Normal;
 
     // background
     0x30 BackgroundColor: ColorType as Initial default Color::Undefined;
@@ -330,6 +332,20 @@ property_value_format! (PropertyValueWithGlobal, {
         | "right" => JustifyItems::Right
     }};
     order: {{ Order = <number> -> |x: Number| Number::I32(x.to_i32()); }};
+    <gap_repr: Gap>:
+        "normal" => Gap::Normal
+        | <non_negative_length> -> |length| Gap::Length(length);
+    ;
+    column_gap: {{ ColumnGap = <gap_repr> }};
+    row_gap: {{ RowGap = <gap_repr> }};
+    gap: {{ (RowGap, ColumnGap)
+        = [ <gap_repr> <gap_repr>? ] -> |(row_gap, column_gap): (Gap, Option<Gap>)| {
+            if let Some(column_gap) = column_gap {
+                return (row_gap, column_gap);
+            }
+            return (row_gap.clone(), row_gap);
+        };
+    }};
     flex_grow: {{ FlexGrow = <number> }};
     flex_shrink: {{ FlexShrink = <number> }};
     flex_basis: {{ FlexBasis = <length> }};

@@ -745,6 +745,71 @@ pub unsafe extern "C" fn NodeStyleSetOrder(node: NodePtr, value: i32) {
 /// # Safety
 ///
 #[no_mangle]
+pub unsafe extern "C" fn NodeStyleSetRowGap(node: NodePtr, value: f32) {
+    let node = &*(node.ptr as *mut Node);
+    node.set_row_gap(DefLength::Points(Len::from_f32(value)));
+}
+
+/// # Safety
+///
+#[no_mangle]
+pub unsafe extern "C" fn NodeStyleSetRowGapNormal(node: NodePtr) {
+    let node = &*(node.ptr as *mut Node);
+    node.set_row_gap(DefLength::Undefined);
+}
+
+/// # Safety
+///
+#[no_mangle]
+pub unsafe extern "C" fn NodeStyleSetRowGapPercentage(node: NodePtr, value: f32) {
+    let node = &*(node.ptr as *mut Node);
+    node.set_row_gap(DefLength::Percent(value));
+}
+
+/// # Safety
+///
+#[no_mangle]
+pub unsafe extern "C" fn NodeStyleSetRowGapCalcHandle(node: NodePtr, calc_handle: i32) {
+    let node = &*(node.ptr as *mut Node);
+    node.set_row_gap(DefLength::Custom(calc_handle));
+}
+
+/// # Safety
+///
+#[no_mangle]
+
+pub unsafe extern "C" fn NodeStyleSetColumnGap(node: NodePtr, value: f32) {
+    let node = &*(node.ptr as *mut Node);
+    node.set_column_gap(DefLength::Points(Len::from_f32(value)));
+}
+
+/// # Safety
+///
+#[no_mangle]
+pub unsafe extern "C" fn NodeStyleSetColumnGapNormal(node: NodePtr) {
+    let node = &*(node.ptr as *mut Node);
+    node.set_column_gap(DefLength::Undefined);
+}
+
+/// # Safety
+///
+#[no_mangle]
+pub unsafe extern "C" fn NodeStyleSetColumnGapPercentage(node: NodePtr, value: f32) {
+    let node = &*(node.ptr as *mut Node);
+    node.set_column_gap(DefLength::Percent(value));
+}
+
+/// # Safety
+///
+#[no_mangle]
+pub unsafe extern "C" fn NodeStyleSetColumnGapCalcHandle(node: NodePtr, calc_handle: i32) {
+    let node = &*(node.ptr as *mut Node);
+    node.set_column_gap(DefLength::Custom(calc_handle));
+}
+
+/// # Safety
+///
+#[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetTextAlign(node: NodePtr, value: TextAlignType) {
     let node = &*(node.ptr as *mut Node);
     if let Some(value) = value.to_inner_without_global() {

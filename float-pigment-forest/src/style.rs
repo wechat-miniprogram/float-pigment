@@ -76,6 +76,8 @@ struct OtherStyle {
     pub overflow_y: Overflow,
     pub text_align: TextAlign,
     pub aspect_ratio: Option<f32>,
+    pub row_gap: Length,
+    pub column_gap: Length,
 }
 
 impl Default for OtherStyle {
@@ -87,6 +89,8 @@ impl Default for OtherStyle {
             overflow_y: Overflow::Visible,
             text_align: TextAlign::Start,
             aspect_ratio: None,
+            row_gap: Length::Undefined,
+            column_gap: Length::Undefined,
         }
     }
 }
@@ -943,6 +947,32 @@ impl StyleManager {
         }
         self.clone_style(StyleBit::Flex);
         self.flex_style().flex_basis = value;
+        true
+    }
+
+    pub(crate) fn row_gap(&self) -> Length {
+        self.other_style().row_gap.clone()
+    }
+
+    pub(crate) fn set_row_gap(&self, value: Length) -> bool {
+        if self.other_style().row_gap == value {
+            return false;
+        }
+        self.clone_style(StyleBit::Other);
+        self.other_style().row_gap = value;
+        true
+    }
+
+    pub(crate) fn column_gap(&self) -> Length {
+        self.other_style().column_gap.clone()
+    }
+
+    pub(crate) fn set_column_gap(&self, value: Length) -> bool {
+        if self.other_style().column_gap == value {
+            return false;
+        }
+        self.clone_style(StyleBit::Other);
+        self.other_style().column_gap = value;
         true
     }
 }

@@ -618,6 +618,8 @@ pub trait StyleSetter {
     unsafe fn set_aspect_ratio(&self, value: Option<f32>);
     unsafe fn set_order(&self, value: i32);
     unsafe fn set_text_align(&self, value: TextAlign);
+    unsafe fn set_row_gap(&self, value: Length);
+    unsafe fn set_column_gap(&self, value: Length);
 }
 
 impl StyleSetter for Node {
@@ -854,6 +856,16 @@ impl StyleSetter for Node {
     }
     unsafe fn set_text_align(&self, text_align: TextAlign) {
         if self.style_manager_mut().set_text_align(text_align) {
+            self.mark_dirty_propagate();
+        }
+    }
+    unsafe fn set_row_gap(&self, value: Length) {
+        if self.style_manager_mut().set_row_gap(value) {
+            self.mark_dirty_propagate();
+        }
+    }
+    unsafe fn set_column_gap(&self, value: Length) {
+        if self.style_manager_mut().set_column_gap(value) {
             self.mark_dirty_propagate();
         }
     }

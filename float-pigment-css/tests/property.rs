@@ -2058,6 +2058,42 @@ mod flex {
         test_parse_property!(order, "order", "1", Number::I32(1));
         test_parse_property!(order, "order", "-100", Number::I32(-100));
     }
+    // 0x2b
+    #[test]
+    fn row_gap() {
+        test_parse_property!(row_gap, "row-gap", "normal", Gap::Normal);
+        test_parse_property!(row_gap, "row-gap", "10px", Gap::Length(Length::Px(10.)));
+    }
+
+    // 0x2c
+    #[test]
+    fn column_gap() {
+        test_parse_property!(column_gap, "column-gap", "normal", Gap::Normal);
+        test_parse_property!(column_gap, "column-gap", "-10%", Gap::Normal);
+    }
+
+    #[test]
+    fn gap() {
+        test_parse_property!(row_gap, "gap", "normal", Gap::Normal);
+        test_parse_property!(column_gap, "gap", "normal", Gap::Normal);
+
+        test_parse_property!(row_gap, "gap", "30px", Gap::Length(Length::Px(30.)));
+        test_parse_property!(column_gap, "gap", "20px", Gap::Length(Length::Px(20.)));
+
+        test_parse_property!(row_gap, "gap", "normal 10px", Gap::Normal);
+        test_parse_property!(row_gap, "gap", "10px normal", Gap::Length(Length::Px(10.)));
+        test_parse_property!(
+            column_gap,
+            "gap",
+            "normal 10px",
+            Gap::Length(Length::Px(10.))
+        );
+        test_parse_property!(column_gap, "gap", "10px normal", Gap::Normal);
+
+        test_parse_property!(row_gap, "gap", "30px 40px", Gap::Length(Length::Px(30.)));
+        test_parse_property!(column_gap, "gap", "30px 40px", Gap::Length(Length::Px(40.)));
+    }
+
     #[test]
     fn flex_flow() {
         let mut ssg = StyleSheetGroup::new();
