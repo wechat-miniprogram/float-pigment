@@ -685,4 +685,14 @@ impl LayoutStyle<Len> for Node {
     fn text_align(&self) -> TextAlign {
         self.style_manager().text_align()
     }
+
+    #[inline]
+    fn row_gap(&self) -> Length {
+        self.style_manager().row_gap()
+    }
+
+    #[inline]
+    fn column_gap(&self) -> Length {
+        self.style_manager().column_gap()
+    }
 }
