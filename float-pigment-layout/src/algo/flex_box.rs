@@ -2,6 +2,40 @@ use crate::*;
 
 use float_pigment_css::num_traits::Zero;
 
+/// Computes the total space taken up by gaps in an axis given:
+///   - The size of each gap
+///   - The number of items (children or flex-lines) between which there are gaps
+#[inline(always)]
+fn sum_axis_gaps<L: LengthNum>(gap: L, num_items: usize) -> L {
+    if num_items <= 1 {
+        L::zero()
+    } else {
+        gap.mul_i32(num_items as i32 - 1)
+    }
+}
+
+#[inline(always)]
+fn main_gap<T: LayoutTreeNode>(
+    style: &T::Style,
+    dir: AxisDirection,
+) -> DefLength<T::Length, T::LengthCustom> {
+    match dir {
+        AxisDirection::Horizontal => style.row_gap(),
+        AxisDirection::Vertical => style.column_gap(),
+    }
+}
+
+#[inline(always)]
+fn cross_gap<T: LayoutTreeNode>(
+    style: &T::Style,
+    dir: AxisDirection,
+) -> DefLength<T::Length, T::LengthCustom> {
+    match dir {
+        AxisDirection::Horizontal => style.column_gap(),
+        AxisDirection::Vertical => style.row_gap(),
+    }
+}
+
 pub(crate) fn align_self<T: LayoutTreeNode>(child: &T::Style, parent: &T::Style) -> AlignSelf {
     let s = child.align_self();
     if s == AlignSelf::Auto {
@@ -335,15 +369,24 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                 });
             } else {
                 let mut flex_items = &mut flex_items[..];
+                let main_axis_gap = main_gap::<T>(style, dir)
+                    .resolve(requested_inner_size.main_size(dir), node)
+                    .or_zero();
                 while !flex_items.is_empty() {
                     let mut line_length = T::Length::zero();
                     let index = flex_items
                         .iter()
                         .enumerate()
-                        .find(|(idx, child)| {
-                            line_length += child.hypothetical_outer_size.main_size(dir);
+                        .find(|&(idx, child)| {
+                            let gap_contribution = if idx == 0 {
+                                T::Length::zero()
+                            } else {
+                                main_axis_gap
+                            };
+                            line_length +=
+                                child.hypothetical_outer_size.main_size(dir) + gap_contribution;
                             match available_space.main_size(dir).val() {
-                                Some(x) => line_length > x && *idx != 0,
+                                Some(x) => line_length > x && idx != 0,
                                 None => false,
                             }
                         })
@@ -369,16 +412,23 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
 
         let multi_flex_line = flex_lines.len() > 1;
         for line in &mut flex_lines {
+            let total_main_axis_gap = sum_axis_gaps(
+                main_gap::<T>(style, dir)
+                    .resolve(requested_inner_size.main_size(dir), node)
+                    .or_zero(),
+                line.items.len(),
+            );
             // 1. Determine the used flex factor. Sum the outer hypothetical main sizes of all
             //    items on the line. If the sum is less than the flex container’s inner main size,
             //    use the flex grow factor for the rest of this algorithm; otherwise, use the
             //    flex shrink factor.
 
-            let used_flex_factor: T::Length = length_sum(
-                line.items
-                    .iter()
-                    .map(|child| child.hypothetical_outer_size.main_size(dir)),
-            );
+            let used_flex_factor: T::Length = total_main_axis_gap
+                + length_sum(
+                    line.items
+                        .iter()
+                        .map(|child| child.hypothetical_outer_size.main_size(dir)),
+                );
             let growing = used_flex_factor < requested_inner_size.main_size(dir).or_zero();
             let shrinking = !growing;
 
@@ -469,14 +519,15 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
             //    and subtract this from the flex container’s inner main size. For frozen items,
             //    use their outer target main size; for other items, use their outer flex base size.
 
-            let used_space: T::Length = length_sum(line.items.iter().map(|child| {
-                child.margin.main_axis_sum(dir)
-                    + if child.frozen {
-                        child.target_size.main_size(dir)
-                    } else {
-                        child.flex_basis
-                    }
-            }));
+            let used_space: T::Length = total_main_axis_gap
+                + length_sum(line.items.iter().map(|child| {
+                    child.margin.main_axis_sum(dir)
+                        + if child.frozen {
+                            child.target_size.main_size(dir)
+                        } else {
+                            child.flex_basis
+                        }
+                }));
             let initial_free_space = (target_len - used_space).or_zero();
             let mut prev_free_space: Option<T::Length> = None;
 
@@ -496,14 +547,15 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                 //    value is less than the magnitude of the remaining free space, use this
                 //    as the remaining free space.
 
-                let used_space: T::Length = length_sum(line.items.iter().map(|child| {
-                    child.margin.main_axis_sum(dir)
-                        + if child.frozen {
-                            child.target_size.main_size(dir)
-                        } else {
-                            child.flex_basis
-                        }
-                }));
+                let used_space: T::Length = total_main_axis_gap
+                    + length_sum(line.items.iter().map(|child| {
+                        child.margin.main_axis_sum(dir)
+                            + if child.frozen {
+                                child.target_size.main_size(dir)
+                            } else {
+                                child.flex_basis
+                            }
+                    }));
 
                 let mut unfrozen: Vec<&mut FlexItem<T>> = line
                     .items
@@ -518,12 +570,10 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                             (flex_grow + child.flex_grow, flex_shrink + child.flex_shrink)
                         });
                 let free_space = if growing && sum_flex_grow < 1.0 {
-                    initial_free_space
-                        .mul_f32(sum_flex_grow)
+                    (initial_free_space.mul_f32(sum_flex_grow) - total_main_axis_gap)
                         .maybe_min(target_len - used_space)
                 } else if shrinking && sum_flex_shrink < 1.0 {
-                    initial_free_space
-                        .mul_f32(sum_flex_shrink)
+                    (initial_free_space.mul_f32(sum_flex_shrink) - total_main_axis_gap)
                         .maybe_max(target_len - used_space)
                 } else {
                     (target_len - used_space).or_zero()
@@ -852,8 +902,14 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
             let requested_cross_size = requested_size.cross_size(dir).or_zero();
             let min_inner_cross =
                 self_min_max_limit.cross_size(requested_cross_size, dir) - padding_border_cross;
+            let total_cross_axis_gap = sum_axis_gaps(
+                cross_gap::<T>(style, dir)
+                    .resolve(requested_inner_size.main_size(dir), node)
+                    .or_zero(),
+                flex_lines.len(),
+            );
             let line_total_cross: T::Length =
-                length_sum(flex_lines.iter().map(|line| line.cross_size));
+                length_sum(flex_lines.iter().map(|line| line.cross_size)) + total_cross_axis_gap;
 
             if line_total_cross < min_inner_cross {
                 let remaining = min_inner_cross - line_total_cross;
@@ -980,11 +1036,18 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
         //     2. Align the items along the main-axis per justify-content.
 
         for line in &mut flex_lines {
-            let used_space: T::Length = length_sum(
-                line.items
-                    .iter()
-                    .map(|child| child.outer_target_size.main_size(dir)),
+            let total_main_axis_gap = sum_axis_gaps(
+                main_gap::<T>(style, dir)
+                    .resolve(requested_inner_size.main_size(dir), node)
+                    .or_zero(),
+                line.items.len(),
             );
+            let used_space: T::Length = total_main_axis_gap
+                + length_sum(
+                    line.items
+                        .iter()
+                        .map(|child| child.outer_target_size.main_size(dir)),
+                );
             let free_space = inner_container_size.main_size(dir) - used_space;
             let mut num_auto_margins = 0;
 
@@ -1021,63 +1084,67 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                 }
             } else {
                 let num_items = line.items.len() as i32;
+                let is_reversed = main_dir_rev == AxisReverse::Reversed;
                 for (index, flex_child) in line.items.iter_mut().enumerate() {
                     let is_first = index == 0;
-                    flex_child.extra_offset_main = match style.justify_content() {
-                        JustifyContent::FlexStart
-                        | JustifyContent::Start
-                        | JustifyContent::Baseline
-                        | JustifyContent::Stretch => T::Length::zero(),
-                        JustifyContent::Center => {
-                            if is_first {
-                                free_space.div_i32(2)
-                            } else {
-                                T::Length::zero()
-                            }
-                        }
-                        JustifyContent::FlexEnd | JustifyContent::End => {
-                            if is_first {
-                                free_space
-                            } else {
-                                T::Length::zero()
-                            }
-                        }
-                        JustifyContent::Left => match main_dir_rev {
-                            AxisReverse::NotReversed => T::Length::zero(),
-                            AxisReverse::Reversed => {
-                                if is_first {
+                    let gap = main_gap::<T>(style, dir)
+                        .resolve(requested_inner_size.main_size(dir), node)
+                        .or_zero();
+                    flex_child.extra_offset_main = if is_first {
+                        match style.justify_content() {
+                            JustifyContent::Start
+                            | JustifyContent::Baseline
+                            | JustifyContent::Stretch => T::Length::zero(),
+                            JustifyContent::FlexStart => T::Length::zero(),
+                            JustifyContent::Center => free_space.div_i32(2),
+                            JustifyContent::FlexEnd => free_space,
+                            JustifyContent::End => free_space,
+                            JustifyContent::Left => {
+                                if is_reversed {
                                     free_space
                                 } else {
                                     T::Length::zero()
                                 }
                             }
-                        },
-                        JustifyContent::Right => match main_dir_rev {
-                            AxisReverse::NotReversed => {
-                                if is_first {
-                                    free_space
-                                } else {
+                            JustifyContent::Right => {
+                                if is_reversed {
                                     T::Length::zero()
+                                } else {
+                                    free_space
                                 }
                             }
-                            AxisReverse::Reversed => T::Length::zero(),
-                        },
-                        JustifyContent::SpaceBetween => {
-                            if is_first {
-                                T::Length::zero()
-                            } else {
-                                free_space.div_i32(num_items - 1)
+                            JustifyContent::SpaceBetween => T::Length::zero(),
+                            JustifyContent::SpaceAround => {
+                                if free_space >= T::Length::zero() {
+                                    free_space.div_i32(num_items).div_i32(2)
+                                } else {
+                                    free_space.div_i32(2)
+                                }
+                            }
+                            JustifyContent::SpaceEvenly => {
+                                if free_space >= T::Length::zero() {
+                                    free_space.div_i32(num_items + 1)
+                                } else {
+                                    free_space.div_i32(2)
+                                }
                             }
                         }
-                        JustifyContent::SpaceAround => {
-                            if is_first {
-                                free_space.div_i32(num_items).div_i32(2)
-                            } else {
-                                free_space.div_i32(num_items)
-                            }
+                    } else {
+                        let free_space = free_space.max(T::Length::zero());
+                        gap + match style.justify_content() {
+                            JustifyContent::FlexStart
+                            | JustifyContent::Start
+                            | JustifyContent::Baseline
+                            | JustifyContent::Stretch => T::Length::zero(),
+                            JustifyContent::Center => T::Length::zero(),
+                            JustifyContent::FlexEnd | JustifyContent::End => T::Length::zero(),
+                            JustifyContent::Left => T::Length::zero(),
+                            JustifyContent::Right => T::Length::zero(),
+                            JustifyContent::SpaceBetween => free_space.div_i32(num_items - 1),
+                            JustifyContent::SpaceAround => free_space.div_i32(num_items),
+                            JustifyContent::SpaceEvenly => free_space.div_i32(num_items + 1),
                         }
-                        JustifyContent::SpaceEvenly => free_space.div_i32(num_items + 1),
-                    };
+                    }
                 }
             }
         }
@@ -1162,45 +1229,56 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
         }
 
         // 16. Align all flex lines per align-content.
-        let free_space =
-            (inner_container_size.cross_size(dir) - total_cross_size).max(T::Length::zero());
+
         let num_lines = flex_lines.len() as i32;
+        let gap = cross_gap::<T>(style, dir)
+            .resolve(requested_inner_size.main_size(dir), node)
+            .or_zero();
+        let total_cross_axis_gap = sum_axis_gaps(gap, flex_lines.len());
+        let free_space = (inner_container_size.cross_size(dir) - total_cross_size)
+            .max(T::Length::zero())
+            + total_cross_axis_gap;
         for (index, line) in flex_lines.iter_mut().enumerate() {
             let is_first = index == 0;
-            line.extra_offset_cross = match style.align_content() {
-                AlignContent::FlexStart
-                | AlignContent::Start
-                | AlignContent::Normal
-                | AlignContent::Baseline => T::Length::zero(),
-                AlignContent::FlexEnd | AlignContent::End => {
-                    if is_first {
-                        free_space
-                    } else {
+            line.extra_offset_cross = if is_first {
+                match style.align_content() {
+                    AlignContent::Start | AlignContent::Normal | AlignContent::Baseline => {
                         T::Length::zero()
                     }
+                    AlignContent::FlexStart => T::Length::zero(),
+                    AlignContent::End => free_space,
+                    AlignContent::FlexEnd => free_space,
+                    AlignContent::Center => free_space.div_i32(2),
+                    AlignContent::Stretch => T::Length::zero(),
+                    AlignContent::SpaceBetween => T::Length::zero(),
+                    AlignContent::SpaceEvenly => {
+                        if free_space >= T::Length::zero() {
+                            free_space.div_i32(num_lines + 1)
+                        } else {
+                            free_space.div_i32(2)
+                        }
+                    }
+                    AlignContent::SpaceAround => {
+                        if free_space >= T::Length::zero() {
+                            free_space.div_i32(num_lines).div_i32(2)
+                        } else {
+                            free_space.div_i32(2)
+                        }
+                    }
                 }
-                AlignContent::Center => {
-                    if is_first {
-                        free_space.div_i32(2)
-                    } else {
+            } else {
+                gap + match style.align_content() {
+                    AlignContent::Start | AlignContent::Normal | AlignContent::Baseline => {
                         T::Length::zero()
                     }
-                }
-                AlignContent::Stretch => T::Length::zero(),
-                AlignContent::SpaceBetween => {
-                    if is_first {
-                        T::Length::zero()
-                    } else {
-                        free_space.div_i32(num_lines - 1)
-                    }
-                }
-                AlignContent::SpaceEvenly => free_space.div_i32(num_lines + 1),
-                AlignContent::SpaceAround => {
-                    if is_first {
-                        free_space.div_i32(num_lines).div_i32(2)
-                    } else {
-                        free_space.div_i32(num_lines)
-                    }
+                    AlignContent::FlexStart => T::Length::zero(),
+                    AlignContent::End => T::Length::zero(),
+                    AlignContent::FlexEnd => T::Length::zero(),
+                    AlignContent::Center => T::Length::zero(),
+                    AlignContent::Stretch => T::Length::zero(),
+                    AlignContent::SpaceBetween => free_space.div_i32(num_lines - 1),
+                    AlignContent::SpaceEvenly => free_space.div_i32(num_lines + 1),
+                    AlignContent::SpaceAround => free_space.div_i32(num_lines),
                 }
             };
         }
