@@ -297,9 +297,10 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                 &ret,
                 border,
                 padding_border,
-                axis_info.dir,
-                axis_info.main_dir_rev,
-                AxisReverse::NotReversed,
+                AxisInfo {
+                    cross_dir_rev: AxisReverse::NotReversed,
+                    ..axis_info
+                },
                 false,
             );
             self.result = Rect::new(Point::zero(), ret.size.0);
@@ -671,9 +672,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                 },
                                 border,
                                 padding_border,
-                                axis_info.dir,
-                                axis_info.main_dir_rev,
-                                axis_info.cross_dir_rev,
+                                axis_info,
                                 false,
                             )
                         }
