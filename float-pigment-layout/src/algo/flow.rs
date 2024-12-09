@@ -492,9 +492,10 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                     .or_zero()
                             };
                         let baseline_diff = child.gen_origin(
-                            axis_info.dir,
-                            axis_info.main_dir_rev,
-                            AxisReverse::NotReversed,
+                            AxisInfo {
+                                cross_dir_rev: AxisReverse::NotReversed,
+                                ..axis_info
+                            },
                             node_inner_size.or_zero(),
                             main_offset,
                             cross_offset,
@@ -617,9 +618,10 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                 child.result = Rect::new(Point::zero(), child_res.size);
                                 child.cache.touch(child_node);
                                 child.gen_origin(
-                                    axis_info.dir,
-                                    axis_info.main_dir_rev,
-                                    AxisReverse::NotReversed,
+                                    AxisInfo {
+                                        cross_dir_rev: AxisReverse::NotReversed,
+                                        ..axis_info
+                                    },
                                     node_inner_size.or_zero(),
                                     main_offset + child_origin.main_axis(axis_info.dir),
                                     cross_offset + child_origin.cross_axis(axis_info.dir),

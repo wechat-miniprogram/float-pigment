@@ -454,14 +454,7 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
         offset_cross
     };
 
-    layout_unit.gen_origin(
-        axis_info.dir,
-        axis_info.main_dir_rev,
-        axis_info.cross_dir_rev,
-        **parent.inner_size,
-        offset_main,
-        offset_cross,
-    );
+    layout_unit.gen_origin(axis_info, **parent.inner_size, offset_main, offset_cross);
 }
 
 pub(crate) fn compute_position_relative<T: LayoutTreeNode>(
