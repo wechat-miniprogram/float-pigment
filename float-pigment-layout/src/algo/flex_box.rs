@@ -1302,14 +1302,8 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                                     .or_zero()
                         }
                     };
-                    let baseline_diff = child.gen_origin(
-                        dir,
-                        main_dir_rev,
-                        cross_dir_rev,
-                        *container_size,
-                        offset_main,
-                        offset_cross,
-                    );
+                    let baseline_diff =
+                        child.gen_origin(axis_info, *container_size, offset_main, offset_cross);
                     if self_first_baseline_ascent.is_none() {
                         self_first_baseline_ascent =
                             Some(flex_child.first_baseline_ascent + baseline_diff);
