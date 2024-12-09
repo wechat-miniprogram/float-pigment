@@ -46,42 +46,21 @@ pub(crate) fn compute_special_position_children<T: LayoutTreeNode>(
             child.clear_display_none_result(child_node);
             return;
         }
-        match child_style.position() {
-            Position::Absolute | Position::Sticky => compute_special_position(
-                env,
-                child_node,
-                ParentInfo {
-                    compute_result: node_result,
-                    style,
-                    inner_size: &node_inner_size,
-                    inner_option_size: &node_inner_option_size,
-                    border: &border,
-                    padding_border: &padding_border,
-                },
-                axis_info,
-                accept_flex_props,
-                false,
-            ),
-            Position::Fixed => compute_special_position(
-                env,
-                child_node,
-                ParentInfo {
-                    compute_result: node_result,
-                    style,
-                    inner_size: &node_inner_size,
-                    inner_option_size: &node_inner_option_size,
-                    border: &border,
-                    padding_border: &padding_border,
-                },
-                axis_info,
-                accept_flex_props,
-                true,
-            ),
-            Position::Static => {}
-            Position::Relative => {
-                compute_position_relative(child_node, node_inner_size);
-            }
-        }
+        compute_special_position(
+            env,
+            child_node,
+            ParentInfo {
+                compute_result: node_result,
+                style,
+                inner_size: &node_inner_size,
+                inner_option_size: &node_inner_option_size,
+                border: &border,
+                padding_border: &padding_border,
+            },
+            axis_info,
+            accept_flex_props,
+            child_style.position(),
+        );
     };
     node.tree_visitor()
         .for_each_child(|child_node, _| f(child_node));
@@ -96,23 +75,27 @@ pub(crate) struct ParentInfo<'a, T: LayoutTreeNode> {
     pub(crate) padding_border: &'a Edge<T::Length>,
 }
 
+#[inline]
 pub(crate) fn compute_special_position<T: LayoutTreeNode>(
     env: &mut T::Env,
     node: &T,
     parent: ParentInfo<T>,
     axis_info: AxisInfo,
     accept_flex_props: bool,
-    is_position_fixed: bool,
+    position: Position,
 ) {
+    if position == Position::Static {
+        return;
+    }
     let mut layout_unit = node.layout_node().unit();
     let style = node.style();
 
-    let container_size = if is_position_fixed {
+    let container_size = if position == Position::Fixed {
         Size::new(env.screen_width(), env.screen_height())
     } else {
         **parent.inner_size
     };
-    let container_option_size = if is_position_fixed {
+    let container_option_size = if position == Position::Fixed {
         Normalized(OptionSize::new(
             OptionNum::some(container_size.width),
             OptionNum::some(container_size.height),
@@ -125,6 +108,21 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
     let right = style.right().resolve_num(container_size.width, node);
     let top = style.top().resolve_num(container_size.height, node);
     let bottom = style.bottom().resolve_num(container_size.height, node);
+
+    if position == Position::Relative {
+        if let Some(left) = left.val() {
+            layout_unit.result.origin.x += left;
+        } else if let Some(right) = right.val() {
+            layout_unit.result.origin.x -= right;
+        }
+        if let Some(top) = top.val() {
+            layout_unit.result.origin.y += top;
+        } else if let Some(bottom) = bottom.val() {
+            layout_unit.result.origin.y -= bottom;
+        }
+        return;
+    }
+
     let (margin, border, padding_border) =
         layout_unit.margin_border_padding(node, *container_option_size);
     let css_size =
@@ -233,7 +231,7 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
         let main_end = main_end.val().unwrap_or(T::Length::zero());
         let free_space_main_size = container_size.main_size(axis_info.dir);
 
-        if is_position_fixed {
+        if position == Position::Fixed {
             main_start + (free_space_main_size - main_end - main_start).div_i32(2)
                 - result.size.0.main_size(axis_info.dir).div_i32(2)
         } else {
@@ -245,7 +243,7 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
         }
     } else {
         let offset_main = if let Some(x) = main_start.val() {
-            if is_position_fixed {
+            if position == Position::Fixed {
                 x
             } else {
                 parent
@@ -254,7 +252,7 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
                     + x
             }
         } else if let Some(x) = main_end.val() {
-            if is_position_fixed {
+            if position == Position::Fixed {
                 free_space.main_size(axis_info.dir) - x
             } else {
                 parent
@@ -374,7 +372,7 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
             - (result.size.0.cross_size(axis_info.dir).div_i32(2))
     } else {
         let offset_cross = if let Some(x) = cross_start.val() {
-            if is_position_fixed {
+            if position == Position::Fixed {
                 x
             } else {
                 x + parent
@@ -382,7 +380,7 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
                     .cross_axis_start(axis_info.dir, axis_info.main_dir_rev)
             }
         } else if let Some(x) = cross_end.val() {
-            if is_position_fixed {
+            if position == Position::Fixed {
                 free_space.cross_size(axis_info.dir) - x
             } else {
                 parent

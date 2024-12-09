@@ -652,8 +652,18 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
         offset_cross: T::Length,
     ) -> Vector<T::Length> {
         let (width, height, width_rev, height_rev) = match axis_info.dir {
-            AxisDirection::Horizontal => (offset_main, offset_cross, axis_info.main_dir_rev, axis_info.cross_dir_rev),
-            AxisDirection::Vertical => (offset_cross, offset_main, axis_info.cross_dir_rev, axis_info.main_dir_rev),
+            AxisDirection::Horizontal => (
+                offset_main,
+                offset_cross,
+                axis_info.main_dir_rev,
+                axis_info.cross_dir_rev,
+            ),
+            AxisDirection::Vertical => (
+                offset_cross,
+                offset_main,
+                axis_info.cross_dir_rev,
+                axis_info.main_dir_rev,
+            ),
         };
         let width = match width_rev {
             AxisReverse::NotReversed => width,
