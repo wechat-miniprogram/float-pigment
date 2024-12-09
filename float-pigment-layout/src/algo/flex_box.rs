@@ -1344,9 +1344,11 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
             &ret,
             border,
             padding_border,
-            dir,
-            main_dir_rev,
-            AxisReverse::NotReversed,
+            AxisInfo {
+                dir,
+                main_dir_rev,
+                cross_dir_rev: AxisReverse::NotReversed,
+            },
             true,
         );
         self.result = Rect::new(Point::zero(), ret.size.0);
