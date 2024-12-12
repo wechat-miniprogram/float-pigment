@@ -62,7 +62,7 @@ float-pigment-css-macro = { workspace = true }
 float-pigment-consistent-bincode = { workspace = true }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
-cbindgen = { version = "0.19", optional = true }
+cbindgen = { version = "0.27", optional = true }
 bit-set = { version = "0.5.2", default-features = false }
 toml = { version = "0.5.8", optional = true }
 colorful = { version = "0.2.1", optional = true }
