@@ -262,9 +262,6 @@ impl SelectorFragment {
         if self.pseudo_classes.as_ref().is_some() {
             weight += 1 << 5;
         }
-        if self.pseudo_classes.as_ref().is_some() {
-            weight += 1 << 5;
-        }
         self.weight.set(weight);
         weight
     }
