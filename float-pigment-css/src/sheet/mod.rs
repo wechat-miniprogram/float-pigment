@@ -614,10 +614,12 @@ impl StyleSheet {
 ///
 /// Weight of a rule is composed of multiple factors.
 ///
-/// * High 2nd bit is preserved for important bit.
-/// * High 3rd bit is for the ID selector.
-/// * High 4th~10th bits is for the class selector (255 at most).
-/// * High 15th bit is for the tag name selector.
+/// * High 16 bits is for the selector, while the detailed layout is `-MICCCCCCCCP--TT`:
+///   * `M` - the important bit;
+///   * `I` - the ID selector bit;
+///   * `C` - the sum of the class selectors and the attribute selectors (max 255);
+///   * `P` - the pseudo class bit;
+///   * `T` - the sum of the tag name selector and the pseudo element selector.
 /// * High 16th~31st bits is the style sheet index (0-based index).
 /// * High 32nd~63rd bits is the rule index in the whole linked style sheet (1-based index).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
