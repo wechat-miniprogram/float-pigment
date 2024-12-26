@@ -52,6 +52,14 @@ else
     exit -1
 fi
 
+# run wasm-pack
+if wasm-pack build float-pigment-css --target nodejs --features nodejs-package; then
+    echo 'WebAssembly built for float-pigment-css.'
+else
+    echo 'Failed to build WebAssembly package for float-pigment-css! Abort.'
+    exit -1
+fi
+
 # git operations
 if [ -z "$(git status --porcelain)" ]; then
     echo 'Git status OK.'
@@ -113,3 +121,9 @@ for PROJECT in $PROJECTS; do
     echo "Publishing ${PROJECT}..."
     cargo publish -p "${PROJECT}"
 done
+
+# npm publish
+cd float-pigment-css/pkg
+echo "Publishing NPM package for float-pigment-css..."
+npm publish --registry https://registry.npmjs.org
+cd ../..
