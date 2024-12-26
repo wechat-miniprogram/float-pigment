@@ -15,11 +15,50 @@ pub struct FontFace {
     pub font_display: Option<FontDisplay>,
 }
 
+impl core::fmt::Display for FontFace {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "@font-face {{")?;
+        write!(f, " font-family: {};", self.font_family)?;
+        write!(f, " src: ")?;
+        for src in &self.src {
+            write!(f, "{}, ", src)?;
+        }
+        write!(f, ";")?;
+        if let Some(fs) = &self.font_style {
+            write!(f, " font-style: {};", fs)?;
+        }
+        if let Some(fw) = &self.font_weight {
+            write!(f, " font-weight: {};", fw)?;
+        }
+        if let Some(fd) = &self.font_display {
+            write!(f, " font-display: {};", fd)?;
+        }
+        write!(f, "}}")
+    }
+}
+
 #[allow(missing_docs)]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub enum FontSrc {
     Local(FontFamilyName),
     Url(FontUrl),
+}
+
+impl core::fmt::Display for FontSrc {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Local(ff) => write!(f, r#"local("{}")"#, ff),
+            Self::Url(url) => {
+                write!(f, r#"url("{}")"#, url.url)?;
+                if let Some(formats) = &url.format {
+                    for format in formats {
+                        write!(f, r#" format("{}")"#, format)?;
+                    }
+                }
+                Ok(())
+            }
+        }
+    }
 }
 
 #[allow(missing_docs)]
@@ -39,6 +78,18 @@ pub enum FontDisplay {
     Swap,
     Fallback,
     Optional,
+}
+
+impl core::fmt::Display for FontDisplay {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Auto => write!(f, "auto"),
+            Self::Block => write!(f, "block"),
+            Self::Swap => write!(f, "swap"),
+            Self::Fallback => write!(f, "fallback"),
+            Self::Optional => write!(f, "optional"),
+        }
+    }
 }
 
 impl Default for FontFace {
