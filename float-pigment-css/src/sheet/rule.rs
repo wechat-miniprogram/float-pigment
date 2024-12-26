@@ -5,7 +5,7 @@ use super::*;
 use crate::property::Property;
 
 /// A CSS property with some metadata.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum PropertyMeta {
     /// A single normal property, e.g. `font-size: 16px`.
     Normal {
