@@ -343,7 +343,7 @@ property_value_format! (PropertyValueWithGlobal, {
             if let Some(column_gap) = column_gap {
                 return (row_gap, column_gap);
             }
-            return (row_gap.clone(), row_gap);
+            (row_gap.clone(), row_gap)
         };
     }};
     flex_grow: {{ FlexGrow = <number> }};

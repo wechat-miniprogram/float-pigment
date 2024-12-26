@@ -14,7 +14,7 @@ But more, this module can be compiled to WebAssembly itself, and can be called f
 With [wasm-pack](https://github.com/rustwasm/wasm-pack) installed globally:
 
 ```shell
-wasm-pack build float-pigment-css --target nodejs --features wasm-entrance
+wasm-pack build float-pigment-css --target nodejs --features nodejs-package
 ```
 
 

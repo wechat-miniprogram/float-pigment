@@ -58,7 +58,7 @@ pub mod parser;
 #[cfg(debug_assertions)]
 use check_trait::CompatibilityCheck;
 
-#[cfg(all(target_arch = "wasm32", feature = "wasm-entrance"))]
+#[cfg(all(target_arch = "wasm32", feature = "nodejs-package"))]
 fn init_logger() {
     use std::sync::Once;
     static INIT: Once = Once::new();
@@ -67,7 +67,8 @@ fn init_logger() {
     });
 }
 
-#[cfg(all(target_arch = "wasm32", feature = "wasm-entrance"))]
+#[doc(hidden)]
+#[cfg(all(target_arch = "wasm32", feature = "nodejs-package"))]
 #[wasm_bindgen(start)]
 pub fn wasm_main() {
     init_logger();
