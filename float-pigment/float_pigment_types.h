@@ -19,6 +19,8 @@ struct Angle;
 struct CalcExpr;
 
 
+static const uint16_t TEMP_SHEET_INDEX = UINT16_MAX;
+
 enum class AnimationDirectionItem {
   Normal,
   Reverse,
@@ -2640,6 +2642,97 @@ struct JustifyItemsType {
   union {
     Var_Body var;
     VarInShorthand_Body var_in_shorthand;
+  };
+};
+
+struct GapType {
+  enum class Tag {
+    Invalid,
+    Initial,
+    Inherit,
+    Unset,
+    Var,
+    VarInShorthand,
+    Invalid0,
+    Invalid7,
+    Invalid8,
+    Invalid9,
+    InvalidA,
+    InvalidB,
+    InvalidC,
+    InvalidD,
+    InvalidE,
+    InvalidF,
+    Invalid10,
+    Invalid11,
+    Invalid12,
+    Invalid13,
+    Invalid14,
+    Invalid15,
+    Invalid16,
+    Invalid17,
+    Invalid18,
+    Invalid19,
+    Invalid1A,
+    Invalid1B,
+    Invalid1C,
+    Invalid1D,
+    Invalid1E,
+    Invalid1F,
+    Invalid20,
+    Invalid21,
+    Invalid22,
+    Invalid23,
+    Invalid24,
+    Invalid25,
+    Invalid26,
+    Invalid27,
+    Invalid28,
+    Invalid29,
+    Invalid2A,
+    Invalid2B,
+    Invalid2C,
+    Invalid2D,
+    Invalid2E,
+    Invalid2F,
+    Invalid30,
+    Invalid31,
+    Invalid32,
+    Invalid33,
+    Invalid34,
+    Invalid35,
+    Invalid36,
+    Invalid37,
+    Invalid38,
+    Invalid39,
+    Invalid3A,
+    Invalid3B,
+    Invalid3C,
+    Invalid3D,
+    Invalid3E,
+    Invalid3F,
+    Normal,
+    Length,
+  };
+
+  struct Var_Body {
+    Box<StrRef> _0;
+  };
+
+  struct VarInShorthand_Body {
+    Box<StrRef> _0;
+    Box<StrRef> _1;
+  };
+
+  struct Length_Body {
+    Length _0;
+  };
+
+  Tag tag;
+  union {
+    Var_Body var;
+    VarInShorthand_Body var_in_shorthand;
+    Length_Body length;
   };
 };
 
@@ -7717,8 +7810,8 @@ struct Property {
     FlexBasis,
     JustifyItems,
     Order,
-    Invalid2C,
-    Invalid2D,
+    RowGap,
+    ColumnGap,
     Invalid2E,
     Invalid2F,
     Invalid30,
@@ -8041,6 +8134,14 @@ struct Property {
 
   struct Order_Body {
     NumberType _0;
+  };
+
+  struct RowGap_Body {
+    GapType _0;
+  };
+
+  struct ColumnGap_Body {
+    GapType _0;
   };
 
   struct BackgroundColor_Body {
@@ -8490,6 +8591,8 @@ struct Property {
     FlexBasis_Body flex_basis;
     JustifyItems_Body justify_items;
     Order_Body order;
+    RowGap_Body row_gap;
+    ColumnGap_Body column_gap;
     BackgroundColor_Body background_color;
     BackgroundImage_Body background_image;
     BackgroundSize_Body background_size;
@@ -8918,5 +9021,3 @@ struct CParserHooks {
 };
 
 
-
-} // namespace float_pigment

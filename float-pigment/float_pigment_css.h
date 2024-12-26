@@ -136,6 +136,6 @@ void *map,
 CustomPropertyGetter getter,
 CustomPropertySetter setter);
 
-} // extern "C"
+}  // extern "C"
 
-} // namespace float_pigment
+}  // namespace float_pigment
