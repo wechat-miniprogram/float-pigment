@@ -454,26 +454,3 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
 
     layout_unit.gen_origin(axis_info, **parent.inner_size, offset_main, offset_cross);
 }
-
-pub(crate) fn compute_position_relative<T: LayoutTreeNode>(
-    node: &T,
-    parent_inner_size: Normalized<Size<T::Length>>,
-) {
-    let mut layout_unit = node.layout_node().unit();
-    let style = node.style();
-    // apply relative offset
-    let left = style.left().resolve_num(parent_inner_size.width, node);
-    let right = style.right().resolve_num(parent_inner_size.width, node);
-    let top = style.top().resolve_num(parent_inner_size.height, node);
-    let bottom = style.bottom().resolve_num(parent_inner_size.height, node);
-    if let Some(left) = left.val() {
-        layout_unit.result.origin.x += left;
-    } else if let Some(right) = right.val() {
-        layout_unit.result.origin.x -= right;
-    }
-    if let Some(top) = top.val() {
-        layout_unit.result.origin.y += top;
-    } else if let Some(bottom) = bottom.val() {
-        layout_unit.result.origin.y -= bottom;
-    }
-}

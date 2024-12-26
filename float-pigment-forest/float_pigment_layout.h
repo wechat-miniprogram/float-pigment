@@ -51,7 +51,15 @@ using MeasureMaxContentWidth = float;
 
 using MeasureMaxContentHeight = float;
 
-using MeasureFunc = Size(*)(NodePtr, MeasureMaxWidth, MeasureMode, MeasureMaxHeight, MeasureMode, MeasureMinWidth, MeasureMinHeight, MeasureMaxContentWidth, MeasureMaxContentHeight);
+using MeasureFunc = Size(*)(NodePtr,
+                            MeasureMaxWidth,
+                            MeasureMode,
+                            MeasureMaxHeight,
+                            MeasureMode,
+                            MeasureMinWidth,
+                            MeasureMinHeight,
+                            MeasureMaxContentWidth,
+                            MeasureMaxContentHeight);
 
 using CalcHandle = int32_t;
 
@@ -238,6 +246,14 @@ void NodeStyleSetBottomPercentage(NodePtr node, float value);
 
 void NodeStyleSetBoxSizing(NodePtr node, BoxSizingType value);
 
+void NodeStyleSetColumnGap(NodePtr node, float value);
+
+void NodeStyleSetColumnGapCalcHandle(NodePtr node, int32_t calc_handle);
+
+void NodeStyleSetColumnGapNormal(NodePtr node);
+
+void NodeStyleSetColumnGapPercentage(NodePtr node, float value);
+
 void NodeStyleSetDisplay(NodePtr node, DisplayType value);
 
 void NodeStyleSetFlexBasis(NodePtr node, float value);
@@ -418,6 +434,14 @@ void NodeStyleSetRightNone(NodePtr node);
 
 void NodeStyleSetRightPercentage(NodePtr node, float value);
 
+void NodeStyleSetRowGap(NodePtr node, float value);
+
+void NodeStyleSetRowGapCalcHandle(NodePtr node, int32_t calc_handle);
+
+void NodeStyleSetRowGapNormal(NodePtr node);
+
+void NodeStyleSetRowGapPercentage(NodePtr node, float value);
+
 void NodeStyleSetTextAlign(NodePtr node, TextAlignType value);
 
 void NodeStyleSetTop(NodePtr node, float value);
@@ -444,6 +468,6 @@ void NodeStyleSetWritingMode(NodePtr node, WritingModeType value);
 
 const char *NodeToString(NodePtr node, bool recursive, bool layout, bool style);
 
-} // extern "C"
+}  // extern "C"
 
-} // namespace float_pigment
+}  // namespace float_pigment
