@@ -21,6 +21,16 @@ impl KeyFrames {
     }
 }
 
+impl core::fmt::Display for KeyFrames {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "@keyframes {} {{ ", self.ident)?;
+        for keyframe in &self.keyframes {
+            write!(f, "{} ", keyframe)?;
+        }
+        write!(f, "}}")
+    }
+}
+
 /// The percentage field in a keyframe item.
 #[repr(C)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -59,5 +69,34 @@ impl KeyFrameRule {
             keyframe,
             properties,
         }
+    }
+}
+
+impl core::fmt::Display for KeyFrameRule {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "{} {{ ",
+            self.keyframe
+                .iter()
+                .map(|x| {
+                    match x {
+                        KeyFrame::From => "from".to_owned(),
+                        KeyFrame::To => "to".to_owned(),
+                        KeyFrame::Ratio(ratio) => format!("{:.2}%", ratio * 100.),
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        )?;
+        for prop in &self.properties {
+            write!(
+                f,
+                "{}: {}; ",
+                prop.get_property_name(),
+                prop.get_property_value_string()
+            )?;
+        }
+        write!(f, "}}")
     }
 }

@@ -462,6 +462,21 @@ impl core::fmt::Debug for StyleSheet {
     }
 }
 
+impl core::fmt::Display for StyleSheet {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        for rule in self.rules.iter() {
+            write!(f, " {}", rule)?;
+        }
+        for font_face in self.font_face.iter() {
+            write!(f, " {}", font_face)?;
+        }
+        for keyframes in self.keyframes.iter() {
+            write!(f, " {}", keyframes)?;
+        }
+        Ok(())
+    }
+}
+
 impl StyleSheet {
     #[doc(hidden)]
     #[allow(clippy::should_implement_trait)]
