@@ -15,3 +15,6 @@ for PROJECT in $PROJECTS; do
     echo "Deprecating ${PROJECT}..."
     cargo yank --version "${VERSION}" "${PROJECT}"
 done
+
+# npm deprecate
+npm deprecate "float-pigment-css@${VERSION}" --registry https://registry.npmjs.org -m "sync with cargo yank"
