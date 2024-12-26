@@ -685,14 +685,24 @@ impl StyleSheetGroup {
         path: &str,
         scope: Option<NonZeroUsize>,
     ) -> u16 {
+        self.append_from_resource_with_warnings(res, path, scope).0
+    }
+
+    /// Append a style sheet from the resource, returning its index and warnings like @import not found.
+    pub fn append_from_resource_with_warnings(
+        &mut self,
+        res: &StyleSheetResource,
+        path: &str,
+        scope: Option<NonZeroUsize>,
+    ) -> (u16, Vec<Warning>) {
         let path = drop_css_extension(path);
-        let (ss, _warnings) = res.link(path, scope);
+        let (ss, warnings) = res.link(path, scope);
         let ret = self.sheets.len();
         if Self::is_invalid_index(ret) {
             panic!("The number of stylesheets has reached the maximum limit.")
         }
         self.sheets.push(ss);
-        ret as u16
+        (ret as u16, warnings)
     }
 
     /// Replace a style sheet from the resource by its index.
