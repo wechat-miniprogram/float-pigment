@@ -58,3 +58,4 @@ piston_window = "0.128.0"
 
 [lints.clippy]
 missing_safety_doc = "allow"
+clone_on_copy = "allow"
