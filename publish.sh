@@ -52,7 +52,7 @@ else
     exit -1
 fi
 
-# run wasm-pack
+# run wasm-pack to see if there is any bugs
 if wasm-pack build float-pigment-css --target nodejs --features nodejs-package; then
     echo 'WebAssembly built for float-pigment-css.'
 else
@@ -111,6 +111,14 @@ if [ -z "$(git status --porcelain)" ]; then
     fi
 else
     echo 'Git working tree is not clean! Abort.'
+    exit -1
+fi
+
+# run wasm-pack again to update package version
+if wasm-pack build float-pigment-css --target nodejs --features nodejs-package; then
+    echo 'WebAssembly built for float-pigment-css.'
+else
+    echo 'Failed to build WebAssembly package for float-pigment-css! Abort.'
     exit -1
 fi
 
