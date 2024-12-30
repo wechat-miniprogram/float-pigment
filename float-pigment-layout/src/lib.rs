@@ -45,12 +45,6 @@ extern crate alloc;
 #[macro_use]
 extern crate log;
 
-#[cfg(target_os = "android")]
-extern crate android_logger;
-
-#[cfg(target_os = "android")]
-use log::LevelFilter;
-
 #[allow(unused_imports)]
 use alloc::{boxed::Box, vec::Vec};
 use core::{
