@@ -423,57 +423,76 @@ impl MatchedRuleList {
     }
 
     /// Merge the rule list into specified `NodeProperties` .
-    pub fn merge_node_properties(
-        &self,
+    pub fn merge_node_properties<'a>(
+        &'a self,
         node_properties: &mut NodeProperties,
         parent_node_properties: Option<&NodeProperties>,
         current_font_size: f32,
-        extra_styles: &[PropertyMeta],
-    ) {
+        extra_styles: &'a [PropertyMeta],
+    ) -> Vec<&'a Property> {
         let mut order = NodePropertiesOrder::new();
-        let mut merge_property_meta = |pm: &PropertyMeta, rw: RuleWeight| match pm {
-            PropertyMeta::Normal { property: p } => {
-                if order.compare_property(p, rw.normal()) {
-                    node_properties.merge_property(p, parent_node_properties, current_font_size)
-                }
-            }
-            PropertyMeta::Important { property: p } => {
-                if order.compare_property(p, rw.important()) {
-                    node_properties.merge_property(p, parent_node_properties, current_font_size)
-                }
-            }
-            PropertyMeta::DebugGroup {
-                properties,
-                important,
-                disabled,
-                ..
-            } => {
-                if !disabled {
-                    let w = if *important {
-                        rw.important()
-                    } else {
-                        rw.normal()
-                    };
-                    for p in &**properties {
-                        if order.compare_property(p, w) {
-                            node_properties.merge_property(
+        let mut changed_properties = vec![];
+        let mut merge_property_meta =
+            |pm: &'a PropertyMeta, rw: RuleWeight, changed_properties: &mut Vec<&'a Property>| {
+                match pm {
+                    PropertyMeta::Normal { property: p } => {
+                        if order.compare_property(p, rw.normal()) {
+                            if node_properties.merge_property(
                                 p,
                                 parent_node_properties,
                                 current_font_size,
-                            )
+                            ) {
+                                changed_properties.push(p);
+                            }
+                        }
+                    }
+                    PropertyMeta::Important { property: p } => {
+                        if order.compare_property(p, rw.important()) {
+                            if node_properties.merge_property(
+                                p,
+                                parent_node_properties,
+                                current_font_size,
+                            ) {
+                                changed_properties.push(p);
+                            }
+                        }
+                    }
+                    PropertyMeta::DebugGroup {
+                        properties,
+                        important,
+                        disabled,
+                        ..
+                    } => {
+                        if !disabled {
+                            let w = if *important {
+                                rw.important()
+                            } else {
+                                rw.normal()
+                            };
+                            for p in &**properties {
+                                if order.compare_property(p, w) {
+                                    if node_properties.merge_property(
+                                        p,
+                                        parent_node_properties,
+                                        current_font_size,
+                                    ) {
+                                        changed_properties.push(p);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-            }
-        };
+            };
         for pm in extra_styles.iter() {
-            merge_property_meta(pm, RuleWeight::inline());
+            merge_property_meta(pm, RuleWeight::inline(), &mut changed_properties);
         }
         for matched_rule in self.rules.iter() {
             for pm in matched_rule.rule.properties.iter() {
-                merge_property_meta(pm, matched_rule.weight);
+                merge_property_meta(pm, matched_rule.weight, &mut changed_properties);
             }
         }
+        changed_properties
     }
 
     /// Find the style scope of the rule which contains the applied `animation-name` property.
