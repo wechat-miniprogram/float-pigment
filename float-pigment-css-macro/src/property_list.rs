@@ -345,18 +345,26 @@ impl ToTokens for PropertiesDefinition {
                     Property::#enum_name(x) => {
                         if let Some(mut x) = <#ty as #trait_name>::to_inner(x, parent.map(|x| &x.#field_name), #default_value_expr, #inherit) {
                             #resolver(&mut x, current_font_size);
-                            self.#field_name = x;
+                            if self.#field_name != x {
+                                self.#field_name = x;
+                                return true;
+                            }
                         }
+                        false
                     }
                 );
                 #[cfg(debug_assertions)]
                 let ret = quote!(
                     Property::#enum_name(x) => {
+                        self.#field_name_type = x.clone();
                         if let Some(mut x) = <#ty as #trait_name>::to_inner(x, parent.map(|x| &x.#field_name), #default_value_expr, #inherit) {
                             #resolver(&mut x, current_font_size);
-                            self.#field_name = x;
+                            if self.#field_name != x {
+                                self.#field_name = x;
+                                return true;
+                            }
                         }
-                        self.#field_name_type = x.clone();
+                        false
                     }
                 );
                 ret
@@ -393,10 +401,10 @@ impl ToTokens for PropertiesDefinition {
                 #(#getters)*
                 /// Merge a property.
                 // #[inline]
-                pub fn merge_property(&mut self, p: &Property, parent: Option<&NodeProperties>, current_font_size: f32) {
+                pub fn merge_property(&mut self, p: &Property, parent: Option<&NodeProperties>, current_font_size: f32) -> bool {
                     match p {
                         #(#property_mergers)*
-                        _ => {},
+                        _ => false,
                     }
                 }
                 /// Get all property name-value pairs.
@@ -423,10 +431,10 @@ impl ToTokens for PropertiesDefinition {
                 #(#getters)*
                 /// Merge a property.
                 // #[inline]
-                pub fn merge_property(&mut self, p: &Property, parent: Option<&NodeProperties>, current_font_size: f32) {
+                pub fn merge_property(&mut self, p: &Property, parent: Option<&NodeProperties>, current_font_size: f32) -> bool {
                     match p {
                         #(#property_mergers)*
-                        _ => {},
+                        _ => false,
                     }
                 }
                 /// Get all property name-value pairs.

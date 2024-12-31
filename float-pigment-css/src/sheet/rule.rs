@@ -161,10 +161,10 @@ impl PropertyMeta {
     ) {
         match self {
             PropertyMeta::Normal { property: p } => {
-                node_properties.merge_property(p, parent_node_properties, current_font_size)
+                node_properties.merge_property(p, parent_node_properties, current_font_size);
             }
             PropertyMeta::Important { property: p } => {
-                node_properties.merge_property(p, parent_node_properties, current_font_size)
+                node_properties.merge_property(p, parent_node_properties, current_font_size);
             }
             PropertyMeta::DebugGroup {
                 properties,
@@ -173,7 +173,11 @@ impl PropertyMeta {
             } => {
                 if !disabled {
                     for p in &**properties {
-                        node_properties.merge_property(p, parent_node_properties, current_font_size)
+                        node_properties.merge_property(
+                            p,
+                            parent_node_properties,
+                            current_font_size,
+                        );
                     }
                 }
             }
