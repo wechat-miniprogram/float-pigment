@@ -37,6 +37,8 @@ pub enum ErrorKind {
     Custom(String),
     /// No enough segment data to read.
     SegmentEnded,
+    /// Invalid data
+    InvalidData,
 }
 
 impl serde::de::StdError for ErrorKind {
@@ -52,6 +54,7 @@ impl serde::de::StdError for ErrorKind {
             ErrorKind::SizeLimit => None,
             ErrorKind::Custom(_) => None,
             ErrorKind::SegmentEnded => None,
+            ErrorKind::InvalidData => None,
         }
     }
 }
@@ -85,6 +88,7 @@ impl fmt::Display for ErrorKind {
             ),
             ErrorKind::Custom(ref s) => s.fmt(fmt),
             ErrorKind::SegmentEnded => write!(fmt, "the segment does not contain enough data"),
+            ErrorKind::InvalidData => write!(fmt, "the data is invalid"),
         }
     }
 }

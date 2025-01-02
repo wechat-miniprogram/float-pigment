@@ -83,7 +83,12 @@ impl<'de, R: BincodeRead<'de>, O: Options> Deserializer<R, O> {
         let seg_size = O::IntEncoding::deserialize_u32(self)? as usize;
         let ssl = SegmentSizeLimit {
             diff: match self.segment_size_limits.last() {
-                Some(_) => Some(self.reader.barrier() - seg_size),
+                Some(_) => Some(
+                    self.reader
+                        .barrier()
+                        .checked_sub(seg_size)
+                        .ok_or(ErrorKind::InvalidData)?,
+                ),
                 None => None,
             },
         };
