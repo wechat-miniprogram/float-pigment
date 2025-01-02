@@ -790,21 +790,21 @@ impl StyleSheetGroup {
     /// Query a single node selector (usually for testing only).
     ///
     /// Note that the font size and `em` values will be converted to `px` values.
-    pub fn query_single<L: LengthNum>(
+    pub fn query_single<L: LengthNum, T: StyleNode>(
         &self,
-        query: &StyleQuery,
+        query: T,
         media_query_status: &MediaQueryStatus<L>,
         node_properties: &mut NodeProperties,
     ) {
-        self.query_ancestor_path(&[query.clone()], media_query_status, node_properties, None)
+        self.query_ancestor_path(&[query], media_query_status, node_properties, None)
     }
 
     /// Find rules that matches the query.
     ///
     /// The query is a `&[StyleQuery]` which means all selector information of the ancestors and the node itself.
-    pub fn for_each_matched_rule<L: LengthNum>(
+    pub fn for_each_matched_rule<L: LengthNum, T: StyleNode>(
         &self,
-        query: &[StyleQuery],
+        query: &[T],
         media_query_status: &MediaQueryStatus<L>,
         mut f: impl FnMut(MatchedRuleRef, Option<&LinkedStyleSheet>),
     ) {
@@ -824,9 +824,9 @@ impl StyleSheetGroup {
     /// Get a rule list that matches the query.
     ///
     /// The query is a `&[StyleQuery]` which means all selector information of the ancestors and the node itself.
-    pub fn query_matched_rules<L: LengthNum>(
+    pub fn query_matched_rules<L: LengthNum, T: StyleNode>(
         &self,
-        query: &[StyleQuery],
+        query: &[T],
         media_query_status: &MediaQueryStatus<L>,
     ) -> MatchedRuleList {
         let mut rules = vec![];
@@ -845,9 +845,9 @@ impl StyleSheetGroup {
     ///
     /// The query is a `&[StyleQuery]` which means all selector information of the ancestors and the node itself.
     /// Note that the font size and `em` values will be converted to `px` values.
-    pub fn query_ancestor_path<L: LengthNum>(
+    pub fn query_ancestor_path<L: LengthNum, T: StyleNode>(
         &self,
-        query: &[StyleQuery],
+        query: &[T],
         media_query_status: &MediaQueryStatus<L>,
         node_properties: &mut NodeProperties,
         parent_node_properties: Option<&NodeProperties>,

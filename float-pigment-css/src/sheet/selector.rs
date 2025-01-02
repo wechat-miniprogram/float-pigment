@@ -10,7 +10,7 @@ use cssparser::{Parser, ParserInput};
 use float_pigment_css_macro::{compatibility_enum_check, compatibility_struct_check};
 
 use crate::parser::{parse_selector, ParseState};
-use crate::query::StyleQuery;
+use crate::query::{StyleNode, StyleNodeClass};
 
 #[cfg_attr(debug_assertions, compatibility_enum_check(selector))]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -248,8 +248,13 @@ impl SelectorFragment {
         if !self.id.is_empty() {
             weight += 1 << 13;
         }
-        let class_count = self.classes.len();
-        weight += (class_count.min(0xff) << 5) as u16;
+        let class_and_attr_count = self.classes.len()
+            + self
+                .attributes
+                .as_ref()
+                .map(|a| a.len())
+                .unwrap_or_default();
+        weight += (class_and_attr_count.min(0xff) << 5) as u16;
         if let Some(ref relation) = self.relation {
             weight += match &**relation {
                 SelectorRelationType::None => 0,
@@ -367,9 +372,9 @@ impl Selector {
         }
         ret
     }
-    pub(crate) fn match_query(
+    pub(crate) fn match_query<T: StyleNode>(
         &self,
-        query: &[StyleQuery],
+        query: &[T],
         sheet_style_scope: Option<NonZeroUsize>,
     ) -> Option<u16> {
         let mut cur_weight = 0;
@@ -378,22 +383,23 @@ impl Selector {
             match query.next_back() {
                 Some(mut cur_query) => {
                     let same_scope = sheet_style_scope.is_none()
-                        || sheet_style_scope == cur_query.style_scope
-                        || sheet_style_scope == cur_query.extra_style_scope;
+                        || sheet_style_scope == cur_query.style_scope()
+                        || sheet_style_scope == cur_query.extra_style_scope();
                     let mut allow_ancestor = false;
                     let mut cur_frag = frag;
                     loop {
                         let mut matches = true;
-                        if (!cur_frag.id.is_empty() && (!same_scope || cur_frag.id != cur_query.id))
+                        if (!cur_frag.id.is_empty()
+                            && (!same_scope || Some(cur_frag.id.as_str()) != cur_query.id()))
                             || (!cur_frag.tag_name.is_empty()
-                                && (!same_scope || cur_frag.tag_name != cur_query.tag_name))
+                                && (!same_scope || cur_frag.tag_name != cur_query.tag_name()))
                         {
                             matches = false
                         } else if let Some(pc) = cur_frag.pseudo_classes.as_ref() {
                             match &**pc {
                                 PseudoClasses::Host => {
                                     if sheet_style_scope.is_some()
-                                        && sheet_style_scope != cur_query.host_style_scope
+                                        && sheet_style_scope != cur_query.host_style_scope()
                                     {
                                         matches = false
                                     }
@@ -402,11 +408,70 @@ impl Selector {
                             }
                         } else {
                             for class_name in cur_frag.classes.iter() {
-                                if !cur_query.classes.iter().any(|x| {
-                                    (sheet_style_scope.is_none() || sheet_style_scope == x.1)
-                                        && &x.0 == class_name
+                                if !cur_query.classes().any(|x| {
+                                    (sheet_style_scope.is_none() || sheet_style_scope == x.scope())
+                                        && x.name() == class_name
                                 }) {
                                     matches = false;
+                                }
+                            }
+
+                            if matches {
+                                if let Some(selector_attributes) = &cur_frag.attributes {
+                                    for attribute in selector_attributes.iter() {
+                                        let selector_attr_value =
+                                            attribute.value.as_deref().unwrap_or_default();
+                                        if let Some(element_attr_value) =
+                                            cur_query.attribute(&attribute.name)
+                                        {
+                                            if !match attribute.operator {
+                                                AttributeOperator::Set => true,
+                                                AttributeOperator::Exact => {
+                                                    element_attr_value == selector_attr_value
+                                                }
+                                                AttributeOperator::List => {
+                                                    if selector_attr_value.is_empty() {
+                                                        false
+                                                    } else {
+                                                        element_attr_value
+                                                            .split(SELECTOR_WHITESPACE)
+                                                            .any(|x| x == selector_attr_value)
+                                                    }
+                                                }
+                                                AttributeOperator::Hyphen => {
+                                                    if element_attr_value.len()
+                                                        < selector_attr_value.len()
+                                                    {
+                                                        false
+                                                    } else if element_attr_value.len()
+                                                        == selector_attr_value.len()
+                                                    {
+                                                        element_attr_value == selector_attr_value
+                                                    } else {
+                                                        element_attr_value.starts_with(
+                                                            &alloc::format!(
+                                                                "{}-",
+                                                                selector_attr_value
+                                                            ),
+                                                        )
+                                                    }
+                                                }
+                                                AttributeOperator::Begin => element_attr_value
+                                                    .starts_with(selector_attr_value),
+                                                AttributeOperator::End => element_attr_value
+                                                    .ends_with(selector_attr_value),
+                                                AttributeOperator::Contain => {
+                                                    element_attr_value.contains(selector_attr_value)
+                                                }
+                                            } {
+                                                matches = false;
+                                                break;
+                                            }
+                                        } else {
+                                            matches = false;
+                                            break;
+                                        }
+                                    }
                                 }
                             }
                         }

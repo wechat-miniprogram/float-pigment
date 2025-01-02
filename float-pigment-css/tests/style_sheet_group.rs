@@ -338,7 +338,7 @@ fn scopes_in_tag_name_and_id() {
         ssg.append_from_resource(&ssr, "file1", NonZeroUsize::new(1));
         ssg.append_from_resource(&ssr, "file2", NonZeroUsize::new(2));
         let classes = vec![];
-        let query = StyleQuery::single(None, None, None, "view", "i", &classes, &[]);
+        let query = StyleQuery::single(None, None, None, "view", "i", &classes);
         let mut node_properties = NodeProperties::new(None);
         ssg.query_single(
             &query,
@@ -347,18 +347,30 @@ fn scopes_in_tag_name_and_id() {
         );
         assert_eq!(node_properties.width(), Length::Px(0.));
         assert_eq!(node_properties.height(), Length::Undefined);
-        let query =
-            StyleQuery::single(NonZeroUsize::new(1), None, None, "view", "i", &classes, &[]);
+        let query = StyleQuery::single(
+            NonZeroUsize::new(1),
+            None,
+            None,
+            "view",
+            "i",
+            &classes,
+        );
         let mut node_properties = NodeProperties::new(None);
         ssg.query_single(
-            &query,
+            query,
             &MediaQueryStatus::<f32>::default_screen(),
             &mut node_properties,
         );
         assert_eq!(node_properties.width(), Length::Px(1.));
         assert_eq!(node_properties.height(), Length::Undefined);
-        let query =
-            StyleQuery::single(NonZeroUsize::new(2), None, None, "view", "i", &classes, &[]);
+        let query = StyleQuery::single(
+            NonZeroUsize::new(2),
+            None,
+            None,
+            "view",
+            "i",
+            &classes,
+        );
         let mut node_properties = NodeProperties::new(None);
         ssg.query_single(
             &query,
@@ -400,7 +412,7 @@ fn scopes_in_classes() {
         ssg.append_from_resource(&ssr, "file1", NonZeroUsize::new(1));
         ssg.append_from_resource(&ssr, "file2", NonZeroUsize::new(2));
         let classes = vec![("a".into(), NonZeroUsize::new(0))];
-        let query = StyleQuery::single(None, None, None, "", "", &classes, &[]);
+        let query = StyleQuery::single(None, None, None, "", "", &classes);
         let mut node_properties = NodeProperties::new(None);
         ssg.query_single(
             &query,
@@ -410,7 +422,7 @@ fn scopes_in_classes() {
         assert_eq!(node_properties.width(), Length::Px(0.));
         assert_eq!(node_properties.height(), Length::Undefined);
         let classes = vec![("a".into(), NonZeroUsize::new(1))];
-        let query = StyleQuery::single(None, None, None, "", "", &classes, &[]);
+        let query = StyleQuery::single(None, None, None, "", "", &classes);
         let mut node_properties = NodeProperties::new(None);
         ssg.query_single(
             &query,
@@ -420,7 +432,7 @@ fn scopes_in_classes() {
         assert_eq!(node_properties.width(), Length::Px(1.));
         assert_eq!(node_properties.height(), Length::Undefined);
         let classes = vec![("a".into(), NonZeroUsize::new(2))];
-        let query = StyleQuery::single(None, None, None, "", "", &classes, &[]);
+        let query = StyleQuery::single(None, None, None, "", "", &classes);
         let mut node_properties = NodeProperties::new(None);
         ssg.query_single(
             &query,

@@ -365,9 +365,9 @@ impl LinkedStyleSheet {
         Err(rule)
     }
 
-    pub(crate) fn for_each_matched_rule<L: LengthNum>(
+    pub(crate) fn for_each_matched_rule<L: LengthNum, T: StyleNode>(
         &self,
-        query: &[StyleQuery],
+        query: &[T],
         media_query_status: &MediaQueryStatus<L>,
         sheet_index: u16,
         mut f: impl FnMut(MatchedRuleRef),
@@ -552,9 +552,9 @@ impl StyleSheet {
         }
     }
 
-    fn for_each_matched_rule<L: LengthNum>(
+    fn for_each_matched_rule<L: LengthNum, T: StyleNode>(
         &mut self,
-        query: &[StyleQuery],
+        query: &[T],
         media_query_status: &MediaQueryStatus<L>,
         sheet_style_scope: Option<NonZeroUsize>,
         sheet_index: u16,
@@ -589,9 +589,9 @@ impl StyleSheet {
                 Some(x) => x,
                 None => return,
             };
-            for (class, scope) in query_last.classes.iter() {
-                if sheet_style_scope.is_none() || sheet_style_scope == *scope {
-                    if let Some(rules) = class_index.get(class) {
+            for class in query_last.classes() {
+                if sheet_style_scope.is_none() || sheet_style_scope == class.scope() {
+                    if let Some(rules) = class_index.get(class.name()) {
                         for r in rules {
                             if let Some(selector_weight) =
                                 r.match_query(query, media_query_status, sheet_style_scope)

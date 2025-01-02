@@ -15,7 +15,7 @@ macro_rules! test_parse_stringify {
         let ss = StyleSheet::from_str(&style_str);
         ssg.append(ss);
         let classes = vec![("a".into(), None)];
-        let query = StyleQuery::single(None, None, None, "", "", &classes, &[]);
+        let query = StyleQuery::single(None, None, None, "", "", &classes);
         let matched_rules =
             ssg.query_matched_rules(&vec![query], &MediaQueryStatus::<f32>::default_screen());
         let mut node_properties = NodeProperties::new(None);

@@ -26,7 +26,7 @@ fn test_props<L: LengthNum>(
             }
             let ssg = test_ss(&ss);
             let classes = vec![("m".into(), None)];
-            let query = vec![StyleQuery::single(None, None, None, "", "", &classes, &[])];
+            let query = vec![StyleQuery::single(None, None, None, "", "", &classes)];
             let matched_rules = ssg.query_matched_rules(&query, &media);
             assert_eq!(matched_rules.rules.len(), 1);
         }
@@ -70,7 +70,7 @@ fn media_type() {
     let classes = vec![("a".into(), None)];
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         MediaQueryStatus::<f32>::default_screen(),
     );
     assert_eq!(node_properties.width(), Length::Px(1.));
@@ -103,25 +103,25 @@ fn nested() {
     let classes = vec![("a".into(), None)];
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         MediaQueryStatus::default_screen_with_size(800., 600.),
     );
     assert_eq!(node_properties.width(), Length::Px(3.));
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         MediaQueryStatus::default_screen_with_size(801., 600.),
     );
     assert_eq!(node_properties.width(), Length::Px(2.));
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         MediaQueryStatus::default_screen_with_size(800., 601.),
     );
     assert_eq!(node_properties.width(), Length::Px(1.));
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         MediaQueryStatus::default_screen_with_size(801., 601.),
     );
     assert_eq!(node_properties.width(), Length::Px(1.));
@@ -156,7 +156,7 @@ fn decorator() {
     let classes = vec![("a".into(), None)];
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         MediaQueryStatus::<f32>::default_screen(),
     );
     assert_eq!(node_properties.width(), Length::Px(1.));
@@ -187,7 +187,7 @@ fn min_width() {
     let classes = vec![("a".into(), None)];
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         MediaQueryStatus::<f32>::default_screen(),
     );
     assert_eq!(node_properties.width(), Length::Px(1.));
@@ -218,7 +218,7 @@ fn max_width() {
     let classes = vec![("a".into(), None)];
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         MediaQueryStatus::<f32>::default_screen(),
     );
     assert_eq!(node_properties.width(), Length::Px(1.));
@@ -249,7 +249,7 @@ fn min_height() {
     let classes = vec![("a".into(), None)];
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         MediaQueryStatus::<f32>::default_screen(),
     );
     assert_eq!(node_properties.width(), Length::Px(1.));
@@ -280,7 +280,7 @@ fn max_height() {
     let classes = vec![("a".into(), None)];
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         MediaQueryStatus::<f32>::default_screen(),
     );
     assert_eq!(node_properties.width(), Length::Px(1.));
@@ -306,13 +306,13 @@ fn width() {
     let classes = vec![("a".into(), None)];
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         MediaQueryStatus::<f32>::default_screen(),
     );
     assert_eq!(node_properties.width(), Length::Px(1.));
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         MediaQueryStatus::default_screen_with_size(801., 600.),
     );
     assert_eq!(node_properties.width(), Length::Px(2.));
@@ -337,13 +337,13 @@ fn height() {
     let classes = vec![("a".into(), None)];
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         MediaQueryStatus::<f32>::default_screen(),
     );
     assert_eq!(node_properties.height(), Length::Px(1.));
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         MediaQueryStatus::default_screen_with_size(800., 601.),
     );
     assert_eq!(node_properties.height(), Length::Px(2.));
@@ -370,7 +370,7 @@ fn prefers_color_scheme() {
     media_status.theme = Theme::Light;
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         media_status,
     );
     assert_eq!(node_properties.height(), Length::Px(2.));
@@ -378,7 +378,7 @@ fn prefers_color_scheme() {
     media_status.theme = Theme::Dark;
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         media_status,
     );
     assert_eq!(node_properties.height(), Length::Px(1.));
@@ -386,7 +386,7 @@ fn prefers_color_scheme() {
     media_status.theme = Theme::None;
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         media_status,
     );
     assert_eq!(node_properties.height(), Length::Undefined);
@@ -416,13 +416,13 @@ fn orientation() {
     let classes = vec![("a".into(), None)];
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         MediaQueryStatus::default_screen_with_size(800., 600.),
     );
     assert_eq!(node_properties.height(), Length::Px(1.));
     let node_properties = test_props(
         &ssg,
-        StyleQuery::single(None, None, None, "", "", &classes, &[]),
+        StyleQuery::single(None, None, None, "", "", &classes),
         MediaQueryStatus::default_screen_with_size(600., 800.),
     );
     assert_eq!(node_properties.height(), Length::Px(2.));
