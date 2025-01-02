@@ -3,6 +3,79 @@ use std::num::NonZeroUsize;
 use float_pigment_css::{
     length_num::LengthNum, property::*, MediaQueryStatus, StyleQuery, StyleSheet, StyleSheetGroup,
 };
+use float_pigment_css::query::{StyleNode};
+
+pub struct StyleQueryTest<'a> {
+    pub style_scope: Option<NonZeroUsize>,
+    pub extra_style_scope: Option<NonZeroUsize>,
+    pub host_style_scope: Option<NonZeroUsize>,
+    pub tag_name: &'a str,
+    pub id: &'a str,
+    pub classes: &'a [(String, Option<NonZeroUsize>)],
+    pub attributes: &'a [(String, String)],
+}
+
+impl<'a> StyleNode for StyleQueryTest<'a> {
+    type Class = (String, Option<NonZeroUsize>);
+    type ClassIter<'c>
+    = core::slice::Iter<'c, Self::Class>
+    where
+        'a: 'c;
+
+    fn style_scope(&self) -> Option<NonZeroUsize> {
+        self.style_scope
+    }
+
+    fn extra_style_scope(&self) -> Option<NonZeroUsize> {
+        self.extra_style_scope
+    }
+
+    fn host_style_scope(&self) -> Option<NonZeroUsize> {
+        self.host_style_scope
+    }
+
+    fn tag_name(&self) -> &str {
+        self.tag_name
+    }
+
+    fn id(&self) -> Option<&str> {
+        Some(self.id)
+    }
+
+    fn classes(&self) -> Self::ClassIter<'_> {
+        self.classes.iter()
+    }
+
+    fn attribute(&self, name: &str) -> Option<&str> {
+        self.attributes
+            .iter()
+            .find(|(n, _)| n == name)
+            .map(|(_, v)| v.as_str())
+    }
+}
+
+impl<'a> StyleQueryTest<'a> {
+    pub fn single(
+        style_scope: Option<NonZeroUsize>,
+        extra_style_scope: Option<NonZeroUsize>,
+        host_style_scope: Option<NonZeroUsize>,
+        tag_name: &'a str,
+        id: &'a str,
+        classes: &'a [(String, Option<NonZeroUsize>)],
+        attributes: &'a [(String, String)],
+    ) -> Self {
+        Self {
+            style_scope,
+            extra_style_scope,
+            host_style_scope,
+            tag_name,
+            id,
+            classes,
+            attributes,
+        }
+    }
+}
+
 #[macro_export]
 macro_rules! test_parse_property {
     ($prop: ident, $prop_name: expr, $str_value: expr, $value: expr) => {{
@@ -34,7 +107,7 @@ pub fn query<const N: usize, const M: usize>(
     tag_name: &str,
     id: &str,
     classes: [&str; N],
-    attributes: [&str; M],
+    attributes: [(String, String); M],
 ) -> NodeProperties {
     query_with_media(
         ssg,
@@ -52,17 +125,16 @@ pub(super) fn query_with_media<L: LengthNum, const N: usize, const M: usize>(
     tag_name: &str,
     id: &str,
     classes: [&str; N],
-    attributes: [&str; M],
+    attributes: [(String, String); M],
     media_query_status: &MediaQueryStatus<L>,
 ) -> NodeProperties {
     let classes = classes
         .iter()
         .map(|x| (x.to_string(), None))
         .collect::<Vec<_>>();
-    let attributes = attributes.iter().map(|x| x.to_string()).collect::<Vec<_>>();
-    let query = StyleQuery::single(None, None, None, tag_name, id, &classes, &attributes);
+    let query = StyleQueryTest::single(None, None, None, tag_name, id, &classes, &attributes);
     let mut node_properties = NodeProperties::new(None);
-    ssg.query_single(&query, media_query_status, &mut node_properties);
+    ssg.query_single(query, media_query_status, &mut node_properties);
     node_properties
 }
 
@@ -70,7 +142,7 @@ pub(super) struct StyleQueryWrapper {
     tag_name: String,
     id: String,
     classes: Vec<(String, Option<NonZeroUsize>)>,
-    attributes: Vec<String>,
+    attributes: Vec<(String, String)>,
 }
 
 #[allow(dead_code)]
@@ -78,15 +150,14 @@ pub(super) fn query_item<'a, const N: usize, const M: usize>(
     tag_name: &'a str,
     id: &'a str,
     classes: [&'a str; N],
-    attributes: [&'a str; M],
+    attributes: [(String, String); M],
 ) -> StyleQueryWrapper {
     let classes = classes.iter().map(|x| (x.to_string(), None)).collect();
-    let attributes = attributes.iter().map(|x| x.to_string()).collect();
     StyleQueryWrapper {
         tag_name: tag_name.to_owned(),
         id: id.to_owned(),
         classes,
-        attributes,
+        attributes: attributes.to_vec(),
     }
 }
 
@@ -108,7 +179,7 @@ pub(super) fn query_list_with_media<L: LengthNum, const N: usize>(
     let query: Vec<_> = list
         .iter()
         .map(|sqw| {
-            StyleQuery::single(
+            StyleQueryTest::single(
                 None,
                 None,
                 None,
@@ -134,7 +205,7 @@ pub(super) fn query_list_with_parent<const N: usize>(
     let query: Vec<_> = list
         .iter()
         .map(|sqw| {
-            StyleQuery::single(
+            StyleQueryTest::single(
                 None,
                 None,
                 None,

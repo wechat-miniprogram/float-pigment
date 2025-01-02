@@ -1611,7 +1611,7 @@ fn parse_attribute_selector<'a, 't: 'a, 'i: 't>(
         // [name=value]
         Ok(&Token::Delim('=')) => AttributeOperator::Exact,
         // [name~=value]
-        Ok(&Token::IncludeMatch) => AttributeOperator::Contain,
+        Ok(&Token::IncludeMatch) => AttributeOperator::List,
         // [name|=value]
         Ok(&Token::DashMatch) => AttributeOperator::Hyphen,
         // [name^=value]
@@ -1619,7 +1619,7 @@ fn parse_attribute_selector<'a, 't: 'a, 'i: 't>(
         // [name$=value]
         Ok(&Token::SuffixMatch) => AttributeOperator::End,
         // [name*=value]
-        Ok(&Token::SubstringMatch) => AttributeOperator::List,
+        Ok(&Token::SubstringMatch) => AttributeOperator::Contain,
         Ok(_) => {
             return Err(location.new_custom_error(CustomError::UnexpectedTokenInAttributeSelector))
         }

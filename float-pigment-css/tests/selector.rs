@@ -33,14 +33,14 @@ fn stringify() {
         strings.join("|")
     }
     let classes = vec![("a".into(), None), ("a2".into(), None)];
-    let query = StyleQuery::single(None, None, None, "", "", &classes, &[]);
+    let query = StyleQuery::single(None, None, None, "", "", &classes);
     let matched_rules = ssg.query_matched_rules(&[query], &media_query_status);
     assert_eq!(merge_rule_strings(matched_rules), ".a, .b|.a|.a.a2");
     let classes = vec![("a".into(), None)];
-    let query = StyleQuery::single(None, None, None, "", "d", &classes, &[]);
+    let query = StyleQuery::single(None, None, None, "", "d", &classes);
     let matched_rules = ssg.query_matched_rules(&[query], &media_query_status);
     assert_eq!(merge_rule_strings(matched_rules), ".a, .b|.a|#d|#d.a");
-    let query = StyleQuery::single(None, None, None, "c", "d", &classes, &[]);
+    let query = StyleQuery::single(None, None, None, "c", "d", &classes);
     let matched_rules = ssg.query_matched_rules(&[query], &media_query_status);
     assert_eq!(
         merge_rule_strings(matched_rules),
@@ -62,14 +62,14 @@ fn rule_stringify() {
     ssg.append(ss);
     let media_query_status = MediaQueryStatus::<f32>::default_screen();
     let classes = vec![("a".into(), None)];
-    let query = StyleQuery::single(None, None, None, "", "", &classes, &[]);
+    let query = StyleQuery::single(None, None, None, "", "", &classes);
     let matched_rules = ssg.query_matched_rules(&[query], &media_query_status);
     assert_eq!(
         matched_rules.rules[0].rule.to_string(),
         ".a { display: block; }"
     );
     let classes = vec![("b".into(), None)];
-    let query = StyleQuery::single(None, None, None, "", "", &classes, &[]);
+    let query = StyleQuery::single(None, None, None, "", "", &classes);
     let matched_rules = ssg.query_matched_rules(&[query], &media_query_status);
     assert_eq!(
         matched_rules.rules[0].rule.to_string(),
@@ -85,7 +85,7 @@ fn multi_classes() {
         "#]);
     {
         let classes = vec![("a".into(), None)];
-        let query = StyleQuery::single(None, None, None, "", "", &classes, &[]);
+        let query = StyleQuery::single(None, None, None, "", "", &classes);
         let mut node_properties = NodeProperties::new(None);
         ssg.query_single(
             &query,
@@ -272,23 +272,26 @@ fn attribute_selector() {
     let mut ssg = StyleSheetGroup::new();
     let ss = StyleSheet::from_str(
         r#"
-        a[title] { height: 100px}
+        a[title] { height: 100px }
         .b { height: 200px }
         a[class~="logo"] { width: 300px }
-        .c { height: 400px }
+        .c { height: 400px !important; }
     "#,
     );
     ssg.append(ss);
     let node_properties = query(&ssg, "a", "", [""], []);
-    assert_ne!(node_properties.height(), Length::Undefined);
-    assert_ne!(node_properties.width(), Length::Undefined);
-    // let node_properties = query(&ssg, "a", "", [""], Some(vec!["title".into()]));
-    // assert_ne!(node_properties.height(), Length::Px(100.));
-    // assert_ne!(node_properties.width(), Length::Undefined);
-    let node_properties = query(&ssg, "", "", ["b"], []);
-    assert_eq!(node_properties.height(), Length::Px(200.));
-    let node_properties = query(&ssg, "", "", ["c"], []);
-    assert_eq!(node_properties.height(), Length::Px(400.));
+    assert_eq!(node_properties.height(), Length::Undefined);
+    assert_eq!(node_properties.width(), Length::Undefined);
+    let node_properties = query(&ssg, "a", "", [""], [("title".into(), "".into()), ("class".into(), "logo1 logo2".into())]);
+    assert_eq!(node_properties.height(), Length::Px(100.));
+    assert_eq!(node_properties.width(), Length::Undefined);
+    let node_properties = query(&ssg, "a", "", [""], [("title".into(), "".into()), ("class".into(), "logo1 logo logo2".into())]);
+    assert_eq!(node_properties.height(), Length::Px(100.));
+    assert_eq!(node_properties.width(), Length::Px(300.));
+    let node_properties = query(&ssg, "a", "", ["b"], [("title".into(), "".into())]);
+    assert_eq!(node_properties.height(), Length::Px(100.));
+    let node_properties = query(&ssg, "", "", [], [("title".into(), "".into())]);
+    assert_eq!(node_properties.height(), Length::Undefined);
 }
 
 #[test]
