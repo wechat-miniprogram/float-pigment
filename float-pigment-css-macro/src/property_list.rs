@@ -602,6 +602,19 @@ impl ToTokens for PropertiesDefinition {
                 }
             })
             .collect();
+        let inherited: Vec<_> = self
+            .items
+            .iter()
+            .map(|item| {
+                let PropertyItem {
+                    enum_name, inherit, ..
+                } = item;
+                let inherit = *inherit;
+                quote! {
+                    Self::#enum_name(v) => #inherit
+                }
+            })
+            .collect();
         let value_fields: Vec<_> = self
             .items
             .iter()
@@ -641,6 +654,12 @@ impl ToTokens for PropertiesDefinition {
                 pub(crate) fn is_deprecated(&self) -> bool {
                     match self {
                         #(#deprecated,)*
+                        _ => false,
+                    }
+                }
+                pub fn is_inherited(&self) -> bool {
+                    match self {
+                        #(#inherited,)*
                         _ => false,
                     }
                 }
