@@ -457,9 +457,9 @@ impl Rule {
         self.properties.iter()
     }
 
-    pub(crate) fn match_query<L: LengthNum>(
+    pub(crate) fn match_query<L: LengthNum, T: StyleNode>(
         &self,
-        query: &[StyleQuery],
+        query: &[T],
         media_query_status: &MediaQueryStatus<L>,
         sheet_style_scope: Option<NonZeroUsize>,
     ) -> Option<u16> {

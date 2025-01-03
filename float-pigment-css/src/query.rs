@@ -85,8 +85,45 @@ impl<L: LengthNum> MediaQueryStatus<L> {
     }
 }
 
+pub trait StyleNodeClass {
+    fn name(&self) -> &str;
+    fn scope(&self) -> Option<NonZeroUsize>;
+}
+
+impl StyleNodeClass for (String, Option<NonZeroUsize>) {
+    fn name(&self) -> &str {
+        &self.0
+    }
+
+    fn scope(&self) -> Option<NonZeroUsize> {
+        self.1
+    }
+}
+
+pub trait StyleNode {
+    type Class: StyleNodeClass;
+    type ClassIter<'a>: Iterator<Item = &'a Self::Class>
+    where
+        Self: 'a;
+
+    fn style_scope(&self) -> Option<NonZeroUsize>;
+    fn extra_style_scope(&self) -> Option<NonZeroUsize>;
+    fn host_style_scope(&self) -> Option<NonZeroUsize>;
+    fn tag_name(&self) -> &str;
+    fn id(&self) -> Option<&str>;
+    fn classes(&self) -> Self::ClassIter<'_>;
+    fn attribute(&self, name: &str) -> Option<&str>;
+
+    fn contain_scope(&self, scope: Option<NonZeroUsize>) -> bool {
+        scope.is_none()
+            || self.style_scope() == scope
+            || self.extra_style_scope() == scope
+            || self.host_style_scope() == scope
+    }
+}
+
 /// Represents node information, used for matching rules.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct StyleQuery<'a> {
     pub(super) style_scope: Option<NonZeroUsize>,
     pub(super) extra_style_scope: Option<NonZeroUsize>,
@@ -94,8 +131,19 @@ pub struct StyleQuery<'a> {
     pub(super) tag_name: &'a str,
     pub(super) id: &'a str,
     pub(super) classes: &'a [(String, Option<NonZeroUsize>)],
-    #[allow(unused)]
-    pub(super) attributes: &'a [String], // TODO support attributes
+}
+
+impl Clone for StyleQuery<'_> {
+    fn clone(&self) -> Self {
+        Self {
+            style_scope: self.style_scope,
+            extra_style_scope: self.extra_style_scope,
+            host_style_scope: self.host_style_scope,
+            tag_name: self.tag_name,
+            id: self.id,
+            classes: self.classes,
+        }
+    }
 }
 
 impl<'a> StyleQuery<'a> {
@@ -107,7 +155,6 @@ impl<'a> StyleQuery<'a> {
         tag_name: &'a str,
         id: &'a str,
         classes: &'a [(String, Option<NonZeroUsize>)],
-        attributes: &'a [String],
     ) -> Self {
         Self {
             style_scope,
@@ -116,15 +163,79 @@ impl<'a> StyleQuery<'a> {
             tag_name,
             id,
             classes,
-            attributes,
         }
     }
+}
 
-    pub(crate) fn contain_scope(&self, scope: Option<NonZeroUsize>) -> bool {
-        scope.is_none()
-            || self.style_scope == scope
-            || self.extra_style_scope == scope
-            || self.host_style_scope == scope
+impl<'a> StyleNode for StyleQuery<'a> {
+    type Class = (String, Option<NonZeroUsize>);
+    type ClassIter<'c>
+        = core::slice::Iter<'c, Self::Class>
+    where
+        'a: 'c;
+
+    fn style_scope(&self) -> Option<NonZeroUsize> {
+        self.style_scope
+    }
+
+    fn extra_style_scope(&self) -> Option<NonZeroUsize> {
+        self.extra_style_scope
+    }
+
+    fn host_style_scope(&self) -> Option<NonZeroUsize> {
+        self.host_style_scope
+    }
+
+    fn tag_name(&self) -> &str {
+        self.tag_name
+    }
+
+    fn id(&self) -> Option<&str> {
+        Some(self.id)
+    }
+
+    fn classes(&self) -> Self::ClassIter<'_> {
+        self.classes.iter()
+    }
+
+    fn attribute(&self, name: &str) -> Option<&str> {
+        None
+    }
+}
+
+impl<'b, 'a: 'b> StyleNode for &'b StyleQuery<'a> {
+    type Class = (String, Option<NonZeroUsize>);
+    type ClassIter<'c>
+        = core::slice::Iter<'c, Self::Class>
+    where
+        'b: 'c;
+
+    fn style_scope(&self) -> Option<NonZeroUsize> {
+        self.style_scope
+    }
+
+    fn extra_style_scope(&self) -> Option<NonZeroUsize> {
+        self.extra_style_scope
+    }
+
+    fn host_style_scope(&self) -> Option<NonZeroUsize> {
+        self.host_style_scope
+    }
+
+    fn tag_name(&self) -> &str {
+        self.tag_name
+    }
+
+    fn id(&self) -> Option<&str> {
+        Some(self.id)
+    }
+
+    fn classes(&self) -> Self::ClassIter<'_> {
+        self.classes.iter()
+    }
+
+    fn attribute(&self, name: &str) -> Option<&str> {
+        None
     }
 }
 
