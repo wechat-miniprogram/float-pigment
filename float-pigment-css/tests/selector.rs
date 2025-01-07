@@ -273,9 +273,33 @@ fn attribute_selector() {
     let ss = StyleSheet::from_str(
         r#"
         a[title] { height: 100px }
+        a[class~="logo"] { width: 300px; }
+        a[href="https://example.org"] { min-height: 100px; }
+        a[href*="example"] { max-height: 101px; }
+        a[href$=".ORG" i] { min-width: 102px; }
+        a[href*="https://example.org"] { max-width: 103px; }
+        a[href*="https://example.ORG" s] { max-width: 104px; }
         .b { height: 200px }
-        a[class~="logo"] { width: 300px }
         .c { height: 400px !important; }
+
+        button {
+            display: flex;
+        }
+        button[type="primary"] {
+            color: red;
+        }
+        button[size="mini"] {
+            height: 10px;
+        }
+        button[type="primary"][size="mini"] {
+            height: 11px;
+        }
+        #a {
+            height: 12px;
+        }
+        button[type="primary"]#a {
+            height: 13px;
+        }
     "#,
     );
     ssg.append(ss);
@@ -292,6 +316,23 @@ fn attribute_selector() {
     assert_eq!(node_properties.height(), Length::Px(100.));
     let node_properties = query(&ssg, "", "", [], [("title".into(), "".into())]);
     assert_eq!(node_properties.height(), Length::Undefined);
+
+    let node_properties = query(&ssg, "a", "", [], [("href".into(), "https://example.org".into())]);
+    assert_eq!(node_properties.height(), Length::Undefined);
+    assert_eq!(node_properties.width(), Length::Undefined);
+    assert_eq!(node_properties.min_height(), Length::Px(100.));
+    assert_eq!(node_properties.max_height(), Length::Px(101.));
+    assert_eq!(node_properties.min_width(), Length::Px(102.));
+    assert_eq!(node_properties.max_width(), Length::Px(103.));
+
+    let node_properties = query(&ssg, "button", "a", [], [("type".into(), "primary".into())]);
+    assert_eq!(node_properties.height(), Length::Px(13.));
+    let node_properties = query(&ssg, "button", "a", [], [("type".into(), "warn".into())]);
+    assert_eq!(node_properties.height(), Length::Px(12.));
+    let node_properties = query(&ssg, "button", "", [], [("type".into(), "primary".into()), ("size".into(), "mini".into())]);
+    assert_eq!(node_properties.height(), Length::Px(11.));
+    let node_properties = query(&ssg, "button", "", [], [("type".into(), "warm".into()), ("size".into(), "mini".into())]);
+    assert_eq!(node_properties.height(), Length::Px(10.));
 }
 
 #[test]
