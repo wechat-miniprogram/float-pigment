@@ -10,7 +10,7 @@ use cssparser::{Parser, ParserInput};
 use float_pigment_css_macro::{compatibility_enum_check, compatibility_struct_check};
 
 use crate::parser::{parse_selector, ParseState};
-use crate::query::{StyleNode, StyleNodeClass};
+use crate::query::{StyleNode, StyleNodeAttributeCaseSensitivity, StyleNodeClass};
 
 #[cfg_attr(debug_assertions, compatibility_enum_check(selector))]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -421,21 +421,31 @@ impl Selector {
                                     for attribute in selector_attributes.iter() {
                                         let selector_attr_value =
                                             attribute.value.as_deref().unwrap_or_default();
-                                        if let Some(element_attr_value) =
+                                        if let Some((element_attr_value, sensitivity)) =
                                             cur_query.attribute(&attribute.name)
                                         {
+                                            let sensitivity = match (&attribute.case_insensitive, sensitivity) {
+                                                (AttributeFlags::CaseInsensitive, _) | (AttributeFlags::CaseSensitivityDependsOnName, StyleNodeAttributeCaseSensitivity::CaseInsensitive) => {
+                                                    StyleNodeAttributeCaseSensitivity::CaseInsensitive
+                                                }
+                                                (AttributeFlags::CaseSensitive, _) | (AttributeFlags::CaseSensitivityDependsOnName, StyleNodeAttributeCaseSensitivity::CaseSensitive) => {
+                                                    StyleNodeAttributeCaseSensitivity::CaseSensitive
+                                                }
+                                            };
                                             if !match attribute.operator {
                                                 AttributeOperator::Set => true,
-                                                AttributeOperator::Exact => {
-                                                    element_attr_value == selector_attr_value
-                                                }
+                                                AttributeOperator::Exact => sensitivity
+                                                    .eq(element_attr_value, selector_attr_value),
                                                 AttributeOperator::List => {
                                                     if selector_attr_value.is_empty() {
                                                         false
                                                     } else {
                                                         element_attr_value
                                                             .split(SELECTOR_WHITESPACE)
-                                                            .any(|x| x == selector_attr_value)
+                                                            .any(|x| {
+                                                                sensitivity
+                                                                    .eq(x, selector_attr_value)
+                                                            })
                                                     }
                                                 }
                                                 AttributeOperator::Hyphen => {
@@ -448,7 +458,8 @@ impl Selector {
                                                     {
                                                         element_attr_value == selector_attr_value
                                                     } else {
-                                                        element_attr_value.starts_with(
+                                                        sensitivity.starts_with(
+                                                            element_attr_value,
                                                             &alloc::format!(
                                                                 "{}-",
                                                                 selector_attr_value
@@ -456,13 +467,19 @@ impl Selector {
                                                         )
                                                     }
                                                 }
-                                                AttributeOperator::Begin => element_attr_value
-                                                    .starts_with(selector_attr_value),
-                                                AttributeOperator::End => element_attr_value
-                                                    .ends_with(selector_attr_value),
-                                                AttributeOperator::Contain => {
-                                                    element_attr_value.contains(selector_attr_value)
-                                                }
+                                                AttributeOperator::Begin => sensitivity
+                                                    .starts_with(
+                                                        element_attr_value,
+                                                        selector_attr_value,
+                                                    ),
+                                                AttributeOperator::End => sensitivity.ends_with(
+                                                    element_attr_value,
+                                                    selector_attr_value,
+                                                ),
+                                                AttributeOperator::Contain => sensitivity.contains(
+                                                    element_attr_value,
+                                                    selector_attr_value,
+                                                ),
                                             } {
                                                 matches = false;
                                                 break;

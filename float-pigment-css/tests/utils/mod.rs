@@ -3,7 +3,7 @@ use std::num::NonZeroUsize;
 use float_pigment_css::{
     length_num::LengthNum, property::*, MediaQueryStatus, StyleQuery, StyleSheet, StyleSheetGroup,
 };
-use float_pigment_css::query::{StyleNode};
+use float_pigment_css::query::{StyleNode, StyleNodeAttributeCaseSensitivity};
 
 pub struct StyleQueryTest<'a> {
     pub style_scope: Option<NonZeroUsize>,
@@ -46,11 +46,15 @@ impl<'a> StyleNode for StyleQueryTest<'a> {
         self.classes.iter()
     }
 
-    fn attribute(&self, name: &str) -> Option<&str> {
+    fn attribute(&self, name: &str) -> Option<(&str, StyleNodeAttributeCaseSensitivity)> {
         self.attributes
             .iter()
             .find(|(n, _)| n == name)
-            .map(|(_, v)| v.as_str())
+            .map(|(_, v)| (v.as_str(), match name {
+                "id" | "class" => StyleNodeAttributeCaseSensitivity::CaseSensitive,
+                "type" | "size" => StyleNodeAttributeCaseSensitivity::CaseInsensitive,
+                _ => StyleNodeAttributeCaseSensitivity::CaseSensitive,
+            }))
     }
 }
 

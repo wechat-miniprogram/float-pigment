@@ -100,6 +100,44 @@ impl StyleNodeClass for (String, Option<NonZeroUsize>) {
     }
 }
 
+pub enum StyleNodeAttributeCaseSensitivity {
+    CaseSensitive,
+    CaseInsensitive,
+}
+
+impl StyleNodeAttributeCaseSensitivity {
+    pub fn eq(&self, a: &str, b: &str) -> bool {
+        match self {
+            Self::CaseSensitive => a == b,
+            Self::CaseInsensitive => a.eq_ignore_ascii_case(b),
+        }
+    }
+
+    pub fn starts_with(&self, a: &str, b: &str) -> bool {
+        // FIXME: reduce memory allocation
+        match self {
+            Self::CaseSensitive => a.starts_with(b),
+            Self::CaseInsensitive => a.to_ascii_lowercase().starts_with(&b.to_ascii_lowercase()),
+        }
+    }
+
+    pub fn ends_with(&self, a: &str, b: &str) -> bool {
+        // FIXME: reduce memory allocation
+        match self {
+            Self::CaseSensitive => a.ends_with(b),
+            Self::CaseInsensitive => a.to_ascii_lowercase().ends_with(&b.to_ascii_lowercase()),
+        }
+    }
+
+    pub fn contains(&self, a: &str, b: &str) -> bool {
+        // FIXME: reduce memory allocation
+        match self {
+            Self::CaseSensitive => a.contains(b),
+            Self::CaseInsensitive => a.to_ascii_lowercase().contains(&b.to_ascii_lowercase()),
+        }
+    }
+}
+
 pub trait StyleNode {
     type Class: StyleNodeClass;
     type ClassIter<'a>: Iterator<Item = &'a Self::Class>
@@ -112,7 +150,7 @@ pub trait StyleNode {
     fn tag_name(&self) -> &str;
     fn id(&self) -> Option<&str>;
     fn classes(&self) -> Self::ClassIter<'_>;
-    fn attribute(&self, name: &str) -> Option<&str>;
+    fn attribute(&self, name: &str) -> Option<(&str, StyleNodeAttributeCaseSensitivity)>;
 
     fn contain_scope(&self, scope: Option<NonZeroUsize>) -> bool {
         scope.is_none()
@@ -198,7 +236,7 @@ impl<'a> StyleNode for StyleQuery<'a> {
         self.classes.iter()
     }
 
-    fn attribute(&self, name: &str) -> Option<&str> {
+    fn attribute(&self, name: &str) -> Option<(&str, StyleNodeAttributeCaseSensitivity)> {
         None
     }
 }
@@ -234,7 +272,7 @@ impl<'b, 'a: 'b> StyleNode for &'b StyleQuery<'a> {
         self.classes.iter()
     }
 
-    fn attribute(&self, name: &str) -> Option<&str> {
+    fn attribute(&self, name: &str) -> Option<(&str, StyleNodeAttributeCaseSensitivity)> {
         None
     }
 }
