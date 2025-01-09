@@ -465,6 +465,7 @@ pub unsafe extern "C" fn parse_inline_style(
                 bs_empty = false;
                 property
             }
+            #[cfg(feature = "debug")]
             PropertyMeta::DebugGroup { .. } => Property::Unknown,
         })
         .collect();
