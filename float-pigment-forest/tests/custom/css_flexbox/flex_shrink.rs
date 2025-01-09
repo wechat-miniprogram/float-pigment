@@ -36,3 +36,23 @@ fn flex_shrink_1_0_2() {
     "#
     )
 }
+
+#[test]
+fn flex_shrink_to_min_content() {
+    assert_xml!(
+        r#"
+        <div style="display: flex; flex-direction: column; height: 100px;">
+          <div style="height: 100px;" expect_height="10"></div>
+          <div expect_height="30">
+            <div style="height: 30px;" expect_height="30"></div>
+          </div>
+          <div expect_height="50">
+            <div style="min-height: 50px;" expect_height="50">
+              <div style="height: 30px;" expect_height="30"></div>
+            </div>
+          </div>
+          <div style="height: 100px;" expect_height="10"></div>
+        </div>
+    "#
+    )
+}
