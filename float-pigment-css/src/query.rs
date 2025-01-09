@@ -370,6 +370,7 @@ impl MatchedRuleList {
                         }
                     }
                 }
+                #[cfg(feature = "debug")]
                 PropertyMeta::DebugGroup {
                     properties,
                     important,
@@ -457,6 +458,7 @@ impl MatchedRuleList {
                             }
                         }
                     }
+                    #[cfg(feature = "debug")]
                     PropertyMeta::DebugGroup {
                         properties,
                         important,

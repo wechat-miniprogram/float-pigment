@@ -21,9 +21,10 @@ pub enum PropertyMeta {
     ///
     /// It is designed for debugging only.
     /// In production environment, properties are well-normalized -
-    /// shorthand properties (e.g. `font` `background`) are splitted in advance.
+    /// shorthand properties (e.g. `font` `background`) are split in advance.
     /// However, we may add new shorthand properties in debugger -
     /// we can keep the shorthand properties as-is with `DebugGroup`s.
+    #[cfg(feature = "debug")]
     DebugGroup {
         /// The original name-value string pair.
         original_name_value: Box<(String, String)>,
@@ -51,6 +52,7 @@ impl PropertyMeta {
     /// Note that the new property is in *debug* mode so that:
     /// * it cannot be serialized even if it has been inserted to a rule;
     /// * it has a little performance penalty.
+    #[cfg(feature = "debug")]
     pub fn to_debug_state(&self, disabled: bool) -> Self {
         match self {
             Self::Normal { property } => Self::DebugGroup {
@@ -90,6 +92,7 @@ impl PropertyMeta {
         match self {
             Self::Normal { .. } => false,
             Self::Important { .. } => true,
+            #[cfg(feature = "debug")]
             Self::DebugGroup { important, .. } => *important,
         }
     }
@@ -99,6 +102,7 @@ impl PropertyMeta {
         match self {
             Self::Normal { property } => property.get_property_name().into(),
             Self::Important { property } => property.get_property_name().into(),
+            #[cfg(feature = "debug")]
             Self::DebugGroup {
                 original_name_value,
                 ..
@@ -117,6 +121,7 @@ impl PropertyMeta {
                 v.push_str(" !important");
                 v
             }
+            #[cfg(feature = "debug")]
             Self::DebugGroup {
                 original_name_value,
                 ..
@@ -129,6 +134,7 @@ impl PropertyMeta {
         match self {
             Self::Normal { .. } => false,
             Self::Important { .. } => false,
+            #[cfg(feature = "debug")]
             Self::DebugGroup { disabled, .. } => *disabled,
         }
     }
@@ -138,6 +144,7 @@ impl PropertyMeta {
         match self {
             Self::Normal { .. } => false,
             Self::Important { .. } => false,
+            #[cfg(feature = "debug")]
             Self::DebugGroup { properties, .. } => properties.len() == 0,
         }
     }
@@ -148,6 +155,7 @@ impl PropertyMeta {
             Self::Normal { property, .. } | Self::Important { property, .. } => {
                 property.is_deprecated()
             }
+            #[cfg(feature = "debug")]
             Self::DebugGroup { .. } => false,
         }
     }
@@ -166,6 +174,7 @@ impl PropertyMeta {
             PropertyMeta::Important { property: p } => {
                 node_properties.merge_property(p, parent_node_properties, current_font_size);
             }
+            #[cfg(feature = "debug")]
             PropertyMeta::DebugGroup {
                 properties,
                 disabled,
@@ -193,6 +202,7 @@ impl PropertyMeta {
     pub fn property(&self) -> Option<Property> {
         match self {
             Self::Normal { property } | Self::Important { property } => Some(property.clone()),
+            #[cfg(feature = "debug")]
             Self::DebugGroup { .. } => None,
         }
     }
@@ -237,6 +247,7 @@ impl<'a> Iterator for PropertyMetaIter<'a> {
                     None
                 }
             }
+            #[cfg(feature = "debug")]
             PropertyMeta::DebugGroup { properties, .. } => {
                 if self.cur < properties.len() {
                     let ret = &properties[self.cur];
@@ -321,6 +332,7 @@ impl Rule {
                         _ => {}
                     }
                 }
+                #[cfg(feature = "debug")]
                 PropertyMeta::DebugGroup { properties, .. } => {
                     for property in properties.iter() {
                         match property {
@@ -381,6 +393,7 @@ impl Rule {
     }
 
     /// Enable or disable the rule (and construct a new one as the result if success)
+    #[cfg(feature = "debug")]
     pub fn set_property_disabled(&self, index: usize, disabled: bool) -> Option<Box<Self>> {
         let media = self.media.clone();
         let selector = self.selector.clone();
