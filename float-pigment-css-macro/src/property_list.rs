@@ -532,7 +532,7 @@ impl ToTokens for PropertiesDefinition {
                 cur_index += 1;
                 let invalid_ident =
                     Ident::new(&format!("Invalid{:X}", cur_index), enum_name.span());
-                enum_fields.push(quote!(#[serde(rename = "_")] #invalid_ident));
+                enum_fields.push(quote!(#[doc(hidden)] #[serde(rename = "_")] #invalid_ident));
             }
             cur_index += 1;
             enum_fields.push(quote! {

@@ -737,10 +737,14 @@ impl Parse for StyleSyntaxDefinition {
 impl ToTokens for StyleSyntaxDefinition {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let Self { trait_name, items } = self;
+
+        // the parser functions
         let item_fn_list: Vec<_> = items.iter().map(|x| quote! { #x }).collect();
         tokens.append_all(quote! {
             #(#item_fn_list)*
         });
+
+        // the value parser mapping
         let map: Vec<_> = items
             .iter()
             .map(|item| {
@@ -845,6 +849,13 @@ impl ToTokens for StyleSyntaxDefinition {
                 }?;
                 Ok(false)
             }
+        });
+
+        // a pub mod for docs
+        let mod_doc = format!("!!! TODO");
+        tokens.append_all(quote! {
+            #[doc = #mod_doc]
+            pub mod style_properties {}
         });
     }
 }
