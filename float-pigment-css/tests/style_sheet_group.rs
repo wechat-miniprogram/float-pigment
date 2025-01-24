@@ -347,14 +347,7 @@ fn scopes_in_tag_name_and_id() {
         );
         assert_eq!(node_properties.width(), Length::Px(0.));
         assert_eq!(node_properties.height(), Length::Undefined);
-        let query = StyleQuery::single(
-            NonZeroUsize::new(1),
-            None,
-            None,
-            "view",
-            "i",
-            &classes,
-        );
+        let query = StyleQuery::single(NonZeroUsize::new(1), None, None, "view", "i", &classes);
         let mut node_properties = NodeProperties::new(None);
         ssg.query_single(
             query,
@@ -363,14 +356,7 @@ fn scopes_in_tag_name_and_id() {
         );
         assert_eq!(node_properties.width(), Length::Px(1.));
         assert_eq!(node_properties.height(), Length::Undefined);
-        let query = StyleQuery::single(
-            NonZeroUsize::new(2),
-            None,
-            None,
-            "view",
-            "i",
-            &classes,
-        );
+        let query = StyleQuery::single(NonZeroUsize::new(2), None, None, "view", "i", &classes);
         let mut node_properties = NodeProperties::new(None);
         ssg.query_single(
             &query,

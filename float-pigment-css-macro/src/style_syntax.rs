@@ -860,15 +860,37 @@ impl ToTokens for StyleSyntaxDefinition {
             a.cmp(b)
         });
         let supported_property_count = supported_properties.len();
-        let supported_property_names = supported_properties.iter().map(|x| x.name.as_ref().unwrap());
+        let supported_property_names = supported_properties
+            .iter()
+            .map(|x| x.name.as_ref().unwrap());
         let mut style_doc = String::new();
         writeln!(&mut style_doc, "The supported CSS property names.\n").unwrap();
-        writeln!(&mut style_doc, "This list is sorted, so it is safe to do binary search on it.\n").unwrap();
-        writeln!(&mut style_doc, "Note that this is just a simple list of basic parsing rules.\n").unwrap();
+        writeln!(
+            &mut style_doc,
+            "This list is sorted, so it is safe to do binary search on it.\n"
+        )
+        .unwrap();
+        writeln!(
+            &mut style_doc,
+            "Note that this is just a simple list of basic parsing rules.\n"
+        )
+        .unwrap();
         writeln!(&mut style_doc, "* Some properties in this list are shorthand properties that cannot be found in the [Property] enum.").unwrap();
-        writeln!(&mut style_doc, "* Parsing rules of some properties are slightly different from the web standard.").unwrap();
-        writeln!(&mut style_doc, "\nSee the table below for more information about all supported properties.\n").unwrap();
-        writeln!(&mut style_doc, "| Property Name | Related Property Variant | Major Value Options |").unwrap();
+        writeln!(
+            &mut style_doc,
+            "* Parsing rules of some properties are slightly different from the web standard."
+        )
+        .unwrap();
+        writeln!(
+            &mut style_doc,
+            "\nSee the table below for more information about all supported properties.\n"
+        )
+        .unwrap();
+        writeln!(
+            &mut style_doc,
+            "| Property Name | Related Property Variant | Major Value Options |"
+        )
+        .unwrap();
         writeln!(&mut style_doc, "| ---- | ---- | ---- |").unwrap();
         let table_list_a = supported_properties
             .iter()
@@ -879,7 +901,11 @@ impl ToTokens for StyleSyntaxDefinition {
         for x in table_list_a.chain(table_list_b) {
             let name = x.name.as_ref().unwrap();
             let non_standard = name.starts_with("-");
-            let name_col = if non_standard { format!("*`{}`*", name) } else { format!("`{}`", name) };
+            let name_col = if non_standard {
+                format!("*`{}`*", name)
+            } else {
+                format!("`{}`", name)
+            };
             let mut doc_col = String::new();
             let mut options_col = vec![];
             if let StyleSyntaxValueItem::Assign(variant, v) = &x.value {
@@ -895,7 +921,14 @@ impl ToTokens for StyleSyntaxDefinition {
                 }
             }
             options_col.sort();
-            writeln!(&mut style_doc, "| {} | {} | {} |", name_col, doc_col, options_col.join("<br>")).unwrap();
+            writeln!(
+                &mut style_doc,
+                "| {} | {} | {} |",
+                name_col,
+                doc_col,
+                options_col.join("<br>")
+            )
+            .unwrap();
         }
         tokens.append_all(quote! {
             #[doc = #style_doc]
