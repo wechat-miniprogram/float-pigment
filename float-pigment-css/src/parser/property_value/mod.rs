@@ -860,9 +860,7 @@ pub(crate) fn element_func_repr<'a, 't: 'a, 'i: 't>(
                 let hash = hash_token_repr(parser)?;
                 Ok(BackgroundImageItem::Element(hash.into()))
             }),
-            _ => {
-                Err(parser.new_custom_error(CustomError::Unsupported))
-            }
+            _ => Err(parser.new_custom_error(CustomError::Unsupported)),
         }
     })
 }
@@ -936,9 +934,7 @@ pub(crate) fn image_func_repr<'a, 't: 'a, 'i: 't>(
                 }
                 Ok(BackgroundImageItem::Image(image_tags, image_src, color))
             }),
-            _ => {
-                Err(parser.new_custom_error(CustomError::Unsupported))
-            }
+            _ => Err(parser.new_custom_error(CustomError::Unsupported)),
         }
     })
 }
