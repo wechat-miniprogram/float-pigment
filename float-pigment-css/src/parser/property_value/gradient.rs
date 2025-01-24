@@ -436,7 +436,7 @@ pub(crate) fn gradient_repr<'a, 't: 'a, 'i: 't>(
                 ))
             }),
             _ => {
-                return Err(parser.new_custom_error(CustomError::Unsupported));
+                Err(parser.new_custom_error(CustomError::Unsupported))
             }
         }
     })

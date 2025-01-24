@@ -156,7 +156,7 @@ pub(crate) struct ComputeCalcExpr<T> {
 impl ComputeCalcExpr<Angle> {
     pub fn try_compute(expr: &CalcExpr) -> Option<Angle> {
         match expr {
-            CalcExpr::Angle(angle) => return Some(angle.as_ref().clone().to_rad()),
+            CalcExpr::Angle(angle) => Some(angle.as_ref().clone().to_rad()),
             CalcExpr::Plus(l, r) | CalcExpr::Sub(l, r) => {
                 let l = Self::try_compute(l)?;
 

@@ -777,7 +777,6 @@ pub unsafe extern "C" fn NodeStyleSetRowGapCalcHandle(node: NodePtr, calc_handle
 /// # Safety
 ///
 #[no_mangle]
-
 pub unsafe extern "C" fn NodeStyleSetColumnGap(node: NodePtr, value: f32) {
     let node = &*(node.ptr as *mut Node);
     node.set_column_gap(DefLength::Points(Len::from_f32(value)));

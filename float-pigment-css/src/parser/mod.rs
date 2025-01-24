@@ -642,7 +642,7 @@ fn parse_media_expression_series<'a, 't: 'a, 'i: 't>(
                                 return Ok(());
                             }
                         }
-                        return Err(parser.new_custom_error(CustomError::Unmatched));
+                        Err(parser.new_custom_error(CustomError::Unmatched))
                     }) {
                         Ok(_) => {}
                         Err(err) => {
@@ -1667,7 +1667,7 @@ fn parse_attribute_flags<'a, 't: 'a, 'i: 't>(
                     _ => return Err(location.new_basic_unexpected_token_error(t.clone())),
                 })
             } else {
-                return Err(location.new_basic_unexpected_token_error(t.clone()));
+                Err(location.new_basic_unexpected_token_error(t.clone()))
             }
         }
         Err(_) => Ok(AttributeFlags::CaseSensitivityDependsOnName),

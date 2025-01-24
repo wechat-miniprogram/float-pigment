@@ -85,8 +85,12 @@ impl<L: LengthNum> MediaQueryStatus<L> {
     }
 }
 
+/// The class for a `StyleNode`.
 pub trait StyleNodeClass {
+    /// The name of the class.
     fn name(&self) -> &str;
+
+    /// The style scope of the class.
     fn scope(&self) -> Option<NonZeroUsize>;
 }
 
@@ -100,12 +104,17 @@ impl StyleNodeClass for (String, Option<NonZeroUsize>) {
     }
 }
 
+/// The case-sensitivity for attribute matching.
 pub enum StyleNodeAttributeCaseSensitivity {
+    /// Case-sensitive.
     CaseSensitive,
+
+    /// Case-insensitive.
     CaseInsensitive,
 }
 
 impl StyleNodeAttributeCaseSensitivity {
+    /// Matches two strings with this case-sensitivity.
     pub fn eq(&self, a: &str, b: &str) -> bool {
         match self {
             Self::CaseSensitive => a == b,
@@ -113,6 +122,7 @@ impl StyleNodeAttributeCaseSensitivity {
         }
     }
 
+    /// Check if `a` starts with `b` in this case-sensitivity.
     pub fn starts_with(&self, a: &str, b: &str) -> bool {
         // FIXME: reduce memory allocation
         match self {
@@ -121,6 +131,7 @@ impl StyleNodeAttributeCaseSensitivity {
         }
     }
 
+    /// Check if `a` ends with `b` in this case-sensitivity.
     pub fn ends_with(&self, a: &str, b: &str) -> bool {
         // FIXME: reduce memory allocation
         match self {
@@ -129,6 +140,7 @@ impl StyleNodeAttributeCaseSensitivity {
         }
     }
 
+    /// Check if `a` contains `b` in this case-sensitivity.
     pub fn contains(&self, a: &str, b: &str) -> bool {
         // FIXME: reduce memory allocation
         match self {
@@ -138,20 +150,38 @@ impl StyleNodeAttributeCaseSensitivity {
     }
 }
 
+/// A node descriptor for a style query.
 pub trait StyleNode {
+    /// The type for a class.
     type Class: StyleNodeClass;
+
+    /// The type for classes iteration.
     type ClassIter<'a>: Iterator<Item = &'a Self::Class>
     where
         Self: 'a;
 
+    /// The style scope of the node itself.
     fn style_scope(&self) -> Option<NonZeroUsize>;
+
+    /// The extra style scope of the node.
     fn extra_style_scope(&self) -> Option<NonZeroUsize>;
+
+    /// The extra style scope for the `:host` selector.
     fn host_style_scope(&self) -> Option<NonZeroUsize>;
+
+    /// The tag name of the node.
     fn tag_name(&self) -> &str;
+
+    /// The id of the node.
     fn id(&self) -> Option<&str>;
+
+    /// The classes of the node.
     fn classes(&self) -> Self::ClassIter<'_>;
+
+    /// Get an attribute of the node.
     fn attribute(&self, name: &str) -> Option<(&str, StyleNodeAttributeCaseSensitivity)>;
 
+    /// Check if the node has a specified scope.
     fn contain_scope(&self, scope: Option<NonZeroUsize>) -> bool {
         scope.is_none()
             || self.style_scope() == scope
@@ -236,7 +266,7 @@ impl<'a> StyleNode for StyleQuery<'a> {
         self.classes.iter()
     }
 
-    fn attribute(&self, name: &str) -> Option<(&str, StyleNodeAttributeCaseSensitivity)> {
+    fn attribute(&self, _name: &str) -> Option<(&str, StyleNodeAttributeCaseSensitivity)> {
         None
     }
 }
@@ -272,7 +302,7 @@ impl<'b, 'a: 'b> StyleNode for &'b StyleQuery<'a> {
         self.classes.iter()
     }
 
-    fn attribute(&self, name: &str) -> Option<(&str, StyleNodeAttributeCaseSensitivity)> {
+    fn attribute(&self, _name: &str) -> Option<(&str, StyleNodeAttributeCaseSensitivity)> {
         None
     }
 }
