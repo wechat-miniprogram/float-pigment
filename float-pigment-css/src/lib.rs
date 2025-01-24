@@ -21,7 +21,7 @@
 //! 
 //! The supported media features can be found in [MediaQueryStatus] docs.
 //! 
-//! The supported style properties can be found in [style_properties](crate::property::style_properties) module docs.
+//! The supported style properties can be found in [SUPPORTED_CSS_PROPERTY_NAMES](crate::property::SUPPORTED_CSS_PROPERTY_NAMES) docs.
 //!
 //! ### The Binary Format
 //!

@@ -39,13 +39,14 @@ impl Parse for PropertyValueType {
                     Unset,
                     Var(Box<StrRef>),
                     VarInShorthand(Box<StrRef>, Box<StrRef>),
-                    Invalid0,
+                    #[doc(hidden)] Invalid0,
                 }
             "#;
             let mut new_variants = parse_str::<ItemEnum>(s)?.variants;
             for i in new_variants.len()..PRESERVE_GLOBAL_VALUE_RANGE {
                 let mut empty_slot = new_variants.last().unwrap().clone();
                 empty_slot.ident = Ident::new(&format!("Invalid{:X}", i), empty_slot.ident.span());
+                empty_slot.attrs.push(parse_quote!(#[doc(hidden)]));
                 new_variants.push(empty_slot);
             }
             new_variants
