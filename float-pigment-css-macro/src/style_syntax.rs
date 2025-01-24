@@ -1,6 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::*;
 use rustc_hash::FxHashMap;
+use std::fmt::Write;
 use std::ops::RangeInclusive;
 use syn::parse::*;
 use syn::punctuated::Punctuated;
@@ -851,11 +852,58 @@ impl ToTokens for StyleSyntaxDefinition {
             }
         });
 
-        // a pub mod for docs
-        let mod_doc = format!("!!! TODO");
+        // the supported property list
+        let mut supported_properties: Vec<_> = items.iter().filter(|x| x.name.is_some()).collect();
+        supported_properties.sort_by(|a, b| {
+            let a = a.name.as_ref().unwrap();
+            let b = b.name.as_ref().unwrap();
+            a.cmp(b)
+        });
+        let supported_property_count = supported_properties.len();
+        let supported_property_names = supported_properties.iter().map(|x| x.name.as_ref().unwrap());
+        let mut style_doc = String::new();
+        writeln!(&mut style_doc, "The supported CSS property names.\n").unwrap();
+        writeln!(&mut style_doc, "This list is sorted, so it is safe to do binary search on it.\n").unwrap();
+        writeln!(&mut style_doc, "Note that this is just a simple list of basic parsing rules.\n").unwrap();
+        writeln!(&mut style_doc, "* Some properties in this list are shorthand properties that cannot be found in the [Property] enum.").unwrap();
+        writeln!(&mut style_doc, "* Parsing rules of some properties are slightly different from the web standard.").unwrap();
+        writeln!(&mut style_doc, "\nSee the table below for more information about all supported properties.\n").unwrap();
+        writeln!(&mut style_doc, "| Property Name | Related Property Variant | Major Value Options |").unwrap();
+        writeln!(&mut style_doc, "| ---- | ---- | ---- |").unwrap();
+        let table_list_a = supported_properties
+            .iter()
+            .filter(|x| !x.name.as_ref().unwrap().starts_with("-"));
+        let table_list_b = supported_properties
+            .iter()
+            .filter(|x| x.name.as_ref().unwrap().starts_with("-"));
+        for x in table_list_a.chain(table_list_b) {
+            let name = x.name.as_ref().unwrap();
+            let non_standard = name.starts_with("-");
+            let name_col = if non_standard { format!("*`{}`*", name) } else { format!("`{}`", name) };
+            let mut doc_col = String::new();
+            let mut options_col = vec![];
+            if let StyleSyntaxValueItem::Assign(variant, v) = &x.value {
+                doc_col = format!("[Property::{}]", variant);
+                if let StyleSyntaxValueItem::Branch(branches) = &**v {
+                    for item in branches {
+                        if let StyleSyntaxValueItem::Convert(v, _) = item {
+                            if let StyleSyntaxValueItem::MatchIdent(s) = &**v {
+                                options_col.push(format!("`{}`", s));
+                            }
+                        }
+                    }
+                }
+            }
+            options_col.sort();
+            writeln!(&mut style_doc, "| {} | {} | {} |", name_col, doc_col, options_col.join("<br>")).unwrap();
+        }
         tokens.append_all(quote! {
-            #[doc = #mod_doc]
-            pub mod style_properties {}
+            #[doc = #style_doc]
+            pub const SUPPORTED_CSS_PROPERTY_NAMES: [&'static str; #supported_property_count] = [
+                #(
+                    #supported_property_names,
+                )*
+            ];
         });
     }
 }
