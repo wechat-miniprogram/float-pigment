@@ -1,9 +1,9 @@
 use std::num::NonZeroUsize;
 
+use float_pigment_css::query::{StyleNode, StyleNodeAttributeCaseSensitivity};
 use float_pigment_css::{
     length_num::LengthNum, property::*, MediaQueryStatus, StyleQuery, StyleSheet, StyleSheetGroup,
 };
-use float_pigment_css::query::{StyleNode, StyleNodeAttributeCaseSensitivity};
 
 pub struct StyleQueryTest<'a> {
     pub style_scope: Option<NonZeroUsize>,
@@ -18,7 +18,7 @@ pub struct StyleQueryTest<'a> {
 impl<'a> StyleNode for StyleQueryTest<'a> {
     type Class = (String, Option<NonZeroUsize>);
     type ClassIter<'c>
-    = core::slice::Iter<'c, Self::Class>
+        = core::slice::Iter<'c, Self::Class>
     where
         'a: 'c;
 
@@ -50,11 +50,16 @@ impl<'a> StyleNode for StyleQueryTest<'a> {
         self.attributes
             .iter()
             .find(|(n, _)| n == name)
-            .map(|(_, v)| (v.as_str(), match name {
-                "id" | "class" => StyleNodeAttributeCaseSensitivity::CaseSensitive,
-                "type" | "size" => StyleNodeAttributeCaseSensitivity::CaseInsensitive,
-                _ => StyleNodeAttributeCaseSensitivity::CaseSensitive,
-            }))
+            .map(|(_, v)| {
+                (
+                    v.as_str(),
+                    match name {
+                        "id" | "class" => StyleNodeAttributeCaseSensitivity::CaseSensitive,
+                        "type" | "size" => StyleNodeAttributeCaseSensitivity::CaseInsensitive,
+                        _ => StyleNodeAttributeCaseSensitivity::CaseSensitive,
+                    },
+                )
+            })
     }
 }
 

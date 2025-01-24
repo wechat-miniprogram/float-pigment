@@ -14,13 +14,13 @@
 //! 1. Merge the `MatchedRuleList` into `NodeProperties` with `MatchedRuleList::merge_node_properties`.
 //!
 //! The result `NodeProperties` contains all supported CSS properties.
-//! 
+//!
 //! ### Supported CSS Features
-//! 
+//!
 //! The supported selectors can be found in [StyleQuery] docs.
-//! 
+//!
 //! The supported media features can be found in [MediaQueryStatus] docs.
-//! 
+//!
 //! The supported style properties can be found in [SUPPORTED_CSS_PROPERTY_NAMES](crate::property::SUPPORTED_CSS_PROPERTY_NAMES) docs.
 //!
 //! ### The Binary Format
