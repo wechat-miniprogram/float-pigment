@@ -449,6 +449,7 @@ impl Selector {
                                                     }
                                                 }
                                                 AttributeOperator::Hyphen => {
+                                                    #[allow(clippy::comparison_chain)]
                                                     if element_attr_value.len()
                                                         < selector_attr_value.len()
                                                     {

@@ -186,6 +186,7 @@ impl PropertyMeta {
     }
 
     #[cfg(test)]
+    #[doc(hidden)]
     pub fn property(&self) -> Option<Property> {
         match self {
             Self::Normal { property } | Self::Important { property } => Some(property.clone()),

@@ -861,7 +861,7 @@ pub(crate) fn element_func_repr<'a, 't: 'a, 'i: 't>(
                 Ok(BackgroundImageItem::Element(hash.into()))
             }),
             _ => {
-                return Err(parser.new_custom_error(CustomError::Unsupported));
+                Err(parser.new_custom_error(CustomError::Unsupported))
             }
         }
     })
@@ -937,7 +937,7 @@ pub(crate) fn image_func_repr<'a, 't: 'a, 'i: 't>(
                 Ok(BackgroundImageItem::Image(image_tags, image_src, color))
             }),
             _ => {
-                return Err(parser.new_custom_error(CustomError::Unsupported));
+                Err(parser.new_custom_error(CustomError::Unsupported))
             }
         }
     })

@@ -2,7 +2,7 @@ use std::num::NonZeroUsize;
 
 use float_pigment_css::query::{StyleNode, StyleNodeAttributeCaseSensitivity};
 use float_pigment_css::{
-    length_num::LengthNum, property::*, MediaQueryStatus, StyleQuery, StyleSheet, StyleSheetGroup,
+    length_num::LengthNum, property::*, MediaQueryStatus, StyleSheet, StyleSheetGroup,
 };
 
 pub struct StyleQueryTest<'a> {
