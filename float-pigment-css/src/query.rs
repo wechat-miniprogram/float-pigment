@@ -400,6 +400,7 @@ impl MatchedRuleList {
                         }
                     }
                 }
+                #[cfg(feature = "debug")]
                 PropertyMeta::DebugGroup {
                     properties,
                     important,
@@ -472,6 +473,7 @@ impl MatchedRuleList {
                     node_properties.merge_property(p, parent_node_properties, current_font_size)
                 }
             }
+            #[cfg(feature = "debug")]
             PropertyMeta::DebugGroup {
                 properties,
                 important,

@@ -1801,6 +1801,19 @@ fn parse_property_item<'a, 't: 'a, 'i: 't>(
     Ok(())
 }
 
+#[cfg(not(feature = "debug"))]
+#[inline(always)]
+fn parse_property_item_debug<'a, 't: 'a, 'i: 't>(
+    parser: &'a mut Parser<'i, 't>,
+    properties: &'a mut Vec<PropertyMeta>,
+    st: &mut ParseState,
+    disabled: bool,
+    rule_end_position: Option<SourcePosition>,
+) -> Result<(), ParseError<'i, CustomError>> {
+    Err(parser.new_custom_error(CustomError::Unsupported))
+}
+
+#[cfg(feature = "debug")]
 #[inline(always)]
 fn parse_property_item_debug<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
@@ -1908,6 +1921,7 @@ fn parse_property_value_with_important<'a, 't: 'a, 'i: 't>(
                 *pm = match pm2 {
                     PropertyMeta::Normal { property } => PropertyMeta::Important { property },
                     PropertyMeta::Important { .. } => unreachable!(),
+                    #[cfg(feature = "debug")]
                     PropertyMeta::DebugGroup { .. } => unreachable!(),
                 };
             }
@@ -1923,6 +1937,7 @@ fn parse_property_value_with_important<'a, 't: 'a, 'i: 't>(
             if let Some(p) = match &mut pm {
                 PropertyMeta::Normal { property } => Some(property),
                 PropertyMeta::Important { property } => Some(property),
+                #[cfg(feature = "debug")]
                 PropertyMeta::DebugGroup { .. } => None,
             } {
                 let ctx = &mut hooks::ParserHooksContext {
@@ -1983,7 +1998,6 @@ fn parse_custom_property_value_with_important<'a, 't: 'a, 'i: 't>(
 
 #[cfg(test)]
 mod test {
-
     use super::{is_url, parse_color_to_rgba, resolve_relative_path};
 
     #[test]

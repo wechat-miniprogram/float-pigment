@@ -35,7 +35,7 @@ name = "parse"
 harness = false
 
 [features]
-default = ["std", "deserialize", "serialize", "ffi"]
+default = ["std", "deserialize", "serialize", "ffi", "debug"]
 std = ["serde/std", "serde_json/std", "bit-set/std", "num-traits/std", "half/std", "float-pigment-consistent-bincode/std"]
 no-std-lock = []
 wasm-entrance = ["wasm-bindgen", "console_log", "console_error_panic_hook", "js-sys"]
@@ -50,6 +50,7 @@ compatibility_test = []
 compile_cache = ["toml", "colorful"]
 skip_compare_cache = ["float-pigment-css-macro/skip_compare_cache"]
 ffi = []
+debug = []
 
 [dependencies]
 wasm-bindgen = { version = "0.2", optional = true }

@@ -328,6 +328,7 @@ impl Rule {
                     bs_empty = false;
                     property
                 }
+                #[cfg(feature = "debug")]
                 PropertyMeta::DebugGroup { .. } => Property::Unknown,
             })
             .collect();
