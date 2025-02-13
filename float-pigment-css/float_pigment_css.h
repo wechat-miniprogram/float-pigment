@@ -91,8 +91,23 @@ enum class ContainKeyword {
 
 enum class FfiErrorCode {
   None,
-  NullPointer,
+  ThisNullPointer,
+  PathNullPointer,
+  PrefixNullPointer,
+  SourceNullPointer,
+  BufferNullPointer,
+  ExprPtrNullPointer,
+  StrNullPointer,
+  InlineStyleTextNullPointer,
+  InlineRuleNullPointer,
+  StyleTextNullPointer,
+  SelectorTextNullPointer,
   InvalidPath,
+  JsonNullPointer,
+  ArrayNullPointer,
+  SelectorNullPointer,
+  StyleSheetNullPointer,
+  MapNullPointer,
   Unknown,
 };
 
