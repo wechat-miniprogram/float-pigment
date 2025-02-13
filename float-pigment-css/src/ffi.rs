@@ -97,14 +97,43 @@ impl<T> FfiResult<T> {
 }
 
 /// # Safety
-/// Create a new resource manager.
+///
+/// Create a new style sheet resource.
+///
+/// This function returns a raw pointer to a heap-allocated style sheet resource.
+/// The caller is responsible for eventually freeing this memory using [FPStyleSheetResourceFree].
+///
+/// # Examples
+///
+/// ```c
+/// FfiResult result = FPStyleSheetResourceNew();
+/// if (result.err != FfiErrorCode::None) {
+///     // handle error
+/// }
+/// RawMutPtr resource = result.value;
+/// ```
+///
 #[export_name = "FPStyleSheetResourceNew"]
 pub unsafe extern "C" fn style_sheet_resource_new() -> FfiResult<RawMutPtr> {
     FfiResult::ok(Box::into_raw(Box::new(group::StyleSheetResource::new())) as RawMutPtr)
 }
 
 /// # Safety
-/// Free the resource manager.
+///
+/// Free the style sheet resource.
+///
+/// This function takes a raw pointer to a style sheet resource
+/// and frees the memory allocated for it.
+///
+/// # Examples
+///
+/// ```c
+/// FfiResult result = FPStyleSheetResourceFree(resource);
+/// if (result.err != FfiErrorCode::None) {
+///     // handle error
+/// }
+/// ```
+///
 #[export_name = "FPStyleSheetResourceFree"]
 pub unsafe extern "C" fn style_sheet_resource_free(this: RawMutPtr) -> FfiResult<NullPtr> {
     check_null!(this, FfiErrorCode::ThisNullPointer, null());
@@ -113,7 +142,20 @@ pub unsafe extern "C" fn style_sheet_resource_free(this: RawMutPtr) -> FfiResult
 }
 
 /// # Safety
-/// Add a tag name prefix to the resource manager.
+/// Add a tag name prefix to the resource.
+///
+/// This function takes a raw pointer to a style sheet resource,
+/// a path to the style sheet, and a prefix to add to the tag name.
+///
+/// # Examples
+///
+/// ```c
+/// FfiResult result = FPStyleSheetResourceAddTagNamePrefix(resource, path, prefix);
+/// if (result.err != FfiErrorCode::None) {
+///     // handle error
+/// }
+/// ```
+///
 #[export_name = "FPStyleSheetResourceAddTagNamePrefix"]
 pub unsafe extern "C" fn style_sheet_resource_add_tag_name_prefix(
     this: RawMutPtr,
@@ -132,6 +174,19 @@ pub unsafe extern "C" fn style_sheet_resource_add_tag_name_prefix(
 
 /// # Safety
 /// Serialize the specified style sheet to the JSON format.
+///
+/// This function takes a raw pointer to a style sheet resource,
+/// a path to the style sheet, and a pointer to a buffer to store the serialized data.
+///
+/// # Examples
+///
+/// ```c
+/// FfiResult result = FPStyleSheetResourceSerializeJson(resource, path, &mut buffer_len);
+/// if (result.err != FfiErrorCode::None) {
+///     // handle error
+/// }
+/// ```
+///
 #[cfg(all(feature = "serialize", feature = "serialize_json"))]
 #[export_name = "FPStyleSheetResourceSerializeJson"]
 pub unsafe extern "C" fn style_sheet_resource_serialize_json(
@@ -150,7 +205,18 @@ pub unsafe extern "C" fn style_sheet_resource_serialize_json(
 }
 
 /// # Safety
+///
 /// Serialize the specified style sheet to the binary format.
+///
+/// This function takes a raw pointer to a style sheet resource,
+/// a path to the style sheet, and a pointer to a buffer to store the serialized data.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetResourceSerializeBincode(resource, path, &mut buffer_len);
+/// ```
+///
 #[cfg(feature = "serialize")]
 #[export_name = "FPStyleSheetResourceSerializeBincode"]
 pub unsafe extern "C" fn style_sheet_resource_serialize_bincode(
@@ -168,7 +234,18 @@ pub unsafe extern "C" fn style_sheet_resource_serialize_bincode(
     FfiResult::ok(ret as *mut u8)
 }
 /// # Safety
+///
 /// Add a style sheet to the resource manager.
+///
+/// This function takes a raw pointer to a style sheet resource,
+/// a path to the style sheet, and a pointer to a buffer to store the serialized data.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetResourceAddSource(resource, path, source, &mut warnings);
+/// ```
+///
 #[export_name = "FPStyleSheetResourceAddSource"]
 pub unsafe extern "C" fn style_sheet_resource_add_source(
     this: RawMutPtr,
@@ -190,7 +267,18 @@ pub unsafe extern "C" fn style_sheet_resource_add_source(
 }
 
 /// # Safety
+///
 /// Add a style sheet to the resource manager with hooks.
+///
+/// This function takes a raw pointer to a style sheet resource,
+/// a parser hooks, a path to the style sheet, and a pointer to a buffer to store the warnings.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetResourceAddSourceWithHooks(resource, hooks, path, source, &mut warnings);
+/// ```
+///
 #[export_name = "FPStyleSheetResourceAddSourceWithHooks"]
 pub unsafe extern "C" fn style_sheet_resource_add_source_with_hooks(
     this: RawMutPtr,
@@ -214,6 +302,17 @@ pub unsafe extern "C" fn style_sheet_resource_add_source_with_hooks(
 
 /// # Safety
 /// Add a style sheet to the resource manager from binary format.
+///
+/// This function takes a raw pointer to a style sheet resource,
+/// a path to the style sheet, a pointer to a buffer to store the serialized data,
+/// a drop function, a drop argument, and a pointer to a buffer to store the warnings.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetResourceAddBincode(resource, path, buffer_ptr, buffer_len, drop_fn, drop_args, &mut warnings);
+/// ```
+///
 #[cfg(feature = "deserialize")]
 #[export_name = "FPStyleSheetResourceAddBincode"]
 pub unsafe extern "C" fn style_sheet_resource_add_bincode(
@@ -244,6 +343,16 @@ pub unsafe extern "C" fn style_sheet_resource_add_bincode(
 
 /// # Safety
 /// Get the direct dependencies of the specified style sheet.
+///
+/// This function takes a raw pointer to a style sheet resource,
+/// a path to the style sheet, and returns a pointer to an array of string references.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetResourceDirectDependencies(resource, path);
+/// ```
+///
 #[export_name = "FPStyleSheetResourceDirectDependencies"]
 pub unsafe extern "C" fn style_sheet_resource_direct_dependencies(
     this: RawMutPtr,
@@ -259,7 +368,18 @@ pub unsafe extern "C" fn style_sheet_resource_direct_dependencies(
 }
 
 /// # Safety
-/// Generate the import index of the resource manager.
+///
+/// Generate the import index of the resource.
+///
+/// This function takes a raw pointer to a style sheet resource,
+/// and returns a pointer to a raw pointer to the import index.
+///
+/// # Examples
+///
+/// ```c
+/// RawMutPtr import_index = FPStyleSheetResourceGenerateImportIndex(resource);
+/// ```
+///
 #[export_name = "FPStyleSheetResourceGenerateImportIndex"]
 pub unsafe extern "C" fn style_sheet_resource_generate_import_index(
     this: RawMutPtr,
@@ -290,6 +410,16 @@ impl StyleSheetImportIndex {
 
 /// # Safety
 /// Create a new style sheet import index.
+///
+/// This function returns a raw pointer to a heap-allocated style sheet import index.
+/// The caller is responsible for eventually freeing this memory using [FPStyleSheetImportIndexFree].
+///
+/// # Examples
+///
+/// ```c
+/// RawMutPtr import_index = FPStyleSheetImportIndexNew();
+/// ```
+///
 #[export_name = "FPStyleSheetImportIndexNew"]
 pub unsafe extern "C" fn style_sheet_import_index_new() -> FfiResult<RawMutPtr> {
     FfiResult::ok(
@@ -303,6 +433,16 @@ pub unsafe extern "C" fn style_sheet_import_index_new() -> FfiResult<RawMutPtr> 
 
 /// # Safety
 /// Free the style sheet import index.
+///
+/// This function takes a raw pointer to a style sheet import index
+/// and frees the memory allocated for it.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexFree(import_index);
+/// ```
+///
 #[export_name = "FPStyleSheetImportIndexFree"]
 pub unsafe extern "C" fn style_sheet_import_index_free(this: RawMutPtr) -> FfiResult<NullPtr> {
     check_null!(this, FfiErrorCode::ThisNullPointer, null());
@@ -312,6 +452,16 @@ pub unsafe extern "C" fn style_sheet_import_index_free(this: RawMutPtr) -> FfiRe
 
 /// # Safety
 /// Query and mark the dependencies of the specified style sheet.
+///
+/// This function takes a raw pointer to a style sheet import index,
+/// a path to the style sheet, and returns a pointer to an array of string references.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexQueryAndMarkDependencies(import_index, path);
+/// ```
+///
 #[export_name = "FPStyleSheetImportIndexQueryAndMarkDependencies"]
 pub unsafe extern "C" fn style_sheet_import_index_query_and_mark_dependencies(
     this: RawMutPtr,
@@ -330,6 +480,16 @@ pub unsafe extern "C" fn style_sheet_import_index_query_and_mark_dependencies(
 
 /// # Safety
 /// List the dependencies of the specified style sheet.
+///
+/// This function takes a raw pointer to a style sheet import index,
+/// a path to the style sheet, and returns a pointer to an array of string references.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexListDependencies(import_index, path);
+/// ```
+///
 #[export_name = "FPStyleSheetImportIndexListDependencies"]
 pub unsafe extern "C" fn style_sheet_import_index_list_dependencies(
     this: RawMutPtr,
@@ -348,6 +508,16 @@ pub unsafe extern "C" fn style_sheet_import_index_list_dependencies(
 
 /// # Safety
 /// List the dependency of the specified style sheet.
+///
+/// This function takes a raw pointer to a style sheet import index,
+/// a path to the style sheet, and returns a pointer to an array of string references.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexListDependency(import_index, path);
+/// ```
+///
 #[export_name = "FPStyleSheetImportIndexListDependency"]
 pub unsafe extern "C" fn style_sheet_import_index_list_dependency(
     this: RawMutPtr,
@@ -363,8 +533,20 @@ pub unsafe extern "C" fn style_sheet_import_index_list_dependency(
     let deps: Vec<_> = deps.into_iter().map(StrRef::from).collect();
     FfiResult::ok(Box::into_raw(Box::new(deps.into())))
 }
+
 /// # Safety
 /// Add a style sheet to the import index from binary format.
+///
+/// This function takes a raw pointer to a style sheet import index,
+/// a path to the style sheet, a pointer to a buffer to store the serialized data,
+/// a drop function, a drop argument, and a pointer to a buffer to store the warnings.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexAddBincode(import_index, path, buffer_ptr, buffer_len, drop_fn, drop_args, &mut warnings);
+/// ```
+///
 #[cfg(feature = "deserialize")]
 #[export_name = "FPStyleSheetImportIndexAddBincode"]
 pub unsafe extern "C" fn style_sheet_import_index_add_bincode(
@@ -424,6 +606,16 @@ pub unsafe extern "C" fn style_sheet_import_index_add_bincode(
 
 /// # Safety
 /// Remove a style sheet from the style sheet import index.
+///
+/// This function takes a raw pointer to a style sheet import index,
+/// a path to the style sheet, and removes the style sheet from the import index.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexRemoveBincode(import_index, path);
+/// ```
+///
 #[export_name = "FPStyleSheetImportIndexRemoveBincode"]
 pub unsafe extern "C" fn style_sheet_import_index_remove_bincode(
     this: RawMutPtr,
@@ -439,6 +631,16 @@ pub unsafe extern "C" fn style_sheet_import_index_remove_bincode(
 }
 /// # Safety
 /// Get the style sheet from the style sheet import index.
+///
+/// This function takes a raw pointer to a style sheet import index,
+/// a path to the style sheet, and returns a pointer to the style sheet.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexGetStyleSheet(import_index, path);
+/// ```
+///
 #[export_name = "FPStyleSheetImportIndexGetStyleSheet"]
 pub unsafe extern "C" fn style_sheet_import_index_get_style_sheet(
     this: RawMutPtr,
@@ -456,6 +658,16 @@ pub unsafe extern "C" fn style_sheet_import_index_get_style_sheet(
 }
 /// # Safety
 /// Serialize the style sheet import index to the JSON format.
+///
+/// This function takes a raw pointer to a style sheet import index,
+/// and returns a pointer to the serialized data.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexSerializeJson(import_index, &buffer_len);
+/// ```
+///
 #[cfg(all(feature = "serialize", feature = "serialize_json"))]
 #[export_name = "FPStyleSheetImportIndexSerializeJson"]
 pub unsafe extern "C" fn style_sheet_import_index_serialize_json(
@@ -471,6 +683,16 @@ pub unsafe extern "C" fn style_sheet_import_index_serialize_json(
 }
 /// # Safety
 /// Serialize the style sheet import index to the binary format.
+///
+/// This function takes a raw pointer to a style sheet import index,
+/// and returns a pointer to the serialized data.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexSerializeBincode(import_index, &buffer_len);
+/// ```
+///
 #[cfg(feature = "serialize")]
 #[export_name = "FPStyleSheetImportIndexSerializeBincode"]
 pub unsafe extern "C" fn style_sheet_import_index_serialize_bincode(
@@ -486,6 +708,16 @@ pub unsafe extern "C" fn style_sheet_import_index_serialize_bincode(
 }
 /// # Safety
 /// Deserialize the style sheet import index from the JSON format.
+///
+/// This function takes a raw pointer to the JSON data,
+/// and returns a pointer to the deserialized style sheet import index.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexDeserializeJson(json, &import_index);
+/// ```
+///
 #[cfg(all(feature = "deserialize", feature = "deserialize_json"))]
 #[export_name = "FPStyleSheetImportIndexDeserializeJson"]
 pub unsafe extern "C" fn style_sheet_import_index_deserialize_json(
@@ -502,6 +734,16 @@ pub unsafe extern "C" fn style_sheet_import_index_deserialize_json(
     )
 }
 /// # Safety
+/// Deserialize the style sheet import index from the binary format.
+///
+/// This function takes a raw pointer to the binary data,
+/// and returns a pointer to the deserialized style sheet import index.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexDeserializeBincode(buffer_ptr, buffer_len, drop_fn, drop_args);
+/// ```
 ///
 #[cfg(feature = "deserialize")]
 #[export_name = "FPStyleSheetImportIndexDeserializeBincode"]
@@ -527,6 +769,16 @@ pub unsafe extern "C" fn style_sheet_import_index_deserialize_bincode(
 }
 /// # Safety
 /// Merge the style sheet import index from binary format.
+///
+/// This function takes a raw pointer to a style sheet import index,
+/// a pointer to the binary data, a drop function, and a drop argument.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexMergeBincode(import_index, buffer_ptr, buffer_len, drop_fn, drop_args);
+/// ```
+///
 #[cfg(feature = "deserialize")]
 #[export_name = "FPStyleSheetImportIndexMergeBincode"]
 pub unsafe extern "C" fn style_sheet_import_index_merge_bincode(
@@ -552,6 +804,15 @@ pub unsafe extern "C" fn style_sheet_import_index_merge_bincode(
 
 /// # Safety
 /// Free the buffer.
+///
+/// This function takes a pointer to the buffer and the length of the buffer.
+///
+/// # Examples
+///
+/// ```c
+/// FPBufferFree(buffer_ptr, buffer_len);
+/// ```
+///
 #[export_name = "FPBufferFree"]
 pub unsafe extern "C" fn buffer_free(buffer_ptr: *mut u8, buffer_len: usize) -> FfiResult<NullPtr> {
     check_null!(buffer_ptr, FfiErrorCode::BufferNullPointer, null());
@@ -562,6 +823,15 @@ pub unsafe extern "C" fn buffer_free(buffer_ptr: *mut u8, buffer_len: usize) -> 
 
 /// # Safety
 /// Free the array of string references.
+///
+/// This function takes a pointer to the array of string references.
+///
+/// # Examples
+///
+/// ```c
+/// FPArrayStrRefFree(x);
+/// ```
+///
 #[export_name = "FPArrayStrRefFree"]
 pub unsafe extern "C" fn array_str_ref_free(x: *mut Array<StrRef>) -> FfiResult<NullPtr> {
     check_null!(x, FfiErrorCode::ArrayNullPointer, null());
@@ -571,6 +841,15 @@ pub unsafe extern "C" fn array_str_ref_free(x: *mut Array<StrRef>) -> FfiResult<
 
 /// # Safety
 /// Free the array of warnings.
+///
+/// This function takes a pointer to the array of warnings.
+///
+/// # Examples
+///
+/// ```c
+/// FPArrayWarningFree(warnings);
+/// ```
+///
 #[export_name = "FPArrayWarningFree"]
 pub unsafe extern "C" fn array_warning_free(
     warnings: *mut Array<parser::Warning>,
@@ -582,6 +861,16 @@ pub unsafe extern "C" fn array_warning_free(
 
 /// # Safety
 /// Parse the inline style from the string.
+///
+/// This function takes a pointer to the inline style text,
+/// a pointer to the array of warnings, and returns a pointer to the inline rule.
+///
+/// # Examples
+///
+/// ```c
+/// FPParseInlineStyle(inline_style_text_ptr, warnings);
+/// ```
+///
 #[export_name = "FPParseInlineStyle"]
 pub unsafe extern "C" fn parse_inline_style(
     inline_style_text_ptr: *const c_char,
@@ -624,6 +913,15 @@ pub unsafe extern "C" fn parse_inline_style(
 
 /// # Safety
 /// Free the inline style.
+///
+/// This function takes a pointer to the inline style.
+///
+/// # Examples
+///
+/// ```c
+/// FPInlineStyleFree(inline_rule);
+/// ```
+///
 #[export_name = "FPInlineStyleFree"]
 pub unsafe extern "C" fn inline_style_free(inline_rule: *mut InlineRule) -> FfiResult<NullPtr> {
     check_null!(inline_rule, FfiErrorCode::InlineRuleNullPointer, null());
@@ -633,6 +931,16 @@ pub unsafe extern "C" fn inline_style_free(inline_rule: *mut InlineRule) -> FfiR
 
 /// # Safety
 /// Parse the style sheet from the string.
+///
+/// This function takes a pointer to the style sheet text,
+/// and returns a pointer to the style sheet.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetFromString(style_text_ptr);
+/// ```
+///
 #[export_name = "FPParseStyleSheetFromString"]
 pub unsafe extern "C" fn parse_style_sheet_from_string(
     style_text_ptr: *const c_char,
@@ -650,6 +958,16 @@ pub unsafe extern "C" fn parse_style_sheet_from_string(
 
 /// # Safety
 /// Parse the selector from the string.
+///
+/// This function takes a pointer to the selector text,
+/// and returns a pointer to the selector.
+///
+/// # Examples
+///
+/// ```c
+/// FPParseSelectorFromString(selector_text_ptr);
+/// ```
+///
 #[export_name = "FPParseSelectorFromString"]
 pub unsafe extern "C" fn parse_selector_from_string(
     selector_text_ptr: *const c_char,
@@ -666,6 +984,15 @@ pub unsafe extern "C" fn parse_selector_from_string(
 
 /// # Safety
 /// Free the selector.
+///
+/// This function takes a pointer to the selector.
+///
+/// # Examples
+///
+/// ```c
+/// FPSelectorFree(selector);
+/// ```
+///
 #[export_name = "FPSelectorFree"]
 pub unsafe extern "C" fn selector_free(selector: *mut Selector) -> FfiResult<NullPtr> {
     check_null!(selector, FfiErrorCode::SelectorNullPointer, null());
@@ -675,6 +1002,15 @@ pub unsafe extern "C" fn selector_free(selector: *mut Selector) -> FfiResult<Nul
 
 /// # Safety
 /// Free the style sheet.
+///
+/// This function takes a pointer to the style sheet.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetFree(style_sheet);
+/// ```
+///
 #[export_name = "FPStyleSheetFree"]
 pub unsafe extern "C" fn style_sheet_free(style_sheet: *mut StyleSheet) -> FfiResult<NullPtr> {
     check_null!(style_sheet, FfiErrorCode::StyleSheetNullPointer, null());
@@ -684,6 +1020,16 @@ pub unsafe extern "C" fn style_sheet_free(style_sheet: *mut StyleSheet) -> FfiRe
 
 /// # Safety
 /// Get the version of the style sheet in the binary format.
+///
+/// This function takes a pointer to the buffer and the length of the buffer,
+/// and returns a pointer to the version of the style sheet.
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetBincodeVersion(buffer_ptr, buffer_len);
+/// ```
+///
 #[cfg(feature = "deserialize")]
 #[export_name = "FPStyleSheetBincodeVersion"]
 pub unsafe extern "C" fn style_sheet_bincode_version(
@@ -726,6 +1072,14 @@ pub unsafe extern "C" fn style_sheet_bincode_version(
 
 /// # Safety
 /// Get the version of the CSS parser.
+///
+/// This function returns a pointer to the version of the CSS parser.
+///
+/// # Examples
+///
+/// ```c
+/// FPCssParserVersion();
+/// ```
 #[export_name = "FPCssParserVersion"]
 pub unsafe extern "C" fn css_parser_version() -> FfiResult<*mut StrRef> {
     let version = env!("CARGO_PKG_VERSION").to_string().into();
@@ -743,6 +1097,16 @@ pub struct ColorValue {
 
 /// # Safety
 /// Parse the color from the string.
+///
+/// This function takes a pointer to the source string,
+/// and returns a pointer to the color value.
+///
+/// # Examples
+///
+/// ```c
+/// FPParseColorFromString(source);
+/// ```
+///
 #[export_name = "FPParseColorFromString"]
 pub unsafe extern "C" fn parse_color_from_string(source: *const c_char) -> FfiResult<ColorValue> {
     check_null!(
@@ -762,6 +1126,16 @@ pub unsafe extern "C" fn parse_color_from_string(source: *const c_char) -> FfiRe
 
 /// # Safety
 /// Substitute the variable in the expression.
+///
+/// This function takes a pointer to the expression,
+/// a pointer to the map, a getter, and a setter.
+///
+/// # Examples
+///
+/// ```c
+/// FPSubstituteVariable(expr_ptr, map, getter, setter);
+/// ```
+///
 #[export_name = "FPSubstituteVariable"]
 pub unsafe extern "C" fn substitute_variable(
     expr_ptr: *const c_char,
@@ -783,6 +1157,15 @@ pub unsafe extern "C" fn substitute_variable(
 
 /// # Safety
 /// Free the string.
+///
+/// This function takes a pointer to the string.
+///
+/// # Examples
+///
+/// ```c
+/// FPStrFree(ptr);
+/// ```
+///
 #[export_name = "FPStrFree"]
 pub unsafe extern "C" fn str_free(ptr: *const c_char) -> FfiResult<NullPtr> {
     check_null!(ptr, FfiErrorCode::StrNullPointer, null());
