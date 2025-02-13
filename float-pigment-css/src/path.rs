@@ -3,7 +3,7 @@ use alloc::string::String;
 pub(crate) fn resolve(base: &str, rel: &str) -> String {
     let mut slices = vec![];
     let mut extra_parent_count = 0;
-    let from_root = base.starts_with("/") || rel.starts_with("/");
+    let from_root = base.starts_with('/') || rel.starts_with('/');
     let main = if let Some(rel) = rel.strip_prefix('/') {
         rel
     } else {
