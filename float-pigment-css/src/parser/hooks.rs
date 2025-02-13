@@ -65,7 +65,7 @@ impl CParserHooksContext {
         use crate::check_null;
         use crate::ffi::FfiErrorCode;
         use core::ptr::null;
-        check_null!((message), null());
+        check_null!(message, FfiErrorCode::StrNullPointer, null());
         let message = CStr::from_ptr(message).to_string_lossy();
         let ctx = &mut *(self.inner as *mut ParserHooksContext);
         ctx.generate_warning(&message);
