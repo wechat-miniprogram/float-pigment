@@ -301,8 +301,6 @@ struct Warning {
   uint32_t end_col;
 };
 
-using BufferPtr = uint8_t*;
-
 template<typename T>
 struct Box {
   T *ptr;
@@ -8741,8 +8739,6 @@ struct ColorValue {
   uint8_t alpha;
 };
 
-using CCharPtr = const char*;
-
 struct SelectorRelationType {
   enum class Tag {
     None,
@@ -9024,10 +9020,6 @@ struct StyleSheet {
 
 using RawMutPtr = void*;
 
-using StyleSheetImportIndexPtr = RawMutPtr;
-
-using StyleSheetResourcePtr = RawMutPtr;
-
 struct CParserHooksContext {
   void *inner;
 };
@@ -9047,119 +9039,114 @@ FfiResult<NullPtr> FPArrayStrRefFree(Array<StrRef> *x);
 
 FfiResult<NullPtr> FPArrayWarningFree(Array<Warning> *warnings);
 
-FfiResult<NullPtr> FPBufferFree(BufferPtr buffer_ptr, size_t buffer_len);
+FfiResult<NullPtr> FPBufferFree(uint8_t *buffer_ptr, size_t buffer_len);
 
 FfiResult<StrRef*> FPCssParserVersion();
 
 FfiResult<NullPtr> FPInlineStyleFree(InlineRule *inline_rule);
 
-FfiResult<ColorValue> FPParseColorFromString(CCharPtr source);
+FfiResult<ColorValue> FPParseColorFromString(const char *source);
 
-FfiResult<InlineRule*> FPParseInlineStyle(CCharPtr inline_style_text_ptr,
+FfiResult<InlineRule*> FPParseInlineStyle(const char *inline_style_text_ptr,
                                           Array<Warning> **warnings);
 
-FfiResult<Selector*> FPParseSelectorFromString(CCharPtr selector_text_ptr);
+FfiResult<Selector*> FPParseSelectorFromString(const char *selector_text_ptr);
 
-FfiResult<StyleSheet*> FPParseStyleSheetFromString(CCharPtr style_text_ptr);
+FfiResult<StyleSheet*> FPParseStyleSheetFromString(const char *style_text_ptr);
 
 FfiResult<NullPtr> FPSelectorFree(Selector *selector);
 
-FfiResult<NullPtr> FPStrFree(CCharPtr ptr);
+FfiResult<NullPtr> FPStrFree(const char *ptr);
 
-FfiResult<StrRef*> FPStyleSheetBincodeVersion(BufferPtr buffer_ptr, size_t buffer_len);
+FfiResult<StrRef*> FPStyleSheetBincodeVersion(uint8_t *buffer_ptr, size_t buffer_len);
 
 FfiResult<NullPtr> FPStyleSheetFree(StyleSheet *style_sheet);
 
-FfiResult<NullPtr> FPStyleSheetImportIndexAddBincode(StyleSheetImportIndexPtr this_,
-                                                     CCharPtr path,
-                                                     BufferPtr buffer_ptr,
+FfiResult<NullPtr> FPStyleSheetImportIndexAddBincode(RawMutPtr this_,
+                                                     const char *path,
+                                                     uint8_t *buffer_ptr,
                                                      size_t buffer_len,
                                                      void (*drop_fn)(RawMutPtr),
                                                      RawMutPtr drop_args,
                                                      Array<Warning> **warnings);
 
-FfiResult<StyleSheetImportIndexPtr> FPStyleSheetImportIndexDeserializeBincode(BufferPtr buffer_ptr,
-                                                                              size_t buffer_len,
-                                                                              void (*drop_fn)(RawMutPtr),
-                                                                              RawMutPtr drop_args);
+FfiResult<RawMutPtr> FPStyleSheetImportIndexDeserializeBincode(uint8_t *buffer_ptr,
+                                                               size_t buffer_len,
+                                                               void (*drop_fn)(RawMutPtr),
+                                                               RawMutPtr drop_args);
 
-FfiResult<StyleSheetImportIndexPtr> FPStyleSheetImportIndexDeserializeJson(CCharPtr json);
+FfiResult<RawMutPtr> FPStyleSheetImportIndexDeserializeJson(const char *json);
 
-FfiResult<NullPtr> FPStyleSheetImportIndexFree(StyleSheetImportIndexPtr this_);
+FfiResult<NullPtr> FPStyleSheetImportIndexFree(RawMutPtr this_);
 
-FfiResult<StyleSheet*> FPStyleSheetImportIndexGetStyleSheet(StyleSheetImportIndexPtr this_,
-                                                            CCharPtr path);
+FfiResult<StyleSheet*> FPStyleSheetImportIndexGetStyleSheet(RawMutPtr this_, const char *path);
 
-FfiResult<Array<StrRef>*> FPStyleSheetImportIndexListDependencies(StyleSheetImportIndexPtr this_,
-                                                                  CCharPtr path);
+FfiResult<Array<StrRef>*> FPStyleSheetImportIndexListDependencies(RawMutPtr this_,
+                                                                  const char *path);
 
-FfiResult<Array<StrRef>*> FPStyleSheetImportIndexListDependency(StyleSheetImportIndexPtr this_,
-                                                                CCharPtr path);
+FfiResult<Array<StrRef>*> FPStyleSheetImportIndexListDependency(RawMutPtr this_, const char *path);
 
-FfiResult<NullPtr> FPStyleSheetImportIndexMergeBincode(StyleSheetImportIndexPtr this_,
-                                                       BufferPtr buffer_ptr,
+FfiResult<NullPtr> FPStyleSheetImportIndexMergeBincode(RawMutPtr this_,
+                                                       uint8_t *buffer_ptr,
                                                        size_t buffer_len,
                                                        void (*drop_fn)(void*),
                                                        void *drop_args);
 
-FfiResult<StyleSheetImportIndexPtr> FPStyleSheetImportIndexNew();
+FfiResult<RawMutPtr> FPStyleSheetImportIndexNew();
 
-FfiResult<Array<StrRef>*> FPStyleSheetImportIndexQueryAndMarkDependencies(StyleSheetImportIndexPtr this_,
-                                                                          CCharPtr path);
+FfiResult<Array<StrRef>*> FPStyleSheetImportIndexQueryAndMarkDependencies(RawMutPtr this_,
+                                                                          const char *path);
 
-FfiResult<NullPtr> FPStyleSheetImportIndexRemoveBincode(StyleSheetImportIndexPtr this_,
-                                                        CCharPtr path);
+FfiResult<NullPtr> FPStyleSheetImportIndexRemoveBincode(RawMutPtr this_, const char *path);
 
-FfiResult<BufferPtr> FPStyleSheetImportIndexSerializeBincode(StyleSheetImportIndexPtr this_,
-                                                             size_t *ret_buffer_len);
+FfiResult<uint8_t*> FPStyleSheetImportIndexSerializeBincode(RawMutPtr this_,
+                                                            size_t *ret_buffer_len);
 
-FfiResult<BufferPtr> FPStyleSheetImportIndexSerializeJson(StyleSheetImportIndexPtr this_,
-                                                          size_t *ret_buffer_len);
+FfiResult<uint8_t*> FPStyleSheetImportIndexSerializeJson(RawMutPtr this_, size_t *ret_buffer_len);
 
-FfiResult<NullPtr> FPStyleSheetResourceAddBincode(StyleSheetResourcePtr this_,
-                                                  CCharPtr path,
-                                                  BufferPtr buffer_ptr,
+FfiResult<NullPtr> FPStyleSheetResourceAddBincode(RawMutPtr this_,
+                                                  const char *path,
+                                                  uint8_t *buffer_ptr,
                                                   size_t buffer_len,
                                                   void (*drop_fn)(RawMutPtr),
                                                   RawMutPtr drop_args,
                                                   Array<Warning> **warnings);
 
-FfiResult<NullPtr> FPStyleSheetResourceAddSource(StyleSheetResourcePtr this_,
-                                                 CCharPtr path,
-                                                 CCharPtr source,
+FfiResult<NullPtr> FPStyleSheetResourceAddSource(RawMutPtr this_,
+                                                 const char *path,
+                                                 const char *source,
                                                  Array<Warning> **warnings);
 
-FfiResult<NullPtr> FPStyleSheetResourceAddSourceWithHooks(StyleSheetResourcePtr this_,
+FfiResult<NullPtr> FPStyleSheetResourceAddSourceWithHooks(RawMutPtr this_,
                                                           CParserHooks hooks,
-                                                          CCharPtr path,
-                                                          CCharPtr source,
+                                                          const char *path,
+                                                          const char *source,
                                                           Array<Warning> **warnings);
 
-FfiResult<NullPtr> FPStyleSheetResourceAddTagNamePrefix(StyleSheetResourcePtr this_,
-                                                        CCharPtr path,
-                                                        CCharPtr prefix);
+FfiResult<NullPtr> FPStyleSheetResourceAddTagNamePrefix(RawMutPtr this_,
+                                                        const char *path,
+                                                        const char *prefix);
 
-FfiResult<Array<StrRef>*> FPStyleSheetResourceDirectDependencies(StyleSheetResourcePtr this_,
-                                                                 CCharPtr path);
+FfiResult<Array<StrRef>*> FPStyleSheetResourceDirectDependencies(RawMutPtr this_, const char *path);
 
-FfiResult<NullPtr> FPStyleSheetResourceFree(StyleSheetResourcePtr this_);
+FfiResult<NullPtr> FPStyleSheetResourceFree(RawMutPtr this_);
 
-FfiResult<StyleSheetImportIndexPtr> FPStyleSheetResourceGenerateImportIndex(StyleSheetResourcePtr this_);
+FfiResult<RawMutPtr> FPStyleSheetResourceGenerateImportIndex(RawMutPtr this_);
 
-FfiResult<StyleSheetResourcePtr> FPStyleSheetResourceNew();
+FfiResult<RawMutPtr> FPStyleSheetResourceNew();
 
-FfiResult<BufferPtr> FPStyleSheetResourceSerializeBincode(StyleSheetResourcePtr this_,
-                                                          CCharPtr path,
-                                                          size_t *ret_buffer_len);
+FfiResult<uint8_t*> FPStyleSheetResourceSerializeBincode(RawMutPtr this_,
+                                                         const char *path,
+                                                         size_t *ret_buffer_len);
 
-FfiResult<BufferPtr> FPStyleSheetResourceSerializeJson(StyleSheetResourcePtr this_,
-                                                       CCharPtr path,
-                                                       size_t *ret_buffer_len);
+FfiResult<uint8_t*> FPStyleSheetResourceSerializeJson(RawMutPtr this_,
+                                                      const char *path,
+                                                      size_t *ret_buffer_len);
 
-FfiResult<CCharPtr> FPSubstituteVariable(CCharPtr expr_ptr,
-                                         RawMutPtr map,
-                                         CustomPropertyGetter getter,
-                                         CustomPropertySetter setter);
+FfiResult<const char*> FPSubstituteVariable(const char *expr_ptr,
+                                            RawMutPtr map,
+                                            CustomPropertyGetter getter,
+                                            CustomPropertySetter setter);
 
 FfiResult<NullPtr> generate_warning(CParserHooksContext *self, const char *message);
 
