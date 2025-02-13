@@ -1,12 +1,17 @@
 //! Parser hooks can be used to attach some compilation information.
 
 use alloc::vec::Vec;
+
 #[cfg(feature = "ffi")]
 use core::ffi::{c_char, CStr};
 
 use cssparser::SourceLocation;
 
 use super::{Warning, WarningKind};
+
+#[cfg(feature = "ffi")]
+use crate::ffi::{FfiResult, NullPtr};
+
 use crate::property::Property;
 
 /// A `context` for current sompilation step.
@@ -53,10 +58,18 @@ impl CParserHooksContext {
     ///
     /// The message should be a valid C string.
     #[no_mangle]
-    pub unsafe extern "C" fn generate_warning(&mut self, message: *const c_char) {
+    pub unsafe extern "C" fn generate_warning(
+        &mut self,
+        message: *const c_char,
+    ) -> FfiResult<NullPtr> {
+        use crate::check_null;
+        use crate::ffi::FfiErrorCode;
+        use core::ptr::null;
+        check_null!((message), null());
         let message = CStr::from_ptr(message).to_string_lossy();
         let ctx = &mut *(self.inner as *mut ParserHooksContext);
         ctx.generate_warning(&message);
+        FfiResult::ok(null())
     }
 }
 
