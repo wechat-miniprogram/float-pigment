@@ -8,10 +8,8 @@ use alloc::{
     vec::Vec,
 };
 use bit_set::BitSet;
-use core::{
-    ffi::{c_char, CStr},
-    ptr::null,
-};
+use core::ffi::{c_char, CStr};
+use core::ptr::null;
 use hashbrown::HashMap;
 
 use crate::parser::parse_color_to_rgba;
@@ -19,11 +17,13 @@ use crate::property::{Property, PropertyMeta};
 use crate::sheet::borrow::{InlineRule, Selector};
 use crate::typing::ImportantBitSet;
 
+use crate::group;
+use crate::parser;
 use crate::parser::property_value::var::{
     CustomPropertyContext, CustomPropertyGetter, CustomPropertySetter,
 };
-
-use super::{group::drop_css_extension, *};
+use crate::sheet;
+use group::drop_css_extension;
 use parser::Warning;
 use sheet::borrow::{Array, StyleSheet};
 use sheet::str_store::StrRef;
@@ -31,120 +31,176 @@ use sheet::str_store::StrRef;
 #[cfg(feature = "deserialize")]
 use sheet::borrow::de_static_ref_zero_copy_env;
 
-#[repr(C)]
-pub struct StyleSheetResourcePtr {
-    ptr: *mut (),
+macro_rules! check_null {
+    (($($arg:expr),+ $(,)?), $default: expr) => {
+        if $( $arg.is_null() )||+ {
+            return FfiResult::error(FfiErrorCode::NullPointer, $default);
+        }
+    };
 }
-/// # Safety
-///
-#[no_mangle]
-pub unsafe extern "C" fn style_sheet_resource_new() -> StyleSheetResourcePtr {
-    let res = Box::into_raw(Box::new(group::StyleSheetResource::new()));
-    StyleSheetResourcePtr {
-        ptr: res as *mut (),
+
+macro_rules! raw_ptr_as_mut_ref {
+    ($from:expr, $type:ty) => {
+        unsafe { &mut *($from as *mut $type) }
+    };
+}
+
+type RawMutPtr = *mut ();
+
+pub type NullPtr = *const ();
+
+pub type StyleSheetResourcePtr = RawMutPtr;
+
+pub type BufferPtr = *mut u8;
+#[repr(C)]
+pub enum FfiErrorCode {
+    None,
+    NullPointer,
+    InvalidPath,
+    Unknown,
+}
+
+#[repr(C)]
+pub struct FfiResult<T> {
+    value: T,
+    err: FfiErrorCode,
+}
+
+impl<T> FfiResult<T> {
+    fn ok(value: T) -> Self {
+        Self {
+            err: FfiErrorCode::None,
+            value,
+        }
+    }
+    fn error(err: FfiErrorCode, default: T) -> Self {
+        Self {
+            err,
+            value: default,
+        }
     }
 }
+
 /// # Safety
 ///
-#[no_mangle]
-pub unsafe extern "C" fn style_sheet_resource_free(this: &mut StyleSheetResourcePtr) {
-    drop(Box::from_raw(this.ptr as *mut StyleSheetResource));
-    this.ptr = core::ptr::null_mut();
+#[export_name = "FPStyleSheetResourceNew"]
+pub unsafe extern "C" fn style_sheet_resource_new() -> FfiResult<StyleSheetResourcePtr> {
+    FfiResult::ok(Box::into_raw(Box::new(group::StyleSheetResource::new())) as StyleSheetResourcePtr)
 }
 /// # Safety
 ///
-#[no_mangle]
+#[export_name = "FPStyleSheetResourceFree"]
+pub unsafe extern "C" fn style_sheet_resource_free(
+    this: StyleSheetResourcePtr,
+) -> FfiResult<NullPtr> {
+    check_null!((this), null());
+    drop(Box::from_raw(this as *mut group::StyleSheetResource));
+    FfiResult::ok(null())
+}
+/// # Safety
+///
+#[export_name = "FPStyleSheetResourceAddTagNamePrefix"]
 pub unsafe extern "C" fn style_sheet_resource_add_tag_name_prefix(
-    this: &mut StyleSheetResourcePtr,
+    this: StyleSheetResourcePtr,
     path: *const c_char,
     prefix: *const c_char,
-) {
-    let res = &mut *(this.ptr as *mut StyleSheetResource);
+) -> FfiResult<NullPtr> {
+    check_null!((this, path, prefix), null());
+    let res = raw_ptr_as_mut_ref!(this, group::StyleSheetResource);
     let path = CStr::from_ptr(path).to_string_lossy();
     let prefix = CStr::from_ptr(prefix).to_string_lossy();
     res.add_tag_name_prefix(&path, &prefix);
+    FfiResult::ok(null())
 }
 /// # Safety
 ///
 #[cfg(all(feature = "serialize", feature = "serialize_json"))]
-#[no_mangle]
+#[export_name = "FPStyleSheetResourceSerializeJson"]
 pub unsafe extern "C" fn style_sheet_resource_serialize_json(
-    this: &mut StyleSheetResourcePtr,
+    this: StyleSheetResourcePtr,
     path: *const c_char,
     ret_buffer_len: &mut usize,
-) -> *mut u8 {
-    let res = &mut *(this.ptr as *mut StyleSheetResource);
+) -> FfiResult<BufferPtr> {
+    check_null!((this, path), core::ptr::null_mut());
+    let res = raw_ptr_as_mut_ref!(this, group::StyleSheetResource);
     let path = CStr::from_ptr(path).to_string_lossy();
     let serial = res.serialize_json(&path).unwrap_or_default();
     *ret_buffer_len = serial.len();
     let ret = Box::into_raw(serial.into_boxed_str());
-    ret as *mut u8
+    FfiResult::ok(ret as BufferPtr)
 }
 /// # Safety
 ///
 #[cfg(feature = "serialize")]
-#[no_mangle]
+#[export_name = "FPStyleSheetResourceSerializeBincode"]
 pub unsafe extern "C" fn style_sheet_resource_serialize_bincode(
-    this: &mut StyleSheetResourcePtr,
+    this: StyleSheetResourcePtr,
     path: *const c_char,
     ret_buffer_len: &mut usize,
-) -> *mut u8 {
-    let res = &mut *(this.ptr as *mut StyleSheetResource);
+) -> FfiResult<BufferPtr> {
+    check_null!((this, path), core::ptr::null_mut());
+    let res = raw_ptr_as_mut_ref!(this, group::StyleSheetResource);
     let path = CStr::from_ptr(path).to_string_lossy();
     let serial = res.serialize_bincode(&path).unwrap_or_default();
     *ret_buffer_len = serial.len();
     let ret = Box::into_raw(serial.into_boxed_slice());
-    ret as *mut u8
+    FfiResult::ok(ret as BufferPtr)
 }
 /// # Safety
 ///
-#[no_mangle]
+#[export_name = "FPStyleSheetResourceAddSource"]
 pub unsafe extern "C" fn style_sheet_resource_add_source(
-    this: &mut StyleSheetResourcePtr,
+    this: StyleSheetResourcePtr,
     path: *const c_char,
     source: *const c_char,
     warnings: *mut *mut Array<Warning>,
-) {
-    let res = &mut *(this.ptr as *mut StyleSheetResource);
+) -> FfiResult<NullPtr> {
+    check_null!((this, path, source), null());
+    let res = raw_ptr_as_mut_ref!(this, group::StyleSheetResource);
     let path = CStr::from_ptr(path).to_string_lossy();
     let source = CStr::from_ptr(source).to_string_lossy();
     let w = res.add_source(&path, &source);
     if !warnings.is_null() {
         *warnings = Box::into_raw(Box::new(w.into()));
     }
+    FfiResult::ok(null())
 }
 /// # Safety
 ///
-#[no_mangle]
+#[export_name = "FPStyleSheetResourceAddSourceWithHooks"]
 pub unsafe extern "C" fn style_sheet_resource_add_source_with_hooks(
-    this: &mut StyleSheetResourcePtr,
+    this: StyleSheetResourcePtr,
     hooks: parser::hooks::CParserHooks,
     path: *const c_char,
     source: *const c_char,
     warnings: *mut *mut Array<Warning>,
-) {
-    let res = &mut *(this.ptr as *mut StyleSheetResource);
+) -> FfiResult<NullPtr> {
+    check_null!((this, path, source), null());
+    let res = raw_ptr_as_mut_ref!(this, group::StyleSheetResource);
     let path = CStr::from_ptr(path).to_string_lossy();
     let source = CStr::from_ptr(source).to_string_lossy();
     let w = res.add_source_with_hooks(&path, &source, Some(Box::new(hooks)));
     if !warnings.is_null() {
         *warnings = Box::into_raw(Box::new(w.into()));
     }
+    FfiResult::ok(null())
 }
+
 /// # Safety
 ///
 #[cfg(feature = "deserialize")]
-#[no_mangle]
+#[export_name = "FPStyleSheetResourceAddBincode"]
 pub unsafe extern "C" fn style_sheet_resource_add_bincode(
-    this: &mut StyleSheetResourcePtr,
+    this: StyleSheetResourcePtr,
     path: *const c_char,
-    buffer_ptr: *mut u8,
+    buffer_ptr: BufferPtr,
     buffer_len: usize,
-    drop_fn: Option<unsafe extern "C" fn(*mut ())>,
-    drop_args: *mut (),
+    drop_fn: Option<unsafe extern "C" fn(RawMutPtr)>,
+    drop_args: RawMutPtr,
     warnings: *mut *mut Array<Warning>,
-) {
-    let res = &mut *(this.ptr as *mut StyleSheetResource);
+) -> FfiResult<NullPtr> {
+    check_null!((this, path, buffer_ptr), null());
+    let res = raw_ptr_as_mut_ref!(this, group::StyleSheetResource);
     let bincode: *mut [u8] = core::slice::from_raw_parts_mut(buffer_ptr, buffer_len);
     let path = CStr::from_ptr(path).to_string_lossy();
     let w = res.add_bincode_zero_copy(&path, bincode, move || {
@@ -155,119 +211,146 @@ pub unsafe extern "C" fn style_sheet_resource_add_bincode(
     if !warnings.is_null() {
         *warnings = Box::into_raw(Box::new(w.into()));
     }
+    FfiResult::ok(null())
 }
+
 /// # Safety
 ///
-#[no_mangle]
+#[export_name = "FPStyleSheetResourceDirectDependencies"]
 pub unsafe extern "C" fn style_sheet_resource_direct_dependencies(
-    this: &mut StyleSheetResourcePtr,
+    this: StyleSheetResourcePtr,
     path: *const c_char,
-) -> *mut Array<StrRef> {
-    let res = &mut *(this.ptr as *mut StyleSheetResource);
+) -> FfiResult<*mut Array<StrRef>> {
+    check_null!((this, path), core::ptr::null_mut());
+    let res = raw_ptr_as_mut_ref!(this, group::StyleSheetResource);
     let path = CStr::from_ptr(path).to_string_lossy();
     let deps = res.direct_dependencies(&path);
     let deps: Vec<_> = deps.into_iter().map(StrRef::from).collect();
-    Box::into_raw(Box::new(deps.into()))
+    FfiResult::ok(Box::into_raw(Box::new(deps.into())))
 }
+
 /// # Safety
 ///
-#[no_mangle]
+#[export_name = "FPStyleSheetResourceGenerateImportIndex"]
 pub unsafe extern "C" fn style_sheet_resource_generate_import_index(
-    this: &mut StyleSheetResourcePtr,
-) -> StyleSheetImportIndexPtr {
-    let res = &mut *(this.ptr as *mut StyleSheetResource);
-    let ii = Box::into_raw(Box::new(res.generate_import_indexes()));
-    let style_sheet_map: Box<StyleSheetMap> = Box::default();
-    StyleSheetImportIndexPtr {
-        ptr: ii as *mut (),
-        map: Box::into_raw(style_sheet_map) as *mut _,
-    }
+    this: StyleSheetResourcePtr,
+) -> FfiResult<StyleSheetImportIndexPtr> {
+    check_null!((this), core::ptr::null_mut());
+    let res = raw_ptr_as_mut_ref!(this, group::StyleSheetResource);
+    FfiResult::ok(
+        StyleSheetImportIndex {
+            inner: res.generate_import_indexes(),
+            map: StyleSheetMap::default(),
+        }
+        .to_ptr(),
+    )
 }
 
 type StyleSheetMap = HashMap<String, StyleSheet>;
 
-#[repr(C)]
-pub struct StyleSheetImportIndexPtr {
-    ptr: *mut (),
-    map: *mut (),
+pub type StyleSheetImportIndexPtr = RawMutPtr;
+
+struct StyleSheetImportIndex {
+    inner: group::StyleSheetImportIndex,
+    map: StyleSheetMap,
 }
-/// # Safety
-///
-#[no_mangle]
-pub unsafe extern "C" fn style_sheet_import_index_new() -> StyleSheetImportIndexPtr {
-    let ii = Box::into_raw(Box::new(StyleSheetImportIndex::new()));
-    let style_sheet_map: Box<StyleSheetMap> = Box::default();
-    StyleSheetImportIndexPtr {
-        ptr: ii as *mut (),
-        map: Box::into_raw(style_sheet_map) as *mut _,
+
+impl StyleSheetImportIndex {
+    fn to_ptr(self) -> StyleSheetImportIndexPtr {
+        Box::into_raw(Box::new(self)) as StyleSheetImportIndexPtr
     }
 }
+
 /// # Safety
 ///
-#[no_mangle]
-pub unsafe extern "C" fn style_sheet_import_index_free(this: &mut StyleSheetImportIndexPtr) {
-    drop(Box::from_raw(this.ptr as *mut StyleSheetImportIndex));
-    this.ptr = core::ptr::null_mut();
-    drop(Box::from_raw(this.map as *mut StyleSheetMap));
-    this.map = core::ptr::null_mut();
+#[export_name = "FPStyleSheetImportIndexNew"]
+pub unsafe extern "C" fn style_sheet_import_index_new() -> FfiResult<StyleSheetImportIndexPtr> {
+    FfiResult::ok(
+        StyleSheetImportIndex {
+            inner: group::StyleSheetImportIndex::new(),
+            map: StyleSheetMap::default(),
+        }
+        .to_ptr(),
+    )
 }
+
 /// # Safety
 ///
-#[no_mangle]
+#[export_name = "FPStyleSheetImportIndexFree"]
+pub unsafe extern "C" fn style_sheet_import_index_free(
+    this: StyleSheetImportIndexPtr,
+) -> FfiResult<NullPtr> {
+    check_null!((this), null());
+    drop(Box::from_raw(this as *mut StyleSheetImportIndex));
+    FfiResult::ok(null())
+}
+
+/// # Safety
+///
+#[export_name = "FPStyleSheetImportIndexQueryAndMarkDependencies"]
 pub unsafe extern "C" fn style_sheet_import_index_query_and_mark_dependencies(
-    this: &mut StyleSheetImportIndexPtr,
+    this: StyleSheetImportIndexPtr,
     path: *const c_char,
-) -> *mut Array<StrRef> {
-    let ii = &mut *(this.ptr as *mut StyleSheetImportIndex);
+) -> FfiResult<*mut Array<StrRef>> {
+    check_null!((this, path), core::ptr::null_mut());
+    let style_sheet_import_index = raw_ptr_as_mut_ref!(this, StyleSheetImportIndex);
     let path = CStr::from_ptr(path).to_string_lossy();
-    let deps = ii.query_and_mark_dependencies(&path);
+    let deps = style_sheet_import_index
+        .inner
+        .query_and_mark_dependencies(&path);
     let deps: Vec<_> = deps.into_iter().map(StrRef::from).collect();
-    Box::into_raw(Box::new(deps.into()))
+    FfiResult::ok(Box::into_raw(Box::new(deps.into())))
 }
+
 /// # Safety
 ///
-#[no_mangle]
+#[export_name = "FPStyleSheetImportIndexListDependencies"]
 pub unsafe extern "C" fn style_sheet_import_index_list_dependencies(
-    this: &mut StyleSheetImportIndexPtr,
+    this: StyleSheetImportIndexPtr,
     path: *const c_char,
-) -> *mut Array<StrRef> {
-    let ii = &mut *(this.ptr as *mut StyleSheetImportIndex);
+) -> FfiResult<*mut Array<StrRef>> {
+    check_null!((this, path), core::ptr::null_mut());
+    let style_sheet_import_index = raw_ptr_as_mut_ref!(this, StyleSheetImportIndex);
     let path = CStr::from_ptr(path).to_string_lossy();
-    let deps = ii.list_dependencies(&path, true);
+    let deps = style_sheet_import_index
+        .inner
+        .list_dependencies(&path, true);
     let deps: Vec<_> = deps.into_iter().map(StrRef::from).collect();
-    Box::into_raw(Box::new(deps.into()))
+    FfiResult::ok(Box::into_raw(Box::new(deps.into())))
 }
+
 /// # Safety
 ///
-#[no_mangle]
+#[export_name = "FPStyleSheetImportIndexListDependency"]
 pub unsafe extern "C" fn style_sheet_import_index_list_dependency(
-    this: &mut StyleSheetImportIndexPtr,
+    this: StyleSheetImportIndexPtr,
     path: *const c_char,
-) -> *mut Array<StrRef> {
-    if path.is_null() {
-        panic!("style_sheet_import_index_list_dependency: path is null!")
-    }
-    let ii = &mut *(this.ptr as *mut StyleSheetImportIndex);
+) -> FfiResult<*mut Array<StrRef>> {
+    check_null!((this, path), core::ptr::null_mut());
+    let style_sheet_import_index = raw_ptr_as_mut_ref!(this, StyleSheetImportIndex);
     let path = CStr::from_ptr(path).to_string_lossy();
-    let deps = ii.list_dependencies(&path, false);
+    let deps = style_sheet_import_index
+        .inner
+        .list_dependencies(&path, false);
     let deps: Vec<_> = deps.into_iter().map(StrRef::from).collect();
-    Box::into_raw(Box::new(deps.into()))
+    FfiResult::ok(Box::into_raw(Box::new(deps.into())))
 }
 /// # Safety
 ///
 #[cfg(feature = "deserialize")]
-#[no_mangle]
+#[export_name = "FPStyleSheetImportIndexAddBincode"]
 pub unsafe extern "C" fn style_sheet_import_index_add_bincode(
-    this: &mut StyleSheetImportIndexPtr,
+    this: StyleSheetImportIndexPtr,
     path: *const c_char,
-    buffer_ptr: *mut u8,
+    buffer_ptr: BufferPtr,
     buffer_len: usize,
     drop_fn: Option<unsafe extern "C" fn(*mut ())>,
     drop_args: *mut (),
     warnings: *mut *mut Array<Warning>,
-) {
+) -> FfiResult<NullPtr> {
     use float_pigment_consistent_bincode::Options;
     use parser::WarningKind;
+    check_null!((this, path, buffer_ptr), null());
     let path = CStr::from_ptr(path).to_string_lossy();
     let path: &str = &path;
     let sheet = de_static_ref_zero_copy_env(
@@ -305,148 +388,181 @@ pub unsafe extern "C" fn style_sheet_import_index_add_bincode(
         },
     );
     let path = drop_css_extension(path).into();
-    let map = &mut *(this.map as *mut StyleSheetMap);
-    map.insert(path, sheet);
+    let style_sheet_import_index = raw_ptr_as_mut_ref!(this, StyleSheetImportIndex);
+    style_sheet_import_index.map.insert(path, sheet);
+    FfiResult::ok(null())
 }
+
 /// # Safety
 ///
-#[no_mangle]
+#[export_name = "FPStyleSheetImportIndexRemoveBincode"]
 pub unsafe extern "C" fn style_sheet_import_index_remove_bincode(
-    this: &mut StyleSheetImportIndexPtr,
+    this: StyleSheetImportIndexPtr,
     path: *const c_char,
-) {
+) -> FfiResult<NullPtr> {
+    check_null!((this, path), null());
     let path = CStr::from_ptr(path).to_string_lossy();
     let path: &str = &path;
     let path = drop_css_extension(path);
-    let map = &mut *(this.map as *mut StyleSheetMap);
-    map.remove(path);
+    let style_sheet_import_index = raw_ptr_as_mut_ref!(this, StyleSheetImportIndex);
+    style_sheet_import_index.map.remove(path);
+    FfiResult::ok(null())
 }
 /// # Safety
 ///
-#[no_mangle]
+#[export_name = "FPStyleSheetImportIndexGetStyleSheet"]
 pub unsafe extern "C" fn style_sheet_import_index_get_style_sheet(
-    this: &mut StyleSheetImportIndexPtr,
+    this: StyleSheetImportIndexPtr,
     path: *const StrRef,
-) -> *mut StyleSheet {
+) -> FfiResult<*mut StyleSheet> {
+    check_null!((this, path), core::ptr::null_mut());
     let path = (*path).as_str();
     let path = drop_css_extension(path);
-    let map = &mut *(this.map as *mut StyleSheetMap);
-    match map.get_mut(path) {
-        None => core::ptr::null_mut(),
-        Some(x) => x as *mut _,
+    let style_sheet_import_index = raw_ptr_as_mut_ref!(this, StyleSheetImportIndex);
+    match style_sheet_import_index.map.get_mut(path) {
+        None => FfiResult::error(FfiErrorCode::InvalidPath, core::ptr::null_mut()),
+        Some(x) => FfiResult::ok(x as *mut StyleSheet),
     }
 }
 /// # Safety
 ///
 #[cfg(all(feature = "serialize", feature = "serialize_json"))]
-#[no_mangle]
+#[export_name = "FPStyleSheetImportIndexSerializeJson"]
 pub unsafe extern "C" fn style_sheet_import_index_serialize_json(
-    this: &mut StyleSheetImportIndexPtr,
+    this: StyleSheetImportIndexPtr,
     ret_buffer_len: &mut usize,
-) -> *mut u8 {
-    let ii = &mut *(this.ptr as *mut StyleSheetImportIndex);
-    let serial = ii.serialize_json();
+) -> FfiResult<BufferPtr> {
+    check_null!((this), core::ptr::null_mut());
+    let style_sheet_import_index = raw_ptr_as_mut_ref!(this, StyleSheetImportIndex);
+    let serial = style_sheet_import_index.inner.serialize_json();
     *ret_buffer_len = serial.len();
     let ret = Box::into_raw(serial.into_boxed_str());
-    ret as *mut u8
+    FfiResult::ok(ret as BufferPtr)
 }
 /// # Safety
 ///
 #[cfg(feature = "serialize")]
-#[no_mangle]
+#[export_name = "FPStyleSheetImportIndexSerializeBincode"]
 pub unsafe extern "C" fn style_sheet_import_index_serialize_bincode(
-    this: &mut StyleSheetImportIndexPtr,
+    this: StyleSheetImportIndexPtr,
     ret_buffer_len: &mut usize,
-) -> *mut u8 {
-    let ii = &mut *(this.ptr as *mut StyleSheetImportIndex);
-    let serial = ii.serialize_bincode();
+) -> FfiResult<BufferPtr> {
+    check_null!((this), core::ptr::null_mut());
+    let style_sheet_import_index = raw_ptr_as_mut_ref!(this, StyleSheetImportIndex);
+    let serial = style_sheet_import_index.inner.serialize_bincode();
     *ret_buffer_len = serial.len();
     let ret = Box::into_raw(serial.into_boxed_slice());
-    ret as *mut u8
+    FfiResult::ok(ret as BufferPtr)
 }
 /// # Safety
 ///
 #[cfg(all(feature = "deserialize", feature = "deserialize_json"))]
-#[no_mangle]
+#[export_name = "FPStyleSheetImportIndexDeserializeJson"]
 pub unsafe extern "C" fn style_sheet_import_index_deserialize_json(
     json: *const c_char,
-) -> StyleSheetImportIndexPtr {
+) -> FfiResult<StyleSheetImportIndexPtr> {
+    check_null!((json), core::ptr::null_mut());
     let json = CStr::from_ptr(json).to_string_lossy();
-    let ii = StyleSheetImportIndex::deserialize_json(&json);
-    let ii = Box::into_raw(Box::new(ii));
-    StyleSheetImportIndexPtr {
-        ptr: ii as *mut (),
-        map: Box::into_raw(Box::new(StyleSheetMap::default())) as *mut _,
-    }
+    FfiResult::ok(
+        StyleSheetImportIndex {
+            inner: group::StyleSheetImportIndex::deserialize_json(&json),
+            map: StyleSheetMap::default(),
+        }
+        .to_ptr(),
+    )
 }
 /// # Safety
 ///
 #[cfg(feature = "deserialize")]
-#[no_mangle]
+#[export_name = "FPStyleSheetImportIndexDeserializeBincode"]
 pub unsafe extern "C" fn style_sheet_import_index_deserialize_bincode(
-    buffer_ptr: *mut u8,
+    buffer_ptr: BufferPtr,
     buffer_len: usize,
-    drop_fn: Option<unsafe extern "C" fn(*mut ())>,
-    drop_args: *mut (),
-) -> StyleSheetImportIndexPtr {
+    drop_fn: Option<unsafe extern "C" fn(RawMutPtr)>,
+    drop_args: RawMutPtr,
+) -> FfiResult<StyleSheetImportIndexPtr> {
+    check_null!((buffer_ptr), core::ptr::null_mut());
     let bincode: *mut [u8] = core::slice::from_raw_parts_mut(buffer_ptr, buffer_len);
-    let ii = StyleSheetImportIndex::deserialize_bincode_zero_copy(bincode, move || {
-        if let Some(drop_fn) = drop_fn {
-            drop_fn(drop_args);
+    FfiResult::ok(
+        StyleSheetImportIndex {
+            inner: group::StyleSheetImportIndex::deserialize_bincode_zero_copy(
+                bincode,
+                move || {
+                    if let Some(drop_fn) = drop_fn {
+                        drop_fn(drop_args);
+                    }
+                },
+            ),
+            map: StyleSheetMap::default(),
         }
-    });
-    let ii = Box::into_raw(Box::new(ii));
-    let style_sheet_map: Box<StyleSheetMap> = Box::default();
-    StyleSheetImportIndexPtr {
-        ptr: ii as *mut (),
-        map: Box::into_raw(style_sheet_map) as *mut _,
-    }
+        .to_ptr(),
+    )
 }
 /// # Safety
 ///
 #[cfg(feature = "deserialize")]
-#[no_mangle]
+#[export_name = "FPStyleSheetImportIndexMergeBincode"]
 pub unsafe extern "C" fn style_sheet_import_index_merge_bincode(
-    this: &mut StyleSheetImportIndexPtr,
-    buffer_ptr: *mut u8,
+    this: StyleSheetImportIndexPtr,
+    buffer_ptr: BufferPtr,
     buffer_len: usize,
     drop_fn: Option<unsafe extern "C" fn(*mut ())>,
     drop_args: *mut (),
-) {
-    let ii = &mut *(this.ptr as *mut StyleSheetImportIndex);
+) -> FfiResult<NullPtr> {
+    check_null!((this, buffer_ptr), null());
+    let style_sheet_import_index = raw_ptr_as_mut_ref!(this, StyleSheetImportIndex);
     let bincode: *mut [u8] = core::slice::from_raw_parts_mut(buffer_ptr, buffer_len);
-    ii.merge_bincode_zero_copy(bincode, move || {
-        if let Some(drop_fn) = drop_fn {
-            drop_fn(drop_args);
-        }
-    });
+    style_sheet_import_index
+        .inner
+        .merge_bincode_zero_copy(bincode, move || {
+            if let Some(drop_fn) = drop_fn {
+                drop_fn(drop_args);
+            }
+        });
+    FfiResult::ok(null())
 }
+
 /// # Safety
 ///
-#[no_mangle]
-pub unsafe extern "C" fn buffer_free(buffer_ptr: *mut u8, buffer_len: usize) {
+#[export_name = "FPBufferFree"]
+pub unsafe extern "C" fn buffer_free(
+    buffer_ptr: BufferPtr,
+    buffer_len: usize,
+) -> FfiResult<NullPtr> {
+    check_null!((buffer_ptr), null());
     let x: *mut [u8] = core::slice::from_raw_parts_mut(buffer_ptr, buffer_len);
     drop(Box::from_raw(x));
+    FfiResult::ok(null())
 }
+
 /// # Safety
 ///
-#[no_mangle]
-pub unsafe extern "C" fn array_str_ref_free(x: *mut Array<StrRef>) {
+#[export_name = "FPArrayStrRefFree"]
+pub unsafe extern "C" fn array_str_ref_free(x: *mut Array<StrRef>) -> FfiResult<NullPtr> {
+    check_null!((x), null());
     drop(Box::from_raw(x));
+    FfiResult::ok(null())
 }
+
 /// # Safety
 ///
-#[no_mangle]
-pub unsafe extern "C" fn array_warning_free(warnings: *mut Array<parser::Warning>) {
+#[export_name = "FPArrayWarningFree"]
+pub unsafe extern "C" fn array_warning_free(
+    warnings: *mut Array<parser::Warning>,
+) -> FfiResult<NullPtr> {
+    check_null!((warnings), null());
     drop(Box::from_raw(warnings));
+    FfiResult::ok(null())
 }
+
 /// # Safety
 ///
-#[no_mangle]
+#[export_name = "FPParseInlineStyle"]
 pub unsafe extern "C" fn parse_inline_style(
     inline_style_text_ptr: *const c_char,
     warnings: *mut *mut Array<parser::Warning>,
-) -> *mut InlineRule {
+) -> FfiResult<*mut InlineRule> {
+    check_null!((inline_style_text_ptr), core::ptr::null_mut());
     let inline_style_text = CStr::from_ptr(inline_style_text_ptr).to_string_lossy();
     let (prop, w) =
         parser::parse_inline_style(&inline_style_text, parser::StyleParsingDebugMode::None);
@@ -474,56 +590,67 @@ pub unsafe extern "C" fn parse_inline_style(
         ImportantBitSet::Array(important.into_bit_vec().to_bytes().into())
     };
     let inline_rule = InlineRule::new(properties, important);
-    Box::into_raw(Box::new(inline_rule))
+    FfiResult::ok(Box::into_raw(Box::new(inline_rule)))
 }
 /// # Safety
 ///
-#[no_mangle]
-pub unsafe extern "C" fn inline_style_free(inline_rule: *mut InlineRule) {
+#[export_name = "FPInlineStyleFree"]
+pub unsafe extern "C" fn inline_style_free(inline_rule: *mut InlineRule) -> FfiResult<NullPtr> {
+    check_null!((inline_rule), null());
     drop(Box::from_raw(inline_rule));
+    FfiResult::ok(null())
 }
 /// # Safety
 ///
-#[no_mangle]
+#[export_name = "FPParseStyleSheetFromString"]
 pub unsafe extern "C" fn parse_style_sheet_from_string(
     style_text_ptr: *const c_char,
-) -> *mut StyleSheet {
+) -> FfiResult<*mut StyleSheet> {
+    check_null!((style_text_ptr), core::ptr::null_mut());
     let style_text = CStr::from_ptr(style_text_ptr).to_string_lossy();
     let (compiled_style_sheet, _) = parser::parse_style_sheet("string", &style_text);
     let style_sheet = StyleSheet::from_sheet(&compiled_style_sheet);
-    Box::into_raw(Box::new(style_sheet))
+    FfiResult::ok(Box::into_raw(Box::new(style_sheet)))
 }
 /// # Safety
 ///
-#[no_mangle]
+#[export_name = "FPParseSelectorFromString"]
 pub unsafe extern "C" fn parse_selector_from_string(
     selector_text_ptr: *const c_char,
-) -> *mut Selector {
+) -> FfiResult<*mut Selector> {
+    check_null!((selector_text_ptr), core::ptr::null_mut());
     let selector_text = CStr::from_ptr(selector_text_ptr).to_string_lossy();
     let selector = Selector::from_string(&selector_text);
-    Box::into_raw(Box::new(selector))
+    FfiResult::ok(Box::into_raw(Box::new(selector)))
 }
 /// # Safety
 ///
-#[no_mangle]
-pub unsafe extern "C" fn selector_free(selector: *mut Selector) {
+#[export_name = "FPSelectorFree"]
+pub unsafe extern "C" fn selector_free(selector: *mut Selector) -> FfiResult<NullPtr> {
+    check_null!((selector), null());
     drop(Box::from_raw(selector));
+    FfiResult::ok(null())
 }
+
 /// # Safety
 ///
-#[no_mangle]
-pub unsafe extern "C" fn style_sheet_free(style_sheet: *mut StyleSheet) {
+#[export_name = "FPStyleSheetFree"]
+pub unsafe extern "C" fn style_sheet_free(style_sheet: *mut StyleSheet) -> FfiResult<NullPtr> {
+    check_null!((style_sheet), null());
     drop(Box::from_raw(style_sheet));
+    FfiResult::ok(null())
 }
+
 /// # Safety
 ///
 #[cfg(feature = "deserialize")]
-#[no_mangle]
+#[export_name = "FPStyleSheetBincodeVersion"]
 pub unsafe extern "C" fn style_sheet_bincode_version(
-    buffer_ptr: *mut u8,
+    buffer_ptr: BufferPtr,
     buffer_len: usize,
-) -> *mut StrRef {
+) -> FfiResult<*mut StrRef> {
     use float_pigment_consistent_bincode::Options;
+    check_null!((buffer_ptr), core::ptr::null_mut());
     let sheet = de_static_ref_zero_copy_env(
         core::slice::from_raw_parts_mut(buffer_ptr, buffer_len),
         |s| {
@@ -553,58 +680,66 @@ pub unsafe extern "C" fn style_sheet_bincode_version(
         StyleSheet::V1(v1) => v1.version,
         _ => Box::new("unknown version".into()),
     };
-    Box::into_raw(version)
+    FfiResult::ok(Box::into_raw(version))
 }
+
 /// # Safety
 ///
-#[no_mangle]
-pub unsafe extern "C" fn css_parser_version() -> *mut StrRef {
+#[export_name = "FPCssParserVersion"]
+pub unsafe extern "C" fn css_parser_version() -> FfiResult<*mut StrRef> {
     let version = env!("CARGO_PKG_VERSION").to_string().into();
-    Box::into_raw(Box::new(version))
+    FfiResult::ok(Box::into_raw(Box::new(version)))
 }
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ColorValue {
     red: u8,
     green: u8,
     blue: u8,
     alpha: u8,
 }
+
 /// # Safety
 ///
-#[no_mangle]
-pub unsafe extern "C" fn parse_color_from_string(source: *const c_char) -> ColorValue {
+#[export_name = "FPParseColorFromString"]
+pub unsafe extern "C" fn parse_color_from_string(source: *const c_char) -> FfiResult<ColorValue> {
+    check_null!((source), ColorValue::default());
     let source = CStr::from_ptr(source).to_string_lossy();
     let ret = parse_color_to_rgba(&source);
-    ColorValue {
+    FfiResult::ok(ColorValue {
         red: ret.0,
         green: ret.1,
         blue: ret.2,
         alpha: ret.3,
-    }
+    })
 }
 
 /// # Safety
 ///
-#[no_mangle]
+#[export_name = "FPSubstituteVariable"]
 pub unsafe extern "C" fn substitute_variable(
     expr_ptr: *const c_char,
     map: *mut (),
     getter: CustomPropertyGetter,
     setter: CustomPropertySetter,
-) -> *const c_char {
+) -> FfiResult<*const c_char> {
+    check_null!((expr_ptr, map), null());
     let expr = CStr::from_ptr(expr_ptr).to_string_lossy();
     let context = CustomPropertyContext::create(map, getter, setter);
     if let Some(ret) = parser::property_value::var::substitute_variable(&expr, &context) {
-        CString::new(ret).expect("CString new error").into_raw()
-    } else {
-        null()
+        if let Ok(r) = CString::new(ret) {
+            return FfiResult::ok(r.into_raw());
+        }
     }
+    FfiResult::ok(null())
 }
+
 /// # Safety
 ///
-#[no_mangle]
-pub unsafe extern "C" fn str_free(ptr: *const c_char) {
+#[export_name = "FPStrFree"]
+pub unsafe extern "C" fn str_free(ptr: *const c_char) -> FfiResult<NullPtr> {
+    check_null!((ptr), null());
     drop(CString::from_raw(ptr as *mut _));
+    FfiResult::ok(null())
 }
