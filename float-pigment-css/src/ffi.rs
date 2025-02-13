@@ -100,8 +100,11 @@ impl<T> FfiResult<T> {
 ///
 /// Create a new style sheet resource.
 ///
-/// This function returns a raw pointer to a heap-allocated style sheet resource.
-/// The caller is responsible for eventually freeing this memory using [FPStyleSheetResourceFree].
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+/// * `source` - C string pointer to the CSS source content (UTF-8 encoded)
+/// * `warnings` - Optional output parameter to receive warnings array pointer
 ///
 /// # Examples
 ///
@@ -122,8 +125,8 @@ pub unsafe extern "C" fn style_sheet_resource_new() -> FfiResult<RawMutPtr> {
 ///
 /// Free the style sheet resource.
 ///
-/// This function takes a raw pointer to a style sheet resource
-/// and frees the memory allocated for it.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
 ///
 /// # Examples
 ///
@@ -144,8 +147,10 @@ pub unsafe extern "C" fn style_sheet_resource_free(this: RawMutPtr) -> FfiResult
 /// # Safety
 /// Add a tag name prefix to the resource.
 ///
-/// This function takes a raw pointer to a style sheet resource,
-/// a path to the style sheet, and a prefix to add to the tag name.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the stylesheet path (UTF-8 encoded)
+/// * `prefix` - C string pointer to the prefix to add to the tag name (UTF-8 encoded)
 ///
 /// # Examples
 ///
@@ -175,8 +180,10 @@ pub unsafe extern "C" fn style_sheet_resource_add_tag_name_prefix(
 /// # Safety
 /// Serialize the specified style sheet to the JSON format.
 ///
-/// This function takes a raw pointer to a style sheet resource,
-/// a path to the style sheet, and a pointer to a buffer to store the serialized data.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the stylesheet path (UTF-8 encoded)
+/// * `ret_buffer_len` - Pointer to a variable to store the length of the serialized data
 ///
 /// # Examples
 ///
@@ -208,13 +215,18 @@ pub unsafe extern "C" fn style_sheet_resource_serialize_json(
 ///
 /// Serialize the specified style sheet to the binary format.
 ///
-/// This function takes a raw pointer to a style sheet resource,
-/// a path to the style sheet, and a pointer to a buffer to store the serialized data.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the stylesheet path (UTF-8 encoded)
+/// * `ret_buffer_len` - Pointer to a variable to store the length of the serialized data
 ///
 /// # Examples
 ///
 /// ```c
-/// FPStyleSheetResourceSerializeBincode(resource, path, &mut buffer_len);
+/// FfiResult result = FPStyleSheetResourceSerializeBincode(resource, path, &mut buffer_len);
+/// if (result.err != FfiErrorCode::None) {
+///     // handle error
+/// }
 /// ```
 ///
 #[cfg(feature = "serialize")]
@@ -237,8 +249,11 @@ pub unsafe extern "C" fn style_sheet_resource_serialize_bincode(
 ///
 /// Add a style sheet to the resource manager.
 ///
-/// This function takes a raw pointer to a style sheet resource,
-/// a path to the style sheet, and a pointer to a buffer to store the serialized data.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+/// * `source` - C string pointer to the CSS source content (UTF-8 encoded)
+/// * `warnings` - Optional output parameter to receive warnings array pointer
 ///
 /// # Examples
 ///
@@ -270,8 +285,12 @@ pub unsafe extern "C" fn style_sheet_resource_add_source(
 ///
 /// Add a style sheet to the resource manager with hooks.
 ///
-/// This function takes a raw pointer to a style sheet resource,
-/// a parser hooks, a path to the style sheet, and a pointer to a buffer to store the warnings.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `hooks` - A parser hooks
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+/// * `source` - C string pointer to the CSS source content (UTF-8 encoded)
+/// * `warnings` - Optional output parameter to receive warnings array pointer
 ///
 /// # Examples
 ///
@@ -303,9 +322,14 @@ pub unsafe extern "C" fn style_sheet_resource_add_source_with_hooks(
 /// # Safety
 /// Add a style sheet to the resource manager from binary format.
 ///
-/// This function takes a raw pointer to a style sheet resource,
-/// a path to the style sheet, a pointer to a buffer to store the serialized data,
-/// a drop function, a drop argument, and a pointer to a buffer to store the warnings.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the stylesheet path (UTF-8 encoded)
+/// * `buffer_ptr` - Pointer to the buffer to store the serialized data
+/// * `buffer_len` - Length of the buffer
+/// * `drop_fn` - Optional drop function
+/// * `drop_args` - Pointer to the drop argument
+/// * `warnings` - Optional output parameter to receive warnings array pointer
 ///
 /// # Examples
 ///
@@ -344,8 +368,9 @@ pub unsafe extern "C" fn style_sheet_resource_add_bincode(
 /// # Safety
 /// Get the direct dependencies of the specified style sheet.
 ///
-/// This function takes a raw pointer to a style sheet resource,
-/// a path to the style sheet, and returns a pointer to an array of string references.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the stylesheet path (UTF-8 encoded)
 ///
 /// # Examples
 ///
@@ -371,13 +396,13 @@ pub unsafe extern "C" fn style_sheet_resource_direct_dependencies(
 ///
 /// Generate the import index of the resource.
 ///
-/// This function takes a raw pointer to a style sheet resource,
-/// and returns a pointer to a raw pointer to the import index.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
 ///
 /// # Examples
 ///
 /// ```c
-/// RawMutPtr import_index = FPStyleSheetResourceGenerateImportIndex(resource);
+/// FPStyleSheetResourceGenerateImportIndex(resource);
 /// ```
 ///
 #[export_name = "FPStyleSheetResourceGenerateImportIndex"]
@@ -411,9 +436,6 @@ impl StyleSheetImportIndex {
 /// # Safety
 /// Create a new style sheet import index.
 ///
-/// This function returns a raw pointer to a heap-allocated style sheet import index.
-/// The caller is responsible for eventually freeing this memory using [FPStyleSheetImportIndexFree].
-///
 /// # Examples
 ///
 /// ```c
@@ -434,8 +456,8 @@ pub unsafe extern "C" fn style_sheet_import_index_new() -> FfiResult<RawMutPtr> 
 /// # Safety
 /// Free the style sheet import index.
 ///
-/// This function takes a raw pointer to a style sheet import index
-/// and frees the memory allocated for it.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
 ///
 /// # Examples
 ///
@@ -453,8 +475,9 @@ pub unsafe extern "C" fn style_sheet_import_index_free(this: RawMutPtr) -> FfiRe
 /// # Safety
 /// Query and mark the dependencies of the specified style sheet.
 ///
-/// This function takes a raw pointer to a style sheet import index,
-/// a path to the style sheet, and returns a pointer to an array of string references.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
 ///
 /// # Examples
 ///
@@ -481,8 +504,9 @@ pub unsafe extern "C" fn style_sheet_import_index_query_and_mark_dependencies(
 /// # Safety
 /// List the dependencies of the specified style sheet.
 ///
-/// This function takes a raw pointer to a style sheet import index,
-/// a path to the style sheet, and returns a pointer to an array of string references.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
 ///
 /// # Examples
 ///
@@ -509,8 +533,9 @@ pub unsafe extern "C" fn style_sheet_import_index_list_dependencies(
 /// # Safety
 /// List the dependency of the specified style sheet.
 ///
-/// This function takes a raw pointer to a style sheet import index,
-/// a path to the style sheet, and returns a pointer to an array of string references.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
 ///
 /// # Examples
 ///
@@ -537,9 +562,14 @@ pub unsafe extern "C" fn style_sheet_import_index_list_dependency(
 /// # Safety
 /// Add a style sheet to the import index from binary format.
 ///
-/// This function takes a raw pointer to a style sheet import index,
-/// a path to the style sheet, a pointer to a buffer to store the serialized data,
-/// a drop function, a drop argument, and a pointer to a buffer to store the warnings.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+/// * `buffer_ptr` - Pointer to the buffer to store the serialized data
+/// * `buffer_len` - Length of the buffer
+/// * `drop_fn` - Optional drop function
+/// * `drop_args` - Pointer to the drop argument
+/// * `warnings` - Optional output parameter to receive warnings array pointer
 ///
 /// # Examples
 ///
@@ -607,8 +637,9 @@ pub unsafe extern "C" fn style_sheet_import_index_add_bincode(
 /// # Safety
 /// Remove a style sheet from the style sheet import index.
 ///
-/// This function takes a raw pointer to a style sheet import index,
-/// a path to the style sheet, and removes the style sheet from the import index.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
 ///
 /// # Examples
 ///
@@ -632,8 +663,9 @@ pub unsafe extern "C" fn style_sheet_import_index_remove_bincode(
 /// # Safety
 /// Get the style sheet from the style sheet import index.
 ///
-/// This function takes a raw pointer to a style sheet import index,
-/// a path to the style sheet, and returns a pointer to the style sheet.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
 ///
 /// # Examples
 ///
@@ -659,8 +691,9 @@ pub unsafe extern "C" fn style_sheet_import_index_get_style_sheet(
 /// # Safety
 /// Serialize the style sheet import index to the JSON format.
 ///
-/// This function takes a raw pointer to a style sheet import index,
-/// and returns a pointer to the serialized data.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `ret_buffer_len` - Pointer to a variable to store the length of the serialized data
 ///
 /// # Examples
 ///
@@ -684,8 +717,9 @@ pub unsafe extern "C" fn style_sheet_import_index_serialize_json(
 /// # Safety
 /// Serialize the style sheet import index to the binary format.
 ///
-/// This function takes a raw pointer to a style sheet import index,
-/// and returns a pointer to the serialized data.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `ret_buffer_len` - Pointer to a variable to store the length of the serialized data
 ///
 /// # Examples
 ///
@@ -709,8 +743,8 @@ pub unsafe extern "C" fn style_sheet_import_index_serialize_bincode(
 /// # Safety
 /// Deserialize the style sheet import index from the JSON format.
 ///
-/// This function takes a raw pointer to the JSON data,
-/// and returns a pointer to the deserialized style sheet import index.
+/// # Arguments
+/// * `json` - C string pointer to the JSON data
 ///
 /// # Examples
 ///
@@ -736,8 +770,11 @@ pub unsafe extern "C" fn style_sheet_import_index_deserialize_json(
 /// # Safety
 /// Deserialize the style sheet import index from the binary format.
 ///
-/// This function takes a raw pointer to the binary data,
-/// and returns a pointer to the deserialized style sheet import index.
+/// # Arguments
+/// * `buffer_ptr` - Pointer to the binary data
+/// * `buffer_len` - Length of the binary data
+/// * `drop_fn` - Optional drop function
+/// * `drop_args` - Pointer to the drop argument
 ///
 /// # Examples
 ///
@@ -770,8 +807,12 @@ pub unsafe extern "C" fn style_sheet_import_index_deserialize_bincode(
 /// # Safety
 /// Merge the style sheet import index from binary format.
 ///
-/// This function takes a raw pointer to a style sheet import index,
-/// a pointer to the binary data, a drop function, and a drop argument.
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `buffer_ptr` - Pointer to the binary data
+/// * `buffer_len` - Length of the binary data
+/// * `drop_fn` - Optional drop function
+/// * `drop_args` - Pointer to the drop argument
 ///
 /// # Examples
 ///
@@ -805,7 +846,9 @@ pub unsafe extern "C" fn style_sheet_import_index_merge_bincode(
 /// # Safety
 /// Free the buffer.
 ///
-/// This function takes a pointer to the buffer and the length of the buffer.
+/// # Arguments
+/// * `buffer_ptr` - Pointer to the buffer
+/// * `buffer_len` - Length of the buffer
 ///
 /// # Examples
 ///
@@ -824,7 +867,8 @@ pub unsafe extern "C" fn buffer_free(buffer_ptr: *mut u8, buffer_len: usize) -> 
 /// # Safety
 /// Free the array of string references.
 ///
-/// This function takes a pointer to the array of string references.
+/// # Arguments
+/// * `x` - Pointer to the array of string references
 ///
 /// # Examples
 ///
@@ -842,7 +886,8 @@ pub unsafe extern "C" fn array_str_ref_free(x: *mut Array<StrRef>) -> FfiResult<
 /// # Safety
 /// Free the array of warnings.
 ///
-/// This function takes a pointer to the array of warnings.
+/// # Arguments
+/// * `warnings` - Pointer to the array of warnings
 ///
 /// # Examples
 ///
@@ -862,8 +907,9 @@ pub unsafe extern "C" fn array_warning_free(
 /// # Safety
 /// Parse the inline style from the string.
 ///
-/// This function takes a pointer to the inline style text,
-/// a pointer to the array of warnings, and returns a pointer to the inline rule.
+/// # Arguments
+/// * `inline_style_text_ptr` - Pointer to the inline style text
+/// * `warnings` - Optional output parameter to receive warnings array pointer
 ///
 /// # Examples
 ///
@@ -914,7 +960,8 @@ pub unsafe extern "C" fn parse_inline_style(
 /// # Safety
 /// Free the inline style.
 ///
-/// This function takes a pointer to the inline style.
+/// # Arguments
+/// * `inline_rule` - Pointer to the inline style
 ///
 /// # Examples
 ///
@@ -932,8 +979,8 @@ pub unsafe extern "C" fn inline_style_free(inline_rule: *mut InlineRule) -> FfiR
 /// # Safety
 /// Parse the style sheet from the string.
 ///
-/// This function takes a pointer to the style sheet text,
-/// and returns a pointer to the style sheet.
+/// # Arguments
+/// * `style_text_ptr` - Pointer to the style sheet text
 ///
 /// # Examples
 ///
@@ -959,8 +1006,8 @@ pub unsafe extern "C" fn parse_style_sheet_from_string(
 /// # Safety
 /// Parse the selector from the string.
 ///
-/// This function takes a pointer to the selector text,
-/// and returns a pointer to the selector.
+/// # Arguments
+/// * `selector_text_ptr` - Pointer to the selector text
 ///
 /// # Examples
 ///
@@ -985,7 +1032,8 @@ pub unsafe extern "C" fn parse_selector_from_string(
 /// # Safety
 /// Free the selector.
 ///
-/// This function takes a pointer to the selector.
+/// # Arguments
+/// * `selector` - Pointer to the selector
 ///
 /// # Examples
 ///
@@ -1003,7 +1051,8 @@ pub unsafe extern "C" fn selector_free(selector: *mut Selector) -> FfiResult<Nul
 /// # Safety
 /// Free the style sheet.
 ///
-/// This function takes a pointer to the style sheet.
+/// # Arguments
+/// * `style_sheet` - Pointer to the style sheet
 ///
 /// # Examples
 ///
@@ -1021,8 +1070,9 @@ pub unsafe extern "C" fn style_sheet_free(style_sheet: *mut StyleSheet) -> FfiRe
 /// # Safety
 /// Get the version of the style sheet in the binary format.
 ///
-/// This function takes a pointer to the buffer and the length of the buffer,
-/// and returns a pointer to the version of the style sheet.
+/// # Arguments
+/// * `buffer_ptr` - Pointer to the buffer
+/// * `buffer_len` - Length of the buffer
 ///
 /// # Examples
 ///
@@ -1073,8 +1123,6 @@ pub unsafe extern "C" fn style_sheet_bincode_version(
 /// # Safety
 /// Get the version of the CSS parser.
 ///
-/// This function returns a pointer to the version of the CSS parser.
-///
 /// # Examples
 ///
 /// ```c
@@ -1098,8 +1146,8 @@ pub struct ColorValue {
 /// # Safety
 /// Parse the color from the string.
 ///
-/// This function takes a pointer to the source string,
-/// and returns a pointer to the color value.
+/// # Arguments
+/// * `source` - Pointer to the source string
 ///
 /// # Examples
 ///
@@ -1127,8 +1175,11 @@ pub unsafe extern "C" fn parse_color_from_string(source: *const c_char) -> FfiRe
 /// # Safety
 /// Substitute the variable in the expression.
 ///
-/// This function takes a pointer to the expression,
-/// a pointer to the map, a getter, and a setter.
+/// # Arguments
+/// * `expr_ptr` - Pointer to the expression
+/// * `map` - Pointer to the map
+/// * `getter` - Custom property getter
+/// * `setter` - Custom property setter
 ///
 /// # Examples
 ///
@@ -1158,7 +1209,8 @@ pub unsafe extern "C" fn substitute_variable(
 /// # Safety
 /// Free the string.
 ///
-/// This function takes a pointer to the string.
+/// # Arguments
+/// * `ptr` - Pointer to the string
 ///
 /// # Examples
 ///
