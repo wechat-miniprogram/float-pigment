@@ -24,6 +24,7 @@ use crate::parser::property_value::var::{
 };
 use crate::sheet;
 use group::drop_css_extension;
+use group::StyleSheetImportIndex as StyleSheetImportIndexImpl;
 use parser::Warning;
 use sheet::borrow::{Array, StyleSheet};
 use sheet::str_store::StrRef;
@@ -68,14 +69,14 @@ pub struct FfiResult<T> {
 impl<T> FfiResult<T> {
     pub fn ok(value: T) -> Self {
         Self {
-            err: FfiErrorCode::None,
             value,
+            err: FfiErrorCode::None,
         }
     }
     pub fn error(err: FfiErrorCode, default: T) -> Self {
         Self {
-            err,
             value: default,
+            err,
         }
     }
 }
@@ -251,7 +252,7 @@ pub unsafe extern "C" fn style_sheet_resource_generate_import_index(
 type StyleSheetMap = HashMap<String, StyleSheet>;
 
 struct StyleSheetImportIndex {
-    inner: group::StyleSheetImportIndex,
+    inner: StyleSheetImportIndexImpl,
     map: StyleSheetMap,
 }
 
@@ -267,7 +268,7 @@ impl StyleSheetImportIndex {
 pub unsafe extern "C" fn style_sheet_import_index_new() -> FfiResult<RawMutPtr> {
     FfiResult::ok(
         StyleSheetImportIndex {
-            inner: group::StyleSheetImportIndex::new(),
+            inner: StyleSheetImportIndexImpl::new(),
             map: StyleSheetMap::default(),
         }
         .into_raw(),
@@ -461,7 +462,7 @@ pub unsafe extern "C" fn style_sheet_import_index_deserialize_json(
     let json = CStr::from_ptr(json).to_string_lossy();
     FfiResult::ok(
         StyleSheetImportIndex {
-            inner: group::StyleSheetImportIndex::deserialize_json(&json),
+            inner: StyleSheetImportIndexImpl::deserialize_json(&json),
             map: StyleSheetMap::default(),
         }
         .into_raw(),
@@ -481,14 +482,11 @@ pub unsafe extern "C" fn style_sheet_import_index_deserialize_bincode(
     let bincode: *mut [u8] = core::slice::from_raw_parts_mut(buffer_ptr, buffer_len);
     FfiResult::ok(
         StyleSheetImportIndex {
-            inner: group::StyleSheetImportIndex::deserialize_bincode_zero_copy(
-                bincode,
-                move || {
-                    if let Some(drop_fn) = drop_fn {
-                        drop_fn(drop_args);
-                    }
-                },
-            ),
+            inner: StyleSheetImportIndexImpl::deserialize_bincode_zero_copy(bincode, move || {
+                if let Some(drop_fn) = drop_fn {
+                    drop_fn(drop_args);
+                }
+            }),
             map: StyleSheetMap::default(),
         }
         .into_raw(),
