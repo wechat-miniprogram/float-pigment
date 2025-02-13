@@ -89,6 +89,13 @@ enum class ContainKeyword {
   Paint,
 };
 
+enum class FfiErrorCode {
+  None,
+  NullPointer,
+  InvalidPath,
+  Unknown,
+};
+
 enum class FontDisplay {
   Auto,
   Block,
@@ -265,6 +272,14 @@ enum class WarningKind : uint32_t {
   InvalidEnvDefaultValue,
 };
 
+using NullPtr = const void*;
+
+template<typename T>
+struct FfiResult {
+  T value;
+  FfiErrorCode err;
+};
+
 struct StrRef {
   size_t offset;
   size_t len;
@@ -286,9 +301,7 @@ struct Warning {
   uint32_t end_col;
 };
 
-struct CParserHooksContext {
-  void *inner;
-};
+using BufferPtr = uint8_t*;
 
 template<typename T>
 struct Box {
@@ -8728,6 +8741,8 @@ struct ColorValue {
   uint8_t alpha;
 };
 
+using CCharPtr = const char*;
+
 struct SelectorRelationType {
   enum class Tag {
     None,
@@ -9007,143 +9022,150 @@ struct StyleSheet {
   };
 };
 
-struct StyleSheetImportIndexPtr {
-  void *ptr;
-  void *map;
-};
+using RawMutPtr = void*;
 
-struct StyleSheetResourcePtr {
-  void *ptr;
+using StyleSheetImportIndexPtr = RawMutPtr;
+
+using StyleSheetResourcePtr = RawMutPtr;
+
+struct CParserHooksContext {
+  void *inner;
 };
 
 struct CParserHooks {
   void (*parsed_property)(CParserHooksContext, Property*);
 };
 
+using CustomPropertyGetter = const char*(*)(void *map, const char *name);
+
+using CustomPropertySetter = void(*)(void *map, const char *name, const char *value);
+
 
 extern "C" {
 
-void array_str_ref_free(Array<StrRef> *x);
+FfiResult<NullPtr> FPArrayStrRefFree(Array<StrRef> *x);
 
-void array_warning_free(Array<Warning> *warnings);
+FfiResult<NullPtr> FPArrayWarningFree(Array<Warning> *warnings);
 
-void buffer_free(uint8_t *buffer_ptr, size_t buffer_len);
+FfiResult<NullPtr> FPBufferFree(BufferPtr buffer_ptr, size_t buffer_len);
 
-StrRef *css_parser_version();
+FfiResult<StrRef*> FPCssParserVersion();
 
-void generate_warning(CParserHooksContext *self, const char *message);
+FfiResult<NullPtr> FPInlineStyleFree(InlineRule *inline_rule);
 
-void inline_style_free(InlineRule *inline_rule);
+FfiResult<ColorValue> FPParseColorFromString(CCharPtr source);
 
-ColorValue parse_color_from_string(const char *source);
+FfiResult<InlineRule*> FPParseInlineStyle(CCharPtr inline_style_text_ptr,
+                                          Array<Warning> **warnings);
 
-InlineRule *parse_inline_style(const char *inline_style_text_ptr, Array<Warning> **warnings);
+FfiResult<Selector*> FPParseSelectorFromString(CCharPtr selector_text_ptr);
 
-Selector *parse_selector_from_string(const char *selector_text_ptr);
+FfiResult<StyleSheet*> FPParseStyleSheetFromString(CCharPtr style_text_ptr);
 
-StyleSheet *parse_style_sheet_from_string(const char *style_text_ptr);
+FfiResult<NullPtr> FPSelectorFree(Selector *selector);
 
-void selector_free(Selector *selector);
+FfiResult<NullPtr> FPStrFree(CCharPtr ptr);
 
-void str_free(const char *ptr);
+FfiResult<StrRef*> FPStyleSheetBincodeVersion(BufferPtr buffer_ptr, size_t buffer_len);
+
+FfiResult<NullPtr> FPStyleSheetFree(StyleSheet *style_sheet);
+
+FfiResult<NullPtr> FPStyleSheetImportIndexAddBincode(StyleSheetImportIndexPtr this_,
+                                                     CCharPtr path,
+                                                     BufferPtr buffer_ptr,
+                                                     size_t buffer_len,
+                                                     void (*drop_fn)(RawMutPtr),
+                                                     RawMutPtr drop_args,
+                                                     Array<Warning> **warnings);
+
+FfiResult<StyleSheetImportIndexPtr> FPStyleSheetImportIndexDeserializeBincode(BufferPtr buffer_ptr,
+                                                                              size_t buffer_len,
+                                                                              void (*drop_fn)(RawMutPtr),
+                                                                              RawMutPtr drop_args);
+
+FfiResult<StyleSheetImportIndexPtr> FPStyleSheetImportIndexDeserializeJson(CCharPtr json);
+
+FfiResult<NullPtr> FPStyleSheetImportIndexFree(StyleSheetImportIndexPtr this_);
+
+FfiResult<StyleSheet*> FPStyleSheetImportIndexGetStyleSheet(StyleSheetImportIndexPtr this_,
+                                                            CCharPtr path);
+
+FfiResult<Array<StrRef>*> FPStyleSheetImportIndexListDependencies(StyleSheetImportIndexPtr this_,
+                                                                  CCharPtr path);
+
+FfiResult<Array<StrRef>*> FPStyleSheetImportIndexListDependency(StyleSheetImportIndexPtr this_,
+                                                                CCharPtr path);
+
+FfiResult<NullPtr> FPStyleSheetImportIndexMergeBincode(StyleSheetImportIndexPtr this_,
+                                                       BufferPtr buffer_ptr,
+                                                       size_t buffer_len,
+                                                       void (*drop_fn)(void*),
+                                                       void *drop_args);
+
+FfiResult<StyleSheetImportIndexPtr> FPStyleSheetImportIndexNew();
+
+FfiResult<Array<StrRef>*> FPStyleSheetImportIndexQueryAndMarkDependencies(StyleSheetImportIndexPtr this_,
+                                                                          CCharPtr path);
+
+FfiResult<NullPtr> FPStyleSheetImportIndexRemoveBincode(StyleSheetImportIndexPtr this_,
+                                                        CCharPtr path);
+
+FfiResult<BufferPtr> FPStyleSheetImportIndexSerializeBincode(StyleSheetImportIndexPtr this_,
+                                                             size_t *ret_buffer_len);
+
+FfiResult<BufferPtr> FPStyleSheetImportIndexSerializeJson(StyleSheetImportIndexPtr this_,
+                                                          size_t *ret_buffer_len);
+
+FfiResult<NullPtr> FPStyleSheetResourceAddBincode(StyleSheetResourcePtr this_,
+                                                  CCharPtr path,
+                                                  BufferPtr buffer_ptr,
+                                                  size_t buffer_len,
+                                                  void (*drop_fn)(RawMutPtr),
+                                                  RawMutPtr drop_args,
+                                                  Array<Warning> **warnings);
+
+FfiResult<NullPtr> FPStyleSheetResourceAddSource(StyleSheetResourcePtr this_,
+                                                 CCharPtr path,
+                                                 CCharPtr source,
+                                                 Array<Warning> **warnings);
+
+FfiResult<NullPtr> FPStyleSheetResourceAddSourceWithHooks(StyleSheetResourcePtr this_,
+                                                          CParserHooks hooks,
+                                                          CCharPtr path,
+                                                          CCharPtr source,
+                                                          Array<Warning> **warnings);
+
+FfiResult<NullPtr> FPStyleSheetResourceAddTagNamePrefix(StyleSheetResourcePtr this_,
+                                                        CCharPtr path,
+                                                        CCharPtr prefix);
+
+FfiResult<Array<StrRef>*> FPStyleSheetResourceDirectDependencies(StyleSheetResourcePtr this_,
+                                                                 CCharPtr path);
+
+FfiResult<NullPtr> FPStyleSheetResourceFree(StyleSheetResourcePtr this_);
+
+FfiResult<StyleSheetImportIndexPtr> FPStyleSheetResourceGenerateImportIndex(StyleSheetResourcePtr this_);
+
+FfiResult<StyleSheetResourcePtr> FPStyleSheetResourceNew();
+
+FfiResult<BufferPtr> FPStyleSheetResourceSerializeBincode(StyleSheetResourcePtr this_,
+                                                          CCharPtr path,
+                                                          size_t *ret_buffer_len);
+
+FfiResult<BufferPtr> FPStyleSheetResourceSerializeJson(StyleSheetResourcePtr this_,
+                                                       CCharPtr path,
+                                                       size_t *ret_buffer_len);
+
+FfiResult<CCharPtr> FPSubstituteVariable(CCharPtr expr_ptr,
+                                         RawMutPtr map,
+                                         CustomPropertyGetter getter,
+                                         CustomPropertySetter setter);
+
+FfiResult<NullPtr> generate_warning(CParserHooksContext *self, const char *message);
 
 size_t str_len(const StrRef *self);
 
 const uint8_t *str_ptr(const StrRef *self);
-
-StrRef *style_sheet_bincode_version(uint8_t *buffer_ptr, size_t buffer_len);
-
-void style_sheet_free(StyleSheet *style_sheet);
-
-void style_sheet_import_index_add_bincode(StyleSheetImportIndexPtr *this_,
-                                          const char *path,
-                                          uint8_t *buffer_ptr,
-                                          size_t buffer_len,
-                                          void (*drop_fn)(void*),
-                                          void *drop_args,
-                                          Array<Warning> **warnings);
-
-StyleSheetImportIndexPtr style_sheet_import_index_deserialize_bincode(uint8_t *buffer_ptr,
-                                                                      size_t buffer_len,
-                                                                      void (*drop_fn)(void*),
-                                                                      void *drop_args);
-
-StyleSheetImportIndexPtr style_sheet_import_index_deserialize_json(const char *json);
-
-void style_sheet_import_index_free(StyleSheetImportIndexPtr *this_);
-
-StyleSheet *style_sheet_import_index_get_style_sheet(StyleSheetImportIndexPtr *this_,
-                                                     const StrRef *path);
-
-Array<StrRef> *style_sheet_import_index_list_dependencies(StyleSheetImportIndexPtr *this_,
-                                                          const char *path);
-
-Array<StrRef> *style_sheet_import_index_list_dependency(StyleSheetImportIndexPtr *this_,
-                                                        const char *path);
-
-void style_sheet_import_index_merge_bincode(StyleSheetImportIndexPtr *this_,
-                                            uint8_t *buffer_ptr,
-                                            size_t buffer_len,
-                                            void (*drop_fn)(void*),
-                                            void *drop_args);
-
-StyleSheetImportIndexPtr style_sheet_import_index_new();
-
-Array<StrRef> *style_sheet_import_index_query_and_mark_dependencies(StyleSheetImportIndexPtr *this_,
-                                                                    const char *path);
-
-void style_sheet_import_index_remove_bincode(StyleSheetImportIndexPtr *this_, const char *path);
-
-uint8_t *style_sheet_import_index_serialize_bincode(StyleSheetImportIndexPtr *this_,
-                                                    size_t *ret_buffer_len);
-
-uint8_t *style_sheet_import_index_serialize_json(StyleSheetImportIndexPtr *this_,
-                                                 size_t *ret_buffer_len);
-
-void style_sheet_resource_add_bincode(StyleSheetResourcePtr *this_,
-                                      const char *path,
-                                      uint8_t *buffer_ptr,
-                                      size_t buffer_len,
-                                      void (*drop_fn)(void*),
-                                      void *drop_args,
-                                      Array<Warning> **warnings);
-
-void style_sheet_resource_add_source(StyleSheetResourcePtr *this_,
-                                     const char *path,
-                                     const char *source,
-                                     Array<Warning> **warnings);
-
-void style_sheet_resource_add_source_with_hooks(StyleSheetResourcePtr *this_,
-                                                CParserHooks hooks,
-                                                const char *path,
-                                                const char *source,
-                                                Array<Warning> **warnings);
-
-void style_sheet_resource_add_tag_name_prefix(StyleSheetResourcePtr *this_,
-                                              const char *path,
-                                              const char *prefix);
-
-Array<StrRef> *style_sheet_resource_direct_dependencies(StyleSheetResourcePtr *this_,
-                                                        const char *path);
-
-void style_sheet_resource_free(StyleSheetResourcePtr *this_);
-
-StyleSheetImportIndexPtr style_sheet_resource_generate_import_index(StyleSheetResourcePtr *this_);
-
-StyleSheetResourcePtr style_sheet_resource_new();
-
-uint8_t *style_sheet_resource_serialize_bincode(StyleSheetResourcePtr *this_,
-                                                const char *path,
-                                                size_t *ret_buffer_len);
-
-uint8_t *style_sheet_resource_serialize_json(StyleSheetResourcePtr *this_,
-                                             const char *path,
-                                             size_t *ret_buffer_len);
-
-const char *substitute_variable(const char *expr_ptr,
-                                void *map,
-                                CustomPropertyGetter getter,
-                                CustomPropertySetter setter);
 
 }  // extern "C"
 
