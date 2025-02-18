@@ -1,10 +1,10 @@
 use core::{fmt::Display, ops::Deref};
 
 use euclid::UnknownUnit;
-use float_pigment_css::typing::WritingMode;
+use style::typing::WritingMode;
 
 use crate::LayoutTreeNode;
-pub(crate) use float_pigment_css::length_num::{length_sum, LengthNum};
+pub(crate) use style::length_num::{length_sum, LengthNum};
 
 /// Position with size.
 pub type Rect<L> = euclid::Rect<L, UnknownUnit>;
@@ -954,7 +954,6 @@ pub(crate) fn size_to_option<L: LengthNum>(size: Size<L>) -> OptionSize<L> {
 
 #[cfg(test)]
 mod test {
-
     use crate::{AxisDirection, Normalized, OptionSize, Size, SizeGetter, SizeSetter};
 
     #[test]

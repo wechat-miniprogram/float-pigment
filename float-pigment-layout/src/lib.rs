@@ -52,7 +52,7 @@ use core::{
     fmt,
 };
 
-use float_pigment_css::typing::{
+use style::typing::{
     AlignContent, AlignItems, AlignSelf, BoxSizing, Direction, Display, FlexDirection, FlexWrap,
     JustifyContent, Position, TextAlign, WritingMode,
 };

@@ -1,4 +1,4 @@
-use float_pigment_css::num_traits::Zero;
+use num_traits::Zero;
 
 use crate::*;
 

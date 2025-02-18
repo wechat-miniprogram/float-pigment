@@ -1,6 +1,6 @@
 use crate::*;
 
-use float_pigment_css::num_traits::Zero;
+use num_traits::Zero;
 
 /// Computes the total space taken up by gaps in an axis given:
 ///   - The size of each gap
@@ -121,7 +121,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
             FlexDirection::RowReverse | FlexDirection::ColumnReverse => AxisReverse::Reversed,
         };
         let cross_dir_rev = match flex_wrap {
-            FlexWrap::NoWrap | FlexWrap::Wrap => AxisReverse::NotReversed,
+            FlexWrap::Nowrap | FlexWrap::Wrap => AxisReverse::NotReversed,
             FlexWrap::WrapReverse => AxisReverse::Reversed,
         };
 
@@ -338,7 +338,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
 
         flex_lines = {
             let mut lines = Vec::with_capacity(1);
-            if style.flex_wrap() == FlexWrap::NoWrap {
+            if style.flex_wrap() == FlexWrap::Nowrap {
                 lines.push(FlexLine {
                     items: &mut flex_items[..],
                     cross_size: T::Length::zero(),

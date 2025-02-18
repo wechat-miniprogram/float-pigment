@@ -15,15 +15,16 @@ name = "float_pigment_layout"
 crate-type = ["rlib"]
 
 [features]
-default = ["std"]
-std = ["float-pigment-css/std"]
+default = []
+std = ["style/std"]
 
 [dependencies]
 paste = "1.0"
 log = "0.4"
 euclid = { version = "0.22", default-features = false, features = ["libm"] }
 lru = "0.7.8"
-float-pigment-css = { workspace = true, features = ["no-std-lock"] }
+num-traits = { version = "0.2", default-features = false }
+style.workspace = true
 
 [lints]
 workspace = true

@@ -1,6 +1,6 @@
 use crate::*;
 
-use float_pigment_css::num_traits::Zero;
+use num_traits::Zero;
 
 enum BlockOrInlineSeries<'a, T: LayoutTreeNode> {
     Block(&'a T),

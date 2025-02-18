@@ -1,5 +1,5 @@
 use crate::*;
-use float_pigment_css::num_traits::{bounds::Bounded, Zero};
+use num_traits::{bounds::Bounded, Zero};
 
 #[allow(clippy::type_complexity)]
 pub(crate) struct LayoutUnit<T: LayoutTreeNode> {
