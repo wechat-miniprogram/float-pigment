@@ -20,9 +20,9 @@ enum class MeasureMode {
   AtMost,
 };
 
-struct NodePtr {
-  void *ptr;
-};
+using RawMutPtr = void*;
+
+using NodePtr = RawMutPtr;
 
 using Baseline = float;
 
@@ -116,7 +116,7 @@ void *NodeGetExternalHost(NodePtr node);
 
 NodePtr NodeGetParent(NodePtr node);
 
-void NodeHasMeasureFunc(NodePtr node);
+bool NodeHasMeasureFunc(NodePtr node);
 
 void NodeInsertBefore(NodePtr node, NodePtr child, NodePtr pivot);
 
