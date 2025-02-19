@@ -894,13 +894,13 @@ impl ToTokens for StyleSyntaxDefinition {
         writeln!(&mut style_doc, "| ---- | ---- | ---- |").unwrap();
         let table_list_a = supported_properties
             .iter()
-            .filter(|x| !x.name.as_ref().unwrap().starts_with("-"));
+            .filter(|x| !x.name.as_ref().unwrap().starts_with('-'));
         let table_list_b = supported_properties
             .iter()
-            .filter(|x| x.name.as_ref().unwrap().starts_with("-"));
+            .filter(|x| x.name.as_ref().unwrap().starts_with('-'));
         for x in table_list_a.chain(table_list_b) {
             let name = x.name.as_ref().unwrap();
-            let non_standard = name.starts_with("-");
+            let non_standard = name.starts_with('-');
             let name_col = if non_standard {
                 format!("*`{}`*", name)
             } else {

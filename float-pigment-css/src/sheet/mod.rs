@@ -130,7 +130,7 @@ impl CompiledStyleSheet {
                     let m = match media.clone() {
                         None => parent_media.clone(),
                         Some(mut m) => {
-                            Rc::make_mut(&mut m).parent = parent_media.clone();
+                            Rc::make_mut(&mut m).parent.clone_from(&parent_media);
                             Some(m)
                         }
                     };
