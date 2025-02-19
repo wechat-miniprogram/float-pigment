@@ -39,7 +39,6 @@ build-cpp-header = ["cbindgen", "fs_extra"]
 float-pigment-css = { workspace = true }
 float-pigment-layout = { workspace = true }
 euclid = "0.22"
-concat-idents = "1.1.3"
 cbindgen = { version = "0.27", optional = true }
 lru = "0.7.8"
 float-pigment-forest-macro = { workspace = true }
