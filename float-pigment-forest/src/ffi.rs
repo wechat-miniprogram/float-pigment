@@ -432,9 +432,9 @@ pub unsafe extern "C" fn NodeClearMeasureFunc(node: NodePtr) {
 /// # Safety
 ///
 #[no_mangle]
-pub unsafe extern "C" fn NodeHasMeasureFunc(node: NodePtr) {
+pub unsafe extern "C" fn NodeHasMeasureFunc(node: NodePtr) -> bool {
     let node = &*(node.ptr as *mut Node);
-    node.has_measure_func();
+    node.has_measure_func()
 }
 
 /// # Safety

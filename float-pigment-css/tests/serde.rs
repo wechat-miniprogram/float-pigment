@@ -22,7 +22,7 @@ fn for_each_serialize_format(s: &str, mut f: impl FnMut(StyleSheetGroup)) {
         let mut ssg = StyleSheetGroup::new();
         let buf = compile_style_sheet_to_json("", s);
         let mut resource = StyleSheetResource::new();
-        resource.add_json("", buf);
+        resource.add_json("", &buf);
         ssg.append_from_resource(&resource, "", None);
         f(ssg);
     }
