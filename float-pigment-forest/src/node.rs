@@ -226,7 +226,7 @@ impl Node {
         let self_node = Box::new(Self::new());
         Box::into_raw(self_node)
     }
-    pub unsafe fn parent(&self) -> Option<&Node> {
+    pub unsafe fn parent<'a>(&self) -> Option<&'a Node> {
         if self.parent.get().is_null() {
             None
         } else {
@@ -267,7 +267,12 @@ impl Node {
         self.layout_node.computed_style()
     }
     pub unsafe fn set_node_type(&self, node_type: NodeType) {
-        if self.node_type.get() != node_type {
+        let prev_type = self.node_type.get();
+        if prev_type != node_type {
+            if prev_type == NodeType::Text {
+                *self.measure_cache.get() = None;
+                *self.baseline_cache.get() = None;
+            }
             self.node_type.replace(node_type);
         }
         if node_type == NodeType::Text {
@@ -278,8 +283,10 @@ impl Node {
 
     #[inline(always)]
     pub(crate) unsafe fn measure_cache(&self) -> Option<&mut MeasureCache> {
-        let ret: *mut _ = self.measure_cache.get();
-        (*ret).as_deref_mut()
+        if self.node_type() != NodeType::Text {
+            return None;
+        }
+        (*self.measure_cache.get()).as_deref_mut()
     }
 
     pub(crate) unsafe fn clear_measure_cache(&self) {
@@ -290,8 +297,10 @@ impl Node {
 
     #[inline(always)]
     pub(crate) unsafe fn baseline_cache(&self) -> Option<&mut BaselineCache> {
-        let ret: *mut _ = self.baseline_cache.get();
-        (*ret).as_deref_mut()
+        if self.node_type() != NodeType::Text {
+            return None;
+        }
+        (*self.baseline_cache.get()).as_deref_mut()
     }
 
     pub(crate) unsafe fn clear_baseline_cache(&self) {
@@ -503,18 +512,27 @@ impl ChildOperation for Node {
     }
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     unsafe fn append_child(&self, child: NodePtr) {
+        if let Some(prev_parent) = (*child).parent() {
+            prev_parent.remove_child(child);
+        }
         (*child).set_parent(Some(convert_node_ref_to_ptr(self)));
         self.children.borrow_mut().push(child);
         self.mark_dirty_propagate()
     }
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     unsafe fn insert_child_at(&self, child: NodePtr, idx: usize) {
+        if let Some(prev_parent) = (*child).parent() {
+            prev_parent.remove_child(child);
+        }
         (*child).set_parent(Some(convert_node_ref_to_ptr(self)));
         self.children.borrow_mut().insert(idx, child);
         self.mark_dirty_propagate()
     }
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     unsafe fn insert_child_before(&self, child: NodePtr, pivot: NodePtr) {
+        if let Some(prev_parent) = (*child).parent() {
+            prev_parent.remove_child(child);
+        }
         (*child).set_parent(Some(convert_node_ref_to_ptr(self)));
         let idx = self
             .children
