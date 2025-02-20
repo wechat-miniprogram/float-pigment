@@ -484,7 +484,7 @@ impl StyleManager {
     }
 
     pub(crate) fn set_max_width(&self, value: Length) -> bool {
-        if self.size_limit_style().min_width == value {
+        if self.size_limit_style().max_width == value {
             return false;
         }
         self.clone_style(StyleBit::SizeLimit);
