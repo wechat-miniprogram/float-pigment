@@ -19,8 +19,10 @@ struct Angle;
 struct CalcExpr;
 
 
+/// The style sheet index for debugging.
 static const uint16_t TEMP_SHEET_INDEX = UINT16_MAX;
 
+/// An item in `animation-direction`.
 enum class AnimationDirectionItem {
   Normal,
   Reverse,
@@ -28,6 +30,7 @@ enum class AnimationDirectionItem {
   AlternateReverse,
 };
 
+/// An item in `animation-fill-mode`.
 enum class AnimationFillModeItem {
   None,
   Forwards,
@@ -35,6 +38,7 @@ enum class AnimationFillModeItem {
   Both,
 };
 
+/// An item in `animation-play-state`.
 enum class AnimationPlayStateItem {
   Running,
   Paused,
@@ -56,12 +60,14 @@ enum class AttributeOperator {
   Contain,
 };
 
+/// An item in `background-attachment`.
 enum class BackgroundAttachmentItem {
   Scroll,
   Fixed,
   Local,
 };
 
+/// An item in `background-clip`.
 enum class BackgroundClipItem {
   BorderBox,
   PaddingBox,
@@ -69,12 +75,14 @@ enum class BackgroundClipItem {
   Text,
 };
 
+/// An item in `background-origin`.
 enum class BackgroundOriginItem {
   BorderBox,
   PaddingBox,
   ContentBox,
 };
 
+/// A `background-repeat` value.
 enum class BackgroundRepeatValue {
   Repeat,
   NoRepeat,
@@ -82,6 +90,7 @@ enum class BackgroundRepeatValue {
   Round,
 };
 
+/// An item in multi-value form of `contain`.
 enum class ContainKeyword {
   Size,
   Layout,
@@ -119,16 +128,19 @@ enum class FontDisplay {
   Optional,
 };
 
+/// Gradient shape types in image description.
 enum class GradientShape {
   Ellipse,
   Circle,
 };
 
+/// An image tag in image description.
 enum class ImageTags {
   LTR,
   RTL,
 };
 
+/// An item in mask-mode.
 enum class MaskModeItem {
   MatchSource,
   Alpha,
@@ -160,6 +172,7 @@ enum class PseudoElementsType {
   After,
 };
 
+/// A helper type for `transition-timing-function`.
 enum class StepPosition {
   End,
   JumpStart,
@@ -169,6 +182,7 @@ enum class StepPosition {
   Start,
 };
 
+/// An item in `text-decoration-line`.
 enum class TextDecorationLineItem {
   Overline,
   LineThrough,
@@ -176,12 +190,17 @@ enum class TextDecorationLineItem {
   Blink,
 };
 
+/// The current theme of the system environment, e.g. dark mode.
 enum class Theme {
+  /// Unspecified.
   None,
+  /// Light mode.
   Light,
+  /// Dark mode.
   Dark,
 };
 
+/// The property name allowed in CSS `transition-property`.
 enum class TransitionPropertyItem {
   None,
   Transform,
@@ -258,6 +277,7 @@ enum class TransitionPropertyItem {
   MaskPosition,
 };
 
+/// Warning kind.
 enum class WarningKind : uint32_t {
   Unknown = 65536,
   HooksGenerated,
@@ -307,12 +327,19 @@ struct Array {
   size_t len;
 };
 
+/// Warnings generated while parsing.
 struct Warning {
+  /// The category of the warning, which has a corresponding error code.
   WarningKind kind;
+  /// The detailed message.
   StrRef message;
+  /// The start line.
   uint32_t start_line;
+  /// The start column in UTF-16 word.
   uint32_t start_col;
+  /// The end line.
   uint32_t end_line;
+  /// The end column in UTF-16 word.
   uint32_t end_col;
 };
 
@@ -658,6 +685,7 @@ struct PointerEventsType {
     Invalid3F,
     Auto,
     None,
+    /// A `wx` specific pointer-events type.
     WxRoot,
   };
 
@@ -677,6 +705,7 @@ struct PointerEventsType {
   };
 };
 
+/// `wx` specific touch handling strategy.
 struct WxEngineTouchEventType {
   enum class Tag {
     Invalid,
@@ -764,6 +793,7 @@ struct WxEngineTouchEventType {
   };
 };
 
+/// An expression for a length value.
 struct LengthExpr {
   enum class Tag {
     Invalid,
@@ -787,6 +817,7 @@ struct LengthExpr {
   };
 };
 
+/// A length value or an expression that evaluates to a langth value.
 struct Length {
   enum class Tag {
     Undefined,
@@ -858,6 +889,7 @@ struct Length {
   };
 };
 
+/// A number or an expression that evaluates to a number.
 struct Number {
   enum class Tag {
     F32,
@@ -885,6 +917,7 @@ struct Number {
   };
 };
 
+/// An angle value or an expression that evaluates to an angle.
 struct Angle {
   enum class Tag {
     Deg,
@@ -924,14 +957,22 @@ struct Angle {
   };
 };
 
+/// An expression inside `calc(...)`.
 struct CalcExpr {
   enum class Tag {
+    /// A length, e.g. `2px`.
     Length,
+    /// A number, e.g. `0.1`.
     Number,
+    /// An angle, e.g. `45deg`.
     Angle,
+    /// `+` expression.
     Plus,
+    /// `-` expression.
     Sub,
+    /// `*` expression.
     Mul,
+    /// `/` expression.
     Div,
   };
 
@@ -979,6 +1020,7 @@ struct CalcExpr {
   };
 };
 
+/// A number or an expression that evaluates to a number.
 struct NumberType {
   enum class Tag {
     Invalid,
@@ -1168,6 +1210,7 @@ struct BoxSizingType {
   };
 };
 
+/// A `transform` item.
 struct TransformItem {
   enum class Tag {
     None,
@@ -1248,6 +1291,7 @@ struct TransformItem {
   };
 };
 
+/// The CSS `transform` item series.
 struct TransformType {
   enum class Tag {
     Invalid,
@@ -1781,6 +1825,7 @@ struct VisibilityType {
   };
 };
 
+/// A color value or `current-color`.
 struct ColorType {
   enum class Tag {
     Invalid,
@@ -2431,6 +2476,7 @@ struct JustifyContentType {
   };
 };
 
+/// A length value or an expression that evaluates to a langth value.
 struct LengthType {
   enum class Tag {
     Invalid,
@@ -2762,6 +2808,7 @@ struct GapType {
   };
 };
 
+/// A color value or `current-color`.
 struct Color {
   enum class Tag {
     Undefined,
@@ -2782,6 +2829,7 @@ struct Color {
   };
 };
 
+/// An angle value or a percentage value.
 struct AngleOrPercentage {
   enum class Tag {
     Angle,
@@ -2803,6 +2851,7 @@ struct AngleOrPercentage {
   };
 };
 
+/// Gradient color types in image description.
 struct GradientColorItem {
   enum class Tag {
     ColorHint,
@@ -2832,6 +2881,7 @@ struct GradientColorItem {
   };
 };
 
+/// Gradient size types in image description.
 struct GradientSize {
   enum class Tag {
     FarthestCorner,
@@ -2852,6 +2902,7 @@ struct GradientSize {
   };
 };
 
+/// Gradient position types in image description.
 struct GradientPosition {
   enum class Tag {
     Pos,
@@ -2868,12 +2919,14 @@ struct GradientPosition {
   };
 };
 
+/// A conic-gradient item.
 struct ConicGradientItem {
   Angle angle;
   GradientPosition position;
   Array<GradientColorItem> items;
 };
 
+/// Gradient types in image description.
 struct BackgroundImageGradientItem {
   enum class Tag {
     LinearGradient,
@@ -2905,6 +2958,7 @@ struct BackgroundImageGradientItem {
   };
 };
 
+/// An image source in image description.
 struct ImageSource {
   enum class Tag {
     None,
@@ -2921,6 +2975,7 @@ struct ImageSource {
   };
 };
 
+/// An item in `background-image`.
 struct BackgroundImageItem {
   enum class Tag {
     None,
@@ -3047,6 +3102,7 @@ struct BackgroundImageType {
   };
 };
 
+/// An item in `background-size`.
 struct BackgroundSizeItem {
   enum class Tag {
     Auto,
@@ -3156,6 +3212,7 @@ struct BackgroundSizeType {
   };
 };
 
+/// A `background-position` value.
 struct BackgroundPositionValue {
   enum class Tag {
     Top,
@@ -3189,6 +3246,7 @@ struct BackgroundPositionValue {
   };
 };
 
+/// An item in `background-position`.
 struct BackgroundPositionItem {
   enum class Tag {
     Pos,
@@ -3301,8 +3359,10 @@ struct BackgroundPositionType {
   };
 };
 
+/// An item in `background-repeat`.
 struct BackgroundRepeatItem {
   enum class Tag {
+    /// The two-value form of `background-repeat`.
     Pos,
   };
 
@@ -3861,6 +3921,7 @@ struct BorderStyleType {
   };
 };
 
+/// A shadow type in `box-shadow`.
 struct ShadowItemType {
   enum class Tag {
     Inset,
@@ -3901,6 +3962,7 @@ struct ShadowItemType {
   };
 };
 
+/// An item in `box-shadow`.
 struct BoxShadowItem {
   enum class Tag {
     List,
@@ -4316,6 +4378,7 @@ struct TransitionTimingFnItem {
   };
 };
 
+/// The CSS `transition-timing-funcction`.
 struct TransitionTimingFnType {
   enum class Tag {
     Invalid,
@@ -4406,6 +4469,7 @@ struct TransitionTimingFnType {
   };
 };
 
+/// An item in `animation-iteration-count`.
 struct AnimationIterationCountItem {
   enum class Tag {
     Number,
@@ -4782,6 +4846,7 @@ struct AnimationPlayStateType {
   };
 };
 
+/// An item in `animation-name`.
 struct AnimationNameItem {
   enum class Tag {
     None,
@@ -4888,10 +4953,14 @@ struct AnimationNameType {
   };
 };
 
+/// An animation kind for `will-change`.
 struct AnimateableFeature {
   enum class Tag {
+    /// The content of the element is likely to be animated.
     Contents,
+    /// The content of the element is scrollable.
     ScrollPosition,
+    /// An unknown kind.
     CustomIdent,
   };
 
@@ -6191,8 +6260,10 @@ struct FontStyleType {
   };
 };
 
+/// An item in `text-shadow`.
 struct TextShadowItem {
   enum class Tag {
+    /// A value of offset-y, offset-x, blur-radius, and color.
     TextShadowValue,
   };
 
@@ -6574,8 +6645,11 @@ struct TextDecorationThicknessType {
   };
 };
 
+/// A font feature tag for `font-feature-settings`.
 struct FeatureTag {
+  /// The four-letter OpenType tag, e.g. `liga`.
   StrRef opentype_tag;
+  /// The optional number value in `font-feature-settings`.
   Number value;
 };
 
@@ -6953,6 +7027,7 @@ struct ListStylePositionType {
   };
 };
 
+/// A drop shadow in filter function for `filter` and `backdrop-filter`.
 struct DropShadow {
   enum class Tag {
     List,
@@ -6968,6 +7043,7 @@ struct DropShadow {
   };
 };
 
+/// A filter function for `filter` and `backdrop-filter`.
 struct FilterFunc {
   enum class Tag {
     Url,
@@ -7611,6 +7687,7 @@ struct ContentType {
   };
 };
 
+/// The scroll bar options.
 struct ScrollbarType {
   enum class Tag {
     Invalid,
@@ -7677,9 +7754,13 @@ struct ScrollbarType {
     Invalid3D,
     Invalid3E,
     Invalid3F,
+    /// Show the scroll bar when needed.
     Auto,
+    /// Always hide the scroll bar.
     Hidden,
+    /// Hide the scroll bar when not scrolling.
     AutoHide,
+    /// Always show the scroll bar.
     AlwaysShow,
   };
 
@@ -7699,6 +7780,7 @@ struct ScrollbarType {
   };
 };
 
+/// A unknown property.
 struct CustomPropertyType {
   enum class Tag {
     Invalid,
@@ -7791,8 +7873,12 @@ struct CustomPropertyType {
   };
 };
 
+/// The body of a property.
+///
+/// Each variant corresponds to the CSS property with the same name.
 struct Property {
   enum class Tag {
+    /// A property that is not properly parsed and should be skipped in practice.
     Unknown,
     Display,
     Position,
@@ -8726,6 +8812,10 @@ struct Property {
   };
 };
 
+/// A bitset for representing `!important`.
+///
+/// It is used in the binary format for better size.
+/// Not suitable for common cases.
 struct ImportantBitSet {
   enum class Tag {
     None,
@@ -8979,10 +9069,14 @@ struct FontFace {
   Nullable<FontDisplay> font_display;
 };
 
+/// The percentage field in a keyframe item.
 struct KeyFrame {
   enum class Tag {
+    /// `from` in a keyframe.
     From,
+    /// `to` in a keyframe.
     To,
+    /// Percentage value in a keyframe.
     Ratio,
   };
 
@@ -9035,10 +9129,12 @@ struct StyleSheet {
 
 using RawMutPtr = void*;
 
+/// The C FFI for `ParserHooksContext`.
 struct CParserHooksContext {
   void *inner;
 };
 
+/// The C FFI for `ParserHooks`.
 struct CParserHooks {
   void (*parsed_property)(CParserHooksContext, Property*);
 };
@@ -9050,33 +9146,206 @@ using CustomPropertySetter = void(*)(void *map, const char *name, const char *va
 
 extern "C" {
 
+/// # Safety
+/// Free the array of string references.
+///
+/// # Arguments
+/// * `x` - Pointer to the array of string references
+///
+/// # Examples
+///
+/// ```c
+/// FPArrayStrRefFree(x);
+/// ```
+///
 FfiResult<NullPtr> FPArrayStrRefFree(Array<StrRef> *x);
 
+/// # Safety
+/// Free the array of warnings.
+///
+/// # Arguments
+/// * `warnings` - Pointer to the array of warnings
+///
+/// # Examples
+///
+/// ```c
+/// FPArrayWarningFree(warnings);
+/// ```
+///
 FfiResult<NullPtr> FPArrayWarningFree(Array<Warning> *warnings);
 
+/// # Safety
+/// Free the buffer.
+///
+/// # Arguments
+/// * `buffer_ptr` - Pointer to the buffer
+/// * `buffer_len` - Length of the buffer
+///
+/// # Examples
+///
+/// ```c
+/// FPBufferFree(buffer_ptr, buffer_len);
+/// ```
+///
 FfiResult<NullPtr> FPBufferFree(uint8_t *buffer_ptr, size_t buffer_len);
 
+/// # Safety
+/// Get the version of the CSS parser.
+///
+/// # Examples
+///
+/// ```c
+/// FPCssParserVersion();
+/// ```
 FfiResult<StrRef*> FPCssParserVersion();
 
+/// # Safety
+/// Free the inline style.
+///
+/// # Arguments
+/// * `inline_rule` - Pointer to the inline style
+///
+/// # Examples
+///
+/// ```c
+/// FPInlineStyleFree(inline_rule);
+/// ```
+///
 FfiResult<NullPtr> FPInlineStyleFree(InlineRule *inline_rule);
 
+/// # Safety
+/// Parse the color from the string.
+///
+/// # Arguments
+/// * `source` - Pointer to the source string
+///
+/// # Examples
+///
+/// ```c
+/// FPParseColorFromString(source);
+/// ```
+///
 FfiResult<ColorValue> FPParseColorFromString(const char *source);
 
+/// # Safety
+/// Parse the inline style from the string.
+///
+/// # Arguments
+/// * `inline_style_text_ptr` - Pointer to the inline style text
+/// * `warnings` - Optional output parameter to receive warnings array pointer
+///
+/// # Examples
+///
+/// ```c
+/// FPParseInlineStyle(inline_style_text_ptr, warnings);
+/// ```
+///
 FfiResult<InlineRule*> FPParseInlineStyle(const char *inline_style_text_ptr,
                                           Array<Warning> **warnings);
 
+/// # Safety
+/// Parse the selector from the string.
+///
+/// # Arguments
+/// * `selector_text_ptr` - Pointer to the selector text
+///
+/// # Examples
+///
+/// ```c
+/// FPParseSelectorFromString(selector_text_ptr);
+/// ```
+///
 FfiResult<Selector*> FPParseSelectorFromString(const char *selector_text_ptr);
 
+/// # Safety
+/// Parse the style sheet from the string.
+///
+/// # Arguments
+/// * `style_text_ptr` - Pointer to the style sheet text
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetFromString(style_text_ptr);
+/// ```
+///
 FfiResult<StyleSheet*> FPParseStyleSheetFromString(const char *style_text_ptr);
 
+/// # Safety
+/// Free the selector.
+///
+/// # Arguments
+/// * `selector` - Pointer to the selector
+///
+/// # Examples
+///
+/// ```c
+/// FPSelectorFree(selector);
+/// ```
+///
 FfiResult<NullPtr> FPSelectorFree(Selector *selector);
 
+/// # Safety
+/// Free the string.
+///
+/// # Arguments
+/// * `ptr` - Pointer to the string
+///
+/// # Examples
+///
+/// ```c
+/// FPStrFree(ptr);
+/// ```
+///
 FfiResult<NullPtr> FPStrFree(const char *ptr);
 
+/// # Safety
+/// Get the version of the style sheet in the binary format.
+///
+/// # Arguments
+/// * `buffer_ptr` - Pointer to the buffer
+/// * `buffer_len` - Length of the buffer
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetBincodeVersion(buffer_ptr, buffer_len);
+/// ```
+///
 FfiResult<StrRef*> FPStyleSheetBincodeVersion(uint8_t *buffer_ptr, size_t buffer_len);
 
+/// # Safety
+/// Free the style sheet.
+///
+/// # Arguments
+/// * `style_sheet` - Pointer to the style sheet
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetFree(style_sheet);
+/// ```
+///
 FfiResult<NullPtr> FPStyleSheetFree(StyleSheet *style_sheet);
 
+/// # Safety
+/// Add a style sheet to the import index from binary format.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+/// * `buffer_ptr` - Pointer to the buffer to store the serialized data
+/// * `buffer_len` - Length of the buffer
+/// * `drop_fn` - Optional drop function
+/// * `drop_args` - Pointer to the drop argument
+/// * `warnings` - Optional output parameter to receive warnings array pointer
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexAddBincode(import_index, path, buffer_ptr, buffer_len, drop_fn, drop_args, &mut warnings);
+/// ```
+///
 FfiResult<NullPtr> FPStyleSheetImportIndexAddBincode(RawMutPtr this_,
                                                      const char *path,
                                                      uint8_t *buffer_ptr,
@@ -9085,40 +9354,213 @@ FfiResult<NullPtr> FPStyleSheetImportIndexAddBincode(RawMutPtr this_,
                                                      RawMutPtr drop_args,
                                                      Array<Warning> **warnings);
 
+/// # Safety
+/// Deserialize the style sheet import index from the binary format.
+///
+/// # Arguments
+/// * `buffer_ptr` - Pointer to the binary data
+/// * `buffer_len` - Length of the binary data
+/// * `drop_fn` - Optional drop function
+/// * `drop_args` - Pointer to the drop argument
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexDeserializeBincode(buffer_ptr, buffer_len, drop_fn, drop_args);
+/// ```
+///
 FfiResult<RawMutPtr> FPStyleSheetImportIndexDeserializeBincode(uint8_t *buffer_ptr,
                                                                size_t buffer_len,
                                                                void (*drop_fn)(RawMutPtr),
                                                                RawMutPtr drop_args);
 
+/// # Safety
+/// Deserialize the style sheet import index from the JSON format.
+///
+/// # Arguments
+/// * `json` - C string pointer to the JSON data
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexDeserializeJson(json, &import_index);
+/// ```
+///
 FfiResult<RawMutPtr> FPStyleSheetImportIndexDeserializeJson(const char *json);
 
+/// # Safety
+/// Free the style sheet import index.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexFree(import_index);
+/// ```
+///
 FfiResult<NullPtr> FPStyleSheetImportIndexFree(RawMutPtr this_);
 
+/// # Safety
+/// Get the style sheet from the style sheet import index.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexGetStyleSheet(import_index, path);
+/// ```
+///
 FfiResult<StyleSheet*> FPStyleSheetImportIndexGetStyleSheet(RawMutPtr this_, const char *path);
 
+/// # Safety
+/// List the dependencies of the specified style sheet.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexListDependencies(import_index, path);
+/// ```
+///
 FfiResult<Array<StrRef>*> FPStyleSheetImportIndexListDependencies(RawMutPtr this_,
                                                                   const char *path);
 
+/// # Safety
+/// List the dependency of the specified style sheet.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexListDependency(import_index, path);
+/// ```
+///
 FfiResult<Array<StrRef>*> FPStyleSheetImportIndexListDependency(RawMutPtr this_, const char *path);
 
+/// # Safety
+/// Merge the style sheet import index from binary format.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `buffer_ptr` - Pointer to the binary data
+/// * `buffer_len` - Length of the binary data
+/// * `drop_fn` - Optional drop function
+/// * `drop_args` - Pointer to the drop argument
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexMergeBincode(import_index, buffer_ptr, buffer_len, drop_fn, drop_args);
+/// ```
+///
 FfiResult<NullPtr> FPStyleSheetImportIndexMergeBincode(RawMutPtr this_,
                                                        uint8_t *buffer_ptr,
                                                        size_t buffer_len,
                                                        void (*drop_fn)(void*),
                                                        void *drop_args);
 
+/// # Safety
+/// Create a new style sheet import index.
+///
+/// # Examples
+///
+/// ```c
+/// RawMutPtr import_index = FPStyleSheetImportIndexNew();
+/// ```
+///
 FfiResult<RawMutPtr> FPStyleSheetImportIndexNew();
 
+/// # Safety
+/// Query and mark the dependencies of the specified style sheet.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexQueryAndMarkDependencies(import_index, path);
+/// ```
+///
 FfiResult<Array<StrRef>*> FPStyleSheetImportIndexQueryAndMarkDependencies(RawMutPtr this_,
                                                                           const char *path);
 
+/// # Safety
+/// Remove a style sheet from the style sheet import index.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexRemoveBincode(import_index, path);
+/// ```
+///
 FfiResult<NullPtr> FPStyleSheetImportIndexRemoveBincode(RawMutPtr this_, const char *path);
 
+/// # Safety
+/// Serialize the style sheet import index to the binary format.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `ret_buffer_len` - Pointer to a variable to store the length of the serialized data
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexSerializeBincode(import_index, &buffer_len);
+/// ```
+///
 FfiResult<uint8_t*> FPStyleSheetImportIndexSerializeBincode(RawMutPtr this_,
                                                             size_t *ret_buffer_len);
 
+/// # Safety
+/// Serialize the style sheet import index to the JSON format.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `ret_buffer_len` - Pointer to a variable to store the length of the serialized data
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexSerializeJson(import_index, &buffer_len);
+/// ```
+///
 FfiResult<uint8_t*> FPStyleSheetImportIndexSerializeJson(RawMutPtr this_, size_t *ret_buffer_len);
 
+/// # Safety
+/// Add a style sheet to the resource manager from binary format.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the stylesheet path (UTF-8 encoded)
+/// * `buffer_ptr` - Pointer to the buffer to store the serialized data
+/// * `buffer_len` - Length of the buffer
+/// * `drop_fn` - Optional drop function
+/// * `drop_args` - Pointer to the drop argument
+/// * `warnings` - Optional output parameter to receive warnings array pointer
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetResourceAddBincode(resource, path, buffer_ptr, buffer_len, drop_fn, drop_args, &mut warnings);
+/// ```
+///
 FfiResult<NullPtr> FPStyleSheetResourceAddBincode(RawMutPtr this_,
                                                   const char *path,
                                                   uint8_t *buffer_ptr,
@@ -9127,42 +9569,209 @@ FfiResult<NullPtr> FPStyleSheetResourceAddBincode(RawMutPtr this_,
                                                   RawMutPtr drop_args,
                                                   Array<Warning> **warnings);
 
+/// # Safety
+///
+/// Add a style sheet to the resource manager.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+/// * `source` - C string pointer to the CSS source content (UTF-8 encoded)
+/// * `warnings` - Optional output parameter to receive warnings array pointer
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetResourceAddSource(resource, path, source, &mut warnings);
+/// ```
+///
 FfiResult<NullPtr> FPStyleSheetResourceAddSource(RawMutPtr this_,
                                                  const char *path,
                                                  const char *source,
                                                  Array<Warning> **warnings);
 
+/// # Safety
+///
+/// Add a style sheet to the resource manager with hooks.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `hooks` - A parser hooks
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+/// * `source` - C string pointer to the CSS source content (UTF-8 encoded)
+/// * `warnings` - Optional output parameter to receive warnings array pointer
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetResourceAddSourceWithHooks(resource, hooks, path, source, &mut warnings);
+/// ```
+///
 FfiResult<NullPtr> FPStyleSheetResourceAddSourceWithHooks(RawMutPtr this_,
                                                           CParserHooks hooks,
                                                           const char *path,
                                                           const char *source,
                                                           Array<Warning> **warnings);
 
+/// # Safety
+/// Add a tag name prefix to the resource.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the stylesheet path (UTF-8 encoded)
+/// * `prefix` - C string pointer to the prefix to add to the tag name (UTF-8 encoded)
+///
+/// # Examples
+///
+/// ```c
+/// FfiResult result = FPStyleSheetResourceAddTagNamePrefix(resource, path, prefix);
+/// if (result.err != FfiErrorCode::None) {
+///     // handle error
+/// }
+/// ```
+///
 FfiResult<NullPtr> FPStyleSheetResourceAddTagNamePrefix(RawMutPtr this_,
                                                         const char *path,
                                                         const char *prefix);
 
+/// # Safety
+/// Get the direct dependencies of the specified style sheet.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the stylesheet path (UTF-8 encoded)
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetResourceDirectDependencies(resource, path);
+/// ```
+///
 FfiResult<Array<StrRef>*> FPStyleSheetResourceDirectDependencies(RawMutPtr this_, const char *path);
 
+/// # Safety
+///
+/// Free the style sheet resource.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+///
+/// # Examples
+///
+/// ```c
+/// FfiResult result = FPStyleSheetResourceFree(resource);
+/// if (result.err != FfiErrorCode::None) {
+///     // handle error
+/// }
+/// ```
+///
 FfiResult<NullPtr> FPStyleSheetResourceFree(RawMutPtr this_);
 
+/// # Safety
+///
+/// Generate the import index of the resource.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetResourceGenerateImportIndex(resource);
+/// ```
+///
 FfiResult<RawMutPtr> FPStyleSheetResourceGenerateImportIndex(RawMutPtr this_);
 
+/// # Safety
+///
+/// Create a new style sheet resource.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+/// * `source` - C string pointer to the CSS source content (UTF-8 encoded)
+/// * `warnings` - Optional output parameter to receive warnings array pointer
+///
+/// # Examples
+///
+/// ```c
+/// FfiResult result = FPStyleSheetResourceNew();
+/// if (result.err != FfiErrorCode::None) {
+///     // handle error
+/// }
+/// RawMutPtr resource = result.value;
+/// ```
+///
 FfiResult<RawMutPtr> FPStyleSheetResourceNew();
 
+/// # Safety
+///
+/// Serialize the specified style sheet to the binary format.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the stylesheet path (UTF-8 encoded)
+/// * `ret_buffer_len` - Pointer to a variable to store the length of the serialized data
+///
+/// # Examples
+///
+/// ```c
+/// FfiResult result = FPStyleSheetResourceSerializeBincode(resource, path, &mut buffer_len);
+/// if (result.err != FfiErrorCode::None) {
+///     // handle error
+/// }
+/// ```
+///
 FfiResult<uint8_t*> FPStyleSheetResourceSerializeBincode(RawMutPtr this_,
                                                          const char *path,
                                                          size_t *ret_buffer_len);
 
+/// # Safety
+/// Serialize the specified style sheet to the JSON format.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the stylesheet path (UTF-8 encoded)
+/// * `ret_buffer_len` - Pointer to a variable to store the length of the serialized data
+///
+/// # Examples
+///
+/// ```c
+/// FfiResult result = FPStyleSheetResourceSerializeJson(resource, path, &mut buffer_len);
+/// if (result.err != FfiErrorCode::None) {
+///     // handle error
+/// }
+/// ```
+///
 FfiResult<uint8_t*> FPStyleSheetResourceSerializeJson(RawMutPtr this_,
                                                       const char *path,
                                                       size_t *ret_buffer_len);
 
+/// # Safety
+/// Substitute the variable in the expression.
+///
+/// # Arguments
+/// * `expr_ptr` - Pointer to the expression
+/// * `map` - Pointer to the map
+/// * `getter` - Custom property getter
+/// * `setter` - Custom property setter
+///
+/// # Examples
+///
+/// ```c
+/// FPSubstituteVariable(expr_ptr, map, getter, setter);
+/// ```
+///
 FfiResult<const char*> FPSubstituteVariable(const char *expr_ptr,
                                             RawMutPtr map,
                                             CustomPropertyGetter getter,
                                             CustomPropertySetter setter);
 
+/// The C FFI for `ParserHooksContext::generate_warning`.
+///
+/// # Safety
+///
+/// The message should be a valid C string.
 FfiResult<NullPtr> generate_warning(CParserHooksContext *self, const char *message);
 
 size_t str_len(const StrRef *self);
