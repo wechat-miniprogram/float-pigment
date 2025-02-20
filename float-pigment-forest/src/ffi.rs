@@ -108,6 +108,16 @@ pub unsafe extern "C" fn NodeToString(
 }
 /// # Safety
 ///
+/// Free a string instance.
+///
+/// # Arguments
+/// * `str` - Raw pointer to the string instance
+///
+/// # Example
+///
+/// ```c
+/// FreeString(str);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn FreeString(str: *const c_char) {
     drop(CString::from_raw(str as *mut c_char));
@@ -316,6 +326,9 @@ pub unsafe extern "C" fn NodeRemoveAllChildren(node: NodePtr) {
 /// * `node` - Raw pointer to the Node instance
 /// * `index` - Index to get the child node at
 ///
+/// # Returns
+/// * `NodePtr` - Raw pointer to the child Node instance
+///
 /// # Example
 ///
 /// ```c
@@ -337,6 +350,9 @@ pub unsafe extern "C" fn NodeGetChild(node: NodePtr, index: usize) -> NodePtr {
 /// # Arguments
 /// * `node` - Raw pointer to the Node instance
 ///
+/// # Returns
+/// * `NodePtr` - Raw pointer to the parent Node instance
+///
 /// # Example
 ///
 /// ```c
@@ -357,6 +373,9 @@ pub unsafe extern "C" fn NodeGetParent(node: NodePtr) -> NodePtr {
 ///
 /// # Arguments
 /// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `usize` - Number of children
 ///
 /// # Example
 ///
@@ -698,6 +717,9 @@ pub unsafe extern "C" fn NodeClearMeasureFunc(node: NodePtr) {
 /// # Arguments
 /// * `node` - Raw pointer to the Node instance
 ///
+/// # Returns
+/// * `bool` - True if the node has a measure function, false otherwise
+///
 /// # Example
 ///
 /// ```c
@@ -801,6 +823,9 @@ pub unsafe extern "C" fn NodeClearDirtyCallback(node: NodePtr) {
 /// # Arguments
 /// * `node` - Raw pointer to the Node instance
 ///
+/// # Returns
+/// * `bool` - True if the node is dirty, false otherwise
+///
 /// # Example
 ///
 /// ```c
@@ -813,7 +838,20 @@ pub unsafe extern "C" fn NodeIsDirty(node: NodePtr) -> bool {
 }
 
 /// # Safety
-//
+///
+/// Get the flex direction of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `FlexDirectionType` - Flex direction type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleGetFlexDirection(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleGetFlexDirection(node: NodePtr) -> FlexDirectionType {
     let node = &*(node as *mut Node);
@@ -822,6 +860,17 @@ pub unsafe extern "C" fn NodeStyleGetFlexDirection(node: NodePtr) -> FlexDirecti
 
 /// # Safety
 ///
+/// Set the display of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Display type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetDisplay(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetDisplay(node: NodePtr, value: DisplayType) {
     let node = &*(node as *mut Node);
@@ -832,6 +881,17 @@ pub unsafe extern "C" fn NodeStyleSetDisplay(node: NodePtr, value: DisplayType) 
 
 /// # Safety
 ///
+/// Set the box sizing of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Box sizing type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBoxSizing(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBoxSizing(node: NodePtr, value: BoxSizingType) {
     let node = &*(node as *mut Node);
@@ -842,6 +902,17 @@ pub unsafe extern "C" fn NodeStyleSetBoxSizing(node: NodePtr, value: BoxSizingTy
 
 /// # Safety
 ///
+/// Set the writing mode of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Writing mode type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetWritingMode(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetWritingMode(node: NodePtr, value: WritingModeType) {
     let node = &*(node as *mut Node);
@@ -852,6 +923,17 @@ pub unsafe extern "C" fn NodeStyleSetWritingMode(node: NodePtr, value: WritingMo
 
 /// # Safety
 ///
+/// Set the position of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Position type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPosition(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPosition(node: NodePtr, value: PositionType) {
     let node = &*(node as *mut Node);
@@ -862,6 +944,17 @@ pub unsafe extern "C" fn NodeStyleSetPosition(node: NodePtr, value: PositionType
 
 /// # Safety
 ///
+/// Set the left of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Left type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetLeft(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetLeft(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -869,6 +962,16 @@ pub unsafe extern "C" fn NodeStyleSetLeft(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the left of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetLeftNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetLeftNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -876,6 +979,17 @@ pub unsafe extern "C" fn NodeStyleSetLeftNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the left of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetLeftPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetLeftPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -884,6 +998,16 @@ pub unsafe extern "C" fn NodeStyleSetLeftPercentage(node: NodePtr, value: f32) {
 
 /// # Safety
 ///
+/// Set the left of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetLeftAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetLeftAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -891,6 +1015,17 @@ pub unsafe extern "C" fn NodeStyleSetLeftAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the left of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetLeftCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetLeftCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -899,6 +1034,17 @@ pub unsafe extern "C" fn NodeStyleSetLeftCalcHandle(node: NodePtr, calc_handle: 
 
 /// # Safety
 ///
+/// Set the right of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Right type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRight(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetRight(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -906,6 +1052,16 @@ pub unsafe extern "C" fn NodeStyleSetRight(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the right of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRightNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetRightNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -913,6 +1069,17 @@ pub unsafe extern "C" fn NodeStyleSetRightNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the right of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRightPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetRightPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -920,6 +1087,16 @@ pub unsafe extern "C" fn NodeStyleSetRightPercentage(node: NodePtr, value: f32) 
 }
 /// # Safety
 ///
+/// Set the right of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRightAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetRightAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -927,6 +1104,17 @@ pub unsafe extern "C" fn NodeStyleSetRightAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the right of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRightCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetRightCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -934,6 +1122,17 @@ pub unsafe extern "C" fn NodeStyleSetRightCalcHandle(node: NodePtr, calc_handle:
 }
 /// # Safety
 ///
+/// Set the top of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Top type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetTop(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetTop(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -941,6 +1140,16 @@ pub unsafe extern "C" fn NodeStyleSetTop(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the top of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetTopNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetTopNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -948,6 +1157,17 @@ pub unsafe extern "C" fn NodeStyleSetTopNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the top of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetTopPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetTopPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -955,6 +1175,16 @@ pub unsafe extern "C" fn NodeStyleSetTopPercentage(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the top of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetTopAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetTopAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -962,6 +1192,17 @@ pub unsafe extern "C" fn NodeStyleSetTopAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the top of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetTopCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetTopCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -969,6 +1210,17 @@ pub unsafe extern "C" fn NodeStyleSetTopCalcHandle(node: NodePtr, calc_handle: i
 }
 /// # Safety
 ///
+/// Set the bottom of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Bottom type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBottom(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBottom(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -976,6 +1228,16 @@ pub unsafe extern "C" fn NodeStyleSetBottom(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the bottom of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBottomNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBottomNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -983,6 +1245,17 @@ pub unsafe extern "C" fn NodeStyleSetBottomNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the bottom of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBottomPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBottomPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -990,6 +1263,16 @@ pub unsafe extern "C" fn NodeStyleSetBottomPercentage(node: NodePtr, value: f32)
 }
 /// # Safety
 ///
+/// Set the bottom of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBottomAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBottomAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -997,6 +1280,17 @@ pub unsafe extern "C" fn NodeStyleSetBottomAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the bottom of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBottomCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBottomCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1005,6 +1299,17 @@ pub unsafe extern "C" fn NodeStyleSetBottomCalcHandle(node: NodePtr, calc_handle
 
 /// # Safety
 ///
+/// Set the overflow of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Overflow type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetOverflowX(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetOverflowX(node: NodePtr, value: OverflowType) {
     let node = &*(node as *mut Node);
@@ -1015,6 +1320,17 @@ pub unsafe extern "C" fn NodeStyleSetOverflowX(node: NodePtr, value: OverflowTyp
 
 /// # Safety
 ///
+/// Set the overflow of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Overflow type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetOverflowY(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetOverflowY(node: NodePtr, value: OverflowType) {
     let node = &*(node as *mut Node);
@@ -1025,6 +1341,17 @@ pub unsafe extern "C" fn NodeStyleSetOverflowY(node: NodePtr, value: OverflowTyp
 
 /// # Safety
 ///
+/// Set the width of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Width type
+///
+/// # Example
+///
+/// ```c
+///
+///
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetWidth(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1032,13 +1359,35 @@ pub unsafe extern "C" fn NodeStyleSetWidth(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the width of a node instance to undefined.  
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetWidthNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetWidthNone(node: NodePtr) {
     let node = &*(node as *mut Node);
     node.set_width(DefLength::Undefined);
 }
+
 /// # Safety
 ///
+/// Set the width of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetWidthPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetWidthPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1046,6 +1395,16 @@ pub unsafe extern "C" fn NodeStyleSetWidthPercentage(node: NodePtr, value: f32) 
 }
 /// # Safety
 ///
+/// Set the width of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetWidthAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetWidthAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1053,6 +1412,17 @@ pub unsafe extern "C" fn NodeStyleSetWidthAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the width of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetWidthCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetWidthCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1061,13 +1431,35 @@ pub unsafe extern "C" fn NodeStyleSetWidthCalcHandle(node: NodePtr, calc_handle:
 
 /// # Safety
 ///
+/// Set the height of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Height type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetHeight(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetHeight(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
     node.set_height(DefLength::Points(Len::from_f32(value)));
 }
+
 /// # Safety
 ///
+/// Set the height of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetHeightNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetHeightNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1075,6 +1467,17 @@ pub unsafe extern "C" fn NodeStyleSetHeightNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the height of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetHeightPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetHeightPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1082,6 +1485,16 @@ pub unsafe extern "C" fn NodeStyleSetHeightPercentage(node: NodePtr, value: f32)
 }
 /// # Safety
 ///
+/// Set the height of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetHeightAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetHeightAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1089,6 +1502,17 @@ pub unsafe extern "C" fn NodeStyleSetHeightAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the height of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetHeightCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetHeightCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1096,6 +1520,17 @@ pub unsafe extern "C" fn NodeStyleSetHeightCalcHandle(node: NodePtr, calc_handle
 }
 /// # Safety
 ///
+/// Set the min width of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Min width type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinWidth(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMinWidth(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1103,6 +1538,16 @@ pub unsafe extern "C" fn NodeStyleSetMinWidth(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the min width of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinWidthNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMinWidthNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1110,6 +1555,17 @@ pub unsafe extern "C" fn NodeStyleSetMinWidthNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the min width of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinWidthPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMinWidthPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1117,6 +1573,16 @@ pub unsafe extern "C" fn NodeStyleSetMinWidthPercentage(node: NodePtr, value: f3
 }
 /// # Safety
 ///
+/// Set the min width of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinWidthAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMinWidthAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1124,6 +1590,16 @@ pub unsafe extern "C" fn NodeStyleSetMinWidthAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinWidthCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMinWidthCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1132,6 +1608,17 @@ pub unsafe extern "C" fn NodeStyleSetMinWidthCalcHandle(node: NodePtr, calc_hand
 
 /// # Safety
 ///
+/// Set the min height of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Min height type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinHeight(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMinHeight(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1139,6 +1626,16 @@ pub unsafe extern "C" fn NodeStyleSetMinHeight(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the min height of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinHeightNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMinHeightNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1146,6 +1643,17 @@ pub unsafe extern "C" fn NodeStyleSetMinHeightNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the min height of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinHeightPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMinHeightPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1153,6 +1661,16 @@ pub unsafe extern "C" fn NodeStyleSetMinHeightPercentage(node: NodePtr, value: f
 }
 /// # Safety
 ///
+/// Set the min height of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinHeightAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMinHeightAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1160,6 +1678,17 @@ pub unsafe extern "C" fn NodeStyleSetMinHeightAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the min height of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinHeightCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMinHeightCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1168,6 +1697,17 @@ pub unsafe extern "C" fn NodeStyleSetMinHeightCalcHandle(node: NodePtr, calc_han
 
 /// # Safety
 ///
+/// Set the max width of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Max width type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxWidth(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMaxWidth(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1175,6 +1715,16 @@ pub unsafe extern "C" fn NodeStyleSetMaxWidth(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the max width of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxWidthNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMaxWidthNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1182,6 +1732,17 @@ pub unsafe extern "C" fn NodeStyleSetMaxWidthNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the max width of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxWidthPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMaxWidthPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1189,6 +1750,16 @@ pub unsafe extern "C" fn NodeStyleSetMaxWidthPercentage(node: NodePtr, value: f3
 }
 /// # Safety
 ///
+/// Set the max width of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxWidthAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMaxWidthAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1196,6 +1767,17 @@ pub unsafe extern "C" fn NodeStyleSetMaxWidthAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the max width of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxWidthCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMaxWidthCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1204,6 +1786,17 @@ pub unsafe extern "C" fn NodeStyleSetMaxWidthCalcHandle(node: NodePtr, calc_hand
 
 /// # Safety
 ///
+/// Set the max height of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Max height type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxHeight(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMaxHeight(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1211,6 +1804,16 @@ pub unsafe extern "C" fn NodeStyleSetMaxHeight(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the max height of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxHeightNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMaxHeightNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1218,6 +1821,17 @@ pub unsafe extern "C" fn NodeStyleSetMaxHeightNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the max height of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxHeightPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMaxHeightPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1225,6 +1839,16 @@ pub unsafe extern "C" fn NodeStyleSetMaxHeightPercentage(node: NodePtr, value: f
 }
 /// # Safety
 ///
+/// Set the max height of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxHeightAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMaxHeightAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1232,6 +1856,17 @@ pub unsafe extern "C" fn NodeStyleSetMaxHeightAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the max height of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxHeightCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMaxHeightCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1240,6 +1875,16 @@ pub unsafe extern "C" fn NodeStyleSetMaxHeightCalcHandle(node: NodePtr, calc_han
 
 /// # Safety
 ///
+/// Set the margin left of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Margin left type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginLeft(node, value);
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginLeft(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1248,6 +1893,16 @@ pub unsafe extern "C" fn NodeStyleSetMarginLeft(node: NodePtr, value: f32) {
 
 /// # Safety
 ///
+/// Set the margin left of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginLeftNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginLeftNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1255,6 +1910,17 @@ pub unsafe extern "C" fn NodeStyleSetMarginLeftNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the margin left of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginLeftPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginLeftPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1262,6 +1928,16 @@ pub unsafe extern "C" fn NodeStyleSetMarginLeftPercentage(node: NodePtr, value: 
 }
 /// # Safety
 ///
+/// Set the margin left of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginLeftAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginLeftAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1269,6 +1945,17 @@ pub unsafe extern "C" fn NodeStyleSetMarginLeftAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the margin left of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginLeftCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginLeftCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1277,20 +1964,52 @@ pub unsafe extern "C" fn NodeStyleSetMarginLeftCalcHandle(node: NodePtr, calc_ha
 
 /// # Safety
 ///
+/// Set the margin right of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Margin right type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginRight(node, value);
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginRight(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
     node.set_margin_right(DefLength::Points(Len::from_f32(value)));
 }
+
 /// # Safety
 ///
+/// Set the margin right of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginRightNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginRightNone(node: NodePtr) {
     let node = &*(node as *mut Node);
     node.set_margin_right(DefLength::Undefined);
 }
+
 /// # Safety
 ///
+/// Set the margin right of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginRightPercentage(node, value);
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginRightPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1298,6 +2017,16 @@ pub unsafe extern "C" fn NodeStyleSetMarginRightPercentage(node: NodePtr, value:
 }
 /// # Safety
 ///
+/// Set the margin right of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginRightAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginRightAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1305,6 +2034,17 @@ pub unsafe extern "C" fn NodeStyleSetMarginRightAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the margin right of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginRightCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginRightCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1313,6 +2053,17 @@ pub unsafe extern "C" fn NodeStyleSetMarginRightCalcHandle(node: NodePtr, calc_h
 
 /// # Safety
 ///
+/// Set the margin top of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Margin top type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginTop(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginTop(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1320,6 +2071,16 @@ pub unsafe extern "C" fn NodeStyleSetMarginTop(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the margin top of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginTopNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginTopNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1327,6 +2088,17 @@ pub unsafe extern "C" fn NodeStyleSetMarginTopNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the margin top of a node instance to a percentage.  
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginTopPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginTopPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1334,6 +2106,16 @@ pub unsafe extern "C" fn NodeStyleSetMarginTopPercentage(node: NodePtr, value: f
 }
 /// # Safety
 ///
+/// Set the margin top of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginTopAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginTopAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1341,6 +2123,17 @@ pub unsafe extern "C" fn NodeStyleSetMarginTopAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the margin top of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginTopCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginTopCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1349,6 +2142,17 @@ pub unsafe extern "C" fn NodeStyleSetMarginTopCalcHandle(node: NodePtr, calc_han
 
 /// # Safety
 ///
+/// Set the margin bottom of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Margin bottom type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginBottom(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginBottom(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1356,6 +2160,16 @@ pub unsafe extern "C" fn NodeStyleSetMarginBottom(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the margin bottom of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginBottomNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginBottomNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1363,6 +2177,17 @@ pub unsafe extern "C" fn NodeStyleSetMarginBottomNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the margin bottom of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginBottomPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginBottomPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1370,6 +2195,16 @@ pub unsafe extern "C" fn NodeStyleSetMarginBottomPercentage(node: NodePtr, value
 }
 /// # Safety
 ///
+/// Set the margin bottom of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginBottomAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginBottomAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1377,6 +2212,16 @@ pub unsafe extern "C" fn NodeStyleSetMarginBottomAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginBottomCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetMarginBottomCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1385,6 +2230,17 @@ pub unsafe extern "C" fn NodeStyleSetMarginBottomCalcHandle(node: NodePtr, calc_
 
 /// # Safety
 ///
+/// Set the padding left of a node instance.    
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Padding left type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingLeft(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingLeft(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1392,6 +2248,16 @@ pub unsafe extern "C" fn NodeStyleSetPaddingLeft(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the padding left of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingLeftNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingLeftNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1399,6 +2265,17 @@ pub unsafe extern "C" fn NodeStyleSetPaddingLeftNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the padding left of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingLeftPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingLeftPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1406,6 +2283,16 @@ pub unsafe extern "C" fn NodeStyleSetPaddingLeftPercentage(node: NodePtr, value:
 }
 /// # Safety
 ///
+/// Set the padding left of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingLeftAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingLeftAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1413,6 +2300,17 @@ pub unsafe extern "C" fn NodeStyleSetPaddingLeftAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the padding left of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingLeftCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingLeftCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1421,6 +2319,17 @@ pub unsafe extern "C" fn NodeStyleSetPaddingLeftCalcHandle(node: NodePtr, calc_h
 
 /// # Safety
 ///
+/// Set the padding right of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Padding right type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingRight(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingRight(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1428,13 +2337,35 @@ pub unsafe extern "C" fn NodeStyleSetPaddingRight(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the padding right of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingRightNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingRightNone(node: NodePtr) {
     let node = &*(node as *mut Node);
     node.set_padding_right(DefLength::Undefined);
 }
+
 /// # Safety
 ///
+/// Set the padding right of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingRightPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingRightPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1442,13 +2373,35 @@ pub unsafe extern "C" fn NodeStyleSetPaddingRightPercentage(node: NodePtr, value
 }
 /// # Safety
 ///
+/// Set the padding right of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingRightAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingRightAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
     node.set_padding_right(DefLength::Auto);
 }
+
 /// # Safety
 ///
+/// Set the padding right of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingRightCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingRightCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1457,6 +2410,17 @@ pub unsafe extern "C" fn NodeStyleSetPaddingRightCalcHandle(node: NodePtr, calc_
 
 /// # Safety
 ///
+/// Set the padding top of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Padding top type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingTop(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingTop(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1464,6 +2428,16 @@ pub unsafe extern "C" fn NodeStyleSetPaddingTop(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the padding top of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingTopNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingTopNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1471,6 +2445,17 @@ pub unsafe extern "C" fn NodeStyleSetPaddingTopNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the padding top of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingTopPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingTopPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1478,6 +2463,16 @@ pub unsafe extern "C" fn NodeStyleSetPaddingTopPercentage(node: NodePtr, value: 
 }
 /// # Safety
 ///
+/// Set the padding top of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingTopAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingTopAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1485,6 +2480,17 @@ pub unsafe extern "C" fn NodeStyleSetPaddingTopAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the padding top of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingTopCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingTopCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1493,6 +2499,17 @@ pub unsafe extern "C" fn NodeStyleSetPaddingTopCalcHandle(node: NodePtr, calc_ha
 
 /// # Safety
 ///
+/// Set the padding bottom of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Padding bottom type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingBottom(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingBottom(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1500,6 +2517,16 @@ pub unsafe extern "C" fn NodeStyleSetPaddingBottom(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the padding bottom of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingBottomNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingBottomNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1507,6 +2534,17 @@ pub unsafe extern "C" fn NodeStyleSetPaddingBottomNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the padding bottom of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingBottomPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingBottomPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1514,6 +2552,16 @@ pub unsafe extern "C" fn NodeStyleSetPaddingBottomPercentage(node: NodePtr, valu
 }
 /// # Safety
 ///
+/// Set the padding bottom of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingBottomAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingBottomAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1521,6 +2569,17 @@ pub unsafe extern "C" fn NodeStyleSetPaddingBottomAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the padding bottom of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingBottomCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetPaddingBottomCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1529,6 +2588,17 @@ pub unsafe extern "C" fn NodeStyleSetPaddingBottomCalcHandle(node: NodePtr, calc
 
 /// # Safety
 ///
+/// Set the border left of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Border left type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderLeft(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderLeft(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1537,6 +2607,16 @@ pub unsafe extern "C" fn NodeStyleSetBorderLeft(node: NodePtr, value: f32) {
 
 /// # Safety
 ///
+/// Set the border left of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderLeftNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderLeftNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1544,6 +2624,17 @@ pub unsafe extern "C" fn NodeStyleSetBorderLeftNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the border left of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderLeftPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderLeftPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1551,6 +2642,16 @@ pub unsafe extern "C" fn NodeStyleSetBorderLeftPercentage(node: NodePtr, value: 
 }
 /// # Safety
 ///
+/// Set the border left of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderLeftAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderLeftAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1558,6 +2659,17 @@ pub unsafe extern "C" fn NodeStyleSetBorderLeftAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the border left of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderLeftCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderLeftCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1566,6 +2678,17 @@ pub unsafe extern "C" fn NodeStyleSetBorderLeftCalcHandle(node: NodePtr, calc_ha
 
 /// # Safety
 ///
+/// Set the border right of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Border right type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderRight(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderRight(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1573,6 +2696,16 @@ pub unsafe extern "C" fn NodeStyleSetBorderRight(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the border right of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderRightNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderRightNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1580,6 +2713,17 @@ pub unsafe extern "C" fn NodeStyleSetBorderRightNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the border right of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderRightPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderRightPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1587,6 +2731,16 @@ pub unsafe extern "C" fn NodeStyleSetBorderRightPercentage(node: NodePtr, value:
 }
 /// # Safety
 ///
+/// Set the border right of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderRightAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderRightAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1594,6 +2748,17 @@ pub unsafe extern "C" fn NodeStyleSetBorderRightAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the border right of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderRightCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderRightCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1602,6 +2767,17 @@ pub unsafe extern "C" fn NodeStyleSetBorderRightCalcHandle(node: NodePtr, calc_h
 
 /// # Safety
 ///
+/// Set the border top of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Border top type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderTop(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderTop(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1609,6 +2785,16 @@ pub unsafe extern "C" fn NodeStyleSetBorderTop(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the border top of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderTopNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderTopNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1616,6 +2802,17 @@ pub unsafe extern "C" fn NodeStyleSetBorderTopNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the border top of a node instance to a percentage.  
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderTopPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderTopPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1623,6 +2820,16 @@ pub unsafe extern "C" fn NodeStyleSetBorderTopPercentage(node: NodePtr, value: f
 }
 /// # Safety
 ///
+/// Set the border top of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderTopAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderTopAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1630,6 +2837,17 @@ pub unsafe extern "C" fn NodeStyleSetBorderTopAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the border top of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderTopCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderTopCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1638,6 +2856,17 @@ pub unsafe extern "C" fn NodeStyleSetBorderTopCalcHandle(node: NodePtr, calc_han
 
 /// # Safety
 ///
+/// Set the border bottom of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Border bottom type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderBottom(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderBottom(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1645,6 +2874,16 @@ pub unsafe extern "C" fn NodeStyleSetBorderBottom(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the border bottom of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderBottomNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderBottomNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1652,6 +2891,17 @@ pub unsafe extern "C" fn NodeStyleSetBorderBottomNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the border bottom of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderBottomPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderBottomPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1659,6 +2909,16 @@ pub unsafe extern "C" fn NodeStyleSetBorderBottomPercentage(node: NodePtr, value
 }
 /// # Safety
 ///
+/// Set the border bottom of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderBottomAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderBottomAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1666,6 +2926,17 @@ pub unsafe extern "C" fn NodeStyleSetBorderBottomAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the border bottom of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderBottomCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetBorderBottomCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1673,6 +2944,17 @@ pub unsafe extern "C" fn NodeStyleSetBorderBottomCalcHandle(node: NodePtr, calc_
 }
 /// # Safety
 ///
+/// Set the flex grow of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Flex grow
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexGrow(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetFlexGrow(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1681,6 +2963,17 @@ pub unsafe extern "C" fn NodeStyleSetFlexGrow(node: NodePtr, value: f32) {
 
 /// # Safety
 ///
+/// Set the flex shrink of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Flex shrink
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexShrink(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetFlexShrink(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1689,6 +2982,17 @@ pub unsafe extern "C" fn NodeStyleSetFlexShrink(node: NodePtr, value: f32) {
 
 /// # Safety
 ///
+/// Set the flex basis of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Flex basis
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexBasis(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetFlexBasis(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1696,6 +3000,16 @@ pub unsafe extern "C" fn NodeStyleSetFlexBasis(node: NodePtr, value: f32) {
 }
 /// # Safety
 ///
+/// Set the flex basis of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexBasisAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetFlexBasisAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1703,6 +3017,16 @@ pub unsafe extern "C" fn NodeStyleSetFlexBasisAuto(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the flex basis of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexBasisNone(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetFlexBasisNone(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1710,6 +3034,17 @@ pub unsafe extern "C" fn NodeStyleSetFlexBasisNone(node: NodePtr) {
 }
 /// # Safety
 ///
+/// Set the flex basis of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexBasisPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetFlexBasisPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1717,6 +3052,17 @@ pub unsafe extern "C" fn NodeStyleSetFlexBasisPercentage(node: NodePtr, value: f
 }
 /// # Safety
 ///
+/// Set the flex basis of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexBasisCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetFlexBasisCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1725,6 +3071,17 @@ pub unsafe extern "C" fn NodeStyleSetFlexBasisCalcHandle(node: NodePtr, calc_han
 
 /// # Safety
 ///
+/// Set the flex direction of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Flex direction
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexDirection(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetFlexDirection(node: NodePtr, value: FlexDirectionType) {
     let node = &*(node as *mut Node);
@@ -1735,6 +3092,17 @@ pub unsafe extern "C" fn NodeStyleSetFlexDirection(node: NodePtr, value: FlexDir
 
 /// # Safety
 ///
+/// Set the flex wrap of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Flex wrap
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexWrap(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetFlexWrap(node: NodePtr, value: FlexWrapType) {
     let node = &*(node as *mut Node);
@@ -1745,6 +3113,17 @@ pub unsafe extern "C" fn NodeStyleSetFlexWrap(node: NodePtr, value: FlexWrapType
 
 /// # Safety
 ///
+/// Set the justify content of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Justify content
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetJustifyContent(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetJustifyContent(node: NodePtr, value: JustifyContentType) {
     let node = &*(node as *mut Node);
@@ -1755,6 +3134,17 @@ pub unsafe extern "C" fn NodeStyleSetJustifyContent(node: NodePtr, value: Justif
 
 /// # Safety
 ///
+/// Set the align content of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Align content
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetAlignContent(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetAlignContent(node: NodePtr, value: AlignContentType) {
     let node = &*(node as *mut Node);
@@ -1765,6 +3155,17 @@ pub unsafe extern "C" fn NodeStyleSetAlignContent(node: NodePtr, value: AlignCon
 
 /// # Safety
 ///
+/// Set the align items of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Align items
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetAlignItems(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetAlignItems(node: NodePtr, value: AlignItemsType) {
     let node = &*(node as *mut Node);
@@ -1775,6 +3176,17 @@ pub unsafe extern "C" fn NodeStyleSetAlignItems(node: NodePtr, value: AlignItems
 
 /// # Safety
 ///
+/// Set the align self of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Align self
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetAlignSelf(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetAlignSelf(node: NodePtr, value: AlignSelfType) {
     let node = &*(node as *mut Node);
@@ -1785,6 +3197,17 @@ pub unsafe extern "C" fn NodeStyleSetAlignSelf(node: NodePtr, value: AlignSelfTy
 
 /// # Safety
 ///
+/// Set the order of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Order
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetOrder(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetOrder(node: NodePtr, value: i32) {
     let node = &*(node as *mut Node);
@@ -1793,6 +3216,17 @@ pub unsafe extern "C" fn NodeStyleSetOrder(node: NodePtr, value: i32) {
 
 /// # Safety
 ///
+/// Set the row gap of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Row gap
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRowGap(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetRowGap(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1801,6 +3235,16 @@ pub unsafe extern "C" fn NodeStyleSetRowGap(node: NodePtr, value: f32) {
 
 /// # Safety
 ///
+/// Set the row gap of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRowGapNormal(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetRowGapNormal(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1809,6 +3253,17 @@ pub unsafe extern "C" fn NodeStyleSetRowGapNormal(node: NodePtr) {
 
 /// # Safety
 ///
+/// Set the row gap of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Row gap percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRowGapPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetRowGapPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1817,6 +3272,17 @@ pub unsafe extern "C" fn NodeStyleSetRowGapPercentage(node: NodePtr, value: f32)
 
 /// # Safety
 ///
+/// Set the row gap of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRowGapCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetRowGapCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1825,6 +3291,17 @@ pub unsafe extern "C" fn NodeStyleSetRowGapCalcHandle(node: NodePtr, calc_handle
 
 /// # Safety
 ///
+/// Set the column gap of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Column gap
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetColumnGap(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetColumnGap(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1833,6 +3310,16 @@ pub unsafe extern "C" fn NodeStyleSetColumnGap(node: NodePtr, value: f32) {
 
 /// # Safety
 ///
+/// Set the column gap of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetColumnGapNormal(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetColumnGapNormal(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1841,6 +3328,17 @@ pub unsafe extern "C" fn NodeStyleSetColumnGapNormal(node: NodePtr) {
 
 /// # Safety
 ///
+/// Set the column gap of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Column gap percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetColumnGapPercentage(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetColumnGapPercentage(node: NodePtr, value: f32) {
     let node = &*(node as *mut Node);
@@ -1849,6 +3347,17 @@ pub unsafe extern "C" fn NodeStyleSetColumnGapPercentage(node: NodePtr, value: f
 
 /// # Safety
 ///
+/// Set the column gap of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetColumnGapCalcHandle(node, calc_handle);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetColumnGapCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
@@ -1857,6 +3366,17 @@ pub unsafe extern "C" fn NodeStyleSetColumnGapCalcHandle(node: NodePtr, calc_han
 
 /// # Safety
 ///
+/// Set the text align of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Text align
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetTextAlign(node, value);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetTextAlign(node: NodePtr, value: TextAlignType) {
     let node = &*(node as *mut Node);
@@ -1867,6 +3387,18 @@ pub unsafe extern "C" fn NodeStyleSetTextAlign(node: NodePtr, value: TextAlignTy
 
 /// # Safety
 ///
+/// Set the aspect ratio of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `x` - Aspect ratio x
+/// * `y` - Aspect ratio y
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetAspectRatio(node, x, y);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetAspectRatio(node: NodePtr, x: f32, y: f32) {
     let node = &*(node as *mut Node);
@@ -1875,6 +3407,16 @@ pub unsafe extern "C" fn NodeStyleSetAspectRatio(node: NodePtr, x: f32, y: f32) 
 
 /// # Safety
 ///
+/// Set the aspect ratio of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetAspectRatioAuto(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeStyleSetAspectRatioAuto(node: NodePtr) {
     let node = &*(node as *mut Node);
@@ -1885,6 +3427,19 @@ pub unsafe extern "C" fn NodeStyleSetAspectRatioAuto(node: NodePtr) {
 
 /// # Safety
 ///
+/// Get the left position of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Left position
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetLeft(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetLeft(node: NodePtr) -> f32 {
     let node = &*(node as *mut Node);
@@ -1893,6 +3448,19 @@ pub unsafe extern "C" fn NodeLayoutGetLeft(node: NodePtr) -> f32 {
 
 /// # Safety
 ///
+/// Get the right position of a node instance.  
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Right position
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetRight(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetRight(node: NodePtr) -> f32 {
     let _node = &*(node as *mut Node);
@@ -1902,6 +3470,19 @@ pub unsafe extern "C" fn NodeLayoutGetRight(node: NodePtr) -> f32 {
 
 /// # Safety
 ///
+/// Get the top position of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Top position
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetTop(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetTop(node: NodePtr) -> f32 {
     let node = &*(node as *mut Node);
@@ -1910,6 +3491,19 @@ pub unsafe extern "C" fn NodeLayoutGetTop(node: NodePtr) -> f32 {
 
 /// # Safety
 ///
+/// Get the bottom position of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Bottom position
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetBottom(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetBottom(node: NodePtr) -> f32 {
     let _node = &*(node as *mut Node);
@@ -1919,6 +3513,19 @@ pub unsafe extern "C" fn NodeLayoutGetBottom(node: NodePtr) -> f32 {
 
 /// # Safety
 ///
+/// Get the width of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Width
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetWidth(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetWidth(node: NodePtr) -> f32 {
     let node = &*(node as *mut Node);
@@ -1927,6 +3534,19 @@ pub unsafe extern "C" fn NodeLayoutGetWidth(node: NodePtr) -> f32 {
 
 /// # Safety
 ///
+/// Get the height of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Height
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetHeight(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetHeight(node: NodePtr) -> f32 {
     let node = &*(node as *mut Node);
@@ -1935,6 +3555,19 @@ pub unsafe extern "C" fn NodeLayoutGetHeight(node: NodePtr) -> f32 {
 
 /// # Safety
 ///
+/// Get the margin left of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Margin left
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetMarginLeft(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetMarginLeft(node: NodePtr) -> f32 {
     let node = &*(node as *mut Node);
@@ -1943,6 +3576,19 @@ pub unsafe extern "C" fn NodeLayoutGetMarginLeft(node: NodePtr) -> f32 {
 
 /// # Safety
 ///
+/// Get the margin right of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Margin right
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetMarginRight(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetMarginRight(node: NodePtr) -> f32 {
     let node = &*(node as *mut Node);
@@ -1951,6 +3597,19 @@ pub unsafe extern "C" fn NodeLayoutGetMarginRight(node: NodePtr) -> f32 {
 
 /// # Safety
 ///
+/// Get the margin top of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Margin top
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetMarginTop(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetMarginTop(node: NodePtr) -> f32 {
     let node = &*(node as *mut Node);
@@ -1959,6 +3618,19 @@ pub unsafe extern "C" fn NodeLayoutGetMarginTop(node: NodePtr) -> f32 {
 
 /// # Safety
 ///
+/// Get the margin bottom of a node instance.   
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Margin bottom
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetMarginBottom(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetMarginBottom(node: NodePtr) -> f32 {
     let node = &*(node as *mut Node);
@@ -1967,6 +3639,19 @@ pub unsafe extern "C" fn NodeLayoutGetMarginBottom(node: NodePtr) -> f32 {
 
 /// # Safety
 ///
+/// Get the border left of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Border left
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetBorderLeft(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetBorderLeft(node: NodePtr) -> f32 {
     let node = &*(node as *mut Node);
@@ -1975,6 +3660,19 @@ pub unsafe extern "C" fn NodeLayoutGetBorderLeft(node: NodePtr) -> f32 {
 
 /// # Safety
 ///
+/// Get the border right of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Border right
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetBorderRight(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetBorderRight(node: NodePtr) -> f32 {
     let node = &*(node as *mut Node);
@@ -1983,6 +3681,19 @@ pub unsafe extern "C" fn NodeLayoutGetBorderRight(node: NodePtr) -> f32 {
 
 /// # Safety
 ///
+/// Get the border top of a node instance.  
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Border top
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetBorderTop(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetBorderTop(node: NodePtr) -> f32 {
     let node = &*(node as *mut Node);
@@ -1991,6 +3702,19 @@ pub unsafe extern "C" fn NodeLayoutGetBorderTop(node: NodePtr) -> f32 {
 
 /// # Safety
 ///
+/// Get the border bottom of a node instance.   
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Border bottom
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetBorderBottom(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetBorderBottom(node: NodePtr) -> f32 {
     let node = &*(node as *mut Node);
@@ -1999,6 +3723,19 @@ pub unsafe extern "C" fn NodeLayoutGetBorderBottom(node: NodePtr) -> f32 {
 
 /// # Safety
 ///
+/// Get the padding left of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Padding left
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetPaddingLeft(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetPaddingLeft(node: NodePtr) -> f32 {
     let node = &*(node as *mut Node);
@@ -2007,6 +3744,19 @@ pub unsafe extern "C" fn NodeLayoutGetPaddingLeft(node: NodePtr) -> f32 {
 
 /// # Safety
 ///
+/// Get the padding right of a node instance.   
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Padding right
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetPaddingRight(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetPaddingRight(node: NodePtr) -> f32 {
     let node = &*(node as *mut Node);
@@ -2015,6 +3765,19 @@ pub unsafe extern "C" fn NodeLayoutGetPaddingRight(node: NodePtr) -> f32 {
 
 /// # Safety
 ///
+/// Get the padding top of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Padding top
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetPaddingTop(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetPaddingTop(node: NodePtr) -> f32 {
     let node = &*(node as *mut Node);
@@ -2023,6 +3786,19 @@ pub unsafe extern "C" fn NodeLayoutGetPaddingTop(node: NodePtr) -> f32 {
 
 /// # Safety
 ///
+/// Get the padding bottom of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Padding bottom
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetPaddingBottom(node);
+/// ```
 #[no_mangle]
 pub unsafe extern "C" fn NodeLayoutGetPaddingBottom(node: NodePtr) -> f32 {
     let node = &*(node as *mut Node);

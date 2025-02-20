@@ -68,16 +68,75 @@ using ResolveCalc = float(*)(CalcHandle, float);
 
 extern "C" {
 
+/// # Safety
+///
+/// Free a string instance.
+///
+/// # Arguments
+/// * `str` - Raw pointer to the string instance
+///
+/// # Example
+///
+/// ```c
+/// FreeString(str);
+/// ```
 void FreeString(const char *str);
 
+/// # Safety
+///
+/// Append a child node to a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `child` - Raw pointer to the child Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeAppendChild(node, child);
+/// ```
 void NodeAppendChild(NodePtr node, NodePtr child);
 
+/// # Safety
+///
+/// Calculate the dry layout of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `available_width` - Available width
+/// * `available_height` - Available height
+/// * `viewport_width` - Viewport width
+/// * `viewport_height` - Viewport height
+///
+/// # Example
+///
+/// ```c
+/// NodeCalculateDryLayout(node, available_width, available_height, viewport_width, viewport_height);
+/// ```
 void NodeCalculateDryLayout(NodePtr node,
                             float available_width,
                             float available_height,
                             float viewport_width,
                             float viewport_height);
 
+/// # Safety
+///
+/// Calculate the dry layout of a node instance with a containing size.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `available_width` - Available width
+/// * `available_height` - Available height
+/// * `viewport_width` - Viewport width
+/// * `viewport_height` - Viewport height
+/// * `containing_width` - Containing width
+/// * `containing_height` - Containing height
+///
+/// # Example
+///
+/// ```c
+/// NodeCalculateDryLayoutWithContainingSize(node, available_width, available_height, viewport_width, viewport_height, containing_width, containing_height);
+/// ```
 void NodeCalculateDryLayoutWithContainingSize(NodePtr node,
                                               float available_width,
                                               float available_height,
@@ -86,12 +145,46 @@ void NodeCalculateDryLayoutWithContainingSize(NodePtr node,
                                               float containing_width,
                                               float containing_height);
 
+/// # Safety
+///
+/// Calculate the layout of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `available_width` - Available width
+/// * `available_height` - Available height
+/// * `viewport_width` - Viewport width
+/// * `viewport_height` - Viewport height
+///
+/// # Example
+///
+/// ```c
+/// NodeCalculateLayout(node, available_width, available_height, viewport_width, viewport_height);
+/// ```
 void NodeCalculateLayout(NodePtr node,
                          float available_width,
                          float available_height,
                          float viewport_width,
                          float viewport_height);
 
+/// # Safety
+///
+/// Calculate the layout of a node instance with a containing size.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `available_width` - Available width
+/// * `available_height` - Available height
+/// * `viewport_width` - Viewport width
+/// * `viewport_height` - Viewport height
+/// * `containing_width` - Containing width
+/// * `containing_height` - Containing height
+///
+/// # Example
+///
+/// ```c
+/// NodeCalculateLayoutWithContainingSize(node, available_width, available_height, viewport_width, viewport_height, containing_width, containing_height);
+/// ```
 void NodeCalculateLayoutWithContainingSize(NodePtr node,
                                            float available_width,
                                            float available_height,
@@ -100,372 +193,2761 @@ void NodeCalculateLayoutWithContainingSize(NodePtr node,
                                            float containing_width,
                                            float containing_height);
 
+/// # Safety
+///
+/// Clear the dirty callback for a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeClearDirtyCallback(node);
+/// ```
 void NodeClearDirtyCallback(NodePtr node);
 
+/// # Safety
+///
+/// Clear the measure cache for a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeClearMeasureCache(node);
+/// ```
 void NodeClearMeasureCache(NodePtr node);
 
+/// # Safety
+///
+/// Clear the measure function for a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeClearMeasureFunc(node);
+/// ```
 void NodeClearMeasureFunc(NodePtr node);
 
+/// # Safety
+///
+/// Free a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeFree(node);
+/// ```
 void NodeFree(NodePtr node);
 
+/// # Safety
+///
+/// Get a child node at a specific index.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `index` - Index to get the child node at
+///
+/// # Returns
+/// * `NodePtr` - Raw pointer to the child Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodePtr child = NodeGetChild(node, index);
+/// ```
 NodePtr NodeGetChild(NodePtr node, size_t index);
 
+/// # Safety
+///
+/// Get the number of children of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `usize` - Number of children
+///
+/// # Example
+///
+/// ```c
+/// usize child_count = NodeGetChildCount(node);
+/// ```
 size_t NodeGetChildCount(NodePtr node);
 
+/// # Safety
+///
+/// Get the external host of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// Raw pointer to the external host
+///
+/// # Example
+///
+/// ```c
+/// NodePtr external_host = NodeGetExternalHost(node);
+/// ```
 void *NodeGetExternalHost(NodePtr node);
 
+/// # Safety
+///
+/// Get the parent node of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `NodePtr` - Raw pointer to the parent Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodePtr parent = NodeGetParent(node);
+/// ```
 NodePtr NodeGetParent(NodePtr node);
 
+/// # Safety
+///
+/// Check if a node instance has a measure function.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `bool` - True if the node has a measure function, false otherwise
+///
+/// # Example
+///
+/// ```c
+/// NodeHasMeasureFunc(node);
+/// ```
 bool NodeHasMeasureFunc(NodePtr node);
 
+/// # Safety
+///
+/// Insert a child node before a pivot node.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `child` - Raw pointer to the child Node instance
+/// * `pivot` - Raw pointer to the pivot Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeInsertBefore(node, child, pivot);
+/// ```
 void NodeInsertBefore(NodePtr node, NodePtr child, NodePtr pivot);
 
+/// # Safety
+///
+/// Insert a child node at a specific index.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `child` - Raw pointer to the child Node instance
+/// * `index` - Index to insert the child node at
+///
+/// # Example
+///
+/// ```c
+/// NodeInsertChild(node, child, index);
+/// ```
 void NodeInsertChild(NodePtr node, NodePtr child, size_t index);
 
+/// # Safety
+///
+/// Check if a node instance is dirty.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `bool` - True if the node is dirty, false otherwise
+///
+/// # Example
+///
+/// ```c
+/// NodeIsDirty(node);
+/// ```
 bool NodeIsDirty(NodePtr node);
 
+/// # Safety
+///
+/// Get the border bottom of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Border bottom
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetBorderBottom(node);
+/// ```
 float NodeLayoutGetBorderBottom(NodePtr node);
 
+/// # Safety
+///
+/// Get the border left of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Border left
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetBorderLeft(node);
+/// ```
 float NodeLayoutGetBorderLeft(NodePtr node);
 
+/// # Safety
+///
+/// Get the border right of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Border right
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetBorderRight(node);
+/// ```
 float NodeLayoutGetBorderRight(NodePtr node);
 
+/// # Safety
+///
+/// Get the border top of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Border top
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetBorderTop(node);
+/// ```
 float NodeLayoutGetBorderTop(NodePtr node);
 
+/// # Safety
+///
+/// Get the bottom position of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Bottom position
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetBottom(node);
+/// ```
 float NodeLayoutGetBottom(NodePtr node);
 
+/// # Safety
+///
+/// Get the height of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Height
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetHeight(node);
+/// ```
 float NodeLayoutGetHeight(NodePtr node);
 
+/// # Safety
+///
+/// Get the left position of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Left position
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetLeft(node);
+/// ```
 float NodeLayoutGetLeft(NodePtr node);
 
+/// # Safety
+///
+/// Get the margin bottom of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Margin bottom
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetMarginBottom(node);
+/// ```
 float NodeLayoutGetMarginBottom(NodePtr node);
 
+/// # Safety
+///
+/// Get the margin left of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Margin left
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetMarginLeft(node);
+/// ```
 float NodeLayoutGetMarginLeft(NodePtr node);
 
+/// # Safety
+///
+/// Get the margin right of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Margin right
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetMarginRight(node);
+/// ```
 float NodeLayoutGetMarginRight(NodePtr node);
 
+/// # Safety
+///
+/// Get the margin top of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Margin top
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetMarginTop(node);
+/// ```
 float NodeLayoutGetMarginTop(NodePtr node);
 
+/// # Safety
+///
+/// Get the padding bottom of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Padding bottom
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetPaddingBottom(node);
+/// ```
 float NodeLayoutGetPaddingBottom(NodePtr node);
 
+/// # Safety
+///
+/// Get the padding left of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Padding left
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetPaddingLeft(node);
+/// ```
 float NodeLayoutGetPaddingLeft(NodePtr node);
 
+/// # Safety
+///
+/// Get the padding right of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Padding right
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetPaddingRight(node);
+/// ```
 float NodeLayoutGetPaddingRight(NodePtr node);
 
+/// # Safety
+///
+/// Get the padding top of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Padding top
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetPaddingTop(node);
+/// ```
 float NodeLayoutGetPaddingTop(NodePtr node);
 
+/// # Safety
+///
+/// Get the right position of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Right position
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetRight(node);
+/// ```
 float NodeLayoutGetRight(NodePtr node);
 
+/// # Safety
+///
+/// Get the top position of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Top position
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetTop(node);
+/// ```
 float NodeLayoutGetTop(NodePtr node);
 
+/// # Safety
+///
+/// Get the width of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `f32` - Width
+///
+/// # Example
+///
+/// ```c
+/// NodeLayoutGetWidth(node);
+/// ```
 float NodeLayoutGetWidth(NodePtr node);
 
+/// # Safety
+///
+/// Mark a node instance as dirty.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeMarkDirty(node);
+/// ```
 void NodeMarkDirty(NodePtr node);
 
+/// # Safety
+///
+/// Mark a node instance as dirty and propagate the dirty state to its descendants.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeMarkDirtyAndPropagateToDescendants(node);
+/// ```
 void NodeMarkDirtyAndPropagateToDescendants(NodePtr node);
 
+/// # Safety
+///
+/// Create a node instance.
+///
+/// # Returns
+/// Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodePtr node = NodeNew();
+/// ```
+///
 NodePtr NodeNew();
 
+/// # Safety
+///
+/// Remove all children from a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeRemoveAllChildren(node);
+/// ```
 void NodeRemoveAllChildren(NodePtr node);
 
+/// # Safety
+///
+/// Remove a child node from a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `child` - Raw pointer to the child Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeRemoveChild(node, child);
+/// ```
 void NodeRemoveChild(NodePtr node, NodePtr child);
 
+/// # Safety
+///
+/// Set the node type of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeSetAsText(node);
+/// ```
 void NodeSetAsText(NodePtr node);
 
+/// # Safety
+///
+/// Set the baseline function for a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `baseline_func` - Baseline function
+///
+/// # Example
+///
+/// ```c
+/// NodeSetBaselineFunc(node, baseline_func);
+/// ```
 void NodeSetBaselineFunc(NodePtr node, BaselineFunc baseline_func);
 
+/// # Safety
+///
+/// Set the dirty callback for a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `dirty_cb` - Dirty callback
+///
+/// # Example
+///
+/// ```c
+/// NodeSetDirtyCallback(node, dirty_cb);
+/// ```
 void NodeSetDirtyCallback(NodePtr node, DirtyCallback dirty_cb);
 
+/// # Safety
+///
+/// Set the external host of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `external_host` - Raw pointer to the external host
+///
+/// # Example
+///
+/// ```c
+/// NodeSetExternalHost(node, external_host);
+/// ```
 void NodeSetExternalHost(NodePtr node, void *external_host);
 
+/// # Safety
+///
+/// Set the measure function for a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `measure_func` - Measure function
+///
+/// # Example
+///
+/// ```c
+/// NodeSetMeasureFunc(node, measure_func);
+/// ```
 void NodeSetMeasureFunc(NodePtr node, MeasureFunc measure_func);
 
+/// # Safety
+///
+/// Set the resolve calc function for a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `resolve_calc` - Resolve calc function
+///
+/// # Example
+///
+/// ```c
+/// NodeSetResolveCalc(node, resolve_calc);
+/// ```
 void NodeSetResolveCalc(NodePtr node, ResolveCalc resolve_calc);
 
+/// # Safety
+///
+/// Get the flex direction of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Returns
+/// * `FlexDirectionType` - Flex direction type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleGetFlexDirection(node);
+/// ```
 FlexDirectionType NodeStyleGetFlexDirection(NodePtr node);
 
+/// # Safety
+///
+/// Set the align content of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Align content
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetAlignContent(node, value);
+/// ```
 void NodeStyleSetAlignContent(NodePtr node, AlignContentType value);
 
+/// # Safety
+///
+/// Set the align items of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Align items
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetAlignItems(node, value);
+/// ```
 void NodeStyleSetAlignItems(NodePtr node, AlignItemsType value);
 
+/// # Safety
+///
+/// Set the align self of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Align self
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetAlignSelf(node, value);
+/// ```
 void NodeStyleSetAlignSelf(NodePtr node, AlignSelfType value);
 
+/// # Safety
+///
+/// Set the aspect ratio of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `x` - Aspect ratio x
+/// * `y` - Aspect ratio y
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetAspectRatio(node, x, y);
+/// ```
 void NodeStyleSetAspectRatio(NodePtr node, float x, float y);
 
+/// # Safety
+///
+/// Set the aspect ratio of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetAspectRatioAuto(node);
+/// ```
 void NodeStyleSetAspectRatioAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the border bottom of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Border bottom type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderBottom(node, value);
+/// ```
 void NodeStyleSetBorderBottom(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the border bottom of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderBottomAuto(node);
+/// ```
 void NodeStyleSetBorderBottomAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the border bottom of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderBottomCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetBorderBottomCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the border bottom of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderBottomNone(node);
+/// ```
 void NodeStyleSetBorderBottomNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the border bottom of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderBottomPercentage(node, value);
+/// ```
 void NodeStyleSetBorderBottomPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the border left of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Border left type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderLeft(node, value);
+/// ```
 void NodeStyleSetBorderLeft(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the border left of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderLeftAuto(node);
+/// ```
 void NodeStyleSetBorderLeftAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the border left of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderLeftCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetBorderLeftCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the border left of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderLeftNone(node);
+/// ```
 void NodeStyleSetBorderLeftNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the border left of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderLeftPercentage(node, value);
+/// ```
 void NodeStyleSetBorderLeftPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the border right of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Border right type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderRight(node, value);
+/// ```
 void NodeStyleSetBorderRight(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the border right of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderRightAuto(node);
+/// ```
 void NodeStyleSetBorderRightAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the border right of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderRightCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetBorderRightCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the border right of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderRightNone(node);
+/// ```
 void NodeStyleSetBorderRightNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the border right of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderRightPercentage(node, value);
+/// ```
 void NodeStyleSetBorderRightPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the border top of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Border top type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderTop(node, value);
+/// ```
 void NodeStyleSetBorderTop(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the border top of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderTopAuto(node);
+/// ```
 void NodeStyleSetBorderTopAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the border top of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderTopCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetBorderTopCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the border top of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderTopNone(node);
+/// ```
 void NodeStyleSetBorderTopNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the border top of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBorderTopPercentage(node, value);
+/// ```
 void NodeStyleSetBorderTopPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the bottom of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Bottom type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBottom(node, value);
+/// ```
 void NodeStyleSetBottom(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the bottom of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBottomAuto(node);
+/// ```
 void NodeStyleSetBottomAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the bottom of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBottomCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetBottomCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the bottom of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBottomNone(node);
+/// ```
 void NodeStyleSetBottomNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the bottom of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBottomPercentage(node, value);
+/// ```
 void NodeStyleSetBottomPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the box sizing of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Box sizing type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetBoxSizing(node, value);
+/// ```
 void NodeStyleSetBoxSizing(NodePtr node, BoxSizingType value);
 
+/// # Safety
+///
+/// Set the column gap of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Column gap
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetColumnGap(node, value);
+/// ```
 void NodeStyleSetColumnGap(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the column gap of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetColumnGapCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetColumnGapCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the column gap of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetColumnGapNormal(node);
+/// ```
 void NodeStyleSetColumnGapNormal(NodePtr node);
 
+/// # Safety
+///
+/// Set the column gap of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Column gap percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetColumnGapPercentage(node, value);
+/// ```
 void NodeStyleSetColumnGapPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the display of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Display type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetDisplay(node, value);
+/// ```
 void NodeStyleSetDisplay(NodePtr node, DisplayType value);
 
+/// # Safety
+///
+/// Set the flex basis of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Flex basis
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexBasis(node, value);
+/// ```
 void NodeStyleSetFlexBasis(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the flex basis of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexBasisAuto(node);
+/// ```
 void NodeStyleSetFlexBasisAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the flex basis of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexBasisCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetFlexBasisCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the flex basis of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexBasisNone(node);
+/// ```
 void NodeStyleSetFlexBasisNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the flex basis of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexBasisPercentage(node, value);
+/// ```
 void NodeStyleSetFlexBasisPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the flex direction of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Flex direction
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexDirection(node, value);
+/// ```
 void NodeStyleSetFlexDirection(NodePtr node, FlexDirectionType value);
 
+/// # Safety
+///
+/// Set the flex grow of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Flex grow
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexGrow(node, value);
+/// ```
 void NodeStyleSetFlexGrow(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the flex shrink of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Flex shrink
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexShrink(node, value);
+/// ```
 void NodeStyleSetFlexShrink(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the flex wrap of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Flex wrap
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetFlexWrap(node, value);
+/// ```
 void NodeStyleSetFlexWrap(NodePtr node, FlexWrapType value);
 
+/// # Safety
+///
+/// Set the height of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Height type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetHeight(node, value);
+/// ```
 void NodeStyleSetHeight(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the height of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetHeightAuto(node);
+/// ```
 void NodeStyleSetHeightAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the height of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetHeightCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetHeightCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the height of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetHeightNone(node);
+/// ```
 void NodeStyleSetHeightNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the height of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetHeightPercentage(node, value);
+/// ```
 void NodeStyleSetHeightPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the justify content of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Justify content
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetJustifyContent(node, value);
+/// ```
 void NodeStyleSetJustifyContent(NodePtr node, JustifyContentType value);
 
+/// # Safety
+///
+/// Set the left of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Left type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetLeft(node, value);
+/// ```
 void NodeStyleSetLeft(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the left of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetLeftAuto(node);
+/// ```
 void NodeStyleSetLeftAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the left of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetLeftCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetLeftCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the left of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetLeftNone(node);
+/// ```
 void NodeStyleSetLeftNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the left of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetLeftPercentage(node, value);
+/// ```
 void NodeStyleSetLeftPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the margin bottom of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Margin bottom type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginBottom(node, value);
+/// ```
 void NodeStyleSetMarginBottom(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the margin bottom of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginBottomAuto(node);
+/// ```
 void NodeStyleSetMarginBottomAuto(NodePtr node);
 
+/// # Safety
+///
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginBottomCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetMarginBottomCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the margin bottom of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginBottomNone(node);
+/// ```
 void NodeStyleSetMarginBottomNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the margin bottom of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginBottomPercentage(node, value);
+/// ```
 void NodeStyleSetMarginBottomPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the margin left of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Margin left type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginLeft(node, value);
 void NodeStyleSetMarginLeft(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the margin left of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginLeftAuto(node);
+/// ```
 void NodeStyleSetMarginLeftAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the margin left of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginLeftCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetMarginLeftCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the margin left of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginLeftNone(node);
+/// ```
 void NodeStyleSetMarginLeftNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the margin left of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginLeftPercentage(node, value);
+/// ```
 void NodeStyleSetMarginLeftPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the margin right of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Margin right type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginRight(node, value);
 void NodeStyleSetMarginRight(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the margin right of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginRightAuto(node);
+/// ```
 void NodeStyleSetMarginRightAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the margin right of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginRightCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetMarginRightCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the margin right of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginRightNone(node);
+/// ```
 void NodeStyleSetMarginRightNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the margin right of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginRightPercentage(node, value);
 void NodeStyleSetMarginRightPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the margin top of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Margin top type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginTop(node, value);
+/// ```
 void NodeStyleSetMarginTop(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the margin top of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginTopAuto(node);
+/// ```
 void NodeStyleSetMarginTopAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the margin top of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginTopCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetMarginTopCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the margin top of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginTopNone(node);
+/// ```
 void NodeStyleSetMarginTopNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the margin top of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMarginTopPercentage(node, value);
+/// ```
 void NodeStyleSetMarginTopPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the max height of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Max height type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxHeight(node, value);
+/// ```
 void NodeStyleSetMaxHeight(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the max height of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxHeightAuto(node);
+/// ```
 void NodeStyleSetMaxHeightAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the max height of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxHeightCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetMaxHeightCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the max height of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxHeightNone(node);
+/// ```
 void NodeStyleSetMaxHeightNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the max height of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxHeightPercentage(node, value);
+/// ```
 void NodeStyleSetMaxHeightPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the max width of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Max width type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxWidth(node, value);
+/// ```
 void NodeStyleSetMaxWidth(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the max width of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxWidthAuto(node);
+/// ```
 void NodeStyleSetMaxWidthAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the max width of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxWidthCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetMaxWidthCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the max width of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxWidthNone(node);
+/// ```
 void NodeStyleSetMaxWidthNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the max width of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMaxWidthPercentage(node, value);
+/// ```
 void NodeStyleSetMaxWidthPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the min height of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Min height type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinHeight(node, value);
+/// ```
 void NodeStyleSetMinHeight(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the min height of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinHeightAuto(node);
+/// ```
 void NodeStyleSetMinHeightAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the min height of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinHeightCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetMinHeightCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the min height of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinHeightNone(node);
+/// ```
 void NodeStyleSetMinHeightNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the min height of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinHeightPercentage(node, value);
+/// ```
 void NodeStyleSetMinHeightPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the min width of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Min width type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinWidth(node, value);
+/// ```
 void NodeStyleSetMinWidth(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the min width of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinWidthAuto(node);
+/// ```
 void NodeStyleSetMinWidthAuto(NodePtr node);
 
+/// # Safety
+///
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinWidthCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetMinWidthCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the min width of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinWidthNone(node);
+/// ```
 void NodeStyleSetMinWidthNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the min width of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetMinWidthPercentage(node, value);
+/// ```
 void NodeStyleSetMinWidthPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the order of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Order
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetOrder(node, value);
+/// ```
 void NodeStyleSetOrder(NodePtr node, int32_t value);
 
+/// # Safety
+///
+/// Set the overflow of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Overflow type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetOverflowX(node, value);
+/// ```
 void NodeStyleSetOverflowX(NodePtr node, OverflowType value);
 
+/// # Safety
+///
+/// Set the overflow of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Overflow type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetOverflowY(node, value);
+/// ```
 void NodeStyleSetOverflowY(NodePtr node, OverflowType value);
 
+/// # Safety
+///
+/// Set the padding bottom of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Padding bottom type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingBottom(node, value);
+/// ```
 void NodeStyleSetPaddingBottom(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the padding bottom of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingBottomAuto(node);
+/// ```
 void NodeStyleSetPaddingBottomAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the padding bottom of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingBottomCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetPaddingBottomCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the padding bottom of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingBottomNone(node);
+/// ```
 void NodeStyleSetPaddingBottomNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the padding bottom of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingBottomPercentage(node, value);
+/// ```
 void NodeStyleSetPaddingBottomPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the padding left of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Padding left type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingLeft(node, value);
+/// ```
 void NodeStyleSetPaddingLeft(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the padding left of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingLeftAuto(node);
+/// ```
 void NodeStyleSetPaddingLeftAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the padding left of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingLeftCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetPaddingLeftCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the padding left of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingLeftNone(node);
+/// ```
 void NodeStyleSetPaddingLeftNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the padding left of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingLeftPercentage(node, value);
+/// ```
 void NodeStyleSetPaddingLeftPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the padding right of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Padding right type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingRight(node, value);
+/// ```
 void NodeStyleSetPaddingRight(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the padding right of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingRightAuto(node);
+/// ```
 void NodeStyleSetPaddingRightAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the padding right of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingRightCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetPaddingRightCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the padding right of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingRightNone(node);
+/// ```
 void NodeStyleSetPaddingRightNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the padding right of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingRightPercentage(node, value);
+/// ```
 void NodeStyleSetPaddingRightPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the padding top of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Padding top type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingTop(node, value);
+/// ```
 void NodeStyleSetPaddingTop(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the padding top of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingTopAuto(node);
+/// ```
 void NodeStyleSetPaddingTopAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the padding top of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingTopCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetPaddingTopCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the padding top of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingTopNone(node);
+/// ```
 void NodeStyleSetPaddingTopNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the padding top of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPaddingTopPercentage(node, value);
+/// ```
 void NodeStyleSetPaddingTopPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the position of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Position type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetPosition(node, value);
+/// ```
 void NodeStyleSetPosition(NodePtr node, PositionType value);
 
+/// # Safety
+///
+/// Set the right of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Right type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRight(node, value);
+/// ```
 void NodeStyleSetRight(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the right of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRightAuto(node);
+/// ```
 void NodeStyleSetRightAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the right of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRightCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetRightCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the right of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRightNone(node);
+/// ```
 void NodeStyleSetRightNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the right of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRightPercentage(node, value);
+/// ```
 void NodeStyleSetRightPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the row gap of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Row gap
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRowGap(node, value);
+/// ```
 void NodeStyleSetRowGap(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the row gap of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRowGapCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetRowGapCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the row gap of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRowGapNormal(node);
+/// ```
 void NodeStyleSetRowGapNormal(NodePtr node);
 
+/// # Safety
+///
+/// Set the row gap of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Row gap percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetRowGapPercentage(node, value);
+/// ```
 void NodeStyleSetRowGapPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the text align of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Text align
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetTextAlign(node, value);
+/// ```
 void NodeStyleSetTextAlign(NodePtr node, TextAlignType value);
 
+/// # Safety
+///
+/// Set the top of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Top type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetTop(node, value);
+/// ```
 void NodeStyleSetTop(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the top of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetTopAuto(node);
+/// ```
 void NodeStyleSetTopAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the top of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetTopCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetTopCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the top of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetTopNone(node);
+/// ```
 void NodeStyleSetTopNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the top of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetTopPercentage(node, value);
+/// ```
 void NodeStyleSetTopPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the width of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Width type
+///
+/// # Example
+///
+/// ```c
+///
+///
 void NodeStyleSetWidth(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the width of a node instance to auto.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetWidthAuto(node);
+/// ```
 void NodeStyleSetWidthAuto(NodePtr node);
 
+/// # Safety
+///
+/// Set the width of a node instance to a calc handle.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `calc_handle` - Calc handle
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetWidthCalcHandle(node, calc_handle);
+/// ```
 void NodeStyleSetWidthCalcHandle(NodePtr node, int32_t calc_handle);
 
+/// # Safety
+///
+/// Set the width of a node instance to undefined.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetWidthNone(node);
+/// ```
 void NodeStyleSetWidthNone(NodePtr node);
 
+/// # Safety
+///
+/// Set the width of a node instance to a percentage.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Percentage
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetWidthPercentage(node, value);
+/// ```
 void NodeStyleSetWidthPercentage(NodePtr node, float value);
 
+/// # Safety
+///
+/// Set the writing mode of a node instance.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `value` - Writing mode type
+///
+/// # Example
+///
+/// ```c
+/// NodeStyleSetWritingMode(node, value);
+/// ```
 void NodeStyleSetWritingMode(NodePtr node, WritingModeType value);
 
+/// # Safety
+///
+/// Convert a node instance to a string.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `recursive` - Recursive
+/// * `layout` - Layout
+/// * `style` - Style
+///
+/// # Returns
+/// A string representation of the node
+///
+/// # Example
+///
+/// ```c
+/// NodeToString(node, true, true, true);
+/// ```
 const char *NodeToString(NodePtr node, bool recursive, bool layout, bool style);
 
 }  // extern "C"
