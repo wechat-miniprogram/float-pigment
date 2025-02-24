@@ -426,7 +426,7 @@ impl InlineMeasure<Node> for LayoutInlineMeasure {
                     if (current_line.total_inline_size
                         + inline_unit.size.width
                         + margin.horizontal()
-                        >= suggested_width)
+                        > suggested_width)
                         && !current_line.is_empty()
                     {
                         prev_line_block_start += current_line.total_block_size;
