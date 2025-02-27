@@ -275,7 +275,7 @@ impl Node {
             }
             self.node_type.replace(node_type);
         }
-        if node_type == NodeType::Text {
+        if node_type == NodeType::Text && node_type != prev_type {
             *self.measure_cache.get() = Some(Box::new(LruCache::new(CACHE_SIZE)));
             *self.baseline_cache.get() = Some(Box::new(LruCache::new(CACHE_SIZE)));
         }
@@ -548,16 +548,21 @@ impl ChildOperation for Node {
         if self.children_len() == 0 {
             return;
         }
-        if let Some((idx, node)) = self
+        let child_idx_opt = self
             .children
             .borrow()
             .iter()
-            .enumerate()
-            .find(|(_, node)| std::ptr::eq(**node, child))
-        {
-            (**node).set_parent(None);
-            (*self.children.as_ptr()).remove(idx);
+            .position(|node| std::ptr::eq(*node, child));
+        if let Some(child_idx) = child_idx_opt {
+            let node = {
+                let mut children = self.children.borrow_mut();
+                let node = children[child_idx];
+                children.remove(child_idx);
+                node
+            };
+            (*node).set_parent(None);
         }
+
         self.mark_dirty_propagate();
     }
     unsafe fn remove_child_at(&self, idx: usize) {
