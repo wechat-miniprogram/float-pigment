@@ -841,18 +841,18 @@ fn encode_utf8(c: char) -> EncodeUtf8 {
         buf[3] = code as u8;
         3
     } else if code < MAX_TWO_B {
-        buf[2] = (code >> 6 & 0x1F) as u8 | TAG_TWO_B;
+        buf[2] = ((code >> 6) & 0x1F) as u8 | TAG_TWO_B;
         buf[3] = (code & 0x3F) as u8 | TAG_CONT;
         2
     } else if code < MAX_THREE_B {
-        buf[1] = (code >> 12 & 0x0F) as u8 | TAG_THREE_B;
-        buf[2] = (code >> 6 & 0x3F) as u8 | TAG_CONT;
+        buf[1] = ((code >> 12) & 0x0F) as u8 | TAG_THREE_B;
+        buf[2] = ((code >> 6) & 0x3F) as u8 | TAG_CONT;
         buf[3] = (code & 0x3F) as u8 | TAG_CONT;
         1
     } else {
-        buf[0] = (code >> 18 & 0x07) as u8 | TAG_FOUR_B;
-        buf[1] = (code >> 12 & 0x3F) as u8 | TAG_CONT;
-        buf[2] = (code >> 6 & 0x3F) as u8 | TAG_CONT;
+        buf[0] = ((code >> 18) & 0x07) as u8 | TAG_FOUR_B;
+        buf[1] = ((code >> 12) & 0x3F) as u8 | TAG_CONT;
+        buf[2] = ((code >> 6) & 0x3F) as u8 | TAG_CONT;
         buf[3] = (code & 0x3F) as u8 | TAG_CONT;
         0
     };
