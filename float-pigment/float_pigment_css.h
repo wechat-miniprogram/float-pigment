@@ -14,127 +14,637 @@
 namespace float_pigment {
 extern "C" {
 
-void array_str_ref_free(Array<StrRef> *x);
+/// # Safety
+/// Free the array of string references.
+///
+/// # Arguments
+/// * `x` - Pointer to the array of string references
+///
+/// # Examples
+///
+/// ```c
+/// FPArrayStrRefFree(x);
+/// ```
+///
+FfiResult<NullPtr> FPArrayStrRefFree(Array<StrRef> *x);
 
-void array_warning_free(Array<Warning> *warnings);
+/// # Safety
+/// Free the array of warnings.
+///
+/// # Arguments
+/// * `warnings` - Pointer to the array of warnings
+///
+/// # Examples
+///
+/// ```c
+/// FPArrayWarningFree(warnings);
+/// ```
+///
+FfiResult<NullPtr> FPArrayWarningFree(Array<Warning> *warnings);
 
-void buffer_free(uint8_t *buffer_ptr, size_t buffer_len);
+/// # Safety
+/// Free the buffer.
+///
+/// # Arguments
+/// * `buffer_ptr` - Pointer to the buffer
+/// * `buffer_len` - Length of the buffer
+///
+/// # Examples
+///
+/// ```c
+/// FPBufferFree(buffer_ptr, buffer_len);
+/// ```
+///
+FfiResult<NullPtr> FPBufferFree(uint8_t *buffer_ptr, size_t buffer_len);
 
-StrRef *css_parser_version();
+/// # Safety
+/// Get the version of the CSS parser.
+///
+/// # Examples
+///
+/// ```c
+/// FPCssParserVersion();
+/// ```
+FfiResult<StrRef*> FPCssParserVersion();
 
-void generate_warning(CParserHooksContext *self, const char *message);
+/// # Safety
+/// Free the inline style.
+///
+/// # Arguments
+/// * `inline_rule` - Pointer to the inline style
+///
+/// # Examples
+///
+/// ```c
+/// FPInlineStyleFree(inline_rule);
+/// ```
+///
+FfiResult<NullPtr> FPInlineStyleFree(InlineRule *inline_rule);
 
-void inline_style_free(InlineRule *inline_rule);
+/// # Safety
+/// Parse the color from the string.
+///
+/// # Arguments
+/// * `source` - Pointer to the source string
+///
+/// # Examples
+///
+/// ```c
+/// FPParseColorFromString(source);
+/// ```
+///
+FfiResult<ColorValue> FPParseColorFromString(const char *source);
 
-ColorValue parse_color_from_string(const char *source);
+/// # Safety
+/// Parse the inline style from the string.
+///
+/// # Arguments
+/// * `inline_style_text_ptr` - Pointer to the inline style text
+/// * `warnings` - Optional output parameter to receive warnings array pointer
+///
+/// # Examples
+///
+/// ```c
+/// FPParseInlineStyle(inline_style_text_ptr, warnings);
+/// ```
+///
+FfiResult<InlineRule*> FPParseInlineStyle(const char *inline_style_text_ptr,
+Array<Warning> **warnings);
 
-InlineRule *parse_inline_style(const char *inline_style_text_ptr, Array<Warning> **warnings);
+/// # Safety
+/// Parse the selector from the string.
+///
+/// # Arguments
+/// * `selector_text_ptr` - Pointer to the selector text
+///
+/// # Examples
+///
+/// ```c
+/// FPParseSelectorFromString(selector_text_ptr);
+/// ```
+///
+FfiResult<Selector*> FPParseSelectorFromString(const char *selector_text_ptr);
 
-Selector *parse_selector_from_string(const char *selector_text_ptr);
+/// # Safety
+/// Parse the style sheet from the string.
+///
+/// # Arguments
+/// * `style_text_ptr` - Pointer to the style sheet text
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetFromString(style_text_ptr);
+/// ```
+///
+FfiResult<StyleSheet*> FPParseStyleSheetFromString(const char *style_text_ptr);
 
-StyleSheet *parse_style_sheet_from_string(const char *style_text_ptr);
+/// # Safety
+/// Free the selector.
+///
+/// # Arguments
+/// * `selector` - Pointer to the selector
+///
+/// # Examples
+///
+/// ```c
+/// FPSelectorFree(selector);
+/// ```
+///
+FfiResult<NullPtr> FPSelectorFree(Selector *selector);
 
-void selector_free(Selector *selector);
+/// # Safety
+/// Free the string.
+///
+/// # Arguments
+/// * `ptr` - Pointer to the string
+///
+/// # Examples
+///
+/// ```c
+/// FPStrFree(ptr);
+/// ```
+///
+FfiResult<NullPtr> FPStrFree(const char *ptr);
 
-void str_free(const char *ptr);
+/// # Safety
+/// Get the version of the style sheet in the binary format.
+///
+/// # Arguments
+/// * `buffer_ptr` - Pointer to the buffer
+/// * `buffer_len` - Length of the buffer
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetBincodeVersion(buffer_ptr, buffer_len);
+/// ```
+///
+FfiResult<StrRef*> FPStyleSheetBincodeVersion(uint8_t *buffer_ptr, size_t buffer_len);
 
-size_t str_len(const StrRef *self);
+/// # Safety
+/// Free the style sheet.
+///
+/// # Arguments
+/// * `style_sheet` - Pointer to the style sheet
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetFree(style_sheet);
+/// ```
+///
+FfiResult<NullPtr> FPStyleSheetFree(StyleSheet *style_sheet);
 
-const uint8_t *str_ptr(const StrRef *self);
-
-StrRef *style_sheet_bincode_version(uint8_t *buffer_ptr, size_t buffer_len);
-
-void style_sheet_free(StyleSheet *style_sheet);
-
-void style_sheet_import_index_add_bincode(StyleSheetImportIndexPtr *this_,
+/// # Safety
+/// Add a style sheet to the import index from binary format.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+/// * `buffer_ptr` - Pointer to the buffer to store the serialized data
+/// * `buffer_len` - Length of the buffer
+/// * `drop_fn` - Optional drop function
+/// * `drop_args` - Pointer to the drop argument
+/// * `warnings` - Optional output parameter to receive warnings array pointer
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexAddBincode(import_index, path, buffer_ptr, buffer_len, drop_fn, drop_args, &mut warnings);
+/// ```
+///
+FfiResult<NullPtr> FPStyleSheetImportIndexAddBincode(RawMutPtr this_,
 const char *path,
 uint8_t *buffer_ptr,
 size_t buffer_len,
-void (*drop_fn)(void*),
-void *drop_args,
+void (*drop_fn)(RawMutPtr),
+RawMutPtr drop_args,
 Array<Warning> **warnings);
 
-StyleSheetImportIndexPtr style_sheet_import_index_deserialize_bincode(uint8_t *buffer_ptr,
+/// # Safety
+/// Deserialize the style sheet import index from the binary format.
+///
+/// # Arguments
+/// * `buffer_ptr` - Pointer to the binary data
+/// * `buffer_len` - Length of the binary data
+/// * `drop_fn` - Optional drop function
+/// * `drop_args` - Pointer to the drop argument
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexDeserializeBincode(buffer_ptr, buffer_len, drop_fn, drop_args);
+/// ```
+///
+FfiResult<RawMutPtr> FPStyleSheetImportIndexDeserializeBincode(uint8_t *buffer_ptr,
+size_t buffer_len,
+void (*drop_fn)(RawMutPtr),
+RawMutPtr drop_args);
+
+/// # Safety
+/// Deserialize the style sheet import index from the JSON format.
+///
+/// # Arguments
+/// * `json` - C string pointer to the JSON data
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexDeserializeJson(json, &import_index);
+/// ```
+///
+FfiResult<RawMutPtr> FPStyleSheetImportIndexDeserializeJson(const char *json);
+
+/// # Safety
+/// Free the style sheet import index.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexFree(import_index);
+/// ```
+///
+FfiResult<NullPtr> FPStyleSheetImportIndexFree(RawMutPtr this_);
+
+/// # Safety
+/// Get the style sheet from the style sheet import index.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexGetStyleSheet(import_index, path);
+/// ```
+///
+FfiResult<StyleSheet*> FPStyleSheetImportIndexGetStyleSheet(RawMutPtr this_, const char *path);
+
+/// # Safety
+/// List the dependencies of the specified style sheet.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexListDependencies(import_index, path);
+/// ```
+///
+FfiResult<Array<StrRef>*> FPStyleSheetImportIndexListDependencies(RawMutPtr this_,
+const char *path);
+
+/// # Safety
+/// List the dependency of the specified style sheet.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexListDependency(import_index, path);
+/// ```
+///
+FfiResult<Array<StrRef>*> FPStyleSheetImportIndexListDependency(RawMutPtr this_, const char *path);
+
+/// # Safety
+/// Merge the style sheet import index from binary format.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `buffer_ptr` - Pointer to the binary data
+/// * `buffer_len` - Length of the binary data
+/// * `drop_fn` - Optional drop function
+/// * `drop_args` - Pointer to the drop argument
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexMergeBincode(import_index, buffer_ptr, buffer_len, drop_fn, drop_args);
+/// ```
+///
+FfiResult<NullPtr> FPStyleSheetImportIndexMergeBincode(RawMutPtr this_,
+uint8_t *buffer_ptr,
 size_t buffer_len,
 void (*drop_fn)(void*),
 void *drop_args);
 
-StyleSheetImportIndexPtr style_sheet_import_index_deserialize_json(const char *json);
+/// # Safety
+/// Create a new style sheet import index.
+///
+/// # Examples
+///
+/// ```c
+/// RawMutPtr import_index = FPStyleSheetImportIndexNew();
+/// ```
+///
+FfiResult<RawMutPtr> FPStyleSheetImportIndexNew();
 
-void style_sheet_import_index_free(StyleSheetImportIndexPtr *this_);
-
-StyleSheet *style_sheet_import_index_get_style_sheet(StyleSheetImportIndexPtr *this_,
-const StrRef *path);
-
-Array<StrRef> *style_sheet_import_index_list_dependencies(StyleSheetImportIndexPtr *this_,
+/// # Safety
+/// Query and mark the dependencies of the specified style sheet.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexQueryAndMarkDependencies(import_index, path);
+/// ```
+///
+FfiResult<Array<StrRef>*> FPStyleSheetImportIndexQueryAndMarkDependencies(RawMutPtr this_,
 const char *path);
 
-Array<StrRef> *style_sheet_import_index_list_dependency(StyleSheetImportIndexPtr *this_,
-const char *path);
+/// # Safety
+/// Remove a style sheet from the style sheet import index.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexRemoveBincode(import_index, path);
+/// ```
+///
+FfiResult<NullPtr> FPStyleSheetImportIndexRemoveBincode(RawMutPtr this_, const char *path);
 
-void style_sheet_import_index_merge_bincode(StyleSheetImportIndexPtr *this_,
-uint8_t *buffer_ptr,
-size_t buffer_len,
-void (*drop_fn)(void*),
-void *drop_args);
-
-StyleSheetImportIndexPtr style_sheet_import_index_new();
-
-Array<StrRef> *style_sheet_import_index_query_and_mark_dependencies(StyleSheetImportIndexPtr *this_,
-const char *path);
-
-void style_sheet_import_index_remove_bincode(StyleSheetImportIndexPtr *this_, const char *path);
-
-uint8_t *style_sheet_import_index_serialize_bincode(StyleSheetImportIndexPtr *this_,
+/// # Safety
+/// Serialize the style sheet import index to the binary format.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `ret_buffer_len` - Pointer to a variable to store the length of the serialized data
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexSerializeBincode(import_index, &buffer_len);
+/// ```
+///
+FfiResult<uint8_t*> FPStyleSheetImportIndexSerializeBincode(RawMutPtr this_,
 size_t *ret_buffer_len);
 
-uint8_t *style_sheet_import_index_serialize_json(StyleSheetImportIndexPtr *this_,
-size_t *ret_buffer_len);
+/// # Safety
+/// Serialize the style sheet import index to the JSON format.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetImportIndex`] instance
+/// * `ret_buffer_len` - Pointer to a variable to store the length of the serialized data
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetImportIndexSerializeJson(import_index, &buffer_len);
+/// ```
+///
+FfiResult<uint8_t*> FPStyleSheetImportIndexSerializeJson(RawMutPtr this_, size_t *ret_buffer_len);
 
-void style_sheet_resource_add_bincode(StyleSheetResourcePtr *this_,
+/// # Safety
+/// Add a style sheet to the resource manager from binary format.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the stylesheet path (UTF-8 encoded)
+/// * `buffer_ptr` - Pointer to the buffer to store the serialized data
+/// * `buffer_len` - Length of the buffer
+/// * `drop_fn` - Optional drop function
+/// * `drop_args` - Pointer to the drop argument
+/// * `warnings` - Optional output parameter to receive warnings array pointer
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetResourceAddBincode(resource, path, buffer_ptr, buffer_len, drop_fn, drop_args, &mut warnings);
+/// ```
+///
+FfiResult<NullPtr> FPStyleSheetResourceAddBincode(RawMutPtr this_,
 const char *path,
 uint8_t *buffer_ptr,
 size_t buffer_len,
-void (*drop_fn)(void*),
-void *drop_args,
+void (*drop_fn)(RawMutPtr),
+RawMutPtr drop_args,
 Array<Warning> **warnings);
 
-void style_sheet_resource_add_source(StyleSheetResourcePtr *this_,
+/// # Safety
+///
+/// Add a style sheet to the resource manager.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+/// * `source` - C string pointer to the CSS source content (UTF-8 encoded)
+/// * `warnings` - Optional output parameter to receive warnings array pointer
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetResourceAddSource(resource, path, source, &mut warnings);
+/// ```
+///
+FfiResult<NullPtr> FPStyleSheetResourceAddSource(RawMutPtr this_,
 const char *path,
 const char *source,
 Array<Warning> **warnings);
 
-void style_sheet_resource_add_source_with_hooks(StyleSheetResourcePtr *this_,
+/// # Safety
+///
+/// Add a style sheet to the resource manager with hooks.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `hooks` - A parser hooks
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+/// * `source` - C string pointer to the CSS source content (UTF-8 encoded)
+/// * `warnings` - Optional output parameter to receive warnings array pointer
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetResourceAddSourceWithHooks(resource, hooks, path, source, &mut warnings);
+/// ```
+///
+FfiResult<NullPtr> FPStyleSheetResourceAddSourceWithHooks(RawMutPtr this_,
 CParserHooks hooks,
 const char *path,
 const char *source,
 Array<Warning> **warnings);
 
-void style_sheet_resource_add_tag_name_prefix(StyleSheetResourcePtr *this_,
+/// # Safety
+/// Add a tag name prefix to the resource.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the stylesheet path (UTF-8 encoded)
+/// * `prefix` - C string pointer to the prefix to add to the tag name (UTF-8 encoded)
+///
+/// # Examples
+///
+/// ```c
+/// FfiResult result = FPStyleSheetResourceAddTagNamePrefix(resource, path, prefix);
+/// if (result.err != FfiErrorCode::None) {
+///     // handle error
+/// }
+/// ```
+///
+FfiResult<NullPtr> FPStyleSheetResourceAddTagNamePrefix(RawMutPtr this_,
 const char *path,
 const char *prefix);
 
-Array<StrRef> *style_sheet_resource_direct_dependencies(StyleSheetResourcePtr *this_,
-const char *path);
+/// # Safety
+/// Get the direct dependencies of the specified style sheet.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the stylesheet path (UTF-8 encoded)
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetResourceDirectDependencies(resource, path);
+/// ```
+///
+FfiResult<Array<StrRef>*> FPStyleSheetResourceDirectDependencies(RawMutPtr this_, const char *path);
 
-void style_sheet_resource_free(StyleSheetResourcePtr *this_);
+/// # Safety
+///
+/// Free the style sheet resource.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+///
+/// # Examples
+///
+/// ```c
+/// FfiResult result = FPStyleSheetResourceFree(resource);
+/// if (result.err != FfiErrorCode::None) {
+///     // handle error
+/// }
+/// ```
+///
+FfiResult<NullPtr> FPStyleSheetResourceFree(RawMutPtr this_);
 
-StyleSheetImportIndexPtr style_sheet_resource_generate_import_index(StyleSheetResourcePtr *this_);
+/// # Safety
+///
+/// Generate the import index of the resource.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+///
+/// # Examples
+///
+/// ```c
+/// FPStyleSheetResourceGenerateImportIndex(resource);
+/// ```
+///
+FfiResult<RawMutPtr> FPStyleSheetResourceGenerateImportIndex(RawMutPtr this_);
 
-StyleSheetResourcePtr style_sheet_resource_new();
+/// # Safety
+///
+/// Create a new style sheet resource.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the style sheet path (UTF-8 encoded)
+/// * `source` - C string pointer to the CSS source content (UTF-8 encoded)
+/// * `warnings` - Optional output parameter to receive warnings array pointer
+///
+/// # Examples
+///
+/// ```c
+/// FfiResult result = FPStyleSheetResourceNew();
+/// if (result.err != FfiErrorCode::None) {
+///     // handle error
+/// }
+/// RawMutPtr resource = result.value;
+/// ```
+///
+FfiResult<RawMutPtr> FPStyleSheetResourceNew();
 
-uint8_t *style_sheet_resource_serialize_bincode(StyleSheetResourcePtr *this_,
+/// # Safety
+///
+/// Serialize the specified style sheet to the binary format.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the stylesheet path (UTF-8 encoded)
+/// * `ret_buffer_len` - Pointer to a variable to store the length of the serialized data
+///
+/// # Examples
+///
+/// ```c
+/// FfiResult result = FPStyleSheetResourceSerializeBincode(resource, path, &mut buffer_len);
+/// if (result.err != FfiErrorCode::None) {
+///     // handle error
+/// }
+/// ```
+///
+FfiResult<uint8_t*> FPStyleSheetResourceSerializeBincode(RawMutPtr this_,
 const char *path,
 size_t *ret_buffer_len);
 
-uint8_t *style_sheet_resource_serialize_json(StyleSheetResourcePtr *this_,
+/// # Safety
+/// Serialize the specified style sheet to the JSON format.
+///
+/// # Arguments
+/// * `this` - A raw pointer to a [`StyleSheetResource`] instance
+/// * `path` - C string pointer to the stylesheet path (UTF-8 encoded)
+/// * `ret_buffer_len` - Pointer to a variable to store the length of the serialized data
+///
+/// # Examples
+///
+/// ```c
+/// FfiResult result = FPStyleSheetResourceSerializeJson(resource, path, &mut buffer_len);
+/// if (result.err != FfiErrorCode::None) {
+///     // handle error
+/// }
+/// ```
+///
+FfiResult<uint8_t*> FPStyleSheetResourceSerializeJson(RawMutPtr this_,
 const char *path,
 size_t *ret_buffer_len);
 
-const char *substitute_variable(const char *expr_ptr,
-void *map,
+/// # Safety
+/// Substitute the variable in the expression.
+///
+/// # Arguments
+/// * `expr_ptr` - Pointer to the expression
+/// * `map` - Pointer to the map
+/// * `getter` - Custom property getter
+/// * `setter` - Custom property setter
+///
+/// # Examples
+///
+/// ```c
+/// FPSubstituteVariable(expr_ptr, map, getter, setter);
+/// ```
+///
+FfiResult<const char*> FPSubstituteVariable(const char *expr_ptr,
+RawMutPtr map,
 CustomPropertyGetter getter,
 CustomPropertySetter setter);
+
+/// The C FFI for `ParserHooksContext::generate_warning`.
+///
+/// # Safety
+///
+/// The message should be a valid C string.
+FfiResult<NullPtr> generate_warning(CParserHooksContext *self, const char *message);
+
+size_t str_len(const StrRef *self);
+
+const uint8_t *str_ptr(const StrRef *self);
 
 }  // extern "C"
 
