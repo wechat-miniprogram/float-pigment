@@ -48,7 +48,7 @@ deserialize_json = []
 write_cache = []
 compatibility_test = []
 compile_cache = ["toml", "colorful"]
-skip_compare_cache = ["float-pigment-css-macro/skip_compare_cache"]
+serialize_compile_cache = ["float-pigment-css-macro/serialize_compile_cache"]
 ffi = []
 
 [dependencies]

@@ -36,7 +36,7 @@ fn file_creator(
 
 fn folder_checker() {
     // check folder
-    if !cfg!(feature = "skip_compare_cache") && !cfg!(debug_assertions) {
+    if cfg!(feature = "serialize_compile_cache") {
         let mut path_buffer = PathBuf::new();
         path_buffer.push(std::env::var("CARGO_MANIFEST_DIR").unwrap());
         path_buffer.push(Path::new(CACHE_ROOT));
@@ -443,7 +443,7 @@ pub(crate) fn compare_enum_cache(
             }
         }
     }
-    if !cfg!(feature = "skip_compare_cache") && !cfg!(debug_assertions) {
+    if cfg!(feature = "serialize_compile_cache") {
         let next_cache_toml = toml::to_string(&next_cache).unwrap();
         let mut file = file_creator("enum", &enum_name, EXTENSION, true, true).unwrap();
         file.write_all(next_cache_toml.as_bytes())
@@ -547,7 +547,7 @@ pub(crate) fn compare_struct_cache(
             }
         }
     }
-    if !cfg!(feature = "skip_compare_cache") && !cfg!(debug_assertions) {
+    if cfg!(feature = "serialize_compile_cache") {
         let next_cache_toml = toml::to_string(&next_cache).unwrap();
         let mut file = file_creator("struct", &struct_name, EXTENSION, true, true).unwrap();
         file.write_all(next_cache_toml.as_bytes())

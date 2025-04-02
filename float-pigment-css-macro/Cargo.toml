@@ -14,7 +14,7 @@ repository.workspace = true
 proc-macro = true
 
 [features]
-skip_compare_cache = []
+serialize_compile_cache = []
 
 [dependencies]
 proc-macro2 = "1.0"
