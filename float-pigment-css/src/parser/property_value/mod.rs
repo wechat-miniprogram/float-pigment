@@ -205,6 +205,7 @@ pub(crate) fn env_default_value<'a, 't: 'a, 'i: 't>(
     properties: &mut Vec<PropertyMeta>,
     st: &mut ParseState,
 ) -> Result<Length, ParseError<'i, CustomError>> {
+    parser.skip_whitespace();
     let start = parser.current_source_location();
     let len = length(parser, properties, st);
     let end = parser.current_source_location();
