@@ -19,8 +19,10 @@ struct Angle;
 struct CalcExpr;
 
 
+/// The style sheet index for debugging.
 static const uint16_t TEMP_SHEET_INDEX = UINT16_MAX;
 
+/// An item in `animation-direction`.
 enum class AnimationDirectionItem {
   Normal,
   Reverse,
@@ -28,6 +30,7 @@ enum class AnimationDirectionItem {
   AlternateReverse,
 };
 
+/// An item in `animation-fill-mode`.
 enum class AnimationFillModeItem {
   None,
   Forwards,
@@ -35,6 +38,7 @@ enum class AnimationFillModeItem {
   Both,
 };
 
+/// An item in `animation-play-state`.
 enum class AnimationPlayStateItem {
   Running,
   Paused,
@@ -56,12 +60,14 @@ enum class AttributeOperator {
   Contain,
 };
 
+/// An item in `background-attachment`.
 enum class BackgroundAttachmentItem {
   Scroll,
   Fixed,
   Local,
 };
 
+/// An item in `background-clip`.
 enum class BackgroundClipItem {
   BorderBox,
   PaddingBox,
@@ -69,12 +75,14 @@ enum class BackgroundClipItem {
   Text,
 };
 
+/// An item in `background-origin`.
 enum class BackgroundOriginItem {
   BorderBox,
   PaddingBox,
   ContentBox,
 };
 
+/// A `background-repeat` value.
 enum class BackgroundRepeatValue {
   Repeat,
   NoRepeat,
@@ -82,11 +90,34 @@ enum class BackgroundRepeatValue {
   Round,
 };
 
+/// An item in multi-value form of `contain`.
 enum class ContainKeyword {
   Size,
   Layout,
   Style,
   Paint,
+};
+
+enum class FfiErrorCode {
+  None,
+  ThisNullPointer,
+  PathNullPointer,
+  PrefixNullPointer,
+  SourceNullPointer,
+  BufferNullPointer,
+  ExprPtrNullPointer,
+  StrNullPointer,
+  InlineStyleTextNullPointer,
+  InlineRuleNullPointer,
+  StyleTextNullPointer,
+  SelectorTextNullPointer,
+  InvalidPath,
+  JsonNullPointer,
+  ArrayNullPointer,
+  SelectorNullPointer,
+  StyleSheetNullPointer,
+  MapNullPointer,
+  Unknown,
 };
 
 enum class FontDisplay {
@@ -97,16 +128,19 @@ enum class FontDisplay {
   Optional,
 };
 
+/// Gradient shape types in image description.
 enum class GradientShape {
   Ellipse,
   Circle,
 };
 
+/// An image tag in image description.
 enum class ImageTags {
   LTR,
   RTL,
 };
 
+/// An item in mask-mode.
 enum class MaskModeItem {
   MatchSource,
   Alpha,
@@ -138,6 +172,7 @@ enum class PseudoElementsType {
   After,
 };
 
+/// A helper type for `transition-timing-function`.
 enum class StepPosition {
   End,
   JumpStart,
@@ -147,6 +182,7 @@ enum class StepPosition {
   Start,
 };
 
+/// An item in `text-decoration-line`.
 enum class TextDecorationLineItem {
   Overline,
   LineThrough,
@@ -154,12 +190,17 @@ enum class TextDecorationLineItem {
   Blink,
 };
 
+/// The current theme of the system environment, e.g. dark mode.
 enum class Theme {
+  /// Unspecified.
   None,
+  /// Light mode.
   Light,
+  /// Dark mode.
   Dark,
 };
 
+/// The property name allowed in CSS `transition-property`.
 enum class TransitionPropertyItem {
   None,
   Transform,
@@ -236,6 +277,7 @@ enum class TransitionPropertyItem {
   MaskPosition,
 };
 
+/// Warning kind.
 enum class WarningKind : uint32_t {
   Unknown = 65536,
   HooksGenerated,
@@ -265,6 +307,14 @@ enum class WarningKind : uint32_t {
   InvalidEnvDefaultValue,
 };
 
+using NullPtr = const void*;
+
+template<typename T>
+struct FfiResult {
+  T value;
+  FfiErrorCode err;
+};
+
 struct StrRef {
   size_t offset;
   size_t len;
@@ -277,17 +327,20 @@ struct Array {
   size_t len;
 };
 
+/// Warnings generated while parsing.
 struct Warning {
+  /// The category of the warning, which has a corresponding error code.
   WarningKind kind;
+  /// The detailed message.
   StrRef message;
+  /// The start line.
   uint32_t start_line;
+  /// The start column in UTF-16 word.
   uint32_t start_col;
+  /// The end line.
   uint32_t end_line;
+  /// The end column in UTF-16 word.
   uint32_t end_col;
-};
-
-struct CParserHooksContext {
-  void *inner;
 };
 
 template<typename T>
@@ -632,6 +685,7 @@ struct PointerEventsType {
     Invalid3F,
     Auto,
     None,
+    /// A `wx` specific pointer-events type.
     WxRoot,
   };
 
@@ -651,6 +705,7 @@ struct PointerEventsType {
   };
 };
 
+/// `wx` specific touch handling strategy.
 struct WxEngineTouchEventType {
   enum class Tag {
     Invalid,
@@ -738,6 +793,7 @@ struct WxEngineTouchEventType {
   };
 };
 
+/// An expression for a length value.
 struct LengthExpr {
   enum class Tag {
     Invalid,
@@ -761,6 +817,7 @@ struct LengthExpr {
   };
 };
 
+/// A length value or an expression that evaluates to a langth value.
 struct Length {
   enum class Tag {
     Undefined,
@@ -832,6 +889,7 @@ struct Length {
   };
 };
 
+/// A number or an expression that evaluates to a number.
 struct Number {
   enum class Tag {
     F32,
@@ -859,6 +917,7 @@ struct Number {
   };
 };
 
+/// An angle value or an expression that evaluates to an angle.
 struct Angle {
   enum class Tag {
     Deg,
@@ -898,14 +957,22 @@ struct Angle {
   };
 };
 
+/// An expression inside `calc(...)`.
 struct CalcExpr {
   enum class Tag {
+    /// A length, e.g. `2px`.
     Length,
+    /// A number, e.g. `0.1`.
     Number,
+    /// An angle, e.g. `45deg`.
     Angle,
+    /// `+` expression.
     Plus,
+    /// `-` expression.
     Sub,
+    /// `*` expression.
     Mul,
+    /// `/` expression.
     Div,
   };
 
@@ -953,6 +1020,7 @@ struct CalcExpr {
   };
 };
 
+/// A number or an expression that evaluates to a number.
 struct NumberType {
   enum class Tag {
     Invalid,
@@ -1142,6 +1210,7 @@ struct BoxSizingType {
   };
 };
 
+/// A `transform` item.
 struct TransformItem {
   enum class Tag {
     None,
@@ -1222,6 +1291,7 @@ struct TransformItem {
   };
 };
 
+/// The CSS `transform` item series.
 struct TransformType {
   enum class Tag {
     Invalid,
@@ -1755,6 +1825,7 @@ struct VisibilityType {
   };
 };
 
+/// A color value or `current-color`.
 struct ColorType {
   enum class Tag {
     Invalid,
@@ -2405,6 +2476,7 @@ struct JustifyContentType {
   };
 };
 
+/// A length value or an expression that evaluates to a langth value.
 struct LengthType {
   enum class Tag {
     Invalid,
@@ -2736,6 +2808,7 @@ struct GapType {
   };
 };
 
+/// A color value or `current-color`.
 struct Color {
   enum class Tag {
     Undefined,
@@ -2756,6 +2829,7 @@ struct Color {
   };
 };
 
+/// An angle value or a percentage value.
 struct AngleOrPercentage {
   enum class Tag {
     Angle,
@@ -2777,6 +2851,7 @@ struct AngleOrPercentage {
   };
 };
 
+/// Gradient color types in image description.
 struct GradientColorItem {
   enum class Tag {
     ColorHint,
@@ -2806,6 +2881,7 @@ struct GradientColorItem {
   };
 };
 
+/// Gradient size types in image description.
 struct GradientSize {
   enum class Tag {
     FarthestCorner,
@@ -2826,6 +2902,7 @@ struct GradientSize {
   };
 };
 
+/// Gradient position types in image description.
 struct GradientPosition {
   enum class Tag {
     Pos,
@@ -2842,12 +2919,14 @@ struct GradientPosition {
   };
 };
 
+/// A conic-gradient item.
 struct ConicGradientItem {
   Angle angle;
   GradientPosition position;
   Array<GradientColorItem> items;
 };
 
+/// Gradient types in image description.
 struct BackgroundImageGradientItem {
   enum class Tag {
     LinearGradient,
@@ -2879,6 +2958,7 @@ struct BackgroundImageGradientItem {
   };
 };
 
+/// An image source in image description.
 struct ImageSource {
   enum class Tag {
     None,
@@ -2895,6 +2975,7 @@ struct ImageSource {
   };
 };
 
+/// An item in `background-image`.
 struct BackgroundImageItem {
   enum class Tag {
     None,
@@ -3021,6 +3102,7 @@ struct BackgroundImageType {
   };
 };
 
+/// An item in `background-size`.
 struct BackgroundSizeItem {
   enum class Tag {
     Auto,
@@ -3130,6 +3212,7 @@ struct BackgroundSizeType {
   };
 };
 
+/// A `background-position` value.
 struct BackgroundPositionValue {
   enum class Tag {
     Top,
@@ -3163,6 +3246,7 @@ struct BackgroundPositionValue {
   };
 };
 
+/// An item in `background-position`.
 struct BackgroundPositionItem {
   enum class Tag {
     Pos,
@@ -3275,8 +3359,10 @@ struct BackgroundPositionType {
   };
 };
 
+/// An item in `background-repeat`.
 struct BackgroundRepeatItem {
   enum class Tag {
+    /// The two-value form of `background-repeat`.
     Pos,
   };
 
@@ -3835,6 +3921,7 @@ struct BorderStyleType {
   };
 };
 
+/// A shadow type in `box-shadow`.
 struct ShadowItemType {
   enum class Tag {
     Inset,
@@ -3875,6 +3962,7 @@ struct ShadowItemType {
   };
 };
 
+/// An item in `box-shadow`.
 struct BoxShadowItem {
   enum class Tag {
     List,
@@ -4290,6 +4378,7 @@ struct TransitionTimingFnItem {
   };
 };
 
+/// The CSS `transition-timing-funcction`.
 struct TransitionTimingFnType {
   enum class Tag {
     Invalid,
@@ -4380,6 +4469,7 @@ struct TransitionTimingFnType {
   };
 };
 
+/// An item in `animation-iteration-count`.
 struct AnimationIterationCountItem {
   enum class Tag {
     Number,
@@ -4756,6 +4846,7 @@ struct AnimationPlayStateType {
   };
 };
 
+/// An item in `animation-name`.
 struct AnimationNameItem {
   enum class Tag {
     None,
@@ -4862,10 +4953,14 @@ struct AnimationNameType {
   };
 };
 
+/// An animation kind for `will-change`.
 struct AnimateableFeature {
   enum class Tag {
+    /// The content of the element is likely to be animated.
     Contents,
+    /// The content of the element is scrollable.
     ScrollPosition,
+    /// An unknown kind.
     CustomIdent,
   };
 
@@ -6165,8 +6260,10 @@ struct FontStyleType {
   };
 };
 
+/// An item in `text-shadow`.
 struct TextShadowItem {
   enum class Tag {
+    /// A value of offset-y, offset-x, blur-radius, and color.
     TextShadowValue,
   };
 
@@ -6548,8 +6645,11 @@ struct TextDecorationThicknessType {
   };
 };
 
+/// A font feature tag for `font-feature-settings`.
 struct FeatureTag {
+  /// The four-letter OpenType tag, e.g. `liga`.
   StrRef opentype_tag;
+  /// The optional number value in `font-feature-settings`.
   Number value;
 };
 
@@ -6927,6 +7027,7 @@ struct ListStylePositionType {
   };
 };
 
+/// A drop shadow in filter function for `filter` and `backdrop-filter`.
 struct DropShadow {
   enum class Tag {
     List,
@@ -6942,6 +7043,7 @@ struct DropShadow {
   };
 };
 
+/// A filter function for `filter` and `backdrop-filter`.
 struct FilterFunc {
   enum class Tag {
     Url,
@@ -7585,6 +7687,7 @@ struct ContentType {
   };
 };
 
+/// The scroll bar options.
 struct ScrollbarType {
   enum class Tag {
     Invalid,
@@ -7651,9 +7754,13 @@ struct ScrollbarType {
     Invalid3D,
     Invalid3E,
     Invalid3F,
+    /// Show the scroll bar when needed.
     Auto,
+    /// Always hide the scroll bar.
     Hidden,
+    /// Hide the scroll bar when not scrolling.
     AutoHide,
+    /// Always show the scroll bar.
     AlwaysShow,
   };
 
@@ -7673,6 +7780,7 @@ struct ScrollbarType {
   };
 };
 
+/// A unknown property.
 struct CustomPropertyType {
   enum class Tag {
     Invalid,
@@ -7765,8 +7873,12 @@ struct CustomPropertyType {
   };
 };
 
+/// The body of a property.
+///
+/// Each variant corresponds to the CSS property with the same name.
 struct Property {
   enum class Tag {
+    /// A property that is not properly parsed and should be skipped in practice.
     Unknown,
     Display,
     Position,
@@ -8700,6 +8812,10 @@ struct Property {
   };
 };
 
+/// A bitset for representing `!important`.
+///
+/// It is used in the binary format for better size.
+/// Not suitable for common cases.
 struct ImportantBitSet {
   enum class Tag {
     None,
@@ -8953,10 +9069,14 @@ struct FontFace {
   Nullable<FontDisplay> font_display;
 };
 
+/// The percentage field in a keyframe item.
 struct KeyFrame {
   enum class Tag {
+    /// `from` in a keyframe.
     From,
+    /// `to` in a keyframe.
     To,
+    /// Percentage value in a keyframe.
     Ratio,
   };
 
@@ -9007,17 +9127,20 @@ struct StyleSheet {
   };
 };
 
-struct StyleSheetImportIndexPtr {
-  void *ptr;
-  void *map;
+using RawMutPtr = void*;
+
+/// The C FFI for `ParserHooksContext`.
+struct CParserHooksContext {
+  void *inner;
 };
 
-struct StyleSheetResourcePtr {
-  void *ptr;
-};
-
+/// The C FFI for `ParserHooks`.
 struct CParserHooks {
   void (*parsed_property)(CParserHooksContext, Property*);
 };
+
+using CustomPropertyGetter = const char*(*)(void *map, const char *name);
+
+using CustomPropertySetter = void(*)(void *map, const char *name, const char *value);
 
 
