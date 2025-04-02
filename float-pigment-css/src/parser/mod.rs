@@ -376,6 +376,7 @@ fn parse_to_paren_end<'a, 't: 'a, 'i: 't>(
     need_warning: bool,
     st: &mut ParseState,
 ) {
+    parser.skip_whitespace();
     let start = parser.current_source_location();
     let mut has_extra_chars = false;
     loop {
@@ -404,6 +405,7 @@ fn parse_to_block_end<'a, 't: 'a, 'i: 't>(
     need_warning: bool,
     st: &mut ParseState,
 ) {
+    parser.skip_whitespace();
     let start = parser.current_source_location();
     let mut has_extra_chars = false;
     loop {
@@ -470,6 +472,7 @@ fn parse_at_keyword_block<'a, 't: 'a, 'i: 't>(
     }
     match key {
         "import" => {
+            parser.skip_whitespace();
             let start = parser.current_source_location();
             match parser.expect_url_or_string() {
                 Err(_) => {
@@ -538,6 +541,7 @@ fn parse_at_keyword_block<'a, 't: 'a, 'i: 't>(
             parse_font_face_block(parser, sheet, st);
         }
         _ => {
+            parser.skip_whitespace();
             let start = parser.current_source_location();
             parse_to_block_end(parser, false, st);
             st.add_warning_with_message(
@@ -734,6 +738,7 @@ fn parse_keyframes_block<'a, 't: 'a, 'i: 't>(
     sheet: &mut CompiledStyleSheet,
     st: &mut ParseState,
 ) {
+    parser.skip_whitespace();
     let start_location = parser.current_source_location();
     if let Ok(ident) = parse_keyframes_ident(parser) {
         if parser.expect_curly_bracket_block().is_err() {
@@ -842,6 +847,7 @@ fn parse_font_face_block<'a, 't: 'a, 'i: 't>(
         let mut properties = vec![];
         let _ = parser.parse_nested_block(|parser| -> Result<(), ParseError<'_, CustomError>> {
             loop {
+                parser.skip_whitespace();
                 if parser.is_exhausted() {
                     break;
                 }
@@ -1081,6 +1087,7 @@ pub(crate) fn parse_selector<'a, 't: 'a, 'i: 't>(
     let fragments = parser.parse_until_before(Delimiter::CurlyBracketBlock, |parser| {
         // let most_start_loc = parser.current_source_location();
         parser.parse_comma_separated(|parser| {
+            parser.skip_whitespace();
             let item_start_loc = parser.current_source_location();
             let item_start_pos = parser.position();
             if parser.is_exhausted() {
@@ -1707,6 +1714,7 @@ fn parse_property_list<'a, 't: 'a, 'i: 't>(
             continue;
         }
         while parser.try_parse(|parser| parser.expect_semicolon()).is_ok() {}
+        parser.skip_whitespace();
         if parser.is_exhausted() {
             break;
         }
@@ -1782,6 +1790,7 @@ fn parse_property_item<'a, 't: 'a, 'i: 't>(
     st: &mut ParseState,
     rule_end_position: Option<SourcePosition>,
 ) -> Result<(), ParseError<'i, CustomError>> {
+    parser.skip_whitespace();
     let prop_name_start_loc = parser.current_source_location();
     let prop_name_start_pos = parser.position();
     let (name, is_custom_property) =
@@ -1809,6 +1818,7 @@ fn parse_property_item_debug<'a, 't: 'a, 'i: 't>(
     disabled: bool,
     rule_end_position: Option<SourcePosition>,
 ) -> Result<(), ParseError<'i, CustomError>> {
+    parser.skip_whitespace();
     let prev_properties_len = properties.len();
     let prop_name_start_index = parser.position();
     let prop_name_start_loc = parser.current_source_location();
