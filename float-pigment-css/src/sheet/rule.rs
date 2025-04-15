@@ -138,7 +138,7 @@ impl PropertyMeta {
         match self {
             Self::Normal { .. } => false,
             Self::Important { .. } => false,
-            Self::DebugGroup { properties, .. } => properties.len() == 0,
+            Self::DebugGroup { properties, .. } => properties.is_empty(),
         }
     }
 
