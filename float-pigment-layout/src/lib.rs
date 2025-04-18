@@ -204,8 +204,7 @@ pub trait LayoutTreeVisitor<T: LayoutTreeNode> {
     ///
     /// When `LayoutNode::mark_dirty` is called, some related nodes (e.g. the ancestors) are also marked dirty automatically.
     /// These calls tells which nodes are marked dirty.
-    fn dirty_marked(&self) {
-    }
+    fn dirty_marked(&self) {}
 }
 
 /// The styles of a tree node.
