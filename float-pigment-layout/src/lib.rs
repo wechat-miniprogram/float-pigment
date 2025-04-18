@@ -199,6 +199,13 @@ pub trait LayoutTreeVisitor<T: LayoutTreeNode> {
 
     /// Get the specified child.
     fn child_at(&self, index: usize) -> Option<&T>;
+
+    /// A notifier that the node has been marked dirty.
+    ///
+    /// When `LayoutNode::mark_dirty` is called, some related nodes (e.g. the ancestors) are also marked dirty automatically.
+    /// These calls tells which nodes are marked dirty.
+    fn dirty_marked(&self) {
+    }
 }
 
 /// The styles of a tree node.
@@ -284,7 +291,9 @@ impl<T: LayoutTreeNode> LayoutNode<T> {
     /// Informs the node styles been changed.
     #[inline]
     pub fn mark_dirty(&self, node: &T::TreeVisitor) -> bool {
-        self.unit.borrow_mut().mark_dirty(node)
+        let ret = self.unit.borrow_mut().mark_dirty(node);
+        node.dirty_marked();
+        ret
     }
 
     /// Get the size and position results (border rect).
