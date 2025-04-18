@@ -27,6 +27,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
         }
         let mut cur = node_tree_visitor;
         while let Some(parent) = cur.parent() {
+            parent.tree_visitor().dirty_marked();
             if !parent.layout_node().unit().mark_self_dirty() {
                 break;
             }
