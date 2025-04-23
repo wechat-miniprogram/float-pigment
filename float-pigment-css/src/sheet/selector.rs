@@ -74,11 +74,16 @@ impl core::fmt::Display for PseudoClasses {
     }
 }
 
+/// The CSS pseudo-elements.
 #[cfg_attr(debug_assertions, compatibility_enum_check(selector))]
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub(crate) enum PseudoElements {
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum PseudoElements {
+    /// The `::before` pseudo-element.
     Before,
+    /// The `::after` pseudo-element.
     After,
+    /// The `::selection` pseudo-element.
+    Selection,
 }
 
 impl core::fmt::Display for PseudoElements {
@@ -86,6 +91,7 @@ impl core::fmt::Display for PseudoElements {
         let s = match self {
             Self::Before => "before",
             Self::After => "after",
+            Self::Selection => "selection",
         };
         write!(f, "{}", s)
     }
@@ -389,24 +395,43 @@ impl Selector {
                     let mut cur_frag = frag;
                     loop {
                         let mut matches = true;
+
+                        // fails if id/tag_name not matching
                         if (!cur_frag.id.is_empty()
                             && (!same_scope || Some(cur_frag.id.as_str()) != cur_query.id()))
                             || (!cur_frag.tag_name.is_empty()
                                 && (!same_scope || cur_frag.tag_name != cur_query.tag_name()))
                         {
                             matches = false
-                        } else if let Some(pc) = cur_frag.pseudo_classes.as_ref() {
-                            match &**pc {
-                                PseudoClasses::Host => {
-                                    if sheet_style_scope.is_some()
-                                        && sheet_style_scope != cur_query.host_style_scope()
-                                    {
-                                        matches = false
+                        }
+
+                        // fails if pseudo classes not matching
+                        if matches {
+                            if let Some(pc) = cur_frag.pseudo_classes.as_ref() {
+                                // currently we only check `:host`
+                                match &**pc {
+                                    PseudoClasses::Host => {
+                                        if sheet_style_scope.is_some()
+                                            && sheet_style_scope != cur_query.host_style_scope()
+                                        {
+                                            matches = false
+                                        }
                                     }
+                                    _ => matches = false,
                                 }
-                                _ => matches = false,
                             }
-                        } else {
+                        }
+
+                        // fails if pseudo classes not matching
+                        if matches {
+                            let pc = cur_frag.pseudo_elements.as_ref().map(|x| (**x).clone());
+                            if pc != cur_query.pseudo_element() {
+                                matches = false
+                            }
+                        }
+
+                        // fails if any class not matching
+                        if matches {
                             for class_name in cur_frag.classes.iter() {
                                 if !cur_query.classes().any(|x| {
                                     (sheet_style_scope.is_none() || sheet_style_scope == x.scope())
@@ -415,84 +440,87 @@ impl Selector {
                                     matches = false;
                                 }
                             }
+                        }
 
-                            if matches {
-                                if let Some(selector_attributes) = &cur_frag.attributes {
-                                    for attribute in selector_attributes.iter() {
-                                        let selector_attr_value =
-                                            attribute.value.as_deref().unwrap_or_default();
-                                        if let Some((element_attr_value, sensitivity)) =
-                                            cur_query.attribute(&attribute.name)
-                                        {
-                                            let sensitivity = match (&attribute.case_insensitive, sensitivity) {
-                                                (AttributeFlags::CaseInsensitive, _) | (AttributeFlags::CaseSensitivityDependsOnName, StyleNodeAttributeCaseSensitivity::CaseInsensitive) => {
-                                                    StyleNodeAttributeCaseSensitivity::CaseInsensitive
-                                                }
-                                                (AttributeFlags::CaseSensitive, _) | (AttributeFlags::CaseSensitivityDependsOnName, StyleNodeAttributeCaseSensitivity::CaseSensitive) => {
-                                                    StyleNodeAttributeCaseSensitivity::CaseSensitive
-                                                }
-                                            };
-                                            if !match attribute.operator {
-                                                AttributeOperator::Set => true,
-                                                AttributeOperator::Exact => sensitivity
-                                                    .eq(element_attr_value, selector_attr_value),
-                                                AttributeOperator::List => {
-                                                    if selector_attr_value.is_empty() {
-                                                        false
-                                                    } else {
-                                                        element_attr_value
-                                                            .split(SELECTOR_WHITESPACE)
-                                                            .any(|x| {
-                                                                sensitivity
-                                                                    .eq(x, selector_attr_value)
-                                                            })
-                                                    }
-                                                }
-                                                AttributeOperator::Hyphen => {
-                                                    #[allow(clippy::comparison_chain)]
-                                                    if element_attr_value.len()
-                                                        < selector_attr_value.len()
-                                                    {
-                                                        false
-                                                    } else if element_attr_value.len()
-                                                        == selector_attr_value.len()
-                                                    {
-                                                        element_attr_value == selector_attr_value
-                                                    } else {
-                                                        sensitivity.starts_with(
-                                                            element_attr_value,
-                                                            &alloc::format!(
-                                                                "{}-",
-                                                                selector_attr_value
-                                                            ),
-                                                        )
-                                                    }
-                                                }
-                                                AttributeOperator::Begin => sensitivity
-                                                    .starts_with(
-                                                        element_attr_value,
-                                                        selector_attr_value,
-                                                    ),
-                                                AttributeOperator::End => sensitivity.ends_with(
-                                                    element_attr_value,
-                                                    selector_attr_value,
-                                                ),
-                                                AttributeOperator::Contain => sensitivity.contains(
-                                                    element_attr_value,
-                                                    selector_attr_value,
-                                                ),
-                                            } {
-                                                matches = false;
-                                                break;
+                        // fails if any attribute not matching
+                        if matches {
+                            if let Some(selector_attributes) = &cur_frag.attributes {
+                                for attribute in selector_attributes.iter() {
+                                    let selector_attr_value =
+                                        attribute.value.as_deref().unwrap_or_default();
+                                    if let Some((element_attr_value, sensitivity)) =
+                                        cur_query.attribute(&attribute.name)
+                                    {
+                                        let sensitivity = match (&attribute.case_insensitive, sensitivity) {
+                                            (AttributeFlags::CaseInsensitive, _) | (AttributeFlags::CaseSensitivityDependsOnName, StyleNodeAttributeCaseSensitivity::CaseInsensitive) => {
+                                                StyleNodeAttributeCaseSensitivity::CaseInsensitive
                                             }
-                                        } else {
+                                            (AttributeFlags::CaseSensitive, _) | (AttributeFlags::CaseSensitivityDependsOnName, StyleNodeAttributeCaseSensitivity::CaseSensitive) => {
+                                                StyleNodeAttributeCaseSensitivity::CaseSensitive
+                                            }
+                                        };
+                                        if !match attribute.operator {
+                                            AttributeOperator::Set => true,
+                                            AttributeOperator::Exact => sensitivity
+                                                .eq(element_attr_value, selector_attr_value),
+                                            AttributeOperator::List => {
+                                                if selector_attr_value.is_empty() {
+                                                    false
+                                                } else {
+                                                    element_attr_value
+                                                        .split(SELECTOR_WHITESPACE)
+                                                        .any(|x| {
+                                                            sensitivity
+                                                                .eq(x, selector_attr_value)
+                                                        })
+                                                }
+                                            }
+                                            AttributeOperator::Hyphen => {
+                                                #[allow(clippy::comparison_chain)]
+                                                if element_attr_value.len()
+                                                    < selector_attr_value.len()
+                                                {
+                                                    false
+                                                } else if element_attr_value.len()
+                                                    == selector_attr_value.len()
+                                                {
+                                                    element_attr_value == selector_attr_value
+                                                } else {
+                                                    sensitivity.starts_with(
+                                                        element_attr_value,
+                                                        &alloc::format!(
+                                                            "{}-",
+                                                            selector_attr_value
+                                                        ),
+                                                    )
+                                                }
+                                            }
+                                            AttributeOperator::Begin => sensitivity
+                                                .starts_with(
+                                                    element_attr_value,
+                                                    selector_attr_value,
+                                                ),
+                                            AttributeOperator::End => sensitivity.ends_with(
+                                                element_attr_value,
+                                                selector_attr_value,
+                                            ),
+                                            AttributeOperator::Contain => sensitivity.contains(
+                                                element_attr_value,
+                                                selector_attr_value,
+                                            ),
+                                        } {
                                             matches = false;
                                             break;
                                         }
+                                    } else {
+                                        matches = false;
+                                        break;
                                     }
                                 }
                             }
                         }
+
+                        // check ancestors if not matches
                         if !matches {
                             if allow_ancestor {
                                 cur_query = match query.next_back() {
@@ -504,6 +532,8 @@ impl Selector {
                             }
                             continue;
                         }
+
+                        // check ancestors if the rule requires
                         if let Some(ref relation) = cur_frag.relation {
                             cur_query = match query.next_back() {
                                 Some(x) => x,

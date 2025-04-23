@@ -1268,6 +1268,10 @@ pub(crate) fn parse_selector<'a, 't: 'a, 'i: 't>(
                                                     cur_frag.set_pseudo_elements(PseudoElements::After);
                                                     prev_sep = PrevSep::End
                                                 }
+                                                "selection" => {
+                                                    cur_frag.set_pseudo_elements(PseudoElements::Selection);
+                                                    prev_sep = PrevSep::End
+                                                }
                                                 _ => {
                                                     st.add_warning_with_message(
                                                         WarningKind::UnsupportedPseudoElement,
@@ -1328,6 +1332,16 @@ pub(crate) fn parse_selector<'a, 't: 'a, 'i: 't>(
                                         }
                                         "after" => {
                                             cur_frag.set_pseudo_elements(PseudoElements::After);
+                                            prev_sep = PrevSep::End;
+                                            st.add_warning_with_message(
+                                                WarningKind::InvalidPseudoElement,
+                                                format!("pseudo-elements should begin with double colons (::): {}", parser.slice_from(item_start_pos).trim()),
+                                                item_start_loc,
+                                                parser.current_source_location(),
+                                            );
+                                        }
+                                        "selection" => {
+                                            cur_frag.set_pseudo_elements(PseudoElements::Selection);
                                             prev_sep = PrevSep::End;
                                             st.add_warning_with_message(
                                                 WarningKind::InvalidPseudoElement,
@@ -1398,6 +1412,10 @@ pub(crate) fn parse_selector<'a, 't: 'a, 'i: 't>(
                                                 }
                                                 "after" => {
                                                     cur_frag.set_pseudo_elements(PseudoElements::After);
+                                                    prev_sep = PrevSep::End
+                                                }
+                                                "selection" => {
+                                                    cur_frag.set_pseudo_elements(PseudoElements::Selection);
                                                     prev_sep = PrevSep::End
                                                 }
                                                 _ => {

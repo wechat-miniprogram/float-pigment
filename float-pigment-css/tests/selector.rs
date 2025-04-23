@@ -1,6 +1,5 @@
 use float_pigment_css::{
-    property::*, query::MatchedRuleList, typing::*, MediaQueryStatus, StyleQuery, StyleSheet,
-    StyleSheetGroup,
+    property::*, query::MatchedRuleList, sheet::PseudoElements, typing::*, MediaQueryStatus, StyleQuery, StyleSheet, StyleSheetGroup
 };
 
 mod utils;
@@ -173,16 +172,16 @@ fn parent() {
     assert_eq!(node_properties.height(), Length::Undefined);
     let node_properties = query_list(
         &ssg,
-        [query_item("", "", ["a"], []), query_item("", "", ["b"], [])],
+        [QueryItem::new().c("a").end(), QueryItem::new().c("b").end()],
     );
     assert_eq!(node_properties.width(), Length::Px(1.));
     assert_eq!(node_properties.height(), Length::Undefined);
     let node_properties = query_list(
         &ssg,
         [
-            query_item("", "", ["a"], []),
-            query_item("", "", ["c"], []),
-            query_item("", "", ["b"], []),
+            QueryItem::new().c("a").end(),
+            QueryItem::new().c("c").end(),
+            QueryItem::new().c("b").end(),
         ],
     );
     assert_eq!(node_properties.width(), Length::Px(2.));
@@ -446,27 +445,27 @@ fn universal_selector() {
     );
     let mut ssg = StyleSheetGroup::new();
     ssg.append(ss);
-    let node_properties = query_list(&ssg, [query_item("", "", [""], [])]);
+    let node_properties = query_list(&ssg, [QueryItem::new().end()]);
     assert_eq!(node_properties.height(), Length::Px(200.));
     assert_eq!(node_properties.color(), Color::Specified(255, 0, 0, 255));
     let node_properties = query_list(
         &ssg,
-        [query_item("", "", ["b"], []), query_item("", "", [""], [])],
+        [QueryItem::new().c("b").end(), QueryItem::new().end()],
     );
     assert_eq!(node_properties.color(), Color::Specified(0, 0, 255, 255));
     let node_properties = query_list(
         &ssg,
-        [query_item("", "", ["b"], []), query_item("", "", ["c"], [])],
+        [QueryItem::new().c("b").end(), QueryItem::new().c("c").end()],
     );
     assert_eq!(node_properties.color(), Color::Specified(0, 128, 0, 255));
-    let node_properties = query_list(&ssg, [query_item("", "", ["b"], [])]);
+    let node_properties = query_list(&ssg, [QueryItem::new().c("b").end()]);
     assert_eq!(node_properties.color(), Color::Specified(255, 0, 0, 255));
     let node_properties = query_list(
         &ssg,
-        [query_item("", "", ["a"], []), query_item("", "", [""], [])],
+        [QueryItem::new().c("a").end(), QueryItem::new().end()],
     );
     assert_eq!(node_properties.height(), Length::Px(100.));
-    let node_properties = query_list(&ssg, [query_item("", "", ["e"], [])]);
+    let node_properties = query_list(&ssg, [QueryItem::new().c("e").end()]);
     assert_eq!(node_properties.color(), Color::Specified(255, 255, 0, 255));
 }
 
@@ -963,6 +962,32 @@ fn pseudo_elements_selector_test() {
     if let Some(rule) = rule {
         assert_eq!(rule.get_selector_string(), ".foo::before")
     }
+}
+
+#[test]
+fn pseudo_elements_selector_matching() {
+    let mut ssg = StyleSheetGroup::new();
+    let ss = StyleSheet::from_str(
+        r#"
+            ::selection {
+                color: red;
+            }
+            .foo::selection {
+                background-color: yellow;
+            }
+        "#,
+    );
+    let rule = ss.get_rule(0).unwrap();
+    assert_eq!(rule.get_selector_string(), "::selection");
+    let rule = ss.get_rule(1).unwrap();
+    assert_eq!(rule.get_selector_string(), ".foo::selection");
+    ssg.append(ss);
+    let node_properties = query_single(&ssg, QueryItem::new().pe(PseudoElements::Selection).end());
+    assert_eq!(node_properties.color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(node_properties.background_color(), Color::Undefined);
+    let node_properties = query_single(&ssg, QueryItem::new().c("foo").pe(PseudoElements::Selection).end());
+    assert_eq!(node_properties.color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(node_properties.background_color(), Color::Specified(255, 255, 0, 255));
 }
 
 #[test]

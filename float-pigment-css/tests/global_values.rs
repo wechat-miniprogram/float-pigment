@@ -24,7 +24,7 @@ fn initial() {
     assert_eq!(node_properties.color(), Color::Specified(255, 0, 0, 255));
     let child_node_properties = query_list(
         &ssg,
-        [query_item("", "", ["a"], []), query_item("", "", ["b"], [])],
+        [QueryItem::new().c("a").end(), QueryItem::new().c("b").end()],
     );
     assert_eq!(child_node_properties.display(), Display::Inline);
     assert_eq!(
@@ -54,7 +54,7 @@ fn inherit() {
     assert_eq!(node_properties.color(), Color::Specified(255, 0, 0, 255));
     let child_node_properties = query_list_with_parent(
         &ssg,
-        [query_item("", "", ["a"], []), query_item("", "", ["b"], [])],
+        [QueryItem::new().c("a").end(), QueryItem::new().c("b").end()],
         &node_properties,
     );
     assert_eq!(child_node_properties.display(), Display::None);
@@ -85,7 +85,7 @@ fn unset() {
     assert_eq!(node_properties.color(), Color::Specified(255, 0, 0, 255));
     let child_node_properties = query_list_with_parent(
         &ssg,
-        [query_item("", "", ["a"], []), query_item("", "", ["b"], [])],
+        [QueryItem::new().c("a").end(), QueryItem::new().c("b").end()],
         &node_properties,
     );
     assert_eq!(child_node_properties.display(), Display::Inline);

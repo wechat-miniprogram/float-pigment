@@ -15,9 +15,10 @@ use crate::parser::Warning;
 
 mod selector;
 pub(crate) use selector::{
-    Attribute, AttributeFlags, AttributeOperator, PseudoClasses, PseudoElements, Selector,
+    Attribute, AttributeFlags, AttributeOperator, PseudoClasses, Selector,
     SelectorFragment, SelectorRelationType, SELECTOR_WHITESPACE,
 };
+pub use selector::PseudoElements;
 mod rule;
 pub use rule::Rule;
 mod media;
