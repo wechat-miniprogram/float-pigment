@@ -7,7 +7,7 @@ use crate::length_num::LengthNum;
 use crate::property::{
     NodeProperties, NodePropertiesOrder, Property, PropertyMeta, PropertyValueWithGlobal,
 };
-use crate::sheet::Rule;
+use crate::sheet::{PseudoElements, Rule};
 use crate::sheet::{RuleWeight, Theme};
 use crate::typing::{Length, LengthType};
 
@@ -181,6 +181,9 @@ pub trait StyleNode {
     /// Get an attribute of the node.
     fn attribute(&self, name: &str) -> Option<(&str, StyleNodeAttributeCaseSensitivity)>;
 
+    /// The pseudo element to query.
+    fn pseudo_element(&self) -> Option<PseudoElements>;
+
     /// Check if the node has a specified scope.
     fn contain_scope(&self, scope: Option<NonZeroUsize>) -> bool {
         scope.is_none()
@@ -269,6 +272,10 @@ impl<'a> StyleNode for StyleQuery<'a> {
     fn attribute(&self, _name: &str) -> Option<(&str, StyleNodeAttributeCaseSensitivity)> {
         None
     }
+
+    fn pseudo_element(&self) -> Option<PseudoElements> {
+        None
+    }
 }
 
 impl<'b, 'a: 'b> StyleNode for &'b StyleQuery<'a> {
@@ -303,6 +310,10 @@ impl<'b, 'a: 'b> StyleNode for &'b StyleQuery<'a> {
     }
 
     fn attribute(&self, _name: &str) -> Option<(&str, StyleNodeAttributeCaseSensitivity)> {
+        None
+    }
+
+    fn pseudo_element(&self) -> Option<PseudoElements> {
         None
     }
 }

@@ -559,7 +559,9 @@ pub enum PseudoElementsType {
     Invalid,
     Before,
     After,
+    Selection,
 }
+
 #[repr(C)]
 #[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(debug_assertions, derive(CompatibilityStructCheck))]
@@ -642,6 +644,7 @@ impl SelectorFragment {
                 Some(x) => match *x {
                     selector::PseudoElements::Before => PseudoElementsType::Before,
                     selector::PseudoElements::After => PseudoElementsType::After,
+                    selector::PseudoElements::Selection => PseudoElementsType::Selection,
                 },
             },
             attributes: frag

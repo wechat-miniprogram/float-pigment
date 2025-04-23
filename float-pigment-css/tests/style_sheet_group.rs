@@ -169,8 +169,8 @@ fn style_sheet_resource_tag_name_prefix() {
     let node_properties = query_list(
         &ssg,
         [
-            query_item("xxx-hello", "", [""], []),
-            query_item("", "", ["world"], []),
+            QueryItem::new().tag("xxx-hello").end(),
+            QueryItem::new().c("world").end(),
         ],
     );
     assert_eq!(node_properties.width(), Length::Vw(1.));

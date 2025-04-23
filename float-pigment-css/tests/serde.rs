@@ -109,13 +109,13 @@ fn with_parent() {
         let media_query_status = MediaQueryStatus::<f32>::default_screen();
         {
             let node_properties =
-                query_list_with_media(&ssg, [query_item("", "b", [""], [])], &media_query_status);
+                query_list_with_media(&ssg, [QueryItem::new().id("b").end()], &media_query_status);
             assert_eq!(node_properties.font_size(), Length::Px(2.));
         }
         {
             let node_properties = query_list_with_media(
                 &ssg,
-                [query_item("", "", ["a"], []), query_item("", "b", [""], [])],
+                [QueryItem::new().c("a").end(), QueryItem::new().id("b").end()],
                 &media_query_status,
             );
             assert_eq!(node_properties.font_size(), Length::Px(4.));
@@ -124,9 +124,9 @@ fn with_parent() {
             let node_properties = query_list_with_media(
                 &ssg,
                 [
-                    query_item("", "", ["a"], []),
-                    query_item("", "", [""], []),
-                    query_item("", "b", [""], []),
+                    QueryItem::new().c("a").end(),
+                    QueryItem::new().end(),
+                    QueryItem::new().id("b").end(),
                 ],
                 &media_query_status,
             );
@@ -134,7 +134,7 @@ fn with_parent() {
         }
         {
             let node_properties =
-                query_list_with_media(&ssg, [query_item("", "", ["a"], [])], &media_query_status);
+                query_list_with_media(&ssg, [QueryItem::new().c("a").end()], &media_query_status);
             assert_eq!(node_properties.font_size(), Length::Undefined);
         }
     });
@@ -154,7 +154,7 @@ fn with_important() {
         let media_query_status = MediaQueryStatus::<f32>::default_screen();
         {
             let node_properties =
-                query_list_with_media(&ssg, [query_item("", "", ["a"], [])], &media_query_status);
+                query_list_with_media(&ssg, [QueryItem::new().c("a").end()], &media_query_status);
             assert_eq!(node_properties.height(), Length::Px(100.0));
         }
     });

@@ -106,7 +106,7 @@ fn complex_property_important() {
     assert_eq!(np.margin_left(), Length::Px(10.));
     let np = query_list(
         &ssg,
-        [query_item("", "", ["a"], []), query_item("", "b", [""], [])],
+        [QueryItem::new().c("a").end(), QueryItem::new().id("b").end()],
     );
     assert_eq!(np.margin_left(), Length::Px(4.));
     let np = query(&ssg, "", "", ["a"], []);
