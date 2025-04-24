@@ -42,6 +42,7 @@ property_list! (PropertyValueWithGlobal, {
     0x10 Visibility: VisibilityType as Inherit default Visibility::Visible;
     0x11 Color: ColorType as Inherit default Color::Specified(0, 0, 0, 255);
     0x12 Opacity: NumberType as Initial default Number::F32(1.);
+    0x13 CaretColor: ColorType as Inherit default Color::Undefined;
 
     // flex
     0x20 FlexDirection: FlexDirectionType as Initial default FlexDirection::Row;
@@ -372,6 +373,7 @@ property_value_format! (PropertyValueWithGlobal, {
     }};
 
     color: {{ Color = <color_repr> }};
+    caret_color: {{ CaretColor = <color_repr> }};
     opacity: {{ Opacity = <number> }};
     z_index: {{ ZIndex
         =  "auto" => ZIndexType::Auto
