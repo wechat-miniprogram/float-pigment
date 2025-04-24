@@ -12,6 +12,9 @@ use crate::sheet::{RuleWeight, Theme};
 use crate::typing::{Length, LengthType};
 
 /// The status of media query, i.e. screen size, screen type, etc.
+///
+/// This also contains some global environment values, such as `env(...)` values in CSS.
+///
 #[derive(Debug, Clone, PartialEq)]
 pub struct MediaQueryStatus<L: LengthNum> {
     /// The viewport is a `screen` media type.
@@ -513,6 +516,20 @@ impl MatchedRuleList {
         for matched_rule in self.rules.iter() {
             for pm in matched_rule.rule.properties.iter() {
                 merge_property_meta(pm, matched_rule.weight);
+            }
+        }
+    }
+
+    /// Iterate properties with weights.
+    pub fn for_each_property(&self, mut f: impl FnMut(&Property, u64)) {
+        for matched_rule in self.rules.iter() {
+            let weight = matched_rule.weight;
+            for pm in matched_rule.rule.properties.iter() {
+                if pm.is_disabled() { continue }
+                let w = if pm.is_important() { weight.important() } else { weight.normal() };
+                for p in pm.iter() {
+                    f(p, w);
+                }
             }
         }
     }
