@@ -108,7 +108,7 @@ fn fixed_with_margin() {
     assert_xml!(
         r#"
         <div>
-          <div style="position: fixed; margin-left: 100px; margin-top: 100px" expect_left="100" expect_top="100" expect_width="32" expect_height="16">hello</div>
+          <div style="position: fixed; margin-left: 100px; margin-top: 100px" expect_left="100" expect_top="100" expect_width="32" expect_height="16">XX</div>
         </div>
     "#
     )
