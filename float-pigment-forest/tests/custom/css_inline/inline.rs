@@ -5,12 +5,12 @@ fn inline() {
     assert_xml!(
         r#"
         <div>
-          <div expect_height="16" expect_width="375">hello</div>
+          <div expect_height="16" expect_width="375">XX</div>
           <div style="display: inline;" expect_width="32" expect_height="16">
-            <div style="display: inline" expect_height="16">world</div>
+            <div style="display: inline" expect_height="16">XX</div>
           </div>
           <div style="display: inline;" expect_width="64">
-            hello <div style="display: inline" expect_left="32">world</div>
+            XX <div style="display: inline" expect_left="32">XX</div>
           </div>
         </div>
     "#
@@ -76,10 +76,10 @@ fn inline_in_flexbox() {
         r#"
           <div>
             <div style="display: flex; flex-direction: column; height: 100px" expect_height="100" expect_width="375">
-              <div style="display: inline" expect_height="16" expect_width="375">hello</div>
+              <div style="display: inline" expect_height="16" expect_width="375">XX</div>
             </div>
             <div style="display: flex;" expect_height="16" expect_width="375">
-              <div style="display: inline" expect_height="16" expect_width="32">hello</div>
+              <div style="display: inline" expect_height="16" expect_width="32">XX</div>
             </div>
           </div>
       "#
@@ -92,7 +92,7 @@ fn inline_in_flexbox() {
 //         r#"
 //         <div>
 //           <div style="display: inline;" expect_width="32" expect_height="16">
-//             <div style="display: inline" expect_height="16">world</div>
+//             <div style="display: inline" expect_height="16">XX</div>
 //           </div>
 //         </div>
 //     "#
@@ -104,8 +104,8 @@ fn inline_block() {
     assert_xml!(
         r#"
           <div expect_height="16" expect_width="375">
-            <div style="display: inline-block" expect_height="16" expect_width="32">hello</div>
-            <div style="display: inline-block" expect_height="16" expect_width="32" expect_left="32">hello</div>
+            <div style="display: inline-block" expect_height="16" expect_width="32">XX</div>
+            <div style="display: inline-block" expect_height="16" expect_width="32" expect_left="32">XX</div>
           </div>
       "#
     )
@@ -128,7 +128,7 @@ fn inline_block_vertical_align_2() {
     assert_xml!(
         r#"
           <div expect_height="50" expect_width="375">
-            <div style="display: inline-block; height: 40px; width: 20px;" expect_height="40" expect_top="34">hello</div>
+            <div style="display: inline-block; height: 40px; width: 20px;" expect_height="40" expect_top="34">XX</div>
             <div style="display: inline-block; height: 50px; width: 20px" expect_height="50" expect_top="0" expect_left="20"></div>
           </div>
       "#
@@ -242,19 +242,19 @@ fn inline_block_in_flexbox() {
         r#"
           <div>
             <div style="display: flex; flex-direction: column; height: 100px" expect_height="100" expect_width="375">
-              <div style="display: inline-block" expect_height="16" expect_width="375">hello</div>
+              <div style="display: inline-block" expect_height="16" expect_width="375">XX</div>
             </div>
             <div style="display: flex;" expect_height="16" expect_width="375">
-              <div style="display: inline-block" expect_height="16" expect_width="32">hello</div>
+              <div style="display: inline-block" expect_height="16" expect_width="32">XX</div>
             </div>
             <div style="display: flex; flex-direction: column; align-items: center; width: 96px;" expect_height="16" expect_width="96">
               <div style="display: inline-block" expect_left="32" expect_height="16" expect_width="32">
-                hello
+                XX
               </div>
             </div>
             <div style="display: flex; flex-direction: row; align-items: center; justify-content: center; width: 96px;" expect_height="16" expect_width="96">
               <div style="display: inline-block" expect_left="32" expect_height="16" expect_width="32">
-                hello
+                XX
               </div>
             </div>
           </div>
@@ -269,7 +269,7 @@ fn block_in_inline_block() {
           <div>
             <div expect_width="375">
               <div style="display: inline-block" expect_height="16" expect_width="32">
-                <div expect_height="16" expect_width="32">123</div>
+                <div expect_height="16" expect_width="32">XX</div>
               </div>
             </div>
           </div>
