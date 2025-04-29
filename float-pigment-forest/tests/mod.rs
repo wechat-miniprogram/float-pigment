@@ -6,7 +6,8 @@ use euclid::num::Zero;
 pub use float_pigment_css::length_num::LengthNum;
 use float_pigment_css::{
     parser::parse_inline_style,
-    property::NodeProperties,
+    property::{NodeProperties, Property, PropertyValueWithGlobal},
+    sheet::PropertyMeta,
     typing::{AspectRatio, Display, Gap},
 };
 pub use float_pigment_forest::Len;
@@ -169,10 +170,6 @@ impl TextInfoBuilder {
             text_len: 0,
         })
     }
-    // fn with_text(mut self, text: String) -> Self {
-    //     self.0.raw_text = text;
-    //     self
-    // }
     fn with_text_len(mut self, text_len: usize) -> Self {
         self.0.text_len = text_len;
         self
@@ -181,8 +178,19 @@ impl TextInfoBuilder {
         self.0.font_size = font_size;
         self
     }
+    fn set_font_size(&mut self, font_size: f32) {
+        self.0.font_size = font_size;
+    }
     fn build(self) -> TextInfo {
         self.0
+    }
+}
+
+#[inline(always)]
+fn convert_font_size_to_px(font_size: float_pigment_css::typing::Length) -> f32 {
+    match font_size {
+        float_pigment_css::typing::Length::Px(x) => x,
+        _ => 16.,
     }
 }
 
@@ -361,8 +369,14 @@ impl TestCtx {
         match cur {
             NodeType::Text(t) => {
                 let node = Node::new_ptr();
-                let text_info = TextInfoBuilder::new().with_text_len(t.text().len()).build();
-                prepare_measure_node(node, text_info);
+                let mut text_info_builder = TextInfoBuilder::new().with_text_len(t.text().len());
+                if let Some(parent_node_props) = parent_node_props {
+                    let font_size = parent_node_props.font_size();
+                    if let float_pigment_css::typing::Length::Px(x) = font_size {
+                        text_info_builder.set_font_size(x);
+                    }
+                }
+                prepare_measure_node(node, text_info_builder.build());
                 node
             }
             NodeType::Element(e) => {
@@ -443,8 +457,48 @@ impl TestCtx {
             style,
             float_pigment_css::parser::StyleParsingDebugMode::None,
         );
+        let mut font_size_p = float_pigment_css::typing::Length::Px(16.);
+        for pm in props.iter() {
+            match pm {
+                PropertyMeta::Normal { property: p } | PropertyMeta::Important { property: p } => {
+                    if let Property::FontSize(x) = p {
+                        font_size_p = x
+                            .to_inner(
+                                parent_node_props.map(|p| p.font_size()).as_ref(),
+                                float_pigment_css::typing::Length::Px(16.),
+                                true,
+                            )
+                            .unwrap();
+                    }
+                }
+                PropertyMeta::DebugGroup {
+                    properties,
+                    disabled,
+                    ..
+                } => {
+                    if !disabled {
+                        for p in &**properties {
+                            if let Property::FontSize(x) = p {
+                                font_size_p = x
+                                    .clone()
+                                    .to_inner(
+                                        parent_node_props.map(|p| p.font_size()).as_ref(),
+                                        float_pigment_css::typing::Length::Px(16.),
+                                        true,
+                                    )
+                                    .unwrap();
+                            }
+                        }
+                    }
+                }
+            };
+        }
         props.iter().for_each(|p| {
-            p.merge_to_node_properties(node_props, parent_node_props, 16.);
+            p.merge_to_node_properties(
+                node_props,
+                parent_node_props,
+                convert_font_size_to_px(font_size_p.clone()),
+            );
             match p.get_property_name().to_string().as_str() {
                 "display" => node.set_display(node_props.display()),
                 "box-sizing" => node.set_box_sizing(node_props.box_sizing()),
