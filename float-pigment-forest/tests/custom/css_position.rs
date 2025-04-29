@@ -320,3 +320,17 @@ fn inline_as_relative() {
       "#
     )
 }
+
+#[test]
+fn absolute_with_max_width() {
+    assert_xml!(
+        r#"
+          <div style="position: absolute; max-width: 20px; left: 0; top: 100px;">
+            <div style="height: 10px; width: 30px;"></div>      
+            <div style="background: blue; opacity: 0.5" expect_width="20" expect_height="32">
+              <div style="display: inline" expect_width="16">XX</div>
+            </div>
+          </div>
+      "#
+    )
+}
