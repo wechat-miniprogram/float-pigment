@@ -451,13 +451,20 @@ impl Selector {
                                     if let Some((element_attr_value, sensitivity)) =
                                         cur_query.attribute(&attribute.name)
                                     {
-                                        let sensitivity = match (&attribute.case_insensitive, sensitivity) {
-                                            (AttributeFlags::CaseInsensitive, _) | (AttributeFlags::CaseSensitivityDependsOnName, StyleNodeAttributeCaseSensitivity::CaseInsensitive) => {
-                                                StyleNodeAttributeCaseSensitivity::CaseInsensitive
-                                            }
-                                            (AttributeFlags::CaseSensitive, _) | (AttributeFlags::CaseSensitivityDependsOnName, StyleNodeAttributeCaseSensitivity::CaseSensitive) => {
-                                                StyleNodeAttributeCaseSensitivity::CaseSensitive
-                                            }
+                                        let sensitivity = match (
+                                            &attribute.case_insensitive,
+                                            sensitivity,
+                                        ) {
+                                            (AttributeFlags::CaseInsensitive, _)
+                                            | (
+                                                AttributeFlags::CaseSensitivityDependsOnName,
+                                                StyleNodeAttributeCaseSensitivity::CaseInsensitive,
+                                            ) => StyleNodeAttributeCaseSensitivity::CaseInsensitive,
+                                            (AttributeFlags::CaseSensitive, _)
+                                            | (
+                                                AttributeFlags::CaseSensitivityDependsOnName,
+                                                StyleNodeAttributeCaseSensitivity::CaseSensitive,
+                                            ) => StyleNodeAttributeCaseSensitivity::CaseSensitive,
                                         };
                                         if !match attribute.operator {
                                             AttributeOperator::Set => true,
@@ -470,8 +477,7 @@ impl Selector {
                                                     element_attr_value
                                                         .split(SELECTOR_WHITESPACE)
                                                         .any(|x| {
-                                                            sensitivity
-                                                                .eq(x, selector_attr_value)
+                                                            sensitivity.eq(x, selector_attr_value)
                                                         })
                                                 }
                                             }
@@ -488,26 +494,18 @@ impl Selector {
                                                 } else {
                                                     sensitivity.starts_with(
                                                         element_attr_value,
-                                                        &alloc::format!(
-                                                            "{}-",
-                                                            selector_attr_value
-                                                        ),
+                                                        &alloc::format!("{}-", selector_attr_value),
                                                     )
                                                 }
                                             }
-                                            AttributeOperator::Begin => sensitivity
-                                                .starts_with(
-                                                    element_attr_value,
-                                                    selector_attr_value,
-                                                ),
-                                            AttributeOperator::End => sensitivity.ends_with(
+                                            AttributeOperator::Begin => sensitivity.starts_with(
                                                 element_attr_value,
                                                 selector_attr_value,
                                             ),
-                                            AttributeOperator::Contain => sensitivity.contains(
-                                                element_attr_value,
-                                                selector_attr_value,
-                                            ),
+                                            AttributeOperator::End => sensitivity
+                                                .ends_with(element_attr_value, selector_attr_value),
+                                            AttributeOperator::Contain => sensitivity
+                                                .contains(element_attr_value, selector_attr_value),
                                         } {
                                             matches = false;
                                             break;

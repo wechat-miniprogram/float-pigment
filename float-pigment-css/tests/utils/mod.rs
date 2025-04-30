@@ -225,7 +225,9 @@ impl QueryItem {
 
     #[allow(dead_code)]
     pub(super) fn attr<N: ToString, M: ToString>(mut self, name: N, value: M) -> Self {
-        self.w.attributes.push((name.to_string(), value.to_string()));
+        self.w
+            .attributes
+            .push((name.to_string(), value.to_string()));
         self
     }
 
@@ -242,10 +244,7 @@ impl QueryItem {
 }
 
 #[allow(dead_code)]
-pub(super) fn query_single(
-    ssg: &StyleSheetGroup,
-    item: StyleQueryWrapper,
-) -> NodeProperties {
+pub(super) fn query_single(ssg: &StyleSheetGroup, item: StyleQueryWrapper) -> NodeProperties {
     query_list_with_media(ssg, [item], &MediaQueryStatus::<f32>::default_screen())
 }
 

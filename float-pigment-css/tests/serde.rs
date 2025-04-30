@@ -115,7 +115,10 @@ fn with_parent() {
         {
             let node_properties = query_list_with_media(
                 &ssg,
-                [QueryItem::new().c("a").end(), QueryItem::new().id("b").end()],
+                [
+                    QueryItem::new().c("a").end(),
+                    QueryItem::new().id("b").end(),
+                ],
                 &media_query_status,
             );
             assert_eq!(node_properties.font_size(), Length::Px(4.));

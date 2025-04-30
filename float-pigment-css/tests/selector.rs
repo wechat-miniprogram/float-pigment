@@ -1,5 +1,6 @@
 use float_pigment_css::{
-    property::*, query::MatchedRuleList, sheet::PseudoElements, typing::*, MediaQueryStatus, StyleQuery, StyleSheet, StyleSheetGroup
+    property::*, query::MatchedRuleList, sheet::PseudoElements, typing::*, MediaQueryStatus,
+    StyleQuery, StyleSheet, StyleSheetGroup,
 };
 
 mod utils;
@@ -985,9 +986,18 @@ fn pseudo_elements_selector_matching() {
     let node_properties = query_single(&ssg, QueryItem::new().pe(PseudoElements::Selection).end());
     assert_eq!(node_properties.color(), Color::Specified(255, 0, 0, 255));
     assert_eq!(node_properties.background_color(), Color::Undefined);
-    let node_properties = query_single(&ssg, QueryItem::new().c("foo").pe(PseudoElements::Selection).end());
+    let node_properties = query_single(
+        &ssg,
+        QueryItem::new()
+            .c("foo")
+            .pe(PseudoElements::Selection)
+            .end(),
+    );
     assert_eq!(node_properties.color(), Color::Specified(255, 0, 0, 255));
-    assert_eq!(node_properties.background_color(), Color::Specified(255, 255, 0, 255));
+    assert_eq!(
+        node_properties.background_color(),
+        Color::Specified(255, 255, 0, 255)
+    );
 }
 
 #[test]
