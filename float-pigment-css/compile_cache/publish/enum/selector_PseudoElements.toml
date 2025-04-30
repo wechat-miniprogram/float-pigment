@@ -1,2 +1,2 @@
 key = "PseudoElements"
-value = ["typing = \"Unit\"\nident = \"Before\"\nfield = []\n", "typing = \"Unit\"\nident = \"After\"\nfield = []\n"]
+value = ["typing = \"Unit\"\nident = \"Before\"\nfield = []\n", "typing = \"Unit\"\nident = \"After\"\nfield = []\n", "typing = \"Unit\"\nident = \"Selection\"\nfield = []\n"]
