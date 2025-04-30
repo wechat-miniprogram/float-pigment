@@ -525,8 +525,14 @@ impl MatchedRuleList {
         for matched_rule in self.rules.iter() {
             let weight = matched_rule.weight;
             for pm in matched_rule.rule.properties.iter() {
-                if pm.is_disabled() { continue }
-                let w = if pm.is_important() { weight.important() } else { weight.normal() };
+                if pm.is_disabled() {
+                    continue;
+                }
+                let w = if pm.is_important() {
+                    weight.important()
+                } else {
+                    weight.normal()
+                };
                 for p in pm.iter() {
                     f(p, w);
                 }

@@ -14,11 +14,11 @@ use crate::length_num::LengthNum;
 use crate::parser::Warning;
 
 mod selector;
-pub(crate) use selector::{
-    Attribute, AttributeFlags, AttributeOperator, PseudoClasses, Selector,
-    SelectorFragment, SelectorRelationType, SELECTOR_WHITESPACE,
-};
 pub use selector::PseudoElements;
+pub(crate) use selector::{
+    Attribute, AttributeFlags, AttributeOperator, PseudoClasses, Selector, SelectorFragment,
+    SelectorRelationType, SELECTOR_WHITESPACE,
+};
 mod rule;
 pub use rule::Rule;
 mod media;
