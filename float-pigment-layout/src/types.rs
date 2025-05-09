@@ -905,6 +905,42 @@ impl<L: LengthNum> MinMaxLimit<L> {
             AxisDirection::Vertical => self.max_width,
         }
     }
+
+    #[inline(always)]
+    #[allow(unused)]
+    pub(crate) fn set_min_cross_size(&mut self, x: L, dir: AxisDirection) {
+        match dir {
+            AxisDirection::Horizontal => self.min_height = x,
+            AxisDirection::Vertical => self.min_width = x,
+        }
+    }
+
+    #[inline(always)]
+    #[allow(unused)]
+    pub(crate) fn set_max_cross_size(&mut self, x: OptionNum<L>, dir: AxisDirection) {
+        match dir {
+            AxisDirection::Horizontal => self.max_height = x,
+            AxisDirection::Vertical => self.max_width = x,
+        }
+    }
+
+    #[inline(always)]
+    #[allow(unused)]
+    pub(crate) fn set_min_main_size(&mut self, x: L, dir: AxisDirection) {
+        match dir {
+            AxisDirection::Horizontal => self.min_width = x,
+            AxisDirection::Vertical => self.min_height = x,
+        }
+    }
+
+    #[inline(always)]
+    #[allow(unused)]
+    pub(crate) fn set_max_main_size(&mut self, x: OptionNum<L>, dir: AxisDirection) {
+        match dir {
+            AxisDirection::Horizontal => self.max_width = x,
+            AxisDirection::Vertical => self.max_height = x,
+        }
+    }
 }
 
 pub(crate) struct MinMaxLimitMaybe<'a, L: LengthNum>(&'a MinMaxLimit<L>);
