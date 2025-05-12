@@ -365,21 +365,19 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                     let has_aspect_ratio = aspect_ratio.is_some() && aspect_ratio.unwrap() > 0.;
                     if css_size.width.is_none() ^ css_size.height.is_none() && has_aspect_ratio {
                         if css_size.height.is_none() {
-                            css_size.height = OptionNum::some(resolve_block_size_from_aspect_ratio(
-                                AxisDirection::Vertical,
+                            css_size.height = OptionNum::some(resolve_height_from_aspect_ratio(
                                 child_border,
                                 child_padding_border,
-                                aspect_ratio.unwrap(),
                                 &child_node.style().box_sizing(),
+                                aspect_ratio.unwrap(),
                                 css_size.width.val().unwrap(),
                             ))
                         } else {
-                            css_size.width = OptionNum::some(resolve_block_size_from_aspect_ratio(
-                                AxisDirection::Horizontal,
+                            css_size.width = OptionNum::some(resolve_width_from_aspect_ratio(
                                 child_border,
                                 child_padding_border,
-                                aspect_ratio.unwrap(),
                                 &child_node.style().box_sizing(),
+                                aspect_ratio.unwrap(),
                                 css_size.height.val().unwrap(),
                             ))
                         }
@@ -418,14 +416,26 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                 css_size.set_cross_size(axis_info.dir, stretched_cross_size);
                                 css_size.set_main_size(
                                     axis_info.dir,
-                                    OptionNum::some(resolve_block_size_from_aspect_ratio(
-                                        axis_info.dir,
-                                        child_border,
-                                        child_padding_border,
-                                        aspect_ratio.unwrap(),
-                                        &child_node.style().box_sizing(),
-                                        stretched_cross_size.or_zero(),
-                                    )),
+                                    match axis_info.dir {
+                                        AxisDirection::Horizontal => {
+                                            OptionNum::some(resolve_width_from_aspect_ratio(
+                                                child_border,
+                                                child_padding_border,
+                                                &child_node.style().box_sizing(),
+                                                aspect_ratio.unwrap(),
+                                                stretched_cross_size.or_zero(),
+                                            ))
+                                        }
+                                        AxisDirection::Vertical => {
+                                            OptionNum::some(resolve_height_from_aspect_ratio(
+                                                child_border,
+                                                child_padding_border,
+                                                &child_node.style().box_sizing(),
+                                                aspect_ratio.unwrap(),
+                                                stretched_cross_size.or_zero(),
+                                            ))
+                                        }
+                                    },
                                 );
                             }
                         }
@@ -814,12 +824,11 @@ pub(crate) fn transfer_min_max_size<L: LengthNum>(
     let mut transfer_limit = min_max_limit.clone();
 
     if min_max_limit.min_cross_size(main_dir).is_positive() {
-        let min_main_size = resolve_block_size_from_aspect_ratio(
-            main_dir,
+        let min_main_size = resolve_height_from_aspect_ratio(
             border,
             padding_border,
-            ratio,
             &box_sizing,
+            ratio,
             min_max_limit.min_cross_size(main_dir),
         )
         .maybe_max(css_size.height)
@@ -828,12 +837,11 @@ pub(crate) fn transfer_min_max_size<L: LengthNum>(
     }
 
     if min_max_limit.max_cross_size(main_dir).is_some() {
-        let mut max_main_size = resolve_block_size_from_aspect_ratio(
-            main_dir,
+        let mut max_main_size = resolve_height_from_aspect_ratio(
             border,
             padding_border,
-            ratio,
             &box_sizing,
+            ratio,
             min_max_limit.max_cross_size(main_dir).or_zero(),
         )
         .maybe_min(css_size.height)
@@ -848,49 +856,52 @@ pub(crate) fn transfer_min_max_size<L: LengthNum>(
     transfer_limit
 }
 
-// third_party/blink/renderer/core/layout/length_utils.cc#BlockSizeFromAspectRatio
 #[inline]
-pub(crate) fn resolve_block_size_from_aspect_ratio<L: LengthNum>(
-    main_dir: AxisDirection,
+pub(crate) fn resolve_width_from_aspect_ratio<L: LengthNum>(
     border: Edge<L>,
     padding_border: Edge<L>,
-    ratio: f32,
     box_sizing: &BoxSizing,
-    inline_size: L,
+    ratio: f32,
+    determining_size: L,
 ) -> L {
-    // (block, inline)
-    let (block_padding_border, inline_padding_border) = match main_dir {
-        AxisDirection::Vertical => (padding_border.vertical(), padding_border.horizontal()),
-        AxisDirection::Horizontal => (padding_border.horizontal(), padding_border.vertical()),
-    };
-    let (block_border, inline_border) = match main_dir {
-        AxisDirection::Vertical => (border.vertical(), border.horizontal()),
-        AxisDirection::Horizontal => (border.horizontal(), border.vertical()),
-    };
+    let (dependent_padding_border, determining_padding_border) =
+        (padding_border.horizontal(), padding_border.vertical());
+    let (dependent_border, determining_border) = (border.horizontal(), border.vertical());
     match box_sizing {
-        BoxSizing::BorderBox => match main_dir {
-            AxisDirection::Vertical => block_padding_border.max(inline_size.div_f32(ratio)),
-            AxisDirection::Horizontal => block_padding_border.max(inline_size.mul_f32(ratio)),
-        },
-        BoxSizing::PaddingBox => match main_dir {
-            AxisDirection::Vertical => {
-                (inline_size - inline_padding_border + inline_border).div_f32(ratio)
-                    + block_padding_border
-                    - block_border
-            }
-            AxisDirection::Horizontal => {
-                (inline_size - inline_padding_border + inline_border).mul_f32(ratio)
-                    + block_padding_border
-                    - block_border
-            }
-        },
-        BoxSizing::ContentBox => match main_dir {
-            AxisDirection::Vertical => {
-                (inline_size - inline_padding_border).div_f32(ratio) + block_padding_border
-            }
-            AxisDirection::Horizontal => {
-                (inline_size - inline_padding_border).mul_f32(ratio) + block_padding_border
-            }
-        },
+        BoxSizing::BorderBox => dependent_padding_border.max(determining_size.mul_f32(ratio)),
+        BoxSizing::PaddingBox => {
+            (determining_size - determining_padding_border + determining_border).mul_f32(ratio)
+                + dependent_padding_border
+                - dependent_border
+        }
+        BoxSizing::ContentBox => {
+            (determining_size - determining_padding_border).mul_f32(ratio)
+                + dependent_padding_border
+        }
+    }
+}
+
+#[inline]
+pub(crate) fn resolve_height_from_aspect_ratio<L: LengthNum>(
+    border: Edge<L>,
+    padding_border: Edge<L>,
+    box_sizing: &BoxSizing,
+    ratio: f32,
+    determining_size: L,
+) -> L {
+    let (dependent_padding_border, determining_padding_border) =
+        (padding_border.vertical(), padding_border.horizontal());
+    let (dependent_border, determining_border) = (border.vertical(), border.horizontal());
+    match box_sizing {
+        BoxSizing::BorderBox => dependent_padding_border.max(determining_size.div_f32(ratio)),
+        BoxSizing::PaddingBox => {
+            (determining_size - determining_padding_border + determining_border).div_f32(ratio)
+                + dependent_padding_border
+                - dependent_border
+        }
+        BoxSizing::ContentBox => {
+            (determining_size - determining_padding_border).div_f32(ratio)
+                + dependent_padding_border
+        }
     }
 }
