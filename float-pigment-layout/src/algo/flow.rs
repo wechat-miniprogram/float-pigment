@@ -1,6 +1,6 @@
 use crate::*;
 
-use float_pigment_css::num_traits::Zero;
+use float_pigment_css::num_traits::{Signed, Zero};
 
 enum BlockOrInlineSeries<'a, T: LayoutTreeNode> {
     Block(&'a T),
@@ -361,12 +361,78 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                         child_border,
                         child_padding_border,
                     );
+                    let aspect_ratio = child_node.style().aspect_ratio();
+                    let has_aspect_ratio = aspect_ratio.is_some() && aspect_ratio.unwrap() > 0.;
+                    if css_size.width.is_none() ^ css_size.height.is_none() && has_aspect_ratio {
+                        if css_size.height.is_none() {
+                            css_size.height = OptionNum::some(resolve_block_size_from_aspect_ratio(
+                                axis_info.dir,
+                                child_border,
+                                child_padding_border,
+                                aspect_ratio.unwrap(),
+                                &child_node.style().box_sizing(),
+                                css_size.width.val().unwrap(),
+                            ))
+                        } else {
+                            css_size.width = OptionNum::some(resolve_block_size_from_aspect_ratio(
+                                axis_info.dir,
+                                child_border,
+                                child_padding_border,
+                                aspect_ratio.unwrap(),
+                                &child_node.style().box_sizing(),
+                                css_size.height.val().unwrap(),
+                            ))
+                        }
+                    }
+                    let size_indefinite = css_size.width.is_none() && css_size.height.is_none();
+                    let stretched_cross_size = node_inner_size.cross_size(axis_info.dir)
+                        - child_margin.cross_axis_sum(axis_info.dir);
+                    if has_aspect_ratio && size_indefinite {
+                        let transfer_limit = transfer_min_max_size(
+                            aspect_ratio.unwrap(),
+                            css_size,
+                            axis_info.dir,
+                            min_max_limit,
+                            child_node.style().box_sizing(),
+                            child_border,
+                            child_padding_border,
+                        );
+                        let min_cross_size = transfer_limit.min_cross_size(axis_info.dir);
+                        let min_main_size = transfer_limit.min_main_size(axis_info.dir);
+                        let max_cross_size = transfer_limit.max_cross_size(axis_info.dir);
+                        let max_main_size = transfer_limit.max_main_size(axis_info.dir);
+                        if stretched_cross_size.is_some() {
+                            if min_cross_size.is_positive()
+                                && stretched_cross_size.or_zero() < min_cross_size
+                            {
+                                css_size
+                                    .set_cross_size(axis_info.dir, OptionNum::some(min_cross_size));
+                                css_size
+                                    .set_main_size(axis_info.dir, OptionNum::some(min_main_size));
+                            } else if max_cross_size.is_some()
+                                && stretched_cross_size.or_zero() > max_cross_size.or_zero()
+                            {
+                                css_size.set_cross_size(axis_info.dir, max_cross_size);
+                                css_size.set_main_size(axis_info.dir, max_main_size);
+                            } else {
+                                css_size.set_cross_size(axis_info.dir, stretched_cross_size);
+                                css_size.set_main_size(
+                                    axis_info.dir,
+                                    OptionNum::some(resolve_block_size_from_aspect_ratio(
+                                        axis_info.dir,
+                                        child_border,
+                                        child_padding_border,
+                                        aspect_ratio.unwrap(),
+                                        &child_node.style().box_sizing(),
+                                        stretched_cross_size.or_zero(),
+                                    )),
+                                );
+                            }
+                        }
+                    }
                     css_size.set_cross_size(
                         axis_info.dir,
-                        css_size
-                            .cross_size(axis_info.dir)
-                            .or(node_inner_size.cross_size(axis_info.dir)
-                                - child_margin.cross_axis_sum(axis_info.dir)),
+                        css_size.cross_size(axis_info.dir).or(stretched_cross_size),
                     );
                     let size = min_max_limit.normalized_size(css_size);
                     let mut max_content = OptionSize::new(OptionNum::none(), OptionNum::none());
@@ -727,5 +793,104 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
             last_baseline_ascent_option,
             collapsed_margin,
         }
+    }
+}
+
+// This implements the transferred min/max sizes per:
+// https://drafts.csswg.org/css-sizing-4/#aspect-ratio-size-transfers
+#[inline]
+pub(crate) fn transfer_min_max_size<L: LengthNum>(
+    ratio: f32,
+    css_size: OptionSize<L>,
+    main_dir: AxisDirection,
+    min_max_limit: MinMaxLimit<L>, // min/max size
+    box_sizing: BoxSizing,
+    border: Edge<L>,
+    padding_border: Edge<L>,
+) -> MinMaxLimit<L> {
+    if ratio <= 0. {
+        return min_max_limit;
+    }
+    let mut transfer_limit = min_max_limit.clone();
+
+    if min_max_limit.min_cross_size(main_dir).is_positive() {
+        let min_main_size = resolve_block_size_from_aspect_ratio(
+            main_dir,
+            border,
+            padding_border,
+            ratio,
+            &box_sizing,
+            min_max_limit.min_cross_size(main_dir),
+        )
+        .maybe_max(css_size.height)
+        .maybe_max(min_max_limit.max_height);
+        transfer_limit.set_min_main_size(min_main_size, main_dir);
+    }
+
+    if min_max_limit.max_cross_size(main_dir).is_some() {
+        let mut max_main_size = resolve_block_size_from_aspect_ratio(
+            main_dir,
+            border,
+            padding_border,
+            ratio,
+            &box_sizing,
+            min_max_limit.max_cross_size(main_dir).or_zero(),
+        )
+        .maybe_min(css_size.height)
+        .maybe_min(min_max_limit.max_height);
+        if min_max_limit.min_main_size(main_dir).is_positive() {
+            max_main_size =
+                max_main_size.maybe_max(OptionNum::some(transfer_limit.min_main_size(main_dir)));
+        }
+        transfer_limit.set_max_main_size(OptionNum::some(max_main_size), main_dir);
+    }
+
+    transfer_limit
+}
+
+// third_party/blink/renderer/core/layout/length_utils.cc#BlockSizeFromAspectRatio
+#[inline]
+pub(crate) fn resolve_block_size_from_aspect_ratio<L: LengthNum>(
+    main_dir: AxisDirection,
+    border: Edge<L>,
+    padding_border: Edge<L>,
+    ratio: f32,
+    box_sizing: &BoxSizing,
+    inline_size: L,
+) -> L {
+    // (block, inline)
+    let (block_padding_border, inline_padding_border) = match main_dir {
+        AxisDirection::Vertical => (padding_border.vertical(), padding_border.horizontal()),
+        AxisDirection::Horizontal => (padding_border.horizontal(), padding_border.vertical()),
+    };
+    let (block_border, inline_border) = match main_dir {
+        AxisDirection::Vertical => (border.vertical(), border.horizontal()),
+        AxisDirection::Horizontal => (border.horizontal(), border.vertical()),
+    };
+    match box_sizing {
+        BoxSizing::BorderBox => match main_dir {
+            AxisDirection::Vertical => block_padding_border.max(inline_size.div_f32(ratio)),
+            AxisDirection::Horizontal => block_padding_border.max(inline_size.mul_f32(ratio)),
+        },
+        BoxSizing::PaddingBox => match main_dir {
+            AxisDirection::Vertical => {
+                (inline_size - inline_padding_border + inline_border).div_f32(ratio)
+                    + block_padding_border
+                    - block_border
+            }
+            AxisDirection::Horizontal => {
+                (inline_size - inline_padding_border + inline_border).mul_f32(ratio)
+                    + block_padding_border
+                    - block_border
+            }
+        },
+        BoxSizing::ContentBox => match main_dir {
+            AxisDirection::Vertical => {
+                (inline_size - inline_padding_border).div_f32(ratio) + block_padding_border
+            }
+            AxisDirection::Horizontal => {
+                (inline_size - inline_padding_border).mul_f32(ratio) + block_padding_border
+            }
+        },
     }
 }
