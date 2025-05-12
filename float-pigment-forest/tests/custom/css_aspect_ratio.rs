@@ -310,7 +310,7 @@ pub fn aspect_ratio_in_block_width_fixed() {
         let child = as_ref(Node::new_ptr());
         child.set_width(DefLength::Points(Len::from_f32(100.)));
         child.set_height(DefLength::Auto);
-        child.set_aspect_ratio(Some(1. / 1.));
+        child.set_aspect_ratio(Some(2. / 1.));
         container.append_child(convert_node_ref_to_ptr(child));
 
         root.layout(
@@ -319,7 +319,7 @@ pub fn aspect_ratio_in_block_width_fixed() {
         );
 
         assert_eq!(child.layout_position().width, 100.);
-        assert_eq!(child.layout_position().height, 100.);
+        assert_eq!(child.layout_position().height, 50.);
     }
 }
 
@@ -335,7 +335,7 @@ pub fn aspect_ratio_in_block_height_fixed() {
         let child = as_ref(Node::new_ptr());
         child.set_width(DefLength::Auto);
         child.set_height(DefLength::Points(Len::from_f32(100.)));
-        child.set_aspect_ratio(Some(1. / 1.));
+        child.set_aspect_ratio(Some(2. / 1.));
         container.append_child(convert_node_ref_to_ptr(child));
 
         root.layout(
@@ -343,7 +343,7 @@ pub fn aspect_ratio_in_block_height_fixed() {
             Size::new(Len::from_f32(0.), Len::from_f32(0.)),
         );
 
-        assert_eq!(child.layout_position().width, 100.);
+        assert_eq!(child.layout_position().width, 200.);
         assert_eq!(child.layout_position().height, 100.);
     }
 }
