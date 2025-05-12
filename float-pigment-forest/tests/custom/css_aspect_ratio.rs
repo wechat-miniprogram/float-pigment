@@ -313,6 +313,12 @@ pub fn aspect_ratio_in_block_width_fixed() {
         child.set_aspect_ratio(Some(2. / 1.));
         container.append_child(convert_node_ref_to_ptr(child));
 
+        let child2 = as_ref(Node::new_ptr());
+        child2.set_width(DefLength::Points(Len::from_f32(100.)));
+        child2.set_height(DefLength::Auto);
+        child2.set_aspect_ratio(Some(0.5 / 1.));
+        container.append_child(convert_node_ref_to_ptr(child2));
+
         root.layout(
             OptionSize::new(OptionNum::some(Len::from_f32(400.)), OptionNum::none()),
             Size::new(Len::from_f32(0.), Len::from_f32(0.)),
@@ -320,6 +326,8 @@ pub fn aspect_ratio_in_block_width_fixed() {
 
         assert_eq!(child.layout_position().width, 100.);
         assert_eq!(child.layout_position().height, 50.);
+        assert_eq!(child2.layout_position().width, 100.);
+        assert_eq!(child2.layout_position().height, 200.);
     }
 }
 
@@ -338,6 +346,12 @@ pub fn aspect_ratio_in_block_height_fixed() {
         child.set_aspect_ratio(Some(2. / 1.));
         container.append_child(convert_node_ref_to_ptr(child));
 
+        let child2 = as_ref(Node::new_ptr());
+        child2.set_width(DefLength::Auto);
+        child2.set_height(DefLength::Points(Len::from_f32(200.)));
+        child2.set_aspect_ratio(Some(0.5 / 1.));
+        container.append_child(convert_node_ref_to_ptr(child2));
+
         root.layout(
             OptionSize::new(OptionNum::some(Len::from_f32(400.)), OptionNum::none()),
             Size::new(Len::from_f32(0.), Len::from_f32(0.)),
@@ -345,6 +359,8 @@ pub fn aspect_ratio_in_block_height_fixed() {
 
         assert_eq!(child.layout_position().width, 200.);
         assert_eq!(child.layout_position().height, 100.);
+        assert_eq!(child2.layout_position().width, 100.);
+        assert_eq!(child2.layout_position().height, 200.);
     }
 }
 
@@ -360,8 +376,19 @@ pub fn aspect_ratio_in_parent_block_cross_size_fixed() {
 
         let child = as_ref(Node::new_ptr());
         child.set_width(DefLength::Auto);
-        child.set_aspect_ratio(Some(1. / 1.));
+        child.set_aspect_ratio(Some(2. / 1.));
         container.append_child(convert_node_ref_to_ptr(child));
+
+        let container2 = as_ref(Node::new_ptr());
+        container2.set_width(DefLength::Auto);
+        container2.set_height(DefLength::Points(Len::from_f32(300.)));
+        container2.set_writing_mode(WritingMode::VerticalLr);
+        root.append_child(convert_node_ref_to_ptr(container2));
+
+        let child2 = as_ref(Node::new_ptr());
+        child2.set_width(DefLength::Auto);
+        child2.set_aspect_ratio(Some(0.5 / 1.));
+        container2.append_child(convert_node_ref_to_ptr(child2));
 
         root.layout(
             OptionSize::new(OptionNum::some(Len::from_f32(400.)), OptionNum::none()),
@@ -381,7 +408,9 @@ pub fn aspect_ratio_in_parent_block_cross_size_fixed() {
         );
 
         assert_eq!(child.layout_position().width, 300.);
-        assert_eq!(child.layout_position().height, 300.);
+        assert_eq!(child.layout_position().height, 150.);
+        assert_eq!(child2.layout_position().width, 150.);
+        assert_eq!(child2.layout_position().height, 300.);
     }
 }
 
@@ -398,7 +427,7 @@ pub fn aspect_ratio_with_min_width_constraint() {
         child.set_width(DefLength::Auto);
         child.set_height(DefLength::Auto);
         child.set_min_width(DefLength::Points(Len::from_f32(400.)));
-        child.set_aspect_ratio(Some(1. / 1.));
+        child.set_aspect_ratio(Some(2. / 1.));
         container.append_child(convert_node_ref_to_ptr(child));
 
         root.layout(
@@ -419,7 +448,7 @@ pub fn aspect_ratio_with_min_width_constraint() {
         );
 
         assert_eq!(child.layout_position().width, 400.);
-        assert_eq!(child.layout_position().height, 400.);
+        assert_eq!(child.layout_position().height, 200.);
     }
 }
 
@@ -436,7 +465,7 @@ pub fn aspect_ratio_with_max_width_constraint() {
         child.set_width(DefLength::Auto);
         child.set_height(DefLength::Auto);
         child.set_max_width(DefLength::Points(Len::from_f32(80.)));
-        child.set_aspect_ratio(Some(1. / 1.));
+        child.set_aspect_ratio(Some(2. / 1.));
         container.append_child(convert_node_ref_to_ptr(child));
 
         root.layout(
@@ -457,7 +486,7 @@ pub fn aspect_ratio_with_max_width_constraint() {
         );
 
         assert_eq!(child.layout_position().width, 80.);
-        assert_eq!(child.layout_position().height, 80.);
+        assert_eq!(child.layout_position().height, 40.);
     }
 }
 
@@ -516,7 +545,7 @@ pub fn aspect_ratio_block_size_with_box_sizing() {
         child.set_padding_left(DefLength::Points(Len::from_f32(30.)));
         child.set_border_left(DefLength::Points(Len::from_f32(20.)));
         child.set_box_sizing(BoxSizing::BorderBox);
-        child.set_aspect_ratio(Some(1. / 1.));
+        child.set_aspect_ratio(Some(2. / 1.));
         container.append_child(convert_node_ref_to_ptr(child));
 
         let child2 = as_ref(Node::new_ptr());
@@ -526,7 +555,7 @@ pub fn aspect_ratio_block_size_with_box_sizing() {
         child2.set_padding_left(DefLength::Points(Len::from_f32(30.)));
         child2.set_border_left(DefLength::Points(Len::from_f32(20.)));
         child2.set_box_sizing(BoxSizing::PaddingBox);
-        child2.set_aspect_ratio(Some(1. / 1.));
+        child2.set_aspect_ratio(Some(2. / 1.));
         container.append_child(convert_node_ref_to_ptr(child2));
 
         let child3 = as_ref(Node::new_ptr());
@@ -535,7 +564,7 @@ pub fn aspect_ratio_block_size_with_box_sizing() {
         child3.set_width(DefLength::Points(Len::from_f32(50.)));
         child3.set_padding_left(DefLength::Points(Len::from_f32(30.)));
         child3.set_border_left(DefLength::Points(Len::from_f32(20.)));
-        child3.set_aspect_ratio(Some(1. / 1.));
+        child3.set_aspect_ratio(Some(2. / 1.));
         container.append_child(convert_node_ref_to_ptr(child3));
 
         root.layout(
@@ -556,11 +585,11 @@ pub fn aspect_ratio_block_size_with_box_sizing() {
         );
 
         assert_eq!(child.layout_position().width, 50.);
-        assert_eq!(child.layout_position().height, 50.);
+        assert_eq!(child.layout_position().height, 25.);
         assert_eq!(child2.layout_position().width, 80.);
-        assert_eq!(child2.layout_position().height, 50.);
+        assert_eq!(child2.layout_position().height, 25.);
         assert_eq!(child3.layout_position().width, 100.);
-        assert_eq!(child3.layout_position().height, 50.);
+        assert_eq!(child3.layout_position().height, 25.);
     }
 }
 
@@ -581,7 +610,7 @@ pub fn aspect_ratio_block_size_with_box_sizing_and_writing_mode() {
         child.set_padding_top(DefLength::Points(Len::from_f32(30.)));
         child.set_border_top(DefLength::Points(Len::from_f32(20.)));
         child.set_box_sizing(BoxSizing::BorderBox);
-        child.set_aspect_ratio(Some(1. / 1.));
+        child.set_aspect_ratio(Some(2. / 1.));
         container.append_child(convert_node_ref_to_ptr(child));
 
         let child2 = as_ref(Node::new_ptr());
@@ -591,7 +620,7 @@ pub fn aspect_ratio_block_size_with_box_sizing_and_writing_mode() {
         child2.set_padding_top(DefLength::Points(Len::from_f32(30.)));
         child2.set_border_top(DefLength::Points(Len::from_f32(20.)));
         child2.set_box_sizing(BoxSizing::PaddingBox);
-        child2.set_aspect_ratio(Some(1. / 1.));
+        child2.set_aspect_ratio(Some(2. / 1.));
         container.append_child(convert_node_ref_to_ptr(child2));
 
         let child3 = as_ref(Node::new_ptr());
@@ -600,7 +629,7 @@ pub fn aspect_ratio_block_size_with_box_sizing_and_writing_mode() {
         child3.set_height(DefLength::Points(Len::from_f32(50.)));
         child3.set_padding_top(DefLength::Points(Len::from_f32(30.)));
         child3.set_border_top(DefLength::Points(Len::from_f32(20.)));
-        child3.set_aspect_ratio(Some(1. / 1.));
+        child3.set_aspect_ratio(Some(2. / 1.));
         container.append_child(convert_node_ref_to_ptr(child3));
 
         root.layout(
@@ -620,11 +649,11 @@ pub fn aspect_ratio_block_size_with_box_sizing_and_writing_mode() {
             )
         );
 
-        assert_eq!(child.layout_position().width, 50.);
+        assert_eq!(child.layout_position().width, 100.);
         assert_eq!(child.layout_position().height, 50.);
-        assert_eq!(child2.layout_position().width, 50.);
+        assert_eq!(child2.layout_position().width, 100.);
         assert_eq!(child2.layout_position().height, 80.);
-        assert_eq!(child3.layout_position().width, 50.);
+        assert_eq!(child3.layout_position().width, 100.);
         assert_eq!(child3.layout_position().height, 100.);
     }
 }
