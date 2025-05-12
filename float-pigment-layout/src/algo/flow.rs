@@ -366,7 +366,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                     if css_size.width.is_none() ^ css_size.height.is_none() && has_aspect_ratio {
                         if css_size.height.is_none() {
                             css_size.height = OptionNum::some(resolve_block_size_from_aspect_ratio(
-                                axis_info.dir,
+                                AxisDirection::Vertical,
                                 child_border,
                                 child_padding_border,
                                 aspect_ratio.unwrap(),
@@ -375,7 +375,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                             ))
                         } else {
                             css_size.width = OptionNum::some(resolve_block_size_from_aspect_ratio(
-                                axis_info.dir,
+                                AxisDirection::Horizontal,
                                 child_border,
                                 child_padding_border,
                                 aspect_ratio.unwrap(),
