@@ -657,3 +657,25 @@ pub fn aspect_ratio_block_size_with_box_sizing_and_writing_mode() {
         assert_eq!(child3.layout_position().height, 100.);
     }
 }
+
+#[test]
+pub fn apsect_ratio_writing_mode_streched() {
+    assert_xml!(
+        r#"
+        <div>
+            <div style="height: 400px; width: 300px;">
+              <div style="background: red; aspect-ratio: 3 / 1; min-width: 600px" expect_width="600" expect_height="200"></div>
+              <div style="background: blue; aspect-ratio: 3 / 1; max-width: 60px" expect_width="60" expect_height="20"></div>
+            </div>
+            <div style="height: 300px; width: 400px; writing-mode: vertical-lr">
+              <div style="background: red; aspect-ratio: 1 / 3; min-height: 600px" expect_width="200" expect_height="600"></div>
+              <div style="background: blue; aspect-ratio: 1 / 3; max-height: 60px" expect_width="20" expect_height="60"></div>
+            </div>
+            <div style="height: 300px; width: 400px; writing-mode: vertical-lr">
+              <div style="background: green; aspect-ratio: 3 / 1; min-height: 500px" expect_width="1500" expect_height="500"></div>
+              <div style="background: blue; aspect-ratio: 3 / 1; max-height: 90px" expect_width="270" expect_height="90"></div>
+            </div>
+        </div>
+    "#
+    )
+}

@@ -823,9 +823,13 @@ pub(crate) fn transfer_min_max_size<L: LengthNum>(
         return min_max_limit;
     }
     let mut transfer_limit = min_max_limit.clone();
+    let resolve_func = match main_dir {
+        AxisDirection::Horizontal => resolve_width_from_aspect_ratio,
+        AxisDirection::Vertical => resolve_height_from_aspect_ratio,
+    };
 
     if min_max_limit.min_cross_size(main_dir).is_positive() {
-        let min_main_size = resolve_height_from_aspect_ratio(
+        let min_main_size = resolve_func(
             border,
             padding_border,
             &box_sizing,
@@ -838,7 +842,7 @@ pub(crate) fn transfer_min_max_size<L: LengthNum>(
     }
 
     if min_max_limit.max_cross_size(main_dir).is_some() {
-        let mut max_main_size = resolve_height_from_aspect_ratio(
+        let mut max_main_size = resolve_func(
             border,
             padding_border,
             &box_sizing,
