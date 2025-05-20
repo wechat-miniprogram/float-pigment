@@ -831,8 +831,8 @@ pub(crate) fn transfer_min_max_size<L: LengthNum>(
             ratio,
             min_max_limit.min_cross_size(main_dir),
         )
-        .maybe_max(css_size.height)
-        .maybe_max(min_max_limit.max_height);
+        .maybe_max(css_size.main_size(main_dir))
+        .maybe_max(min_max_limit.max_main_size(main_dir));
         transfer_limit.set_min_main_size(min_main_size, main_dir);
     }
 
@@ -844,8 +844,8 @@ pub(crate) fn transfer_min_max_size<L: LengthNum>(
             ratio,
             min_max_limit.max_cross_size(main_dir).or_zero(),
         )
-        .maybe_min(css_size.height)
-        .maybe_min(min_max_limit.max_height);
+        .maybe_min(css_size.main_size(main_dir))
+        .maybe_min(min_max_limit.max_main_size(main_dir));
         if min_max_limit.min_main_size(main_dir).is_positive() {
             max_main_size =
                 max_main_size.maybe_max(OptionNum::some(transfer_limit.min_main_size(main_dir)));
