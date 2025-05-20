@@ -361,45 +361,46 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                         child_border,
                         child_padding_border,
                     );
-                    let aspect_ratio = child_node.style().aspect_ratio();
-                    let has_aspect_ratio = aspect_ratio.is_some() && aspect_ratio.unwrap() > 0.;
-                    if css_size.width.is_none() ^ css_size.height.is_none() && has_aspect_ratio {
-                        if css_size.height.is_none() {
-                            css_size.height = OptionNum::some(resolve_height_from_aspect_ratio(
-                                child_border,
-                                child_padding_border,
-                                &child_node.style().box_sizing(),
-                                aspect_ratio.unwrap(),
-                                css_size.width.val().unwrap(),
-                            ))
-                        } else {
-                            css_size.width = OptionNum::some(resolve_width_from_aspect_ratio(
-                                child_border,
-                                child_padding_border,
-                                &child_node.style().box_sizing(),
-                                aspect_ratio.unwrap(),
-                                css_size.height.val().unwrap(),
-                            ))
-                        }
-                    }
-                    let size_indefinite = css_size.width.is_none() && css_size.height.is_none();
                     let stretched_cross_size = node_inner_size.cross_size(axis_info.dir)
                         - child_margin.cross_axis_sum(axis_info.dir);
-                    if has_aspect_ratio && size_indefinite {
-                        let transfer_limit = transfer_min_max_size(
-                            aspect_ratio.unwrap(),
-                            css_size,
-                            axis_info.dir,
-                            min_max_limit,
-                            child_node.style().box_sizing(),
-                            child_border,
-                            child_padding_border,
-                        );
-                        let min_cross_size = transfer_limit.min_cross_size(axis_info.dir);
-                        let min_main_size = transfer_limit.min_main_size(axis_info.dir);
-                        let max_cross_size = transfer_limit.max_cross_size(axis_info.dir);
-                        let max_main_size = transfer_limit.max_main_size(axis_info.dir);
-                        if stretched_cross_size.is_some() {
+                    let aspect_ratio = child_node.style().aspect_ratio();
+                    let has_aspect_ratio = aspect_ratio.is_some() && aspect_ratio.unwrap() > 0.;
+                    if has_aspect_ratio {
+                        if css_size.width.is_none() ^ css_size.height.is_none() {
+                            if css_size.height.is_none() {
+                                css_size.height = OptionNum::some(resolve_height_from_aspect_ratio(
+                                    child_border,
+                                    child_padding_border,
+                                    &child_node.style().box_sizing(),
+                                    aspect_ratio.unwrap(),
+                                    css_size.width.val().unwrap(),
+                                ))
+                            } else {
+                                css_size.width = OptionNum::some(resolve_width_from_aspect_ratio(
+                                    child_border,
+                                    child_padding_border,
+                                    &child_node.style().box_sizing(),
+                                    aspect_ratio.unwrap(),
+                                    css_size.height.val().unwrap(),
+                                ))
+                            }
+                        } else if css_size.width.is_none()
+                            && css_size.height.is_none()
+                            && stretched_cross_size.is_some()
+                        {
+                            let transfer_limit = transfer_min_max_size(
+                                aspect_ratio.unwrap(),
+                                css_size,
+                                axis_info.dir,
+                                min_max_limit,
+                                child_node.style().box_sizing(),
+                                child_border,
+                                child_padding_border,
+                            );
+                            let min_cross_size = transfer_limit.min_cross_size(axis_info.dir);
+                            let min_main_size = transfer_limit.min_main_size(axis_info.dir);
+                            let max_cross_size = transfer_limit.max_cross_size(axis_info.dir);
+                            let max_main_size = transfer_limit.max_main_size(axis_info.dir);
                             if min_cross_size.is_positive()
                                 && stretched_cross_size.or_zero() < min_cross_size
                             {
