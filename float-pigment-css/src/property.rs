@@ -183,7 +183,6 @@ property_list! (PropertyValueWithGlobal, {
     0xe2 WxScrollbarY: ScrollbarType as Initial default Scrollbar::Auto;
     0xe3 WxScrollbarYColor: ColorType as Initial default Color::Undefined;
     0xe4 WxContain: ContainType as Initial default Contain::None;
-    0xe5 WxPaintingPixelRatio: NumberType as Initial default Number::F32(1.);
 
     0xfa CustomProperty: CustomPropertyType as Initial default CustomProperty::None;
     // considering bincode performance, the max value should be 0xfa
@@ -1326,7 +1325,6 @@ property_value_format! (PropertyValueWithGlobal, {
     _wx_scrollbar_color: {{ (WxScrollbarXColor, WxScrollbarYColor)
         = <color_repr>{1, 2} -> split_hv
     }};
-    _wx_painting_pixel_ratio: {{ WxPaintingPixelRatio = <number> }};
     _wx_line_clamp: {{ WxLineClamp = <number> }};
     _wx_contain: {{ WxContain
         = "none" => ContainType::None
