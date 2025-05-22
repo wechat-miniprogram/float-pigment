@@ -657,7 +657,7 @@ impl StyleSheetGroup {
     pub fn style_sheet_to_string(&self, sheet_index: u16) -> String {
         let sheet = self.style_sheet(sheet_index);
         if let Some(sheet) = sheet {
-            let mut ret = format!("");
+            let mut ret = String::new();
             sheet.sheets().iter().for_each(|sheet| {
                 ret.push_str(format!("{}", sheet.borrow()).as_str());
             });

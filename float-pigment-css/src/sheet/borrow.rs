@@ -460,7 +460,7 @@ impl<'de> Deserialize<'de> for SelectorFragment {
         D: serde::Deserializer<'de>,
     {
         struct SelectorFragmentVisitor;
-        
+
         impl<'de> serde::de::Visitor<'de> for SelectorFragmentVisitor {
             type Value = SelectorFragment;
 
