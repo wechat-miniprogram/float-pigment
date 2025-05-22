@@ -9,7 +9,7 @@ use utils::*;
 
 #[cfg(all(feature = "serialize_json", feature = "serialize"))]
 use float_pigment_css::compile_style_sheet_to_json;
-#[cfg(feature = "serialize")]
+#[cfg(all(feature = "serialize", feature = "deserialize"))]
 fn for_each_serialize_format(s: &str, mut f: impl FnMut(StyleSheetGroup)) {
     {
         let mut ssg = StyleSheetGroup::new();
@@ -17,21 +17,17 @@ fn for_each_serialize_format(s: &str, mut f: impl FnMut(StyleSheetGroup)) {
         ssg.append(ss);
         f(ssg);
     }
-    #[cfg(feature = "serialize_json")]
+
+    #[cfg(all(feature = "serialize_json", feature = "deserialize_json"))]
     {
-        let mut ssg = StyleSheetGroup::new();
-        let buf = compile_style_sheet_to_json("", s);
-        let mut resource = StyleSheetResource::new();
-        resource.add_json("", &buf);
-        ssg.append_from_resource(&resource, "", None);
+        use float_pigment_css::style_sheet_from_json;
+        let json = compile_style_sheet_to_json("", s);
+        let ssg = style_sheet_from_json(&json);
         f(ssg);
     }
     {
-        let mut ssg = StyleSheetGroup::new();
         let buf = float_pigment_css::compile_style_sheet_to_bincode("", s);
-        let mut resource = StyleSheetResource::new();
-        resource.add_bincode("", buf);
-        ssg.append_from_resource(&resource, "", None);
+        let ssg = float_pigment_css::style_sheet_from_bincode(buf);
         f(ssg);
     }
     {

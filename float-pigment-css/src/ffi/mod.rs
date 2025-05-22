@@ -1,6 +1,9 @@
 #![doc(hidden)]
 #![cfg(feature = "ffi")]
 
+pub mod c_ffi;
+pub mod wasm_ffi;
+
 use alloc::{
     boxed::Box,
     ffi::CString,

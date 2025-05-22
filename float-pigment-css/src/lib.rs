@@ -42,8 +42,6 @@ use alloc::{boxed::Box, vec::Vec};
 
 pub use fixed;
 pub use num_traits;
-#[cfg(feature = "wasm-entrance")]
-use wasm_bindgen::prelude::*;
 
 #[cfg(debug_assertions)]
 mod check_trait;
@@ -58,7 +56,6 @@ mod resolve_font_size;
 pub mod typing;
 mod typing_stringify;
 pub use query::{EnvValues, MediaQueryStatus, StyleQuery};
-// #[cfg(not(target_arch = "wasm32"))]
 pub mod ffi;
 pub mod length_num;
 pub mod parser;
@@ -66,29 +63,8 @@ pub mod parser;
 #[cfg(debug_assertions)]
 use check_trait::CompatibilityCheck;
 
-#[cfg(all(target_arch = "wasm32", feature = "nodejs-package"))]
-fn init_logger() {
-    use std::sync::Once;
-    static INIT: Once = Once::new();
-    INIT.call_once(|| {
-        console_log::init_with_level(log::Level::Debug).unwrap();
-    });
-}
-
-#[doc(hidden)]
-#[cfg(all(target_arch = "wasm32", feature = "nodejs-package"))]
-#[wasm_bindgen(start)]
-pub fn wasm_main() {
-    init_logger();
-    console_error_panic_hook::set_once();
-}
-
-#[doc(hidden)]
+/// Serialize CSS to the JSON format.
 #[cfg(all(feature = "serialize", feature = "serialize_json"))]
-#[cfg_attr(
-    feature = "wasm-entrance",
-    wasm_bindgen(js_name = "compileStyleSheetToJson")
-)]
 pub fn compile_style_sheet_to_json(filename: &str, style_text: &str) -> String {
     let (style_sheet, warnings) = parser::parse_style_sheet(filename, style_text);
     for w in warnings {
@@ -105,12 +81,18 @@ pub fn compile_style_sheet_to_json(filename: &str, style_text: &str) -> String {
     style_sheet.serialize_json()
 }
 
+/// Deserialize CSS from the JSON format.
+#[cfg(all(feature = "deserialize", feature = "deserialize_json"))]
+pub fn style_sheet_from_json(json: &str) -> StyleSheetGroup {
+    let mut ssg = StyleSheetGroup::new();
+    let mut resource = StyleSheetResource::new();
+    resource.add_json("", json);
+    ssg.append_from_resource(&resource, "", None);
+    ssg
+}
+
 /// Serialize CSS to the binary format.
 #[cfg(feature = "serialize")]
-#[cfg_attr(
-    feature = "wasm-entrance",
-    wasm_bindgen(js_name = "compileStyleSheetToBincode")
-)]
 pub fn compile_style_sheet_to_bincode(filename: &str, style_text: &str) -> Vec<u8> {
     let (style_sheet, warnings) = parser::parse_style_sheet(filename, style_text);
     for w in warnings {
@@ -127,12 +109,8 @@ pub fn compile_style_sheet_to_bincode(filename: &str, style_text: &str) -> Vec<u
     style_sheet.serialize_bincode()
 }
 
-/// Deserialize bincode from the binary format.
+/// Deserialize CSS from the bincode format.
 #[cfg(feature = "deserialize")]
-#[cfg_attr(
-    feature = "wasm-entrance",
-    wasm_bindgen(js_name = "styleSheetFromBincode")
-)]
 pub fn style_sheet_from_bincode(bincode: Vec<u8>) -> StyleSheetGroup {
     let ptr = Box::into_raw(bincode.into_boxed_slice());
     let mut ssg = StyleSheetGroup::new();
