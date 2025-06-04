@@ -168,7 +168,7 @@ pub trait LayoutTreeNode: Sized {
         min: Size<Self::Length>,
         max: Size<Self::Length>,
         max_content: OptionSize<Self::Length>,
-    ) -> Self::InlineUnit;
+    ) -> MeasureResult<Self::Length>;
 
     /// A notifier that the layout size of itself (or any node in the subtree) has been re-evaluated.
     ///
@@ -380,7 +380,7 @@ pub trait InlineMeasure<T: LayoutTreeNode> {
     fn block_size(
         env: &mut Self::Env,
         block_node: &T,
-        inline_nodes: Vec<(Self::InlineUnit, EdgeOption<T::Length>, Edge<T::Length>)>,
+        inline_nodes: Vec<InlineUnitMetadata<T>>,
         req_size: OptionSize<T::Length>,
         max_content_with_max_size: OptionSize<T::Length>,
         update_position: bool,
@@ -390,18 +390,21 @@ pub trait InlineMeasure<T: LayoutTreeNode> {
     );
 }
 
+/// Inline unit with some metadata.
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub struct InlineUnitMetadata<T: LayoutTreeNode> {
+    pub unit: T::InlineUnit,
+    pub margin: EdgeOption<T::Length>,
+}
+
 /// A helper type as the inline form of a tree node.
 pub trait InlineUnit<T: LayoutTreeNode> {
     /// Some custom environment data.
     type Env;
 
     /// Construct from a tree node with specified size and baseline information.
-    fn inline_block(
-        env: &mut Self::Env,
-        node: &T,
-        size: Size<T::Length>,
-        baseline_ascent: T::Length,
-    ) -> Self;
+    fn new(env: &mut Self::Env, node: &T, result: MeasureResult<T::Length>) -> Self;
 }
 
 /// The result of the measure function.
