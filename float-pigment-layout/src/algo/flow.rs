@@ -578,7 +578,10 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                         },
                                     )
                                 };
-                                InlineUnitMetadata { unit, margin: child_margin }
+                                InlineUnitMetadata {
+                                    unit,
+                                    margin: child_margin,
+                                }
                             })
                             .collect();
                         let (block_size, positions) = T::InlineMeasure::block_size(

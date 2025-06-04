@@ -8,7 +8,8 @@ use float_pigment_css::{
     },
 };
 use float_pigment_layout::{
-    DefLength, Edge, EdgeOption, InlineMeasure, InlineUnit, InlineUnitMetadata, LayoutNode, LayoutStyle, LayoutTreeNode, LayoutTreeVisitor, MeasureResult, OptionNum, OptionSize, Point, Size, Vector
+    DefLength, EdgeOption, InlineMeasure, InlineUnit, InlineUnitMetadata, LayoutNode, LayoutStyle,
+    LayoutTreeNode, LayoutTreeVisitor, MeasureResult, OptionNum, OptionSize, Point, Size, Vector,
 };
 
 use crate::{convert_node_ref_to_ptr, Length};
@@ -396,9 +397,7 @@ impl InlineMeasure<Node> for LayoutInlineMeasure {
             inline_nodes
                 .into_iter()
                 .for_each(|InlineUnitMetadata { unit, margin }| {
-                    if (current_line.total_inline_size
-                        + unit.size.width
-                        + margin.horizontal()
+                    if (current_line.total_inline_size + unit.size.width + margin.horizontal()
                         > suggested_width)
                         && !current_line.is_empty()
                     {
