@@ -649,7 +649,11 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
             let ret = T::InlineUnit::new(
                 env,
                 node,
-                MeasureResult { size, first_baseline_ascent, last_baseline_ascent },
+                MeasureResult {
+                    size,
+                    first_baseline_ascent,
+                    last_baseline_ascent,
+                },
             );
             Some(ret)
         } else {

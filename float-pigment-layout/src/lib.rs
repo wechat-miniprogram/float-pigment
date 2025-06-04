@@ -404,11 +404,7 @@ pub trait InlineUnit<T: LayoutTreeNode> {
     type Env;
 
     /// Construct from a tree node with specified size and baseline information.
-    fn new(
-        env: &mut Self::Env,
-        node: &T,
-        result: MeasureResult<T::Length>,
-    ) -> Self;
+    fn new(env: &mut Self::Env, node: &T, result: MeasureResult<T::Length>) -> Self;
 }
 
 /// The result of the measure function.
