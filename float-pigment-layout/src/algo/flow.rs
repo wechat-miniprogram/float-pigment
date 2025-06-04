@@ -645,14 +645,20 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                             parent_is_block: true,
                                         },
                                     );
-                                    T::InlineUnit::inline_block(
+                                    T::InlineUnit::new(
                                         env,
                                         child_node,
-                                        *child_res.size,
-                                        child_res.last_baseline_ascent.main_axis(axis_info.dir),
+                                        MeasureResult {
+                                            size: *child_res.size,
+                                            first_baseline_ascent: child_res.first_baseline_ascent,
+                                            last_baseline_ascent: child_res.last_baseline_ascent,
+                                        },
                                     )
                                 };
-                                (unit, child_margin, child_padding_border)
+                                InlineUnitMetadata {
+                                    unit,
+                                    margin: child_margin,
+                                }
                             })
                             .collect();
                         let (block_size, positions) = T::InlineMeasure::block_size(
