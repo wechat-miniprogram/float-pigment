@@ -617,7 +617,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                 self.css_border_box_size(node, parent_inner_size, border, padding_border);
             let min_max_limit =
                 self.normalized_min_max_limit(node, parent_inner_size, border, padding_border);
-            let ret = node.measure_inline_unit(
+            let r = node.measure_inline_unit(
                 env,
                 OptionSize::new(
                     req_size.width - padding_border.horizontal(),
@@ -637,6 +637,19 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                     max_content.width - padding_border.horizontal(),
                     max_content.height - padding_border.vertical(),
                 ),
+            );
+            let size = Size::new(
+                r.size.width + padding_border.horizontal(),
+                r.size.height + padding_border.vertical(),
+            );
+            let first_baseline_ascent =
+                r.first_baseline_ascent + Vector::new(padding_border.left, padding_border.top);
+            let last_baseline_ascent =
+                r.last_baseline_ascent + Vector::new(padding_border.left, padding_border.top);
+            let ret = T::InlineUnit::new(
+                env,
+                node,
+                MeasureResult { size, first_baseline_ascent, last_baseline_ascent },
             );
             Some(ret)
         } else {

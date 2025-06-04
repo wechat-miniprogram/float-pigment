@@ -8,8 +8,7 @@ use float_pigment_css::{
     },
 };
 use float_pigment_layout::{
-    DefLength, Edge, EdgeOption, InlineMeasure, InlineUnit, LayoutNode, LayoutStyle,
-    LayoutTreeNode, LayoutTreeVisitor, MeasureResult, OptionNum, OptionSize, Point, Size, Vector,
+    DefLength, Edge, EdgeOption, InlineMeasure, InlineUnit, InlineUnitMetadata, LayoutNode, LayoutStyle, LayoutTreeNode, LayoutTreeVisitor, MeasureResult, OptionNum, OptionSize, Point, Size, Vector
 };
 
 use crate::{convert_node_ref_to_ptr, Length};
@@ -240,22 +239,8 @@ impl LayoutTreeNode for Node {
         min: Size<Self::Length>,
         max: Size<Self::Length>,
         max_content: OptionSize<Self::Length>,
-    ) -> Self::InlineUnit {
-        let measure_res = self.measure_block_size(env, req_size, min, max, max_content, false);
-        let size = measure_res.size;
-        LayoutInlineUnit {
-            offset: Point::zero(),
-            size,
-            first_baseline_ascent: Vector::new(
-                measure_res.first_baseline_ascent.x,
-                measure_res.first_baseline_ascent.y,
-            ),
-            last_baseline_ascent: Vector::new(
-                measure_res.last_baseline_ascent.x,
-                measure_res.last_baseline_ascent.y,
-            ),
-            is_inline_block: false,
-        }
+    ) -> MeasureResult<Self::Length> {
+        self.measure_block_size(env, req_size, min, max, max_content, false)
     }
 }
 
@@ -290,7 +275,6 @@ pub struct LayoutInlineUnit {
     size: Size<Len>,
     first_baseline_ascent: Vector<Len>,
     last_baseline_ascent: Vector<Len>,
-    is_inline_block: bool,
 }
 
 impl LayoutInlineUnit {
@@ -304,26 +288,16 @@ impl LayoutInlineUnit {
             },
         )
     }
-    fn adjust_inline_size(&mut self, padding_border: Edge<Len>) {
-        if self.is_inline_block {
-            return;
-        }
-        self.size.height += padding_border.vertical();
-        self.size.width += padding_border.horizontal();
-        self.first_baseline_ascent.y += padding_border.top;
-        self.last_baseline_ascent.y += padding_border.top;
-    }
 }
 
 impl InlineUnit<Node> for LayoutInlineUnit {
     type Env = Env;
-    fn inline_block(_env: &mut Env, _node: &Node, size: Size<Len>, baseline_ascent: Len) -> Self {
+    fn new(_env: &mut Env, _node: &Node, res: MeasureResult<Len>) -> Self {
         Self {
             offset: Point::zero(),
-            size,
-            first_baseline_ascent: Vector::new(Len::zero(), baseline_ascent),
-            last_baseline_ascent: Vector::new(Len::zero(), baseline_ascent),
-            is_inline_block: true,
+            size: res.size,
+            first_baseline_ascent: res.first_baseline_ascent,
+            last_baseline_ascent: res.last_baseline_ascent,
         }
     }
 }
@@ -399,7 +373,7 @@ impl InlineMeasure<Node> for LayoutInlineMeasure {
     fn block_size(
         _env: &mut Env,
         block_node: &Node,
-        inline_nodes: Vec<(LayoutInlineUnit, EdgeOption<Len>, Edge<Len>)>,
+        inline_nodes: Vec<InlineUnitMetadata<Node>>,
         req_size: OptionSize<Len>,
         _max_content_with_max_size: OptionSize<Len>,
         _update_position: bool,
@@ -421,10 +395,9 @@ impl InlineMeasure<Node> for LayoutInlineMeasure {
         if let Some(suggested_width) = suggested_width.val() {
             inline_nodes
                 .into_iter()
-                .for_each(|(mut inline_unit, margin, padding_border)| {
-                    inline_unit.adjust_inline_size(padding_border);
+                .for_each(|InlineUnitMetadata { unit, margin }| {
                     if (current_line.total_inline_size
-                        + inline_unit.size.width
+                        + unit.size.width
                         + margin.horizontal()
                         > suggested_width)
                         && !current_line.is_empty()
@@ -434,14 +407,13 @@ impl InlineMeasure<Node> for LayoutInlineMeasure {
                         current_line = Line::default();
                         current_line.block_start = prev_line_block_start;
                     }
-                    current_line.collect_inline_unit(inline_unit, margin);
+                    current_line.collect_inline_unit(unit, margin);
                 });
         } else {
             inline_nodes
                 .into_iter()
-                .for_each(|(mut inline_unit, margin, padding_border)| {
-                    inline_unit.adjust_inline_size(padding_border);
-                    current_line.collect_inline_unit(inline_unit, margin);
+                .for_each(|InlineUnitMetadata { unit, margin }| {
+                    current_line.collect_inline_unit(unit, margin);
                 });
         }
         if !current_line.is_empty() {
