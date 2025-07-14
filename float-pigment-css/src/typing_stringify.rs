@@ -2210,8 +2210,8 @@ impl fmt::Display for Content {
         match self {
             Content::None => write!(f, "none"),
             Content::Normal => write!(f, "normal"),
-            Content::Str(x) => write!(f, "{}", x.to_string()),
-            Content::Url(x) => write!(f, "{}", x.to_string()),
+            Content::Str(x) => write!(f, "'{}'", x.to_string()),
+            Content::Url(x) => write!(f, "'{}'", x.to_string()),
         }
     }
 }
