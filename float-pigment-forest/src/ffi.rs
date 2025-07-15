@@ -1,7 +1,6 @@
 use crate::NodeType;
 use crate::{
-    node::DumpNode, node::DumpOptions, node::DumpStyleMode, ChildOperation, Len, MeasureMode, Node,
-    StyleSetter,
+    node::DumpNode, node::DumpOptions, node::DumpStyleMode, ChildOperation, Len, Node, StyleSetter,
 };
 use float_pigment_css::length_num::*;
 use float_pigment_css::property::PropertyValueWithGlobal;
@@ -12,35 +11,31 @@ use float_pigment_css::typing::{
 use float_pigment_layout::{DefLength, OptionNum};
 use std::{ffi::CString, os::raw::c_char};
 
-pub type Width = f32;
-pub type Height = f32;
-pub type Baseline = f32;
-pub type MeasureMinWidth = f32;
-pub type MeasureMinHeight = f32;
-pub type MeasureMaxWidth = f32;
-pub type MeasureMaxHeight = f32;
-pub type MeasureMaxContentWidth = f32;
-pub type MeasureMaxContentHeight = f32;
+#[cfg(not(debug_assertions))]
+extern "C" {
+    pub fn ExternalDirtyCallback(node: NodePtr);
+    pub fn ExternalGetBaseline(node: NodePtr, width: f32, height: f32) -> f32;
+    pub fn ExternalMeasure(
+        node: NodePtr,
+        max_width: f32,
+        width_mode: MeasureMode,
+        max_height: f32,
+        width_mode: MeasureMode,
+        min_width: f32,
+        min_height: f32,
+        max_content_width: f32,
+        max_content_height: f32,
+    ) -> Size;
+    pub fn ExternalResolveCalc(node: NodePtr, calc_handle: i32, owner: f32) -> f32;
+}
 
-pub type BaselineFunc = unsafe extern "C" fn(NodePtr, Width, Height) -> Baseline;
-
-pub type MeasureFunc = unsafe extern "C" fn(
-    NodePtr,
-    MeasureMaxWidth,
-    MeasureMode,
-    MeasureMaxHeight,
-    MeasureMode,
-    MeasureMinWidth,
-    MeasureMinHeight,
-    MeasureMaxContentWidth,
-    MeasureMaxContentHeight,
-) -> Size;
-
-pub type CalcHandle = i32;
-
-pub type ResolveCalc = unsafe extern "C" fn(CalcHandle, f32) -> f32;
-
-pub type DirtyCallback = unsafe extern "C" fn(NodePtr);
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub enum MeasureMode {
+    Undefined,
+    Exactly,
+    AtMost,
+}
 
 #[repr(C)]
 pub struct Size {
@@ -631,131 +626,73 @@ pub unsafe extern "C" fn NodeMarkDirtyAndPropagateToDescendants(node: NodePtr) {
 /// ```c
 /// NodeSetResolveCalc(node, resolve_calc);
 /// ```
-#[no_mangle]
-pub unsafe extern "C" fn NodeSetResolveCalc(node: NodePtr, resolve_calc: ResolveCalc) {
-    let node = &*(node as *mut Node);
-    node.set_resolve_calc(Some(Box::new(move |handle: i32, parent: Len| -> Len {
-        let parent_f32 = parent.to_f32();
-        let ret = resolve_calc(handle, parent_f32);
-        Len::from_f32(ret)
-    })));
-}
-
-pub(crate) fn convert_len_max_to_infinity(v: Len) -> f32 {
-    if v == Len::MAX {
-        f32::INFINITY
-    } else {
-        v.to_f32()
-    }
-}
+// #[no_mangle]
+// pub unsafe extern "C" fn NodeSetResolveCalc(node: NodePtr, resolve_calc: ResolveCalc) {
+//     let node = &*(node as *mut Node);
+//     node.set_resolve_calc(Some(Box::new(move |handle: i32, parent: Len| -> Len {
+//         let parent_f32 = parent.to_f32();
+//         let ret = resolve_calc(handle, parent_f32);
+//         Len::from_f32(ret)
+//     })));
+// }
 
 /// # Safety
 ///
-/// Set the measure function for a node instance.
+/// Set the is measurable of a node instance.
 ///
 /// # Arguments
 /// * `node` - Raw pointer to the Node instance
-/// * `measure_func` - Measure function
+/// * `is_measurable` - Is measurable
 ///
 /// # Example
 ///
 /// ```c
-/// NodeSetMeasureFunc(node, measure_func);
+/// NodeSetIsMeasurable(node, is_measurable);
 /// ```
 #[no_mangle]
-pub unsafe extern "C" fn NodeSetMeasureFunc(node: NodePtr, measure_func: MeasureFunc) {
+pub unsafe extern "C" fn NodeSetIsMeasurable(node: NodePtr, is_measurable: bool) {
     let node = &*(node as *mut Node);
-    node.set_measure_func(Some(Box::new(
-        move |node: *mut Node,
-              max_width: crate::node::MeasureMaxWidth,
-              width_mode: MeasureMode,
-              max_height: crate::node::MeasureMaxHeight,
-              height_mode: MeasureMode,
-              min_width: crate::node::MeasureMinWidth,
-              min_height: crate::node::MeasureMinHeight,
-              max_content_width: crate::node::MeasureMaxContentWidth,
-              max_content_height: crate::node::MeasureMaxContentHeight|
-              -> crate::node::Size<Len> {
-            measure_func(
-                node as NodePtr,
-                convert_len_max_to_infinity(max_width),
-                width_mode,
-                convert_len_max_to_infinity(max_height),
-                height_mode,
-                min_width.to_f32(),
-                min_height.to_f32(),
-                convert_len_max_to_infinity(max_content_width),
-                convert_len_max_to_infinity(max_content_height),
-            )
-            .into()
-        },
-    )));
+    node.set_is_measurable(is_measurable);
 }
 
 /// # Safety
 ///
-/// Clear the measure function for a node instance.
-///
-/// # Arguments
-/// * `node` - Raw pointer to the Node instance
-///
-/// # Example
-///
-/// ```c
-/// NodeClearMeasureFunc(node);
-/// ```
-#[no_mangle]
-pub unsafe extern "C" fn NodeClearMeasureFunc(node: NodePtr) {
-    let node = &*(node as *mut Node);
-    node.set_measure_func(None);
-}
-
-/// # Safety
-///
-/// Check if a node instance has a measure function.
+/// Get the is measurable of a node instance.
 ///
 /// # Arguments
 /// * `node` - Raw pointer to the Node instance
 ///
 /// # Returns
-/// * `bool` - True if the node has a measure function, false otherwise
+/// * `bool` - Is measurable
 ///
 /// # Example
 ///
 /// ```c
-/// NodeHasMeasureFunc(node);
+/// NodeIsMeasurable(node);
 /// ```
 #[no_mangle]
-pub unsafe extern "C" fn NodeHasMeasureFunc(node: NodePtr) -> bool {
+pub unsafe extern "C" fn NodeIsMeasurable(node: NodePtr) -> bool {
     let node = &*(node as *mut Node);
-    node.has_measure_func()
+    node.is_measurable()
 }
 
 /// # Safety
 ///
-/// Set the baseline function for a node instance.
+/// Set the has baseline of a node instance.
 ///
 /// # Arguments
 /// * `node` - Raw pointer to the Node instance
-/// * `baseline_func` - Baseline function
+/// * `has_baseline` - Has baseline
 ///
 /// # Example
 ///
 /// ```c
-/// NodeSetBaselineFunc(node, baseline_func);
+/// NodeSetHasBaseline(node, has_baseline);
 /// ```
 #[no_mangle]
-pub unsafe extern "C" fn NodeSetBaselineFunc(node: NodePtr, baseline_func: BaselineFunc) {
+pub unsafe extern "C" fn NodeSetHasBaseline(node: NodePtr, has_baseline: bool) {
     let node = &*(node as *mut Node);
-    node.set_baseline_func(Some(Box::new(
-        move |node: *mut Node, width: Len, height: Len| -> Len {
-            Len::from_f32(baseline_func(
-                node as NodePtr,
-                width.to_f32(),
-                height.to_f32(),
-            ))
-        },
-    )));
+    node.set_has_baseline(has_baseline);
 }
 
 /// # Safety
@@ -779,41 +716,21 @@ pub unsafe extern "C" fn NodeClearMeasureCache(node: NodePtr) {
 
 /// # Safety
 ///
-/// Set the dirty callback for a node instance.
+/// Set the should observe dirty of a node instance.
 ///
 /// # Arguments
 /// * `node` - Raw pointer to the Node instance
-/// * `dirty_cb` - Dirty callback
+/// * `should_observe_dirty` - Should observe dirty
 ///
 /// # Example
 ///
 /// ```c
-/// NodeSetDirtyCallback(node, dirty_cb);
+/// NodeSetShouldObserveDirty(node, should_observe_dirty);
 /// ```
 #[no_mangle]
-pub unsafe extern "C" fn NodeSetDirtyCallback(node: NodePtr, dirty_cb: DirtyCallback) {
+pub unsafe extern "C" fn NodeSetShouldObserveDirty(node: NodePtr, should_observe_dirty: bool) {
     let node = &*(node as *mut Node);
-    node.set_dirty_callback(Some(Box::new(move |node: *mut Node| {
-        dirty_cb(node as NodePtr)
-    })))
-}
-
-/// # Safety
-///
-/// Clear the dirty callback for a node instance.
-///
-/// # Arguments
-/// * `node` - Raw pointer to the Node instance
-///
-/// # Example
-///
-/// ```c
-/// NodeClearDirtyCallback(node);
-/// ```
-#[no_mangle]
-pub unsafe extern "C" fn NodeClearDirtyCallback(node: NodePtr) {
-    let node = &*(node as *mut Node);
-    node.set_dirty_callback(None);
+    node.set_should_observe_dirty(should_observe_dirty);
 }
 
 /// # Safety

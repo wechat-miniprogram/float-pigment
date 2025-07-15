@@ -341,9 +341,11 @@ pub fn measurable_inline_block_with_padding() {
         child.set_display(Display::InlineBlock);
         child.set_padding_left(DefLength::Points(Len::from_f32(12.)));
         child.set_padding_right(DefLength::Points(Len::from_f32(12.)));
-        child.set_measure_func(Some(Box::new(|_, _, _, _, _, _, _, _, _| {
-            Size::new(Len::from_f32(20.), Len::from_f32(20.))
-        })));
+        child.set_is_measurable(true);
+        set_node_measure_type(
+            convert_node_ref_to_ptr(child),
+            MeasureType::SpecifiedSize((20., 20.)),
+        );
         container.append_child(convert_node_ref_to_ptr(child));
         container.layout(
             OptionSize::new(
@@ -368,9 +370,11 @@ pub fn measurable_inline_block_with_margin() {
         child.set_display(Display::InlineBlock);
         child.set_margin_left(DefLength::Points(Len::from_f32(12.)));
         child.set_margin_right(DefLength::Points(Len::from_f32(12.)));
-        child.set_measure_func(Some(Box::new(|_, _, _, _, _, _, _, _, _| {
-            Size::new(Len::from_f32(20.), Len::from_f32(20.))
-        })));
+        set_node_measure_type(
+            convert_node_ref_to_ptr(child),
+            MeasureType::SpecifiedSize((20., 20.)),
+        );
+        child.set_is_measurable(true);
         container.append_child(convert_node_ref_to_ptr(child));
         container.layout(
             OptionSize::new(
@@ -394,9 +398,11 @@ pub fn measurable_inline_block_with_margin_2() {
         child.set_display(Display::InlineBlock);
         child.set_margin_left(DefLength::Points(Len::from_f32(12.)));
         child.set_margin_right(DefLength::Points(Len::from_f32(12.)));
-        child.set_measure_func(Some(Box::new(|_, _, _, _, _, _, _, _, _| {
-            Size::new(Len::from_f32(20.), Len::from_f32(20.))
-        })));
+        child.set_is_measurable(true);
+        set_node_measure_type(
+            convert_node_ref_to_ptr(child),
+            MeasureType::SpecifiedSize((20., 20.)),
+        );
         container.append_child(convert_node_ref_to_ptr(child));
         let child_b = as_ref(Node::new_ptr());
         child_b.set_width(DefLength::Points(Len::from_f32(25.)));
@@ -404,9 +410,11 @@ pub fn measurable_inline_block_with_margin_2() {
         child_b.set_display(Display::InlineBlock);
         child_b.set_margin_left(DefLength::Points(Len::from_f32(12.)));
         child_b.set_margin_right(DefLength::Points(Len::from_f32(12.)));
-        child_b.set_measure_func(Some(Box::new(|_, _, _, _, _, _, _, _, _| {
-            Size::new(Len::from_f32(25.), Len::from_f32(25.))
-        })));
+        child_b.set_is_measurable(true);
+        set_node_measure_type(
+            convert_node_ref_to_ptr(child_b),
+            MeasureType::SpecifiedSize((25., 25.)),
+        );
         container.append_child(convert_node_ref_to_ptr(child_b));
         container.layout(
             OptionSize::new(
