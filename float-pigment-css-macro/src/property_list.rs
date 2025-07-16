@@ -49,10 +49,10 @@ impl Parse for PropertyItem {
                 s
             })
             .collect();
-        let set_field_name = Ident::new(&format!("set_{}", field_name), enum_name.span());
-        let ref_field_name = Ident::new(&format!("{}_ref", field_name), enum_name.span());
+        let set_field_name = Ident::new(&format!("set_{field_name}"), enum_name.span());
+        let ref_field_name = Ident::new(&format!("{field_name}_ref"), enum_name.span());
         #[cfg(debug_assertions)]
-        let field_name_type = Ident::new(&format!("{}_type", field_name), enum_name.span());
+        let field_name_type = Ident::new(&format!("{field_name}_type"), enum_name.span());
         let field_name = Ident::new(&field_name, enum_name.span());
         input.parse::<Token![:]>()?;
 
@@ -530,8 +530,7 @@ impl ToTokens for PropertiesDefinition {
             } = item;
             while cur_index < *index {
                 cur_index += 1;
-                let invalid_ident =
-                    Ident::new(&format!("Invalid{:X}", cur_index), enum_name.span());
+                let invalid_ident = Ident::new(&format!("Invalid{cur_index:X}"), enum_name.span());
                 enum_fields.push(quote!(#[doc(hidden)] #[serde(rename = "_")] #invalid_ident));
             }
             cur_index += 1;

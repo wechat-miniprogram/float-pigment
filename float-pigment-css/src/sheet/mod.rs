@@ -140,8 +140,7 @@ impl CompiledStyleSheet {
                     warnings.push(Warning {
                         kind: WarningKind::RecursiveImports,
                         message: format!(
-                            "detected recursive style sheet import for {:?}",
-                            target_path
+                            "detected recursive style sheet import for {target_path:?}"
                         )
                         .into(),
                         start_line: 0,
@@ -153,7 +152,7 @@ impl CompiledStyleSheet {
             } else {
                 warnings.push(Warning {
                     kind: WarningKind::MissingImportTarget,
-                    message: format!(r#"target style sheet {:?} not found"#, target_path).into(),
+                    message: format!(r#"target style sheet {target_path:?} not found"#).into(),
                     start_line: 0,
                     start_col: 0,
                     end_line: 0,
@@ -184,8 +183,7 @@ impl CompiledStyleSheet {
         match s {
             Ok(ss) => Ok(ss.into_sheet()),
             Err(err) => Err(format!(
-                "Failed to deserialize bincode formatted style sheet: {}",
-                err
+                "Failed to deserialize bincode formatted style sheet: {err}"
             )),
         }
     }
@@ -206,8 +204,7 @@ impl CompiledStyleSheet {
                 match s {
                     Ok(ss) => Ok(ss.into_sheet()),
                     Err(err) => Err(format!(
-                        "Failed to deserialize bincode formatted style sheet: {}",
-                        err
+                        "Failed to deserialize bincode formatted style sheet: {err}"
                     )),
                 }
             },
@@ -451,13 +448,13 @@ impl core::fmt::Debug for StyleSheet {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "StyleSheet {{")?;
         for rule in self.rules.iter() {
-            write!(f, " {:?}", rule)?;
+            write!(f, " {rule:?}")?;
         }
         for font_face in self.font_face.iter() {
-            write!(f, " {:?}", font_face)?;
+            write!(f, " {font_face:?}")?;
         }
         for keyframes in self.keyframes.iter() {
-            write!(f, " {:?}", keyframes)?;
+            write!(f, " {keyframes:?}")?;
         }
         write!(f, " }}")
     }
@@ -466,13 +463,13 @@ impl core::fmt::Debug for StyleSheet {
 impl core::fmt::Display for StyleSheet {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         for rule in self.rules.iter() {
-            write!(f, " {}", rule)?;
+            write!(f, " {rule}")?;
         }
         for font_face in self.font_face.iter() {
-            write!(f, " {}", font_face)?;
+            write!(f, " {font_face}")?;
         }
         for keyframes in self.keyframes.iter() {
-            write!(f, " {}", keyframes)?;
+            write!(f, " {keyframes}")?;
         }
         Ok(())
     }

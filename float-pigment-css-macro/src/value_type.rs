@@ -45,7 +45,7 @@ impl Parse for PropertyValueType {
             let mut new_variants = parse_str::<ItemEnum>(s)?.variants;
             for i in new_variants.len()..PRESERVE_GLOBAL_VALUE_RANGE {
                 let mut empty_slot = new_variants.last().unwrap().clone();
-                empty_slot.ident = Ident::new(&format!("Invalid{:X}", i), empty_slot.ident.span());
+                empty_slot.ident = Ident::new(&format!("Invalid{i:X}"), empty_slot.ident.span());
                 empty_slot.attrs.push(parse_quote!(#[doc(hidden)]));
                 new_variants.push(empty_slot);
             }
@@ -105,7 +105,7 @@ impl ToTokens for PropertyValueType {
                     }
                 }
                 Fields::Unnamed(x) => {
-                    let names = x.unnamed.iter().enumerate().map(|(index, _)| Ident::new(&format!("_{}", index), variant_name.span())).collect::<Vec<_>>();
+                    let names = x.unnamed.iter().enumerate().map(|(index, _)| Ident::new(&format!("_{index}"), variant_name.span())).collect::<Vec<_>>();
                     quote! {
                         #original_type_name::#variant_name(#(#names),*) => #extra_type_name::#variant_name(#(#names),*),
                     }
@@ -128,7 +128,7 @@ impl ToTokens for PropertyValueType {
                     }
                 }
                 Fields::Unnamed(x) => {
-                    let names = x.unnamed.iter().enumerate().map(|(index, _)| Ident::new(&format!("_{}", index), variant_name.span())).collect::<Vec<_>>();
+                    let names = x.unnamed.iter().enumerate().map(|(index, _)| Ident::new(&format!("_{index}"), variant_name.span())).collect::<Vec<_>>();
                     quote! {
                         #extra_type_name::#variant_name(#(#names),*) => #original_type_name::#variant_name(#(#names),*),
                     }

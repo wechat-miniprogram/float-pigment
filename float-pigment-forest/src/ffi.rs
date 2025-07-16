@@ -413,14 +413,16 @@ pub unsafe extern "C" fn NodeCalculateLayout(
     viewport_height: f32,
 ) {
     let node = &*(node as *mut Node);
-    let available_width = available_width
-        .is_finite()
-        .then(|| OptionNum::some(Len::from_f32(available_width)))
-        .unwrap_or_else(crate::node::OptionNum::none);
-    let available_height = available_height
-        .is_finite()
-        .then(|| OptionNum::some(Len::from_f32(available_height)))
-        .unwrap_or_else(crate::node::OptionNum::none);
+    let available_width = if available_width.is_finite() {
+        OptionNum::some(Len::from_f32(available_width))
+    } else {
+        OptionNum::none()
+    };
+    let available_height = if available_height.is_finite() {
+        OptionNum::some(Len::from_f32(available_height))
+    } else {
+        OptionNum::none()
+    };
     node.layout(
         crate::node::OptionSize::new(available_width, available_height),
         crate::node::Size::new(
@@ -455,14 +457,16 @@ pub unsafe extern "C" fn NodeCalculateDryLayout(
     viewport_height: f32,
 ) {
     let node = &*(node as *mut Node);
-    let available_width = available_width
-        .is_finite()
-        .then(|| OptionNum::some(Len::from_f32(available_width)))
-        .unwrap_or_else(crate::node::OptionNum::none);
-    let available_height = available_height
-        .is_finite()
-        .then(|| OptionNum::some(Len::from_f32(available_height)))
-        .unwrap_or_else(crate::node::OptionNum::none);
+    let available_width = if available_width.is_finite() {
+        OptionNum::some(Len::from_f32(available_width))
+    } else {
+        OptionNum::none()
+    };
+    let available_height = if available_height.is_finite() {
+        OptionNum::some(Len::from_f32(available_height))
+    } else {
+        OptionNum::none()
+    };
     node.dry_layout(
         crate::node::OptionSize::new(available_width, available_height),
         crate::node::Size::new(
@@ -501,22 +505,26 @@ pub unsafe extern "C" fn NodeCalculateLayoutWithContainingSize(
     containing_height: f32,
 ) {
     let node = &*(node as *mut Node);
-    let available_width = available_width
-        .is_finite()
-        .then(|| OptionNum::some(Len::from_f32(available_width)))
-        .unwrap_or_else(crate::node::OptionNum::none);
-    let available_height = available_height
-        .is_finite()
-        .then(|| OptionNum::some(Len::from_f32(available_height)))
-        .unwrap_or_else(crate::node::OptionNum::none);
-    let containing_width = containing_width
-        .is_finite()
-        .then(|| OptionNum::some(Len::from_f32(containing_width)))
-        .unwrap_or_else(crate::node::OptionNum::none);
-    let containing_height = containing_height
-        .is_finite()
-        .then(|| OptionNum::some(Len::from_f32(containing_height)))
-        .unwrap_or_else(crate::node::OptionNum::none);
+    let available_width = if available_width.is_finite() {
+        OptionNum::some(Len::from_f32(available_width))
+    } else {
+        crate::node::OptionNum::none()
+    };
+    let available_height = if available_height.is_finite() {
+        OptionNum::some(Len::from_f32(available_height))
+    } else {
+        crate::node::OptionNum::none()
+    };
+    let containing_width = if containing_width.is_finite() {
+        OptionNum::some(Len::from_f32(containing_width))
+    } else {
+        crate::node::OptionNum::none()
+    };
+    let containing_height = if containing_height.is_finite() {
+        OptionNum::some(Len::from_f32(containing_height))
+    } else {
+        crate::node::OptionNum::none()
+    };
     node.layout_with_containing_size(
         crate::node::OptionSize::new(available_width, available_height),
         crate::node::Size::new(
@@ -556,22 +564,26 @@ pub unsafe extern "C" fn NodeCalculateDryLayoutWithContainingSize(
     containing_height: f32,
 ) {
     let node = &*(node as *mut Node);
-    let available_width = available_width
-        .is_finite()
-        .then(|| OptionNum::some(Len::from_f32(available_width)))
-        .unwrap_or_else(crate::node::OptionNum::none);
-    let available_height = available_height
-        .is_finite()
-        .then(|| OptionNum::some(Len::from_f32(available_height)))
-        .unwrap_or_else(crate::node::OptionNum::none);
-    let containing_width = containing_width
-        .is_finite()
-        .then(|| OptionNum::some(Len::from_f32(containing_width)))
-        .unwrap_or_else(crate::node::OptionNum::none);
-    let containing_height = containing_height
-        .is_finite()
-        .then(|| OptionNum::some(Len::from_f32(containing_height)))
-        .unwrap_or_else(crate::node::OptionNum::none);
+    let available_width = if available_width.is_finite() {
+        OptionNum::some(Len::from_f32(available_width))
+    } else {
+        crate::node::OptionNum::none()
+    };
+    let available_height = if available_height.is_finite() {
+        OptionNum::some(Len::from_f32(available_height))
+    } else {
+        crate::node::OptionNum::none()
+    };
+    let containing_width = if containing_width.is_finite() {
+        OptionNum::some(Len::from_f32(containing_width))
+    } else {
+        crate::node::OptionNum::none()
+    };
+    let containing_height = if containing_height.is_finite() {
+        OptionNum::some(Len::from_f32(containing_height))
+    } else {
+        crate::node::OptionNum::none()
+    };
     node.layout_with_containing_size(
         crate::node::OptionSize::new(available_width, available_height),
         crate::node::Size::new(
