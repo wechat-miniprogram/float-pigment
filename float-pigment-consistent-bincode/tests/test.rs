@@ -318,7 +318,7 @@ fn deserializing_errors() {
 
     match *deserialize::<String>(&invalid_str[..]).unwrap_err() {
         ErrorKind::InvalidUtf8Encoding(_) => {}
-        e => panic!("{:?}", e),
+        e => panic!("{e:?}"),
     }
 
     // Out-of-bounds variant
@@ -348,7 +348,7 @@ fn trailing_bytes() {
         .map_err(|e| *e)
     {
         Err(ErrorKind::Custom(_)) => {}
-        other => panic!("Expecting TrailingBytes, got {:?}", other),
+        other => panic!("Expecting TrailingBytes, got {other:?}"),
     }
 }
 
@@ -590,7 +590,7 @@ fn test_slicebox_serialize() {
     let slice = [1u32, 2, 3, 4, 5];
     let serialized = serialize(&Cow::Borrowed(&slice[..])).unwrap();
     #[cfg(debug_assertions)]
-    println!("{:?}", serialized);
+    println!("{serialized:?}");
     let deserialized: Cow<'static, Vec<u32>> = deserialize_from(&mut &serialized[..]).unwrap();
     {
         let sb: &[u32] = &deserialized;

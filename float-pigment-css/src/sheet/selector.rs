@@ -49,7 +49,7 @@ impl core::fmt::Display for PseudoClasses {
                     .map(|x| x.to_string())
                     .collect::<Vec<String>>()
                     .join(", ");
-                format!("not({})", selectors_str)
+                format!("not({selectors_str})")
             }
             Self::OnlyChild => "only-child".to_string(),
             Self::NthChild(a, b, selector_list) => {
@@ -65,12 +65,12 @@ impl core::fmt::Display for PseudoClasses {
                             .join(",")
                     )
                 } else {
-                    format!("nth-child({}n + {})", a, b)
+                    format!("nth-child({a}n + {b})")
                 }
             }
-            Self::NthOfType(a, b) => format!("nth-of-type({}n + {})", a, b),
+            Self::NthOfType(a, b) => format!("nth-of-type({a}n + {b})"),
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -93,7 +93,7 @@ impl core::fmt::Display for PseudoElements {
             Self::After => "after",
             Self::Selection => "selection",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -149,7 +149,7 @@ impl core::fmt::Display for Attribute {
         let mut s = self.name.to_string();
         match self.operator {
             AttributeOperator::Set => {
-                return write!(f, "{}", s);
+                return write!(f, "{s}");
             }
             AttributeOperator::Exact => s.push('='),
             AttributeOperator::List => s.push_str("~="),
@@ -164,7 +164,7 @@ impl core::fmt::Display for Attribute {
             AttributeFlags::CaseSensitive => s.push_str(" s"),
             AttributeFlags::CaseSensitivityDependsOnName => {}
         }
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -188,10 +188,10 @@ impl fmt::Display for SelectorFragment {
         if let Some(relation) = &self.relation {
             match &**relation {
                 SelectorRelationType::None => {}
-                SelectorRelationType::Ancestor(x) => write!(f, "{} ", x)?,
-                SelectorRelationType::DirectParent(x) => write!(f, "{} > ", x)?,
-                SelectorRelationType::NextSibling(x) => write!(f, "{} + ", x)?,
-                SelectorRelationType::SubsequentSibling(x) => write!(f, "{} ~ ", x)?,
+                SelectorRelationType::Ancestor(x) => write!(f, "{x} ")?,
+                SelectorRelationType::DirectParent(x) => write!(f, "{x} > ")?,
+                SelectorRelationType::NextSibling(x) => write!(f, "{x} + ")?,
+                SelectorRelationType::SubsequentSibling(x) => write!(f, "{x} ~ ")?,
             }
         }
         if !self.tag_name.is_empty() {
@@ -201,7 +201,7 @@ impl fmt::Display for SelectorFragment {
             write!(f, "#{}", self.id)?;
         }
         for class in self.classes.iter() {
-            write!(f, ".{}", class)?;
+            write!(f, ".{class}")?;
         }
         if self.pseudo_classes.is_some() {
             write!(f, ":{}", self.pseudo_classes.as_ref().unwrap())?;
@@ -211,7 +211,7 @@ impl fmt::Display for SelectorFragment {
         }
         if let Some(attributes) = self.attributes.as_ref() {
             for attr in attributes.iter() {
-                write!(f, "[{}]", attr)?;
+                write!(f, "[{attr}]")?;
             }
         }
         Ok(())
@@ -494,7 +494,7 @@ impl Selector {
                                                 } else {
                                                     sensitivity.starts_with(
                                                         element_attr_value,
-                                                        &alloc::format!("{}-", selector_attr_value),
+                                                        &alloc::format!("{selector_attr_value}-"),
                                                     )
                                                 }
                                             }

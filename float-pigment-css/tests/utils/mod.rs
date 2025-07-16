@@ -70,6 +70,7 @@ impl<'a> StyleNode for StyleQueryTest<'a> {
 }
 
 impl<'a> StyleQueryTest<'a> {
+    #[allow(clippy::too_many_arguments)]
     pub fn single(
         style_scope: Option<NonZeroUsize>,
         extra_style_scope: Option<NonZeroUsize>,

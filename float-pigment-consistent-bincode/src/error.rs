@@ -71,14 +71,14 @@ impl From<crate::io::Error> for Error {
 impl fmt::Display for ErrorKind {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            ErrorKind::Io(ref ioerr) => write!(fmt, "io error: {}", ioerr),
-            ErrorKind::InvalidUtf8Encoding(ref e) => write!(fmt, "string is not valid utf8: {}", e),
+            ErrorKind::Io(ref ioerr) => write!(fmt, "io error: {ioerr}"),
+            ErrorKind::InvalidUtf8Encoding(ref e) => write!(fmt, "string is not valid utf8: {e}"),
             ErrorKind::InvalidBoolEncoding(b) => {
-                write!(fmt, "invalid u8 while decoding bool, expected 0 or 1, found {}", b)
+                write!(fmt, "invalid u8 while decoding bool, expected 0 or 1, found {b}")
             }
             ErrorKind::InvalidCharEncoding => write!(fmt, "char is not valid"),
             ErrorKind::InvalidTagEncoding(tag) => {
-                write!(fmt, "tag for enum is not valid, found {}", tag)
+                write!(fmt, "tag for enum is not valid, found {tag}")
             }
             ErrorKind::SequenceMustHaveLength => write!(fmt, "Bincode can only encode sequences and maps that have a knowable size ahead of time"),
             ErrorKind::SizeLimit => write!(fmt, "the size limit has been reached"),

@@ -22,7 +22,7 @@ fn test_props<L: LengthNum>(
         for mr in matched_rules.rules.iter() {
             let mut ss = ".m { opacity: 0.5; }".to_string();
             for s in mr.rule.get_media_query_string_list() {
-                ss = format!("@media {} {{ {} }}", s, ss);
+                ss = format!("@media {s} {{ {ss} }}");
             }
             let ssg = test_ss(&ss);
             let classes = vec![("m".into(), None)];

@@ -222,7 +222,7 @@ impl StyleSheetResource {
             .unwrap_or_else(|| {
                 let warnings = vec![Warning {
                     kind: WarningKind::MissingImportTarget,
-                    message: format!("Target style sheet {:?} is not found.", path).into(),
+                    message: format!("Target style sheet {path:?} is not found.").into(),
                     start_line: 0,
                     start_col: 0,
                     end_line: 0,
@@ -232,7 +232,7 @@ impl StyleSheetResource {
             });
         if self.panic_on_warning {
             if let Some(w) = warnings.last() {
-                panic!("{:?}", w);
+                panic!("{w:?}");
             }
         }
         (ss, warnings)
@@ -255,7 +255,7 @@ impl StyleSheetResource {
         let (sheet, warning) = crate::parser::parse_style_sheet_with_hooks(path, source, hooks);
         if self.panic_on_warning {
             if let Some(w) = warning.last() {
-                panic!("{:?}", w);
+                panic!("{w:?}");
             }
         }
         self.add(path, sheet);
@@ -266,11 +266,7 @@ impl StyleSheetResource {
     fn deserialize_failed_warning(msg: String) -> Vec<Warning> {
         vec![Warning {
             kind: WarningKind::DeserializationFailed,
-            message: format!(
-                "failed to deserialize bincode formatted style sheet: {}",
-                msg
-            )
-            .into(),
+            message: format!("failed to deserialize bincode formatted style sheet: {msg}").into(),
             start_line: 0,
             start_col: 0,
             end_line: 0,
@@ -291,7 +287,7 @@ impl StyleSheetResource {
         };
         if self.panic_on_warning {
             if let Some(w) = ret.last() {
-                panic!("{:?}", w);
+                panic!("{w:?}");
             }
         }
         ret
@@ -325,7 +321,7 @@ impl StyleSheetResource {
         };
         if self.panic_on_warning {
             if let Some(w) = ret.last() {
-                panic!("{:?}", w);
+                panic!("{w:?}");
             }
         }
         ret
@@ -344,7 +340,7 @@ impl StyleSheetResource {
         };
         if self.panic_on_warning {
             if let Some(w) = ret.last() {
-                panic!("{:?}", w);
+                panic!("{w:?}");
             }
         }
         ret
@@ -372,7 +368,7 @@ impl StyleSheetResource {
         };
         if self.panic_on_warning {
             if let Some(w) = ret.last() {
-                panic!("{:?}", w);
+                panic!("{w:?}");
             }
         }
         ret
