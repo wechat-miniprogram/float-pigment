@@ -261,10 +261,10 @@ impl fmt::Display for Rule {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let media_queries = self.get_media_query_string_list();
         for media in media_queries.iter() {
-            write!(f, "@media {} {{ ", media)?;
+            write!(f, "@media {media} {{ ")?;
         }
         let selector = self.get_selector_string();
-        write!(f, "{} {{ ", selector)?;
+        write!(f, "{selector} {{ ")?;
         for prop in self.properties() {
             write!(
                 f,

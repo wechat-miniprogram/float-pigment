@@ -51,7 +51,7 @@ mod tests {
         let mut ctx = Context::create(None);
         ctx.parse(raw);
         if let Some(t) = ctx.tree() {
-            println!("{:?}", t);
+            println!("{t:?}");
         }
     }
 }

@@ -902,19 +902,19 @@ impl ToTokens for StyleSyntaxDefinition {
             let name = x.name.as_ref().unwrap();
             let non_standard = name.starts_with('-');
             let name_col = if non_standard {
-                format!("*`{}`*", name)
+                format!("*`{name}`*")
             } else {
-                format!("`{}`", name)
+                format!("`{name}`")
             };
             let mut doc_col = String::new();
             let mut options_col = vec![];
             if let StyleSyntaxValueItem::Assign(variant, v) = &x.value {
-                doc_col = format!("[Property::{}]", variant);
+                doc_col = format!("[Property::{variant}]");
                 if let StyleSyntaxValueItem::Branch(branches) = &**v {
                     for item in branches {
                         if let StyleSyntaxValueItem::Convert(v, _) = item {
                             if let StyleSyntaxValueItem::MatchIdent(s) = &**v {
-                                options_col.push(format!("`{}`", s));
+                                options_col.push(format!("`{s}`"));
                             }
                         }
                     }

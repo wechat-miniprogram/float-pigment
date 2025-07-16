@@ -23,7 +23,7 @@ fn file_creator(
     path_buffer.push(std::env::var("CARGO_MANIFEST_DIR").unwrap());
     path_buffer.push(Path::new(CACHE_ROOT));
     path_buffer.push(Path::new(folder));
-    path_buffer.push(Path::new(&format!("{}.{}", name, extension)));
+    path_buffer.push(Path::new(&format!("{name}.{extension}")));
     let mut options = OpenOptions::new();
     let file = options
         .read(true)
@@ -287,7 +287,7 @@ pub(crate) fn compare_enum_cache(
     }
     let enum_name = match mod_name {
         Some(n) => {
-            format!("{}_{}", n, name)
+            format!("{n}_{name}")
         }
         None => name,
     };
@@ -448,10 +448,7 @@ pub(crate) fn compare_enum_cache(
         let mut file = file_creator("enum", &enum_name, EXTENSION, true, true).unwrap();
         file.write_all(next_cache_toml.as_bytes())
             .unwrap_or_else(|_| {
-                panic!(
-                    "[CompatibilityEnumCheck] {:?}.{:?}: write cache error",
-                    enum_name, EXTENSION
-                )
+                panic!("[CompatibilityEnumCheck] {enum_name:?}.{EXTENSION:?}: write cache error")
             });
     }
 
@@ -501,7 +498,7 @@ pub(crate) fn compare_struct_cache(
         token,
     } = input;
     let struct_name = match mod_name {
-        Some(n) => format!("{}_{}", n, name),
+        Some(n) => format!("{n}_{name}"),
         None => name,
     };
     // open or create cache
@@ -539,8 +536,7 @@ pub(crate) fn compare_struct_cache(
                     return Err(Error::new(
                         Span::call_site(),
                         format!(
-                            "[CompatibilityStructCheck: 2001] struct {:?}, cache_fields: {:?}, cur_fields: {:?}, idx: {:?}",
-                            struct_name, prev, next, idx
+                            "[CompatibilityStructCheck: 2001] struct {struct_name:?}, cache_fields: {prev:?}, cur_fields: {next:?}, idx: {idx:?}"
                         )
                     ));
                 }
@@ -553,8 +549,7 @@ pub(crate) fn compare_struct_cache(
         file.write_all(next_cache_toml.as_bytes())
             .unwrap_or_else(|_| {
                 panic!(
-                    "[CompatibilityStructCheck] {:?}.{:?}: write cache error",
-                    struct_name, EXTENSION
+                    "[CompatibilityStructCheck] {struct_name:?}.{EXTENSION:?}: write cache error"
                 )
             });
     }

@@ -21,17 +21,17 @@ impl core::fmt::Display for FontFace {
         write!(f, " font-family: {};", self.font_family)?;
         write!(f, " src: ")?;
         for src in &self.src {
-            write!(f, "{}, ", src)?;
+            write!(f, "{src}, ")?;
         }
         write!(f, ";")?;
         if let Some(fs) = &self.font_style {
-            write!(f, " font-style: {};", fs)?;
+            write!(f, " font-style: {fs};")?;
         }
         if let Some(fw) = &self.font_weight {
-            write!(f, " font-weight: {};", fw)?;
+            write!(f, " font-weight: {fw};")?;
         }
         if let Some(fd) = &self.font_display {
-            write!(f, " font-display: {};", fd)?;
+            write!(f, " font-display: {fd};")?;
         }
         write!(f, "}}")
     }
@@ -47,12 +47,12 @@ pub enum FontSrc {
 impl core::fmt::Display for FontSrc {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Self::Local(ff) => write!(f, r#"local("{}")"#, ff),
+            Self::Local(ff) => write!(f, r#"local("{ff}")"#),
             Self::Url(url) => {
                 write!(f, r#"url("{}")"#, url.url)?;
                 if let Some(formats) = &url.format {
                     for format in formats {
-                        write!(f, r#" format("{}")"#, format)?;
+                        write!(f, r#" format("{format}")"#)?;
                     }
                 }
                 Ok(())

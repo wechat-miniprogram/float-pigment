@@ -149,7 +149,7 @@ impl ToTokens for DeriveResolveFontSize {
                                 .unnamed
                                 .iter()
                                 .enumerate()
-                                .map(|(i, x)| Ident::new(&format!("a{}", i), x.ty.span()))
+                                .map(|(i, x)| Ident::new(&format!("a{i}"), x.ty.span()))
                                 .collect();
                             let resolve_fn = find_resolve_fn_list(&x.unnamed)
                                 .into_iter()

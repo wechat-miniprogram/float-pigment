@@ -133,7 +133,7 @@ impl DumpNode for Node {
             Display::InlineFlex => "InlineFlex".into(),
         };
         if self.has_measure_func() {
-            tag = format!("Measurable{}", tag);
+            tag = format!("Measurable{tag}");
         }
         if let Some(children) = children {
             if let Some(style) = style {

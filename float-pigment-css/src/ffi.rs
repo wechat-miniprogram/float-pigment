@@ -606,8 +606,7 @@ pub unsafe extern "C" fn style_sheet_import_index_add_bincode(
                     let w = vec![Warning {
                         kind: WarningKind::DeserializationFailed,
                         message: format!(
-                            "failed to deserialize bincode formatted style sheet: {}",
-                            err
+                            "failed to deserialize bincode formatted style sheet: {err}"
                         )
                         .into(),
                         start_line: 0,
@@ -1100,11 +1099,8 @@ pub unsafe extern "C" fn style_sheet_bincode_version(
                     let mut ss = StyleSheet::from_sheet(&sheet::CompiledStyleSheet::new());
                     if let StyleSheet::V1(ssv) = &mut ss {
                         ssv.version = Box::new(
-                            format!(
-                                "Failed to deserialize bincode formatted style sheet: {}",
-                                err
-                            )
-                            .into(),
+                            format!("Failed to deserialize bincode formatted style sheet: {err}")
+                                .into(),
                         );
                     }
                     ss
