@@ -211,13 +211,11 @@ impl LayoutTreeNode for Node {
                 }
             }
         }
-        if !baseline_from_cache {
-            if self.has_baseline() {
-                if let Some(res) = self.get_baseline(size.width, size.height) {
-                    baseline = Vector::new(Len::zero(), res);
-                    if let Some(cache) = unsafe { self.baseline_cache() }.as_mut() {
-                        cache.put(Size::new(size.width, size.height), res);
-                    }
+        if !baseline_from_cache && self.has_baseline() {
+            if let Some(res) = self.get_baseline(size.width, size.height) {
+                baseline = Vector::new(Len::zero(), res);
+                if let Some(cache) = unsafe { self.baseline_cache() }.as_mut() {
+                    cache.put(Size::new(size.width, size.height), res);
                 }
             }
         }

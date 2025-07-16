@@ -199,7 +199,7 @@ fn resolve_relative_path(
         return absolute_path;
     }
     if let Some(s) = absolute_path.strip_suffix(input_extension) {
-        return format!("{}{}", s, output_extension);
+        return format!("{s}{output_extension}");
     }
     if absolute_path.ends_with(output_extension) {
         return absolute_path;
@@ -546,7 +546,7 @@ fn parse_at_keyword_block<'a, 't: 'a, 'i: 't>(
             parse_to_block_end(parser, false, st);
             st.add_warning_with_message(
                 WarningKind::UnknownAtBlock,
-                format!(r#"unsupported @{} block"#, key),
+                format!(r#"unsupported @{key} block"#),
                 start,
                 parser.current_source_location(),
             );

@@ -518,7 +518,7 @@ fn pseudo_classes_selector() {
             }
         "#,
     );
-    println!("{:?}", ss);
+    println!("{ss:?}");
 }
 
 #[test]

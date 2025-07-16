@@ -26,7 +26,7 @@ pub(crate) fn get_baseline_impl(node: &Node, width: Len, height: Len) -> Option<
     #[allow(unused_unsafe)]
     unsafe {
         let baseline = ExternalGetBaseline(
-            convert_node_ref_to_ptr(&node) as crate::ffi::NodePtr,
+            convert_node_ref_to_ptr(node) as crate::ffi::NodePtr,
             width.to_f32(),
             height.to_f32(),
         );
@@ -37,10 +37,11 @@ pub(crate) fn get_baseline_impl(node: &Node, width: Len, height: Len) -> Option<
 pub(crate) fn dirty_callback_impl(node: &Node) {
     #[allow(unused_unsafe)]
     unsafe {
-        ExternalDirtyCallback(convert_node_ref_to_ptr(&node) as crate::ffi::NodePtr)
+        ExternalDirtyCallback(convert_node_ref_to_ptr(node) as crate::ffi::NodePtr)
     };
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn measure_impl(
     node: &Node,
     max_width: Len,
@@ -55,7 +56,7 @@ pub(crate) fn measure_impl(
     #[allow(unused_unsafe)]
     unsafe {
         let size = ExternalMeasure(
-            convert_node_ref_to_ptr(&node) as crate::ffi::NodePtr,
+            convert_node_ref_to_ptr(node) as crate::ffi::NodePtr,
             to_f32_with_max_to_infinity(max_width),
             width_mode,
             to_f32_with_max_to_infinity(max_height),
@@ -76,7 +77,7 @@ pub(crate) fn resolve_calc_impl(node: &Node, calc_handle: i32, owner: Len) -> Le
     #[allow(unused_unsafe)]
     unsafe {
         Len::from_f32(ExternalResolveCalc(
-            convert_node_ref_to_ptr(&node) as crate::ffi::NodePtr,
+            convert_node_ref_to_ptr(node) as crate::ffi::NodePtr,
             calc_handle,
             owner.to_f32(),
         ))
@@ -124,22 +125,19 @@ pub mod mock_external {
                 measured_height = (col_count * self.font_size) as i32 as f32;
             }
             println!(
-                "text_info: {:?}, width: {:?} ~ {:?}, height: {:?} ~ {:?}, max_content_width: {:?}, max_content_height: {:?}, measured_width: {:?}, measured_height: {:?}",
-                self,
-                min_width,
-                max_width,
-                min_height,
-                max_height,
-                max_content_width,
-                max_content_height,
-                measured_width,
-                measured_height,
+                "text_info: {self:?}, width: {min_width:?} ~ {max_width:?}, height: {min_height:?} ~ {max_height:?}, max_content_width: {max_content_width:?}, max_content_height: {max_content_height:?}, measured_width: {measured_width:?}, measured_height: {measured_height:?}"
             );
             (measured_width, measured_height.min(max_h))
         }
     }
 
     pub struct TextInfoBuilder(TextInfo);
+
+    impl Default for TextInfoBuilder {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
 
     impl TextInfoBuilder {
         pub fn new() -> Self {
@@ -173,6 +171,7 @@ pub mod mock_external {
     pub enum MeasureType {
         Text(TextInfo),
         SpecifiedSize((f32, f32)),
+        #[allow(clippy::type_complexity)]
         Custom(
             Box<
                 dyn Fn(&Node, f32, MeasureMode, f32, MeasureMode, f32, f32, f32, f32) -> (f32, f32),
@@ -208,6 +207,7 @@ pub mod mock_external {
         res
     }
 
+    #[allow(clippy::too_many_arguments)]
     #[allow(non_snake_case)]
     pub(crate) fn ExternalMeasure(
         node: *mut (),
@@ -237,10 +237,7 @@ pub mod mock_external {
                             max_content_width,
                             max_content_height,
                         );
-                        res = crate::ffi::Size {
-                            width: width,
-                            height: height,
-                        };
+                        res = crate::ffi::Size { width, height };
                     }
                     MeasureType::SpecifiedSize((width, height)) => {
                         res = crate::ffi::Size {

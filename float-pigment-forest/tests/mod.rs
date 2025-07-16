@@ -500,7 +500,7 @@ impl TestCtx {
         });
 
         warnings.iter().for_each(|w| {
-            println!("{:?}", w);
+            println!("{w:?}");
         });
     }
 }

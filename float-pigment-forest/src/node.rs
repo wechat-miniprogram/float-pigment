@@ -104,7 +104,7 @@ impl DumpNode for Node {
             Display::InlineFlex => "InlineFlex".into(),
         };
         if self.is_measurable() {
-            tag = format!("Measurable{}", tag);
+            tag = format!("Measurable{tag}");
         }
         if let Some(children) = children {
             if let Some(style) = style {
@@ -250,6 +250,7 @@ impl Node {
         }
     }
 
+    #[allow(clippy::mut_from_ref)]
     #[inline(always)]
     pub(crate) unsafe fn measure_cache(&self) -> Option<&mut MeasureCache> {
         if self.node_type() != NodeType::Text {
@@ -264,6 +265,7 @@ impl Node {
         }
     }
 
+    #[allow(clippy::mut_from_ref)]
     #[inline(always)]
     pub(crate) unsafe fn baseline_cache(&self) -> Option<&mut BaselineCache> {
         if self.node_type() != NodeType::Text {
@@ -303,6 +305,7 @@ impl Node {
         self.is_measurable.get()
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn measure(
         &self,
         max_width: Len,

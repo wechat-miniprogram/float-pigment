@@ -43,7 +43,7 @@ impl ParseInput {
                 if let Some(prop_name) = field.ident {
                     if let Type::Path(tp) = field.ty {
                         if let Some(segment) = tp.path.segments.last() {
-                            let func = Ident::new(&format!("set_{}", prop_name), prop_name.span());
+                            let func = Ident::new(&format!("set_{prop_name}"), prop_name.span());
                             props_setter.append_all(quote! {
                                 #[allow(unused)]
                                 pub(crate) fn #func(&mut self, value: #segment) -> bool {

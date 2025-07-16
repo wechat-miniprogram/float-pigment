@@ -17,7 +17,7 @@ fn create_random_selector() -> String {
         .take(30)
         .map(char::from)
         .collect();
-    format!(".{}", random_string)
+    format!(".{random_string}")
 }
 
 fn random_rules_in_selectors(rules_times: i32, selector_times: i32) -> String {
