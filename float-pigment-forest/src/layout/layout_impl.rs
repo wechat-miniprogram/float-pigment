@@ -12,11 +12,12 @@ use float_pigment_layout::{
     LayoutTreeNode, LayoutTreeVisitor, MeasureResult, OptionNum, OptionSize, Point, Size, Vector,
 };
 
-use crate::{convert_node_ref_to_ptr, Length};
+use crate::ffi::MeasureMode;
+use crate::Length;
 use crate::{
     env::Env,
     node::{ChildOperation, Node},
-    Len, MeasureMode, NodeType,
+    Len, NodeType,
 };
 
 fn is_specified(x: Len) -> bool {
@@ -53,15 +54,12 @@ impl LayoutTreeNode for Node {
         custom: &Self::LengthCustom,
         owner: Self::Length,
     ) -> Self::Length {
-        if let Some(func) = self.resolve_calc() {
-            return func(*custom, owner);
-        };
-        Len::zero()
+        self.resolve_calc(*custom, owner)
     }
 
     #[inline]
     fn should_measure(&self, _env: &mut Self::Env) -> bool {
-        self.has_measure_func()
+        self.is_measurable()
     }
 
     #[inline]
@@ -101,72 +99,69 @@ impl LayoutTreeNode for Node {
             }
         }
         if !skip_measure {
-            if let Some(func) = unsafe { self.measure_func() } {
-                let mut width_measure_mode = MeasureMode::AtMost;
-                let mut height_measure_mode = MeasureMode::AtMost;
-                let (min_width, max_width) = if let Some(req_size_width) = req_size.width.val() {
-                    let min_width = req_size_width;
-                    let max_width = req_size_width;
-                    width_measure_mode = MeasureMode::Exactly;
-                    (min_width, max_width)
+            let mut width_measure_mode = MeasureMode::AtMost;
+            let mut height_measure_mode = MeasureMode::AtMost;
+            let (min_width, max_width) = if let Some(req_size_width) = req_size.width.val() {
+                let min_width = req_size_width;
+                let max_width = req_size_width;
+                width_measure_mode = MeasureMode::Exactly;
+                (min_width, max_width)
+            } else {
+                let min_width = if !is_specified(min.width) {
+                    Len::zero()
                 } else {
-                    let min_width = if !is_specified(min.width) {
-                        Len::zero()
-                    } else {
-                        min.width
-                    };
-                    let max_width = max.width;
-                    (min_width, max_width)
+                    min.width
                 };
-                let (min_height, max_height) = if let Some(req_size_height) = req_size.height.val()
-                {
-                    let min_height = req_size_height;
-                    let max_height = req_size_height;
-                    height_measure_mode = MeasureMode::Exactly;
-                    (min_height, max_height)
+                let max_width = max.width;
+                (min_width, max_width)
+            };
+            let (min_height, max_height) = if let Some(req_size_height) = req_size.height.val() {
+                let min_height = req_size_height;
+                let max_height = req_size_height;
+                height_measure_mode = MeasureMode::Exactly;
+                (min_height, max_height)
+            } else {
+                let min_height = if !is_specified(min.height) {
+                    Len::zero()
                 } else {
-                    let min_height = if !is_specified(min.height) {
-                        Len::zero()
-                    } else {
-                        min.height
-                    };
-                    let max_height = max.height;
-                    (min_height, max_height)
+                    min.height
                 };
-                let mut size_from_cache = false;
-                if self.node_type() == NodeType::Text {
-                    if let Some(cache) = unsafe { self.measure_cache() }.as_mut() {
-                        if let Some(size_cache) = cache.get(&(
-                            OptionSize::new(
-                                OptionNum::some(min_width).to_hashable(),
-                                OptionNum::some(min_height).to_hashable(),
-                            ),
-                            OptionSize::new(
-                                OptionNum::some(max_width).to_hashable(),
-                                OptionNum::some(max_height).to_hashable(),
-                            ),
-                            OptionSize::new(
-                                max_content.width.to_hashable(),
-                                max_content.height.to_hashable(),
-                            ),
-                        )) {
-                            size = *size_cache;
-                            size_from_cache = true;
-                        }
+                let max_height = max.height;
+                (min_height, max_height)
+            };
+            let mut size_from_cache = false;
+            if self.node_type() == NodeType::Text {
+                if let Some(cache) = unsafe { self.measure_cache() }.as_mut() {
+                    if let Some(size_cache) = cache.get(&(
+                        OptionSize::new(
+                            OptionNum::some(min_width).to_hashable(),
+                            OptionNum::some(min_height).to_hashable(),
+                        ),
+                        OptionSize::new(
+                            OptionNum::some(max_width).to_hashable(),
+                            OptionNum::some(max_height).to_hashable(),
+                        ),
+                        OptionSize::new(
+                            max_content.width.to_hashable(),
+                            max_content.height.to_hashable(),
+                        ),
+                    )) {
+                        size = *size_cache;
+                        size_from_cache = true;
                     }
                 }
-                if !size_from_cache {
-                    let measure_size = func(
-                        convert_node_ref_to_ptr(self),
-                        max_width,
-                        width_measure_mode,
-                        max_height,
-                        height_measure_mode,
-                        min_width,
-                        min_height,
-                        max_content.width.unwrap_or(max_width),
-                        max_content.height.unwrap_or(max_height),
-                    );
+            }
+            if !size_from_cache {
+                if let Some(measure_size) = self.measure(
+                    max_width,
+                    width_measure_mode,
+                    max_height,
+                    height_measure_mode,
+                    min_width,
+                    min_height,
+                    max_content.width.unwrap_or(max_width),
+                    max_content.height.unwrap_or(max_height),
+                ) {
                     let width = if is_specified(measure_size.width) {
                         measure_size.width
                     } else {
@@ -204,7 +199,7 @@ impl LayoutTreeNode for Node {
                         }
                     }
                 }
-            };
+            }
         }
         let mut baseline = size.to_vector();
         let mut baseline_from_cache = false;
@@ -216,12 +211,11 @@ impl LayoutTreeNode for Node {
                 }
             }
         }
-        if !baseline_from_cache {
-            if let Some(func) = unsafe { self.baseline_func() } {
-                let ret = func(convert_node_ref_to_ptr(self), size.width, size.height);
-                baseline = Vector::new(Len::zero(), ret);
+        if !baseline_from_cache && self.has_baseline() {
+            if let Some(res) = self.get_baseline(size.width, size.height) {
+                baseline = Vector::new(Len::zero(), res);
                 if let Some(cache) = unsafe { self.baseline_cache() }.as_mut() {
-                    cache.put(Size::new(size.width, size.height), ret);
+                    cache.put(Size::new(size.width, size.height), res);
                 }
             }
         }

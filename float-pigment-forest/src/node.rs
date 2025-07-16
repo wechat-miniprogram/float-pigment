@@ -1,3 +1,5 @@
+use crate::external::{dirty_callback_impl, get_baseline_impl, measure_impl, resolve_calc_impl};
+use crate::ffi::MeasureMode;
 use crate::{env::Env, layout::LayoutPosition, style::StyleManager};
 use float_pigment_css::typing::{
     AlignContent, AlignItems, AlignSelf, BoxSizing, Direction, FlexDirection, FlexWrap,
@@ -21,7 +23,7 @@ pub type NodePtr = *mut Node;
 
 #[inline(always)]
 pub fn convert_node_ref_to_ptr(node: &Node) -> NodePtr {
-    node as *const Node as *mut Node
+    node as *const Node as NodePtr
 }
 
 #[inline(always)]
@@ -31,29 +33,6 @@ pub unsafe fn get_ref_from_node_ptr(node_ptr: NodePtr) -> &'static Node {
 }
 
 pub type ExternalHostPtr = *mut ();
-
-pub(crate) type MeasureMinWidth = Len;
-pub(crate) type MeasureMinHeight = Len;
-pub(crate) type MeasureMaxWidth = Len;
-pub(crate) type MeasureMaxHeight = Len;
-pub(crate) type MeasureMaxContentWidth = Len;
-pub(crate) type MeasureMaxContentHeight = Len;
-
-pub(crate) type MeasureFn<L> = dyn Fn(
-    NodePtr,
-    MeasureMaxWidth,
-    MeasureMode,
-    MeasureMaxHeight,
-    MeasureMode,
-    MeasureMinWidth,
-    MeasureMinHeight,
-    MeasureMaxContentWidth,
-    MeasureMaxContentHeight,
-) -> Size<L>;
-
-pub(crate) type BaselineFn<L> = dyn Fn(NodePtr, L, L) -> L;
-pub(crate) type ResolveCalcFn<L> = dyn Fn(i32, L) -> L;
-pub(crate) type DirtyCallbackFn = dyn Fn(NodePtr);
 
 pub(crate) type MeasureCacheKeyMinSize = OptionSize<<Len as LengthNum>::Hashable>;
 pub(crate) type MeasureCacheKeyMaxSize = OptionSize<<Len as LengthNum>::Hashable>;
@@ -69,14 +48,6 @@ pub(crate) type MeasureCache = LruCache<
 pub(crate) type BaselineCache = LruCache<Size<<Len as LengthNum>::Hashable>, Len>;
 
 const CACHE_SIZE: usize = 3;
-
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub enum MeasureMode {
-    Undefined,
-    Exactly,
-    AtMost,
-}
 
 #[derive(Copy, Clone, Debug)]
 pub struct DumpOptions {
@@ -132,7 +103,7 @@ impl DumpNode for Node {
             Display::Grid => "Grid".into(),
             Display::InlineFlex => "InlineFlex".into(),
         };
-        if self.has_measure_func() {
+        if self.is_measurable() {
             tag = format!("Measurable{tag}");
         }
         if let Some(children) = children {
@@ -186,6 +157,9 @@ pub enum NodeType {
 pub struct Node {
     node_type: Cell<NodeType>,
     is_dirty: Cell<bool>,
+    should_observe_dirty: Cell<bool>,
+    has_baseline: Cell<bool>,
+    is_measurable: Cell<bool>,
     external_host: Cell<ExternalHostPtr>,
     parent: Cell<NodePtr>,
     children: RefCell<Vec<NodePtr>>,
@@ -193,10 +167,6 @@ pub struct Node {
     pub(crate) layout_node: LayoutNode<Node>,
     measure_cache: UnsafeCell<Option<Box<MeasureCache>>>,
     baseline_cache: UnsafeCell<Option<Box<BaselineCache>>>,
-    baseline_func: UnsafeCell<Option<Box<BaselineFn<Len>>>>,
-    measure_func: UnsafeCell<Option<Box<MeasureFn<Len>>>>,
-    resolve_calc: UnsafeCell<Option<Box<ResolveCalcFn<Len>>>>,
-    dirty_callback: UnsafeCell<Option<Box<DirtyCallbackFn>>>,
 }
 
 impl Node {
@@ -209,12 +179,11 @@ impl Node {
             style_manager: RefCell::new(StyleManager::new()),
             layout_node: LayoutNode::new(),
             is_dirty: Cell::new(true),
-            baseline_func: UnsafeCell::new(None),
-            measure_func: UnsafeCell::new(None),
-            resolve_calc: UnsafeCell::new(None),
-            dirty_callback: UnsafeCell::new(None),
             measure_cache: UnsafeCell::new(None),
             baseline_cache: UnsafeCell::new(None),
+            should_observe_dirty: Cell::new(false),
+            has_baseline: Cell::new(false),
+            is_measurable: Cell::new(false),
         }
     }
     pub fn new_typed(node_type: NodeType) -> Self {
@@ -281,6 +250,7 @@ impl Node {
         }
     }
 
+    #[allow(clippy::mut_from_ref)]
     #[inline(always)]
     pub(crate) unsafe fn measure_cache(&self) -> Option<&mut MeasureCache> {
         if self.node_type() != NodeType::Text {
@@ -295,6 +265,7 @@ impl Node {
         }
     }
 
+    #[allow(clippy::mut_from_ref)]
     #[inline(always)]
     pub(crate) unsafe fn baseline_cache(&self) -> Option<&mut BaselineCache> {
         if self.node_type() != NodeType::Text {
@@ -311,51 +282,68 @@ impl Node {
     pub(crate) fn node_type(&self) -> NodeType {
         self.node_type.get()
     }
-    pub(crate) unsafe fn baseline_func(&self) -> Option<&BaselineFn<Len>> {
-        (*self.baseline_func.get()).as_deref()
+    pub(crate) fn has_baseline(&self) -> bool {
+        self.has_baseline.get()
     }
-    pub unsafe fn set_baseline_func(&self, baseline_func: Option<Box<BaselineFn<Len>>>) {
-        drop(std::mem::replace(
-            &mut *self.baseline_func.get(),
-            baseline_func,
-        ));
+
+    pub fn set_has_baseline(&self, has_baseline: bool) {
+        self.has_baseline.set(has_baseline);
     }
-    pub unsafe fn has_baseline_func(&self) -> bool {
-        (*self.baseline_func.get()).is_some()
+
+    pub(crate) fn get_baseline(&self, width: Len, height: Len) -> Option<Len> {
+        if !self.has_baseline() {
+            return None;
+        }
+        get_baseline_impl(self, width, height)
     }
-    pub(crate) unsafe fn measure_func(&self) -> Option<&MeasureFn<Len>> {
-        (*self.measure_func.get()).as_deref()
+
+    pub fn set_is_measurable(&self, is_measurable: bool) {
+        self.is_measurable.set(is_measurable);
     }
-    pub fn set_measure_func(&self, measure_func: Option<Box<MeasureFn<Len>>>) {
-        drop(std::mem::replace(
-            unsafe { &mut *self.measure_func.get() },
-            measure_func,
-        ));
+
+    pub fn is_measurable(&self) -> bool {
+        self.is_measurable.get()
     }
-    pub fn has_measure_func(&self) -> bool {
-        unsafe { (*self.measure_func.get()).is_some() }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn measure(
+        &self,
+        max_width: Len,
+        width_mode: MeasureMode,
+        max_height: Len,
+        height_mode: MeasureMode,
+        min_width: Len,
+        min_height: Len,
+        max_content_width: Len,
+        max_content_height: Len,
+    ) -> Option<Size<Len>> {
+        if !self.is_measurable() {
+            return None;
+        }
+        measure_impl(
+            self,
+            max_width,
+            width_mode,
+            max_height,
+            height_mode,
+            min_width,
+            min_height,
+            max_content_width,
+            max_content_height,
+        )
     }
-    pub(crate) fn resolve_calc(&self) -> Option<&ResolveCalcFn<Len>> {
-        unsafe { (*self.resolve_calc.get()).as_deref() }
+
+    pub fn set_should_observe_dirty(&self, should_observe_dirty: bool) {
+        self.should_observe_dirty.set(should_observe_dirty);
     }
-    pub fn set_resolve_calc(&self, resolve_calc: Option<Box<ResolveCalcFn<Len>>>) {
-        drop(std::mem::replace(
-            unsafe { &mut *self.resolve_calc.get() },
-            resolve_calc,
-        ))
+    pub fn should_observe_dirty(&self) -> bool {
+        self.should_observe_dirty.get()
     }
-    pub fn set_dirty_callback(&self, dirty_callback: Option<Box<DirtyCallbackFn>>) {
-        drop(std::mem::replace(
-            unsafe { &mut *self.dirty_callback.get() },
-            dirty_callback,
-        ));
+
+    pub fn resolve_calc(&self, calc_handle: i32, owner: Len) -> Len {
+        resolve_calc_impl(self, calc_handle, owner)
     }
-    pub fn has_dirty_callback(&self) -> bool {
-        unsafe { (*self.dirty_callback.get()).is_some() }
-    }
-    pub(crate) fn dirty_callback(&self) -> Option<&DirtyCallbackFn> {
-        unsafe { (*self.dirty_callback.get()).as_deref() }
-    }
+
     pub fn external_host(&self) -> Option<ExternalHostPtr> {
         if self.external_host.get().is_null() {
             None
@@ -393,8 +381,8 @@ impl Node {
             self.clear_measure_cache();
             self.clear_baseline_cache();
         }
-        if let Some(dirty_callback) = self.dirty_callback() {
-            dirty_callback(convert_node_ref_to_ptr(self))
+        if self.should_observe_dirty() {
+            dirty_callback_impl(self)
         }
         self.layout_node.mark_dirty(self);
     }

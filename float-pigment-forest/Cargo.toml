@@ -12,7 +12,7 @@ repository.workspace = true
 
 [lib]
 name = "float_pigment_forest"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["staticlib", "rlib"]
 
 [[bin]]
 name = "float_pigment_layout_cpp_binding_gen_tool"

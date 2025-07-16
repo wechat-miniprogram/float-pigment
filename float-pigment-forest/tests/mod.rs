@@ -11,7 +11,12 @@ use float_pigment_css::{
     typing::{AspectRatio, Display, Gap},
 };
 pub use float_pigment_forest::Len;
-use float_pigment_forest::{layout::LayoutPosition, node::Length, *};
+use float_pigment_forest::{
+    external::mock_external::{set_node_measure_type, MeasureType, TextInfo, TextInfoBuilder},
+    layout::LayoutPosition,
+    node::Length,
+    *,
+};
 use float_pigment_layout::DefLength;
 use float_pigment_mlp::{
     context::{Context, Parse},
@@ -107,75 +112,6 @@ fn is_block_tag(tag: &str) -> bool {
 fn is_measure_text_slot(tag: &str) -> bool {
     tag == "text-slot"
 }
-#[derive(Debug, Default, Clone)]
-struct TextInfo {
-    font_size: f32,
-    // raw_text: String
-    text_len: usize,
-}
-
-impl TextInfo {
-    fn measure(
-        &self,
-        min_width: Len,
-        min_height: Len,
-        max_width: Len,
-        max_height: Len,
-        max_content_width: Len,
-        max_content_height: Len,
-    ) -> Size<Len> {
-        let text_len = self.text_len;
-        let text_width = self.font_size * text_len as f32;
-        let max_w = max_width.min(max_content_width);
-        let max_h = max_height.min(max_content_height);
-        let measured_width;
-        let measured_height;
-        if text_width <= max_w {
-            // single line
-            measured_width = Len::from_f32(text_width);
-            measured_height = Len::from_f32(self.font_size);
-        } else {
-            // multi line
-            let mut row_count = (max_w.to_f32() / self.font_size).floor();
-            if row_count < 1. {
-                row_count = 1.;
-            }
-            let col_count = (text_len as f32 / row_count).ceil();
-            measured_width = Len::from_f32((row_count * self.font_size) as i32 as f32);
-            measured_height = Len::from_f32((col_count * self.font_size) as i32 as f32);
-        }
-        println!(
-            "text_info: {self:?}, width: {min_width:?} ~ {max_width:?}, height: {min_height:?} ~ {max_height:?}, max_content_width: {max_content_width:?}, max_content_height: {max_content_height:?}, measured_width: {measured_width:?}, measured_height: {measured_height:?}",
-        );
-        Size::new(measured_width, measured_height.min(max_h))
-    }
-}
-
-struct TextInfoBuilder(TextInfo);
-
-impl TextInfoBuilder {
-    fn new() -> Self {
-        Self(TextInfo {
-            font_size: 16.,
-            // raw_text: String::new(),
-            text_len: 0,
-        })
-    }
-    fn with_text_len(mut self, text_len: usize) -> Self {
-        self.0.text_len = text_len;
-        self
-    }
-    fn with_font_size(mut self, font_size: f32) -> Self {
-        self.0.font_size = font_size;
-        self
-    }
-    fn set_font_size(&mut self, font_size: f32) {
-        self.0.font_size = font_size;
-    }
-    fn build(self) -> TextInfo {
-        self.0
-    }
-}
 
 #[inline(always)]
 fn convert_font_size_to_px(font_size: float_pigment_css::typing::Length) -> f32 {
@@ -187,31 +123,13 @@ fn convert_font_size_to_px(font_size: float_pigment_css::typing::Length) -> f32 
 
 #[inline(always)]
 fn prepare_measure_node(node: *mut Node, text_info: TextInfo) {
-    let node = unsafe { &mut *node };
-    node.set_measure_func(Some(Box::new(
-        move |_,
-              max_width,
-              _,
-              max_height,
-              _,
-              min_width,
-              min_height,
-              max_content_width,
-              max_content_height| {
-            text_info.measure(
-                min_width,
-                min_height,
-                max_width,
-                max_height,
-                max_content_width,
-                max_content_height,
-            )
-        },
-    )));
+    set_node_measure_type(node, MeasureType::Text(text_info));
+
     unsafe {
-        node.set_display(Display::Inline);
-        node.set_baseline_func(Some(Box::new(|_, _, _| Len::from_f32(16.))));
-        node.set_node_type(float_pigment_forest::NodeType::Text);
+        (*node).set_display(Display::Inline);
+        (*node).set_is_measurable(true);
+        (*node).set_has_baseline(true);
+        (*node).set_node_type(float_pigment_forest::NodeType::Text);
     }
 }
 

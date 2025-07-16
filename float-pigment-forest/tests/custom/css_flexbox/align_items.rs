@@ -175,7 +175,7 @@ fn align_items_baseline_margin_top() {
         r#"
         <div style="display: flex; align-items: baseline">
             <div expect_top="10">xxx</div>
-            <div style="margin-top: 10px; height: 10px; width: 10px;" expect_top="10">xxx</div>
+            <div style="margin-top: 10px; height: 10px; width: 10px;" expect_top="10">x x x</div>
             <div expect_top="10">xxx</div>
         </div>
     "#
