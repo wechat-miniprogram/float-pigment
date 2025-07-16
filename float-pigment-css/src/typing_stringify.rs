@@ -22,13 +22,13 @@ fn generate_array_str<T: fmt::Display>(array: &Array<T>) -> String {
 impl fmt::Display for CalcExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Number(num) => write!(f, "{}", num),
-            Self::Angle(angle) => write!(f, "{}", angle),
-            Self::Length(length) => write!(f, "{}", length),
-            Self::Div(lhs, rhs) => write!(f, "{}/{}", lhs, rhs),
-            Self::Mul(lhs, rhs) => write!(f, "{}*{}", lhs, rhs),
-            Self::Plus(lhs, rhs) => write!(f, "{} + {}", lhs, rhs),
-            Self::Sub(lhs, rhs) => write!(f, "{} - {}", lhs, rhs),
+            Self::Number(num) => write!(f, "{num}"),
+            Self::Angle(angle) => write!(f, "{angle}"),
+            Self::Length(length) => write!(f, "{length}"),
+            Self::Div(lhs, rhs) => write!(f, "{lhs}/{rhs}"),
+            Self::Mul(lhs, rhs) => write!(f, "{lhs}*{rhs}"),
+            Self::Plus(lhs, rhs) => write!(f, "{lhs} + {rhs}"),
+            Self::Sub(lhs, rhs) => write!(f, "{lhs} - {rhs}"),
         }
     }
 }
@@ -244,27 +244,27 @@ impl fmt::Display for Length {
                 Length::Undefined => "null",
                 Length::Auto => "auto",
                 Length::Px(x) => {
-                    tmp = format!("{}px", x);
+                    tmp = format!("{x}px");
                     &tmp
                 }
                 Length::Vw(x) => {
-                    tmp = format!("{}vw", x);
+                    tmp = format!("{x}vw");
                     &tmp
                 }
                 Length::Vh(x) => {
-                    tmp = format!("{}vh", x);
+                    tmp = format!("{x}vh");
                     &tmp
                 }
                 Length::Rem(x) => {
-                    tmp = format!("{}rem", x);
+                    tmp = format!("{x}rem");
                     &tmp
                 }
                 Length::Rpx(x) => {
-                    tmp = format!("{}rpx", x);
+                    tmp = format!("{x}rpx");
                     &tmp
                 }
                 Length::Em(x) => {
-                    tmp = format!("{}em", x);
+                    tmp = format!("{x}em");
                     &tmp
                 }
                 Length::Ratio(x) => {
@@ -281,11 +281,11 @@ impl fmt::Display for Length {
                     }
                 }
                 Length::Vmin(x) => {
-                    tmp = format!("{}vmin", x);
+                    tmp = format!("{x}vmin");
                     &tmp
                 }
                 Length::Vmax(x) => {
-                    tmp = format!("{}vmax", x);
+                    tmp = format!("{x}vmax");
                     &tmp
                 }
             }
@@ -315,16 +315,16 @@ impl fmt::Display for Angle {
             "{}",
             match self {
                 Angle::Deg(x) => {
-                    format!("{}deg", x)
+                    format!("{x}deg")
                 }
                 Angle::Grad(x) => {
-                    format!("{}grad", x)
+                    format!("{x}grad")
                 }
                 Angle::Rad(x) => {
-                    format!("{}rad", x)
+                    format!("{x}rad")
                 }
                 Angle::Turn(x) => {
-                    format!("{}turn", x)
+                    format!("{x}turn")
                 }
                 Angle::Calc(expr) => expr.to_string(),
             }
@@ -793,35 +793,35 @@ impl fmt::Display for TransformItem {
                     &str
                 }
                 TransformItem::Translate2D(x, y) => {
-                    str = format!("translate({}, {})", x, y);
+                    str = format!("translate({x}, {y})");
                     &str
                 }
                 TransformItem::Translate3D(x, y, z) => {
-                    str = format!("translate3d({}, {}, {})", x, y, z);
+                    str = format!("translate3d({x}, {y}, {z})");
                     &str
                 }
                 TransformItem::Scale2D(x, y) => {
-                    str = format!("scale({}, {})", x, y);
+                    str = format!("scale({x}, {y})");
                     &str
                 }
                 TransformItem::Scale3D(x, y, z) => {
-                    str = format!("scale3d({}, {}, {})", x, y, z);
+                    str = format!("scale3d({x}, {y}, {z})");
                     &str
                 }
                 TransformItem::Rotate2D(x) => {
-                    str = format!("rotate({})", x);
+                    str = format!("rotate({x})");
                     &str
                 }
                 TransformItem::Rotate3D(x, y, z, deg) => {
-                    str = format!("rotate3d({}, {}, {}, {})", x, y, z, deg);
+                    str = format!("rotate3d({x}, {y}, {z}, {deg})");
                     &str
                 }
                 TransformItem::Skew(x, y) => {
-                    str = format!("skew({}, {})", x, y);
+                    str = format!("skew({x}, {y})");
                     &str
                 }
                 TransformItem::Perspective(x) => {
-                    str = format!("perspective({})", x);
+                    str = format!("perspective({x})");
                     &str
                 }
             }
@@ -1031,11 +1031,11 @@ impl fmt::Display for TransitionTimingFnItem {
                 TransitionTimingFnItem::StepStart => "step-start",
                 TransitionTimingFnItem::StepEnd => "step-end",
                 TransitionTimingFnItem::Steps(x, y) => {
-                    str = format!("steps({}, {})", x, y);
+                    str = format!("steps({x}, {y})");
                     &str
                 }
                 TransitionTimingFnItem::CubicBezier(x, y, z, a) => {
-                    str = format!("cubic-bezier({}, {}, {}, {})", x, y, z, a);
+                    str = format!("cubic-bezier({x}, {y}, {z}, {a})");
                     &str
                 }
             }
@@ -1086,7 +1086,7 @@ impl fmt::Display for BackgroundRepeatItem {
             "{}",
             match self {
                 BackgroundRepeatItem::Pos(x, y) => {
-                    str = format!("{} {}", x, y);
+                    str = format!("{x} {y}");
                     &str
                 }
             }
@@ -1137,7 +1137,7 @@ impl fmt::Display for BackgroundSizeItem {
             match self {
                 BackgroundSizeItem::Auto => "auto",
                 BackgroundSizeItem::Length(x, y) => {
-                    str = format!("{} {}", x, y);
+                    str = format!("{x} {y}");
                     &str
                 }
                 BackgroundSizeItem::Cover => "cover",
@@ -1256,7 +1256,7 @@ impl fmt::Display for BackgroundImageGradientItem {
                 }
                 BackgroundImageGradientItem::RadialGradient(x, y, z, array) => {
                     str = generate_array_str(array);
-                    str = format!("radial-gradient({} {} at {}, {})", x, y, z, str);
+                    str = format!("radial-gradient({x} {y} at {z}, {str})");
                     &str
                 }
                 BackgroundImageGradientItem::ConicGradient(gradient) => {
@@ -1285,7 +1285,7 @@ impl fmt::Display for GradientSize {
                 GradientSize::FarthestSide => "farthest-side",
                 GradientSize::FarthestCorner => "farthest-corner",
                 GradientSize::Len(x, y) => {
-                    tmp = format!("{} {}", x, y);
+                    tmp = format!("{x} {y}");
                     &tmp
                 }
             }
@@ -1318,7 +1318,7 @@ impl fmt::Display for GradientPosition {
                     if horizontal_str == vertical_str {
                         "center"
                     } else {
-                        tmp = format!("{} {}", horizontal_str, vertical_str);
+                        tmp = format!("{horizontal_str} {vertical_str}");
                         &tmp
                     }
                 }
@@ -1410,7 +1410,7 @@ impl fmt::Display for BackgroundPositionItem {
                     } else if vertical_str == "center" {
                         str.push_str(horizontal_str);
                     } else {
-                        str = format!("{} {}", horizontal_str, vertical_str);
+                        str = format!("{horizontal_str} {vertical_str}");
                     }
                     &str
                 }
@@ -1727,7 +1727,7 @@ impl fmt::Display for ZIndex {
             match self {
                 ZIndex::Auto => "auto",
                 ZIndex::Num(a) => {
-                    x = format!("{}", a);
+                    x = format!("{a}");
                     &x
                 }
             }
@@ -1894,7 +1894,7 @@ impl fmt::Display for BorderRadius {
             "{}",
             match self {
                 BorderRadius::Pos(x, y) => {
-                    tmp = format!("{} {}", x, y);
+                    tmp = format!("{x} {y}");
                     &tmp
                 }
             }
@@ -2028,43 +2028,43 @@ impl fmt::Display for FilterFunc {
                     &x
                 }
                 FilterFunc::Blur(len) => {
-                    x = format!("blur({})", len);
+                    x = format!("blur({len})");
                     &x
                 }
                 FilterFunc::Brightness(len) => {
-                    x = format!("brightness({})", len);
+                    x = format!("brightness({len})");
                     &x
                 }
                 FilterFunc::Contrast(len) => {
-                    x = format!("contranst({})", len);
+                    x = format!("contranst({len})");
                     &x
                 }
                 FilterFunc::DropShadow(len) => {
-                    x = format!("drop-shadow({})", len);
+                    x = format!("drop-shadow({len})");
                     &x
                 }
                 FilterFunc::Grayscale(len) => {
-                    x = format!("grayscale({})", len);
+                    x = format!("grayscale({len})");
                     &x
                 }
                 FilterFunc::HueRotate(len) => {
-                    x = format!("hue-rotate({})", len);
+                    x = format!("hue-rotate({len})");
                     &x
                 }
                 FilterFunc::Invert(len) => {
-                    x = format!("invert({})", len);
+                    x = format!("invert({len})");
                     &x
                 }
                 FilterFunc::Opacity(len) => {
-                    x = format!("opacity({})", len);
+                    x = format!("opacity({len})");
                     &x
                 }
                 FilterFunc::Saturate(len) => {
-                    x = format!("saturate({})", len);
+                    x = format!("saturate({len})");
                     &x
                 }
                 FilterFunc::Sepia(len) => {
-                    x = format!("sepia({})", len);
+                    x = format!("sepia({len})");
                     &x
                 }
             }
@@ -2115,7 +2115,7 @@ impl fmt::Display for TransformOrigin {
                     if horizontal_str == vertical_str {
                         tmp.push_str("center");
                     } else {
-                        tmp = format!("{} {}", horizontal_str, vertical_str);
+                        tmp = format!("{horizontal_str} {vertical_str}");
                     }
 
                     match z {
@@ -2180,7 +2180,7 @@ impl fmt::Display for AspectRatio {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             AspectRatio::Auto => write!(f, "auto"),
-            AspectRatio::Ratio(x, y) => write!(f, "{} / {}", x, y),
+            AspectRatio::Ratio(x, y) => write!(f, "{x} / {y}"),
         }
     }
 }
@@ -2332,7 +2332,7 @@ impl fmt::Display for Gap {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Gap::Normal => write!(f, "normal"),
-            Gap::Length(length) => write!(f, "{}", length),
+            Gap::Length(length) => write!(f, "{length}"),
         }
     }
 }

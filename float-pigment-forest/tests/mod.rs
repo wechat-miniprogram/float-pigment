@@ -145,16 +145,7 @@ impl TextInfo {
             measured_height = Len::from_f32((col_count * self.font_size) as i32 as f32);
         }
         println!(
-            "text_info: {:?}, width: {:?} ~ {:?}, height: {:?} ~ {:?}, max_content_width: {:?}, max_content_height: {:?}, measured_width: {:?}, measured_height: {:?}",
-            self,
-            min_width,
-            max_width,
-            min_height,
-            max_height,
-            max_content_width,
-            max_content_height,
-            measured_width,
-            measured_height,
+            "text_info: {self:?}, width: {min_width:?} ~ {max_width:?}, height: {min_height:?} ~ {max_height:?}, max_content_width: {max_content_width:?}, max_content_height: {max_content_height:?}, measured_width: {measured_width:?}, measured_height: {measured_height:?}",
         );
         Size::new(measured_width, measured_height.min(max_h))
     }
@@ -591,7 +582,7 @@ impl TestCtx {
         });
 
         warnings.iter().for_each(|w| {
-            println!("{:?}", w);
+            println!("{w:?}");
         });
     }
 }

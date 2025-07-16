@@ -188,12 +188,12 @@ impl MediaQuery {
                     Orientation::Landscape => "(orientation: landscape)",
                 }
                 .into(),
-                MediaExpression::Width(x) => format!("(width: {}px)", x),
-                MediaExpression::MinWidth(x) => format!("(min-width: {}px)", x),
-                MediaExpression::MaxWidth(x) => format!("(max-width: {}px)", x),
-                MediaExpression::Height(x) => format!("(height: {}px)", x),
-                MediaExpression::MinHeight(x) => format!("(min-height: {}px)", x),
-                MediaExpression::MaxHeight(x) => format!("(max-height: {}px)", x),
+                MediaExpression::Width(x) => format!("(width: {x}px)"),
+                MediaExpression::MinWidth(x) => format!("(min-width: {x}px)"),
+                MediaExpression::MaxWidth(x) => format!("(max-width: {x}px)"),
+                MediaExpression::Height(x) => format!("(height: {x}px)"),
+                MediaExpression::MinHeight(x) => format!("(min-height: {x}px)"),
+                MediaExpression::MaxHeight(x) => format!("(max-height: {x}px)"),
                 MediaExpression::Theme(t) => match t {
                     Theme::None => "(prefers-color-scheme: none)",
                     Theme::Light => "(prefers-color-scheme: light)",
@@ -203,6 +203,6 @@ impl MediaQuery {
             })
             .collect::<Box<[String]>>()
             .join(" and ");
-        format!("{}{}", decorator, cond)
+        format!("{decorator}{cond}")
     }
 }

@@ -642,8 +642,7 @@ fn cast_u64_to_u32(n: u64) -> Result<u32> {
         Ok(n as u32)
     } else {
         Err(Box::new(ErrorKind::Custom(format!(
-            "Invalid u32 {}: you may have a version disagreement?",
-            n,
+            "Invalid u32 {n}: you may have a version disagreement?",
         ))))
     }
 }
@@ -652,8 +651,7 @@ fn cast_u64_to_u16(n: u64) -> Result<u16> {
         Ok(n as u16)
     } else {
         Err(Box::new(ErrorKind::Custom(format!(
-            "Invalid u16 {}: you may have a version disagreement?",
-            n,
+            "Invalid u16 {n}: you may have a version disagreement?",
         ))))
     }
 }
@@ -663,8 +661,7 @@ fn cast_i64_to_i32(n: i64) -> Result<i32> {
         Ok(n as i32)
     } else {
         Err(Box::new(ErrorKind::Custom(format!(
-            "Invalid i32 {}: you may have a version disagreement?",
-            n,
+            "Invalid i32 {n}: you may have a version disagreement?",
         ))))
     }
 }
@@ -674,8 +671,7 @@ fn cast_i64_to_i16(n: i64) -> Result<i16> {
         Ok(n as i16)
     } else {
         Err(Box::new(ErrorKind::Custom(format!(
-            "Invalid i16 {}: you may have a version disagreement?",
-            n,
+            "Invalid i16 {n}: you may have a version disagreement?",
         ))))
     }
 }

@@ -25,7 +25,7 @@ impl core::fmt::Display for KeyFrames {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "@keyframes {} {{ ", self.ident)?;
         for keyframe in &self.keyframes {
-            write!(f, "{} ", keyframe)?;
+            write!(f, "{keyframe} ")?;
         }
         write!(f, "}}")
     }
