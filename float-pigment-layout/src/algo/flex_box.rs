@@ -20,7 +20,12 @@ fn resolve_row_gap<T: LayoutTreeNode>(
     node: &T,
     inner_size: &Normalized<OptionSize<T::Length>>,
 ) -> T::Length {
-    style.row_gap().resolve(inner_size.height, node).or_zero()
+    match style.writing_mode() {
+        WritingMode::HorizontalTb => style.row_gap().resolve(inner_size.height, node).or_zero(),
+        WritingMode::VerticalLr | WritingMode::VerticalRl => {
+            style.row_gap().resolve(inner_size.width, node).or_zero()
+        }
+    }
 }
 
 #[inline(always)]
@@ -29,7 +34,13 @@ fn resolve_column_gap<T: LayoutTreeNode>(
     node: &T,
     inner_size: &Normalized<OptionSize<T::Length>>,
 ) -> T::Length {
-    style.column_gap().resolve(inner_size.width, node).or_zero()
+    match style.writing_mode() {
+        WritingMode::HorizontalTb => style.column_gap().resolve(inner_size.width, node).or_zero(),
+        WritingMode::VerticalLr | WritingMode::VerticalRl => style
+            .column_gap()
+            .resolve(inner_size.height, node)
+            .or_zero(),
+    }
 }
 
 #[inline(always)]
