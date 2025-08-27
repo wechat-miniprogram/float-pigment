@@ -16,21 +16,21 @@ fn gap() {
 fn column_gap_in_flex_row_box() {
     assert_xml!(
         r#"
-        <div style="display: flex; width: 100px; column-gap: 10px; flex-wrap: wrap;">
-          <div style="width: 100px; height: 30px; flex-shrink: 0" expect_width="100"></div>
-          <div style="width: 100px; height: 30px; flex-shrink: 0" expect_width="100" expect_top="40"></div>
+        <div style="display: flex; flex-direction: row; width: 100px; height: 100px; column-gap: 10px;">
+          <div style="width: 20px; height: 20px;" expect_left="0"></div>
+          <div style="width: 20px; height: 20px;" expect_left="30"></div>
         </div>
     "#
     )
 }
 
 #[test]
-fn row_gap_in_flex_row_box() {
+fn column_gap_with_percentage_in_flex_row_box() {
     assert_xml!(
         r#"
-        <div style="display: flex; width: 100px; row-gap: 10px;">
-          <div style="height: 10px; flex: 1" expect_width="45"></div>
-          <div style="height: 10px; flex: 1" expect_width="45" expect_left="55"></div>
+        <div style="display: flex; flex-direction: row; width: 200px; height: 100px; column-gap: 10%; align-items: flex-start">
+          <div style="width: 20px; height: 20px;" expect_left="0"></div>
+          <div style="width: 20px; height: 20px;" expect_left="40"></div>
         </div>
     "#
     )
@@ -40,9 +40,75 @@ fn row_gap_in_flex_row_box() {
 fn column_gap_in_flex_column_box() {
     assert_xml!(
         r#"
-        <div style="display: flex; flex-direction: column; width: 100px; height: 50px; column-gap: 10px; flex-wrap: wrap; align-content: flex-start">
-          <div style="width: 30px; height: 30px; flex-shrink: 0" expect_height="30"></div>
-          <div style="width: 30px; height: 30px; flex-shrink: 0" expect_height="30" expect_left="40"></div>
+        <div style="display: flex; flex-direction: column; width: 100px; height: 20px; column-gap: 10px; flex-wrap: wrap;">
+          <div style="width: 20px; height: 20px;" expect_left="0"></div>
+          <div style="width: 20px; height: 20px;" expect_left="55"></div>
+        </div>
+    "#
+    )
+}
+
+#[test]
+fn column_gap_in_flex_column_box_with_align_content_flex_start() {
+    assert_xml!(
+        r#"
+        <div style="display: flex; flex-direction: column; width: 100px; height: 20px; column-gap: 10px; flex-wrap: wrap; align-content: flex-start">
+          <div style="width: 20px; height: 20px;" expect_left="0"></div>
+          <div style="width: 20px; height: 20px;" expect_left="30"></div>
+        </div>
+    "#
+    )
+}
+
+#[test]
+fn column_gap_with_percentage_in_flex_column_box_with_align_content_flex_start() {
+    assert_xml!(
+        r#"
+        <div style="display: flex; flex-direction: column; width: 100px; height: 20px; column-gap: 10%; flex-wrap: wrap; align-content: flex-start">
+          <div style="width: 20px; height: 20px; flex-shrink: 0" expect_left="0"></div>
+          <div style="width: 20px; height: 20px; flex-shrink: 0" expect_left="30"></div>
+        </div>
+    "#
+    )
+}
+
+#[test]
+fn row_gap_in_flex_row_box() {
+    assert_xml!(
+        r#"
+        <div style="display: flex; flex-direction:row; width: 100px; height: 100px; row-gap: 10px; flex-wrap: wrap;">
+          <div style="height: 10px; width: 50px;" expect_left="0" expect_top="0"></div>
+          <div style="height: 10px; width: 50px;" expect_left="50"  expect_top="0"></div>
+          <div style="height: 10px; width: 50px;" expect_left="0" expect_top="55"></div>
+          <div style="height: 10px; width: 50px;" expect_left="50" expect_top="55"></div>
+        </div>
+    "#
+    )
+}
+
+#[test]
+fn row_gap_in_flex_row_box_with_align_content_flex_start() {
+    assert_xml!(
+        r#"
+        <div style="display: flex; flex-direction:row; width: 100px; height: 100px; row-gap: 10px; flex-wrap: wrap; align-content: flex-start;">
+          <div style="height: 10px; width: 50px;" expect_left="0"></div>
+          <div style="height: 10px; width: 50px;" expect_left="50"></div>
+          <div style="height: 10px; width: 50px;" expect_left="0" expect_top="20"></div>
+          <div style="height: 10px; width: 50px;" expect_left="50" expect_top="20"></div>
+        </div>
+    "#
+    )
+}
+
+#[test]
+fn row_gap_with_percentage_in_flex_row_box_with_align_content_flex_start() {
+    assert_xml!(
+        r#"
+        <div style="display: flex; flex-direction:row; width: 100px; height: 100px; row-gap: 10%; flex-wrap: wrap; align-content: flex-start;">
+          <div style="height: 10px; width: 50px;" expect_left="0"></div>
+          <div style="height: 10px; width: 50px;" expect_left="50"></div>
+          <div style="height: 10px; width: 50px;" expect_left="0" expect_top="20"></div>
+          <div style="height: 10px; width: 50px;" expect_left="50" expect_top="20"></div>
         </div>
     "#
     )
@@ -53,8 +119,20 @@ fn row_gap_in_flex_column_box() {
     assert_xml!(
         r#"
         <div style="display: flex; flex-direction: column; width: 100px; height: 100px; row-gap: 10px;">
-          <div style="width: 100px; height: 30px;" expect_width="100"></div>
-          <div style="width: 100px; height: 30px;" expect_width="100" expect_top="40"></div>
+          <div style="width: 100px; height: 30px;"></div>
+          <div style="width: 100px; height: 30px;"expect_top="40"></div>
+        </div>
+    "#
+    )
+}
+
+#[test]
+fn row_gap_with_percentage_in_flex_column_box() {
+    assert_xml!(
+        r#"
+        <div style="display: flex; flex-direction: column; width: 100px; height: 100px; row-gap: 10%;">
+          <div style="width: 100px; height: 30px;"></div>
+          <div style="width: 100px; height: 30px;"expect_top="40"></div>
         </div>
     "#
     )

@@ -1793,6 +1793,6 @@ pub struct FeatureTag {
 #[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
 pub enum Gap {
     Normal,
-    #[resolve_font_size(Length::resolve_em_and_ratio)]
+    #[resolve_font_size(Length::resolve_em)]
     Length(Length),
 }
