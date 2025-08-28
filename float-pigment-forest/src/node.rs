@@ -257,10 +257,10 @@ impl Node {
     pub fn children_len(&self) -> usize {
         self.children.borrow().len()
     }
-    pub(crate) fn style_manager(&self) -> Ref<StyleManager> {
+    pub(crate) fn style_manager(&self) -> Ref<'_, StyleManager> {
         self.style_manager.borrow()
     }
-    pub(crate) fn style_manager_mut(&self) -> RefMut<StyleManager> {
+    pub(crate) fn style_manager_mut(&self) -> RefMut<'_, StyleManager> {
         self.style_manager.borrow_mut()
     }
     pub(crate) fn computed_style(&self) -> ComputedStyle<Len> {

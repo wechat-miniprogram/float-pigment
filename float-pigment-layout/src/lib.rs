@@ -351,7 +351,7 @@ impl<T: LayoutTreeNode> LayoutNode<T> {
     }
 
     #[inline]
-    pub(crate) fn unit(&self) -> RefMut<LayoutUnit<T>> {
+    pub(crate) fn unit(&self) -> RefMut<'_, LayoutUnit<T>> {
         self.unit.borrow_mut()
     }
 }

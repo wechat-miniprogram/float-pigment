@@ -1073,11 +1073,11 @@ impl<T> Array<T> {
         self.arr.into_vec()
     }
 
-    pub fn iter(&self) -> core::slice::Iter<T> {
+    pub fn iter(&self) -> core::slice::Iter<'_, T> {
         self.arr.iter()
     }
 
-    pub fn iter_mut(&mut self) -> core::slice::IterMut<T> {
+    pub fn iter_mut(&mut self) -> core::slice::IterMut<'_, T> {
         self.arr.iter_mut()
     }
 

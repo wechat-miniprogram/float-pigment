@@ -34,7 +34,7 @@ impl Element {
     pub fn tag(&self) -> &str {
         self.tag.as_str()
     }
-    pub fn children_mut(&self) -> RefMut<Vec<Rc<NodeType>>> {
+    pub fn children_mut(&self) -> RefMut<'_, Vec<Rc<NodeType>>> {
         self.children.borrow_mut()
     }
     pub fn for_each_child(&self, f: Box<dyn Fn(&NodeType)>) {

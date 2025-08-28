@@ -181,7 +181,7 @@ impl PropertyMeta {
     }
 
     /// Get an iterate of the properties.
-    pub fn iter(&self) -> PropertyMetaIter {
+    pub fn iter(&self) -> PropertyMetaIter<'_> {
         PropertyMetaIter { pm: self, cur: 0 }
     }
 
