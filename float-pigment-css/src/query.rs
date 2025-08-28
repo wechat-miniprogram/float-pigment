@@ -349,7 +349,7 @@ impl PartialEq for MatchedRule {
 
 impl PartialOrd for MatchedRule {
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        Some(self.weight.normal().cmp(&other.weight.normal()))
+        Some(self.cmp(other))
     }
 }
 

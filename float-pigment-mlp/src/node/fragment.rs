@@ -20,7 +20,7 @@ impl Fragment {
     pub fn for_each_child(&self, f: Box<dyn Fn(&NodeType)>) {
         self.0.borrow().iter().for_each(|item| f(item.as_ref()))
     }
-    pub fn children_mut(&self) -> RefMut<Vec<Rc<NodeType>>> {
+    pub fn children_mut(&self) -> RefMut<'_, Vec<Rc<NodeType>>> {
         self.0.borrow_mut()
     }
 }

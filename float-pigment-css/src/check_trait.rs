@@ -2,7 +2,7 @@ use alloc::{boxed::Box, string::String, vec::Vec};
 use core::cell::Cell;
 
 use crate::sheet::str_store::StrBuffer;
-
+#[allow(dead_code)]
 pub trait CompatibilityCheck {
     fn check() {}
 }

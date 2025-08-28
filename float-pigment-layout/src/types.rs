@@ -851,7 +851,7 @@ impl<L: LengthNum> MinMaxLimit<L> {
         x.maybe_min(self.max_height).max(self.min_height)
     }
 
-    pub(crate) fn maybe(&self) -> MinMaxLimitMaybe<L> {
+    pub(crate) fn maybe(&self) -> MinMaxLimitMaybe<'_, L> {
         MinMaxLimitMaybe(self)
     }
 
