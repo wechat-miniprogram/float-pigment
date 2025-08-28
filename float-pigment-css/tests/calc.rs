@@ -31,15 +31,10 @@ pub fn calc() {
         margin_left,
         "margin-left",
         "calc(10px + 10deg)",
-        Length::Undefined
+        Length::Px(0.)
     );
     test_parse_property!(margin_left, "margin-left", "calc(10px / 2)", Length::Px(5.));
-    test_parse_property!(
-        margin_left,
-        "margin-left",
-        "calc(10px / 0)",
-        Length::Undefined
-    );
+    test_parse_property!(margin_left, "margin-left", "calc(10px / 0)", Length::Px(0.));
     test_parse_property!(
         margin_left,
         "margin-left",
@@ -507,10 +502,10 @@ pub fn calc_fraction() {
 pub fn calc_operator_whitespace() {
     test_parse_property!(width, "width", "calc(1px + 2px)", Length::Px(3.));
     test_parse_property!(width, "width", "calc(1px - 2px)", Length::Px(-1.));
-    test_parse_property!(width, "width", "calc(1px -2px)", Length::Undefined);
-    test_parse_property!(width, "width", "calc(1px +2px)", Length::Undefined);
-    test_parse_property!(width, "width", "calc(1px- 2px)", Length::Undefined);
-    test_parse_property!(width, "width", "calc(1px+ 2px)", Length::Undefined);
+    test_parse_property!(width, "width", "calc(1px -2px)", Length::Auto);
+    test_parse_property!(width, "width", "calc(1px +2px)", Length::Auto);
+    test_parse_property!(width, "width", "calc(1px- 2px)", Length::Auto);
+    test_parse_property!(width, "width", "calc(1px+ 2px)", Length::Auto);
 
     test_parse_property!(width, "width", "calc(1px  *  3)", Length::Px(3.));
     test_parse_property!(width, "width", "calc(1px *3)", Length::Px(3.));
