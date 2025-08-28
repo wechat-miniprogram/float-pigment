@@ -83,8 +83,8 @@ fn media_queries() {
         media_query_status.width = 801.;
         {
             let node_properties = query_with_media(&ssg, "", "", ["a"], [], &media_query_status);
-            assert_eq!(node_properties.width(), Length::Undefined);
-            assert_eq!(node_properties.height(), Length::Undefined);
+            assert_eq!(node_properties.width(), Length::Auto);
+            assert_eq!(node_properties.height(), Length::Auto);
             assert_eq!(node_properties.font_size(), Length::Px(4.));
         }
     });
