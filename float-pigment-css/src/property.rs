@@ -60,7 +60,7 @@ property_list! (PropertyValueWithGlobal, {
     0x2c ColumnGap: GapType as Initial default Gap::Normal;
 
     // background
-    0x30 BackgroundColor: ColorType as Initial default Color::Undefined;
+    0x30 BackgroundColor: ColorType as Initial default Color::Specified(0, 0, 0, 0);
     0x31 BackgroundImage: BackgroundImageType as Initial default BackgroundImage::List(Array::empty());
     0x32 BackgroundSize: BackgroundSizeType as Initial default BackgroundSize::List(vec![BackgroundSizeItem::Auto].into());
     0x33 BackgroundPosition: BackgroundPositionType as Initial deprecated default BackgroundPosition::List(vec![BackgroundPositionItem::Pos(BackgroundPositionValue::Left(Length::Ratio(0.)), BackgroundPositionValue::Top(Length::Ratio(0.)))].into());
@@ -80,51 +80,51 @@ property_list! (PropertyValueWithGlobal, {
     0x3f MaskMode: MaskModeType as Initial default MaskMode::List(vec![MaskModeItem::MatchSource].into());
 
     // basic sizing
-    0x40 Width: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
-    0x41 Height: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
-    0x42 MinWidth: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
-    0x43 MinHeight: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
+    0x40 Width: LengthType as Initial default Length::Auto, resolver = Length::resolve_em;
+    0x41 Height: LengthType as Initial default Length::Auto, resolver = Length::resolve_em;
+    0x42 MinWidth: LengthType as Initial default Length::Auto, resolver = Length::resolve_em;
+    0x43 MinHeight: LengthType as Initial default Length::Auto, resolver = Length::resolve_em;
     0x44 MaxWidth: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
     0x45 MaxHeight: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
-    0x46 Left: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
-    0x47 Right: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
-    0x48 Top: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
-    0x49 Bottom: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
+    0x46 Left: LengthType as Initial default Length::Auto, resolver = Length::resolve_em;
+    0x47 Right: LengthType as Initial default Length::Auto, resolver = Length::resolve_em;
+    0x48 Top: LengthType as Initial default Length::Auto, resolver = Length::resolve_em;
+    0x49 Bottom: LengthType as Initial default Length::Auto, resolver = Length::resolve_em;
 
     // padding and margin
-    0x50 PaddingLeft: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
-    0x51 PaddingRight: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
-    0x52 PaddingTop: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
-    0x53 PaddingBottom: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
-    0x54 MarginLeft: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
-    0x55 MarginRight: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
-    0x56 MarginTop: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
-    0x57 MarginBottom: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
+    0x50 PaddingLeft: LengthType as Initial default Length::Px(0.), resolver = Length::resolve_em;
+    0x51 PaddingRight: LengthType as Initial default Length::Px(0.), resolver = Length::resolve_em;
+    0x52 PaddingTop: LengthType as Initial default Length::Px(0.), resolver = Length::resolve_em;
+    0x53 PaddingBottom: LengthType as Initial default Length::Px(0.), resolver = Length::resolve_em;
+    0x54 MarginLeft: LengthType as Initial default Length::Px(0.), resolver = Length::resolve_em;
+    0x55 MarginRight: LengthType as Initial default Length::Px(0.), resolver = Length::resolve_em;
+    0x56 MarginTop: LengthType as Initial default Length::Px(0.), resolver = Length::resolve_em;
+    0x57 MarginBottom: LengthType as Initial default Length::Px(0.), resolver = Length::resolve_em;
 
     // other
     0x58 MaskPositionX: BackgroundPositionType as Initial default BackgroundPosition::List(vec![BackgroundPositionItem::Value(BackgroundPositionValue::Left(Length::Ratio(0.)))].into());
     0x59 MaskPositionY: BackgroundPositionType as Initial default BackgroundPosition::List(vec![BackgroundPositionItem::Value(BackgroundPositionValue::Top(Length::Ratio(0.)))].into());
 
     // border
-    0x60 BorderLeftWidth: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
+    0x60 BorderLeftWidth: LengthType as Initial default Length::Px(3.), resolver = Length::resolve_em;
     0x61 BorderLeftStyle: BorderStyleType as Initial default BorderStyle::None;
     0x62 BorderLeftColor: ColorType as Initial default Color::CurrentColor;
-    0x63 BorderRightWidth: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
+    0x63 BorderRightWidth: LengthType as Initial default Length::Px(3.), resolver = Length::resolve_em;
     0x64 BorderRightStyle: BorderStyleType as Initial default BorderStyle::None;
     0x65 BorderRightColor: ColorType as Initial default Color::CurrentColor;
-    0x66 BorderTopWidth: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
+    0x66 BorderTopWidth: LengthType as Initial default Length::Px(3.), resolver = Length::resolve_em;
     0x67 BorderTopStyle: BorderStyleType as Initial default BorderStyle::None;
     0x68 BorderTopColor: ColorType as Initial default Color::CurrentColor;
-    0x69 BorderBottomWidth: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
+    0x69 BorderBottomWidth: LengthType as Initial default Length::Px(3.), resolver = Length::resolve_em;
     0x6a BorderBottomStyle: BorderStyleType as Initial default BorderStyle::None;
     0x6b BorderBottomColor: ColorType as Initial default Color::CurrentColor;
     0x6c BoxShadow: BoxShadowType as Initial default BoxShadow::None;
 
     // border radius
-    0x70 BorderTopLeftRadius: BorderRadiusType as Initial default BorderRadius::Pos(Length::Undefined, Length::Undefined);
-    0x71 BorderTopRightRadius: BorderRadiusType as Initial default BorderRadius::Pos(Length::Undefined, Length::Undefined);
-    0x72 BorderBottomRightRadius: BorderRadiusType as Initial default BorderRadius::Pos(Length::Undefined, Length::Undefined);
-    0x73 BorderBottomLeftRadius: BorderRadiusType as Initial default BorderRadius::Pos(Length::Undefined, Length::Undefined);
+    0x70 BorderTopLeftRadius: BorderRadiusType as Initial default BorderRadius::Pos(Length::Px(0.), Length::Px(0.));
+    0x71 BorderTopRightRadius: BorderRadiusType as Initial default BorderRadius::Pos(Length::Px(0.), Length::Px(0.));
+    0x72 BorderBottomRightRadius: BorderRadiusType as Initial default BorderRadius::Pos(Length::Px(0.), Length::Px(0.));
+    0x73 BorderBottomLeftRadius: BorderRadiusType as Initial default BorderRadius::Pos(Length::Px(0.), Length::Px(0.));
 
     // transition
     0x80 TransitionProperty: TransitionPropertyType as Initial default TransitionProperty::List(Array::empty());

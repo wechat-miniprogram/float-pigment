@@ -95,7 +95,7 @@ fn multi_classes() {
         assert_eq!(node_properties.width(), Length::Px(1.));
     }
     let node_properties = query(&ssg, "", "", ["b"], []);
-    assert_eq!(node_properties.width(), Length::Undefined);
+    assert_eq!(node_properties.width(), Length::Auto);
     let node_properties = query(&ssg, "", "", ["a", "b"], []);
     assert_eq!(node_properties.width(), Length::Px(2.));
     let node_properties = query(&ssg, "", "", ["a", "c"], []);
@@ -166,17 +166,17 @@ fn parent() {
     );
     ssg.append(ss);
     let node_properties = query(&ssg, "", "", ["a"], []);
-    assert_eq!(node_properties.width(), Length::Undefined);
+    assert_eq!(node_properties.width(), Length::Auto);
     assert_eq!(node_properties.height(), Length::Px(3.));
     let node_properties = query(&ssg, "", "", ["b"], []);
     assert_eq!(node_properties.width(), Length::Px(2.));
-    assert_eq!(node_properties.height(), Length::Undefined);
+    assert_eq!(node_properties.height(), Length::Auto);
     let node_properties = query_list(
         &ssg,
         [QueryItem::new().c("a").end(), QueryItem::new().c("b").end()],
     );
     assert_eq!(node_properties.width(), Length::Px(1.));
-    assert_eq!(node_properties.height(), Length::Undefined);
+    assert_eq!(node_properties.height(), Length::Auto);
     let node_properties = query_list(
         &ssg,
         [
@@ -186,7 +186,7 @@ fn parent() {
         ],
     );
     assert_eq!(node_properties.width(), Length::Px(2.));
-    assert_eq!(node_properties.height(), Length::Undefined);
+    assert_eq!(node_properties.height(), Length::Auto);
 }
 
 #[test]
@@ -304,8 +304,8 @@ fn attribute_selector() {
     );
     ssg.append(ss);
     let node_properties = query(&ssg, "a", "", [""], []);
-    assert_eq!(node_properties.height(), Length::Undefined);
-    assert_eq!(node_properties.width(), Length::Undefined);
+    assert_eq!(node_properties.height(), Length::Auto);
+    assert_eq!(node_properties.width(), Length::Auto);
     let node_properties = query(
         &ssg,
         "a",
@@ -317,7 +317,7 @@ fn attribute_selector() {
         ],
     );
     assert_eq!(node_properties.height(), Length::Px(100.));
-    assert_eq!(node_properties.width(), Length::Undefined);
+    assert_eq!(node_properties.width(), Length::Auto);
     let node_properties = query(
         &ssg,
         "a",
@@ -333,7 +333,7 @@ fn attribute_selector() {
     let node_properties = query(&ssg, "a", "", ["b"], [("title".into(), "".into())]);
     assert_eq!(node_properties.height(), Length::Px(100.));
     let node_properties = query(&ssg, "", "", [], [("title".into(), "".into())]);
-    assert_eq!(node_properties.height(), Length::Undefined);
+    assert_eq!(node_properties.height(), Length::Auto);
 
     let node_properties = query(
         &ssg,
@@ -342,8 +342,8 @@ fn attribute_selector() {
         [],
         [("href".into(), "https://example.org".into())],
     );
-    assert_eq!(node_properties.height(), Length::Undefined);
-    assert_eq!(node_properties.width(), Length::Undefined);
+    assert_eq!(node_properties.height(), Length::Auto);
+    assert_eq!(node_properties.width(), Length::Auto);
     assert_eq!(node_properties.min_height(), Length::Px(100.));
     assert_eq!(node_properties.max_height(), Length::Px(101.));
     assert_eq!(node_properties.min_width(), Length::Px(102.));
@@ -985,7 +985,10 @@ fn pseudo_elements_selector_matching() {
     ssg.append(ss);
     let node_properties = query_single(&ssg, QueryItem::new().pe(PseudoElements::Selection).end());
     assert_eq!(node_properties.color(), Color::Specified(255, 0, 0, 255));
-    assert_eq!(node_properties.background_color(), Color::Undefined);
+    assert_eq!(
+        node_properties.background_color(),
+        Color::Specified(0, 0, 0, 0)
+    );
     let node_properties = query_single(
         &ssg,
         QueryItem::new()

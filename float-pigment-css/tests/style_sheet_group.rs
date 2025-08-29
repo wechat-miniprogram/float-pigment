@@ -140,12 +140,12 @@ fn style_sheet_resource_media_import() {
     assert_eq!(node_properties.height(), Length::Px(8.));
     let media = MediaQueryStatus::default_screen_with_size(801., 600.);
     let node_properties = query_with_media(&ssg, "", "", ["a"], [], &media);
-    assert_eq!(node_properties.width(), Length::Undefined);
+    assert_eq!(node_properties.width(), Length::Auto);
     assert_eq!(node_properties.height(), Length::Px(8.));
     let media = MediaQueryStatus::default_screen_with_size(800., 601.);
     let node_properties = query_with_media(&ssg, "", "", ["a"], [], &media);
-    assert_eq!(node_properties.width(), Length::Undefined);
-    assert_eq!(node_properties.height(), Length::Undefined);
+    assert_eq!(node_properties.width(), Length::Auto);
+    assert_eq!(node_properties.height(), Length::Auto);
 }
 
 #[test]
@@ -346,7 +346,7 @@ fn scopes_in_tag_name_and_id() {
             &mut node_properties,
         );
         assert_eq!(node_properties.width(), Length::Px(0.));
-        assert_eq!(node_properties.height(), Length::Undefined);
+        assert_eq!(node_properties.height(), Length::Auto);
         let query = StyleQuery::single(NonZeroUsize::new(1), None, None, "view", "i", &classes);
         let mut node_properties = NodeProperties::new(None);
         ssg.query_single(
@@ -355,7 +355,7 @@ fn scopes_in_tag_name_and_id() {
             &mut node_properties,
         );
         assert_eq!(node_properties.width(), Length::Px(1.));
-        assert_eq!(node_properties.height(), Length::Undefined);
+        assert_eq!(node_properties.height(), Length::Auto);
         let query = StyleQuery::single(NonZeroUsize::new(2), None, None, "view", "i", &classes);
         let mut node_properties = NodeProperties::new(None);
         ssg.query_single(
@@ -406,7 +406,7 @@ fn scopes_in_classes() {
             &mut node_properties,
         );
         assert_eq!(node_properties.width(), Length::Px(0.));
-        assert_eq!(node_properties.height(), Length::Undefined);
+        assert_eq!(node_properties.height(), Length::Auto);
         let classes = vec![("a".into(), NonZeroUsize::new(1))];
         let query = StyleQuery::single(None, None, None, "", "", &classes);
         let mut node_properties = NodeProperties::new(None);
@@ -416,7 +416,7 @@ fn scopes_in_classes() {
             &mut node_properties,
         );
         assert_eq!(node_properties.width(), Length::Px(1.));
-        assert_eq!(node_properties.height(), Length::Undefined);
+        assert_eq!(node_properties.height(), Length::Auto);
         let classes = vec![("a".into(), NonZeroUsize::new(2))];
         let query = StyleQuery::single(None, None, None, "", "", &classes);
         let mut node_properties = NodeProperties::new(None);
@@ -426,6 +426,6 @@ fn scopes_in_classes() {
             &mut node_properties,
         );
         assert_eq!(node_properties.width(), Length::Px(2.));
-        assert_eq!(node_properties.height(), Length::Undefined);
+        assert_eq!(node_properties.height(), Length::Auto);
     }
 }

@@ -3645,7 +3645,7 @@ mod background {
             )
         );
         assert_eq!(np.background_image(), BackgroundImage::List(vec![].into()));
-        assert_eq!(np.background_color(), Color::Undefined);
+        assert_eq!(np.background_color(), Color::Specified(0, 0, 0, 0));
         assert_eq!(
             np.background_position(),
             BackgroundPosition::List(
@@ -3728,7 +3728,7 @@ mod background {
             )
         );
         assert_eq!(np.background_image(), BackgroundImage::List(vec![].into()));
-        assert_eq!(np.background_color(), Color::Undefined);
+        assert_eq!(np.background_color(), Color::Specified(0, 0, 0, 0));
         assert_eq!(
             np.background_position(),
             BackgroundPosition::List(
@@ -3901,13 +3901,13 @@ mod sizing {
         let mut ssg = StyleSheetGroup::new();
         let ss = StyleSheet::from_str(
             "
-        .a { width: 10vw; height: 10vh; }
-    ",
+            .a { width: 10vw; height: 10vh; }
+        ",
         );
         ssg.append(ss);
         let np = query(&ssg, "", "", [""], []);
-        assert_eq!(np.width(), Length::Undefined);
-        assert_eq!(np.height(), Length::Undefined);
+        assert_eq!(np.width(), Length::Auto);
+        assert_eq!(np.height(), Length::Auto);
         let np = query(&ssg, "", "", ["a"], []);
         assert_eq!(np.width(), Length::Vw(10.));
         assert_eq!(np.height(), Length::Vh(10.));
@@ -4062,10 +4062,10 @@ mod padding_margin {
         );
         ssg.append(ss);
         let np = query(&ssg, "", "", [""], []);
-        assert_eq!(np.padding_left(), Length::Undefined);
-        assert_eq!(np.padding_right(), Length::Undefined);
-        assert_eq!(np.padding_top(), Length::Undefined);
-        assert_eq!(np.padding_bottom(), Length::Undefined);
+        assert_eq!(np.padding_left(), Length::Px(0.));
+        assert_eq!(np.padding_right(), Length::Px(0.));
+        assert_eq!(np.padding_top(), Length::Px(0.));
+        assert_eq!(np.padding_bottom(), Length::Px(0.));
         let np = query(&ssg, "", "", ["a"], []);
         assert_eq!(np.padding_left(), Length::Px(16.));
         assert_eq!(np.padding_right(), Length::Rem(2.));
