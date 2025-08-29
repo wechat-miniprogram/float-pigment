@@ -389,7 +389,7 @@ fn prefers_color_scheme() {
         StyleQuery::single(None, None, None, "", "", &classes),
         media_status,
     );
-    assert_eq!(node_properties.height(), Length::Undefined);
+    assert_eq!(node_properties.height(), Length::Auto);
 }
 
 #[test]
