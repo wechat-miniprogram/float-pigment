@@ -166,6 +166,9 @@ property_list! (PropertyValueWithGlobal, {
     0xa3 TextDecorationThickness: TextDecorationThicknessType as Initial default TextDecorationThickness::Auto;
     0xa4 FontFeatureSettings: FontFeatureSettingsType as Inherit default FontFeatureSettings::Normal;
 
+    // grid
+    0xa5 GridTemplateRows: GridTemplateRowsType as Initial default GridTemplateRows::None;
+
     0xd0 ListStyleType: ListStyleTypeType as Inherit default ListStyleType::Disc;
     0xd1 ListStyleImage: ListStyleImageType as Inherit default ListStyleImage::None;
     0xd2 ListStylePosition: ListStylePositionType as Inherit default ListStylePosition::Outside;
@@ -1657,6 +1660,12 @@ property_value_format! (PropertyValueWithGlobal, {
                 )
         };
     }};
+
+    // grid_template_rows: {{ GridTemplateRows
+    //     = "none" => GridTemplateRows::None
+    //     | <track_list>
+    //     | <auto_track_list>
+    // }};
 });
 
 pub(crate) fn split_hv<T: Clone>(x: Vec<T>) -> (T, T) {
