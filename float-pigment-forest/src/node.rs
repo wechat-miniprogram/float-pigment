@@ -315,9 +315,9 @@ impl Node {
     pub(crate) unsafe fn baseline_func(&self) -> Option<&BaselineFn<Len>> {
         (*self.baseline_func.get()).as_deref()
     }
-    pub unsafe fn set_baseline_func(&self, baseline_func: Option<Box<BaselineFn<Len>>>) {
+    pub fn set_baseline_func(&self, baseline_func: Option<Box<BaselineFn<Len>>>) {
         drop(std::mem::replace(
-            &mut *self.baseline_func.get(),
+            unsafe { &mut *self.baseline_func.get() },
             baseline_func,
         ));
     }
