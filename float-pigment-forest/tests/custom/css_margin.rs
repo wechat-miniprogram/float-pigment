@@ -366,6 +366,20 @@ fn margin_collapse_between_sibling_and_empty_block_4() {
 }
 
 #[test]
+fn margin_collapse_between_sibling_and_empty_block_5() {
+    assert_xml!(
+        r#"
+            <div style="height: 300px;">
+                <div style="height: 30px; margin-bottom: 50px" expect_height="30" expect_top="0"></div>
+                <text-slot len="0"></text-slot>
+                <div style="height: 30px; margin-top: 100px" expect_height="30" expect_top="130"></div>
+            </div>
+        "#,
+        true
+    )
+}
+
+#[test]
 fn margin_collapse_between_parent_and_empty_block_1() {
     assert_xml!(
         r#"
