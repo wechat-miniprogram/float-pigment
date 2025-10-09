@@ -674,17 +674,19 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                             request.kind == ComputeRequestKind::Position,
                         );
 
-                        if let Some((prev_collapsed_margin, prev_collapsed_through)) =
-                            prev_sibling_collapsed_margin
-                        {
-                            if !prev_collapsed_through {
-                                total_main_size += prev_collapsed_margin.solve();
+                        if block_size.main_size(axis_info.dir) > T::Length::zero() {
+                            if let Some((prev_collapsed_margin, prev_collapsed_through)) =
+                                prev_sibling_collapsed_margin
+                            {
+                                if !prev_collapsed_through {
+                                    total_main_size += prev_collapsed_margin.solve();
+                                }
                             }
+                            prev_sibling_collapsed_margin.replace((CollapsedMargin::zero(), false));
                         }
                         let main_offset = padding_border
                             .main_axis_start(axis_info.dir, axis_info.main_dir_rev)
                             + total_main_size;
-                        prev_sibling_collapsed_margin.replace((CollapsedMargin::zero(), false));
 
                         total_main_size += block_size.main_size(axis_info.dir);
                         max_cross_size = max_cross_size.max(block_size.cross_size(axis_info.dir));
