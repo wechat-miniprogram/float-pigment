@@ -134,7 +134,7 @@ pub enum Color {
     Specified(u8, u8, u8, u8),
 }
 
-/// A length value or an expression that evaluates to a length value.
+/// A length value or an expression that evaluates to a langth value.
 #[allow(missing_docs)]
 #[repr(C)]
 #[property_value_type(PropertyValueWithGlobal for LengthType)]
@@ -1795,15 +1795,4 @@ pub enum Gap {
     Normal,
     #[resolve_font_size(Length::resolve_em)]
     Length(Length),
-}
-
-/// The `grid-template-rows` property defines the line names and track sizing functions of the grid rows.
-#[allow(missing_docs)]
-#[repr(C)]
-#[property_value_type(PropertyValueWithGlobal for GridTemplateRowsType)]
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ResolveFontSize)]
-#[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
-pub enum GridTemplateRows {
-    /// A keyword meaning that there is no explicit grid
-    None,
 }

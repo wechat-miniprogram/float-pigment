@@ -2336,11 +2336,3 @@ impl fmt::Display for Gap {
         }
     }
 }
-
-impl fmt::Display for GridTemplateRows {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            GridTemplateRows::None => write!(f, "none"),
-        }
-    }
-}

@@ -125,12 +125,6 @@ impl TextInfo {
         max_content_height: Len,
     ) -> Size<Len> {
         let text_len = self.text_len;
-        if text_len == 0 {
-            println!(
-                "text_info: {self:?}, width: {min_width:?} ~ {max_width:?}, height: {min_height:?} ~ {max_height:?}, max_content_width: {max_content_width:?}, max_content_height: {max_content_height:?}, measured_width: 0, measured_height: 0",
-            );
-            return Size::new(Len::zero(), Len::zero());
-        }
         let text_width = self.font_size * text_len as f32;
         let max_w = max_width.min(max_content_width);
         let max_h = max_height.min(max_content_height);
@@ -194,11 +188,6 @@ fn convert_font_size_to_px(font_size: float_pigment_css::typing::Length) -> f32 
 #[inline(always)]
 fn prepare_measure_node(node: *mut Node, text_info: TextInfo) {
     let node = unsafe { &mut *node };
-    unsafe {
-        node.set_display(Display::Inline);
-        node.set_node_type(float_pigment_forest::NodeType::Text);
-    }
-    node.set_baseline_func(Some(Box::new(|_, _, _| Len::from_f32(16.))));
     node.set_measure_func(Some(Box::new(
         move |_,
               max_width,
@@ -219,6 +208,11 @@ fn prepare_measure_node(node: *mut Node, text_info: TextInfo) {
             )
         },
     )));
+    unsafe {
+        node.set_display(Display::Inline);
+        node.set_baseline_func(Some(Box::new(|_, _, _| Len::from_f32(16.))));
+        node.set_node_type(float_pigment_forest::NodeType::Text);
+    }
 }
 
 impl TestCtx {
@@ -391,6 +385,7 @@ impl TestCtx {
                 self.set_expect_layout_pos(node, e.attributes());
 
                 if is_measure_text_slot(e.tag()) {
+                    let node = Node::new_ptr();
                     let text_len = e
                         .attributes()
                         .get("len")
