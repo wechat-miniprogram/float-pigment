@@ -82,6 +82,19 @@ fn margin_collapse_1() {
 }
 
 #[test]
+fn margin_collapse_empty_inline_nodes() {
+    assert_xml!(
+        r#"
+        <div style="height: 800px;">
+          <div style="height: 100px; margin-bottom: 50px;"></div>
+          <div style="display: inline; height: 0;"></div>
+          <div style="margin-top: 40px;" expect_top="150"></div>
+        </div>
+    "#
+    )
+}
+
+#[test]
 fn margin_collapse_negative() {
     assert_xml!(
         r#"
