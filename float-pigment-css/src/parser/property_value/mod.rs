@@ -222,6 +222,46 @@ pub(crate) fn env_default_value<'a, 't: 'a, 'i: 't>(
 }
 
 #[inline(never)]
+pub(crate) fn line_names<'a, 't: 'a, 'i: 't>(
+    parser: &'a mut Parser<'i, 't>,
+    properties: &mut Vec<PropertyMeta>,
+    st: &mut ParseState,
+) -> Result<Vec<String>, ParseError<'i, CustomError>> {
+    let next = parser.next()?;
+    if let Token::SquareBracketBlock = next {
+        let line_names = parser.parse_nested_block(|parser| {
+            let mut line_names = Vec::with_capacity(1);
+            while !parser.is_exhausted() {
+                let line_name = custom_ident_repr(parser, properties, st)?;
+                line_names.push(line_name);
+            }
+            Ok(line_names)
+        })?;
+        return Ok(line_names);
+    }
+    let next = next.clone();
+    Err(parser.new_unexpected_token_error(next))
+}
+
+#[inline(never)]
+pub(crate) fn fr_repr<'a, 't: 'a, 'i: 't>(
+    parser: &'a mut Parser<'i, 't>,
+    _properties: &mut Vec<PropertyMeta>,
+    _st: &mut ParseState,
+) -> Result<f32, ParseError<'i, CustomError>> {
+    let next = parser.next()?;
+    match next {
+        Token::Dimension { value, unit, .. } => match unit as &str {
+            "fr" => return Ok(*value),
+            _ => {}
+        },
+        _ => {}
+    }
+    let next = next.clone();
+    Err(parser.new_unexpected_token_error(next))
+}
+
+#[inline(never)]
 pub(crate) fn length_without_percentage<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
     properties: &mut Vec<PropertyMeta>,
@@ -866,22 +906,22 @@ pub(crate) fn element_func_repr<'a, 't: 'a, 'i: 't>(
     })
 }
 
-// pub(crate) fn custom_ident_repr<'a, 't: 'a, 'i: 't>(
-//     parser: &'a mut Parser<'i, 't>,
-//     _properties: &mut Vec<PropertyMeta>,
-//     _st: &mut ParseState,
-// ) -> Result<String, ParseError<'i, CustomError>> {
-//     let next = parser.next()?.clone();
-//     match &next {
-//         Token::Ident(name) => {
-//             return Ok(name.to_string());
-//         }
-//         Token::QuotedString(name) => {
-//             return Ok(name.to_string());
-//         }
-//         _ => return Err(parser.new_unexpected_token_error::<CustomError>(next.clone())),
-//     }
-// }
+pub(crate) fn custom_ident_repr<'a, 't: 'a, 'i: 't>(
+    parser: &'a mut Parser<'i, 't>,
+    _properties: &mut Vec<PropertyMeta>,
+    _st: &mut ParseState,
+) -> Result<String, ParseError<'i, CustomError>> {
+    let next = parser.next()?.clone();
+    match &next {
+        Token::Ident(name) => {
+            return Ok(name.to_string());
+        }
+        Token::QuotedString(name) => {
+            return Ok(name.to_string());
+        }
+        _ => return Err(parser.new_unexpected_token_error::<CustomError>(next.clone())),
+    }
+}
 
 #[inline(never)]
 pub(crate) fn image_func_repr<'a, 't: 'a, 'i: 't>(
