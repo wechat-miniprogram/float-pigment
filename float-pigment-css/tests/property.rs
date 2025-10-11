@@ -6077,6 +6077,70 @@ mod typography {
     }
 }
 
+mod grid {
+    use super::*;
+
+    // 0xa5 0xa6
+    #[test]
+    fn grid_template() {
+        test_parse_property!(
+            grid_template_rows,
+            "grid-template-rows",
+            "100px 1fr 200px",
+            GridTemplate::TrackList(
+                vec![
+                    TrackListItem::TrackSize(TrackSize::Length(Length::Px(100.))),
+                    TrackListItem::TrackSize(TrackSize::Fr(1.)),
+                    TrackListItem::TrackSize(TrackSize::Length(Length::Px(200.)))
+                ]
+                .into()
+            )
+        );
+        test_parse_property!(
+            grid_template_rows,
+            "grid-template-rows",
+            "[hello] 1fr [world] 200px [foo bar]",
+            GridTemplate::TrackList(
+                vec![
+                    TrackListItem::LineNames(vec!["hello".to_string().into()].into()),
+                    TrackListItem::TrackSize(TrackSize::Fr(1.)),
+                    TrackListItem::LineNames(vec!["world".to_string().into()].into()),
+                    TrackListItem::TrackSize(TrackSize::Length(Length::Px(200.))),
+                    TrackListItem::LineNames(
+                        vec!["foo".to_string().into(), "bar".to_string().into()].into()
+                    ),
+                ]
+                .into()
+            )
+        );
+        test_parse_property!(
+            grid_template_rows,
+            "grid-template-rows",
+            "auto auto auto",
+            GridTemplate::TrackList(
+                vec![
+                    TrackListItem::TrackSize(TrackSize::Length(Length::Auto)),
+                    TrackListItem::TrackSize(TrackSize::Length(Length::Auto)),
+                    TrackListItem::TrackSize(TrackSize::Length(Length::Auto)),
+                ]
+                .into()
+            )
+        );
+        test_parse_property!(
+            grid_template_columns,
+            "grid-template-columns",
+            "auto auto",
+            GridTemplate::TrackList(
+                vec![
+                    TrackListItem::TrackSize(TrackSize::Length(Length::Auto)),
+                    TrackListItem::TrackSize(TrackSize::Length(Length::Auto)),
+                ]
+                .into()
+            )
+        );
+    }
+}
+
 mod other {
     use super::*;
 

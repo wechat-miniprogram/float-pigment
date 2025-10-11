@@ -2336,3 +2336,36 @@ impl fmt::Display for Gap {
         }
     }
 }
+
+impl fmt::Display for TrackSize {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TrackSize::Length(length) => write!(f, "{length}"),
+            TrackSize::MinContent => write!(f, "min-content"),
+            TrackSize::MaxContent => write!(f, "max-content"),
+            TrackSize::Fr(x) => write!(f, "{x}fr"),
+        }
+    }
+}
+
+impl fmt::Display for GridTemplate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GridTemplate::None => write!(f, "none"),
+            GridTemplate::TrackList(list) => {
+                let mut ret = vec![];
+                list.iter().for_each(|x| match x {
+                    TrackListItem::LineNames(line_names) => ret.push(
+                        line_names
+                            .iter()
+                            .map(|x| x.to_string())
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                    ),
+                    TrackListItem::TrackSize(track_size) => ret.push(track_size.to_string()),
+                });
+                write!(f, "{}", ret.join(" "))
+            }
+        }
+    }
+}
