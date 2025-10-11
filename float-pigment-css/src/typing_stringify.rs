@@ -2369,3 +2369,14 @@ impl fmt::Display for GridTemplate {
         }
     }
 }
+
+impl fmt::Display for GridAutoFlow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GridAutoFlow::Row => write!(f, "row"),
+            GridAutoFlow::Column => write!(f, "column"),
+            GridAutoFlow::RowDense => write!(f, "row dense"),
+            GridAutoFlow::ColumnDense => write!(f, "column dense"),
+        }
+    }
+}

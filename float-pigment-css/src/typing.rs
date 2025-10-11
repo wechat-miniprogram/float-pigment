@@ -1829,3 +1829,15 @@ pub enum TrackSize {
     #[resolve_font_size(Length::resolve_em)]
     Length(Length),
 }
+
+#[allow(missing_docs)]
+#[repr(C)]
+#[property_value_type(PropertyValueWithGlobal for GridAutoFlowType)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ResolveFontSize)]
+#[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
+pub enum GridAutoFlow {
+    Row,
+    Column,
+    RowDense,
+    ColumnDense,
+}
