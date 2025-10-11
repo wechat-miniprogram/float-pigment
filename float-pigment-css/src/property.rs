@@ -13,12 +13,10 @@ use alloc::{
 
 use cssparser::{ParseError, Parser, SourcePosition};
 
-use crate::sheet::str_store::StrRef;
-
 use super::parser::{property_value::*, CustomError, ParseState};
 use super::resolve_font_size::ResolveFontSize;
 use super::sheet::borrow::Array;
-pub use super::sheet::PropertyMeta;
+pub use super::sheet::{str_store::StrRef, PropertyMeta};
 use super::typing::*;
 use float_pigment_css_macro::*;
 
@@ -171,6 +169,7 @@ property_list! (PropertyValueWithGlobal, {
     // grid
     0xa5 GridTemplateRows: GridTemplateType as Initial default GridTemplate::None;
     0xa6 GridTemplateColumns: GridTemplateType as Initial default GridTemplate::None;
+    0xa7 GridAutoFlow: GridAutoFlowType as Initial default GridAutoFlow::Row;
 
 
     0xd0 ListStyleType: ListStyleTypeType as Inherit default ListStyleType::Disc;
@@ -1704,6 +1703,8 @@ property_value_format! (PropertyValueWithGlobal, {
             GridTemplate::TrackList(x.into())
         };
     }};
+
+    grid_auto_flow: {{ GridAutoFlow = <grid_auto_flow_repr> }};
 
 });
 

@@ -6139,6 +6139,55 @@ mod grid {
             )
         );
     }
+
+    // 0xa7
+    #[test]
+    fn grid_auto_flow() {
+        test_parse_property!(grid_auto_flow, "grid-auto-flow", "row", GridAutoFlow::Row);
+        test_parse_property!(
+            grid_auto_flow,
+            "grid-auto-flow",
+            "column",
+            GridAutoFlow::Column
+        );
+        test_parse_property!(
+            grid_auto_flow,
+            "grid-auto-flow",
+            "row dense",
+            GridAutoFlow::RowDense
+        );
+        test_parse_property!(
+            grid_auto_flow,
+            "grid-auto-flow",
+            "column dense",
+            GridAutoFlow::ColumnDense
+        );
+        test_parse_property!(
+            grid_auto_flow,
+            "grid-auto-flow",
+            "dense",
+            GridAutoFlow::RowDense
+        );
+
+        test_parse_property!(
+            grid_auto_flow,
+            "grid-auto-flow",
+            "dense row",
+            GridAutoFlow::RowDense
+        );
+        test_parse_property!(
+            grid_auto_flow,
+            "grid-auto-flow",
+            "dense column",
+            GridAutoFlow::ColumnDense
+        );
+        test_parse_property!(
+            grid_auto_flow,
+            "grid-auto-flow",
+            "row row",
+            GridAutoFlow::Row
+        );
+    }
 }
 
 mod other {
