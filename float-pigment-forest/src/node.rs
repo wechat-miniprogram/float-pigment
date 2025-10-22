@@ -1,7 +1,7 @@
 use crate::{env::Env, layout::LayoutPosition, style::StyleManager};
 use float_pigment_css::typing::{
     AlignContent, AlignItems, AlignSelf, BoxSizing, Direction, FlexDirection, FlexWrap,
-    JustifyContent, Overflow, Position, TextAlign, WritingMode,
+    GridAutoFlow, JustifyContent, Overflow, Position, TextAlign, WritingMode,
 };
 
 use float_pigment_css::{length_num::*, typing::Display};
@@ -16,6 +16,7 @@ use std::{
 
 pub type Len = float_pigment_css::fixed::FixedI32<float_pigment_css::fixed::types::extra::U10>;
 pub type Length = DefLength<Len>;
+pub type LayoutGridTemplate = float_pigment_layout::LayoutGridTemplate<Len>;
 pub type NodeId = usize;
 pub type NodePtr = *mut Node;
 
@@ -131,6 +132,7 @@ impl DumpNode for Node {
             Display::FlowRoot => "FlowRoot".into(),
             Display::Grid => "Grid".into(),
             Display::InlineFlex => "InlineFlex".into(),
+            Display::InlineGrid => "InlineGrid".into(),
         };
         if self.has_measure_func() {
             tag = format!("Measurable{tag}");
@@ -644,6 +646,9 @@ pub trait StyleSetter {
     unsafe fn set_text_align(&self, value: TextAlign);
     unsafe fn set_row_gap(&self, value: Length);
     unsafe fn set_column_gap(&self, value: Length);
+    unsafe fn set_grid_template_rows(&self, value: LayoutGridTemplate);
+    unsafe fn set_grid_template_columns(&self, value: LayoutGridTemplate);
+    unsafe fn set_grid_auto_flow(&self, value: GridAutoFlow);
 }
 
 impl StyleSetter for Node {
@@ -890,6 +895,21 @@ impl StyleSetter for Node {
     }
     unsafe fn set_column_gap(&self, value: Length) {
         if self.style_manager_mut().set_column_gap(value) {
+            self.mark_dirty_propagate();
+        }
+    }
+    unsafe fn set_grid_template_rows(&self, value: LayoutGridTemplate) {
+        if self.style_manager_mut().set_grid_template_rows(value) {
+            self.mark_dirty_propagate();
+        }
+    }
+    unsafe fn set_grid_template_columns(&self, value: LayoutGridTemplate) {
+        if self.style_manager_mut().set_grid_template_columns(value) {
+            self.mark_dirty_propagate();
+        }
+    }
+    unsafe fn set_grid_auto_flow(&self, value: GridAutoFlow) {
+        if self.style_manager_mut().set_grid_auto_flow(value) {
             self.mark_dirty_propagate();
         }
     }

@@ -37,7 +37,7 @@
 //! However, you are informed the inline layout parts so that you can implement a text layout engine to handle them.
 
 #![warn(missing_docs)]
-#![no_std]
+// #![no_std]
 
 #[macro_use]
 extern crate alloc;
@@ -54,7 +54,7 @@ use core::{
 
 use float_pigment_css::typing::{
     AlignContent, AlignItems, AlignSelf, BoxSizing, Direction, Display, FlexDirection, FlexWrap,
-    JustifyContent, Position, TextAlign, WritingMode,
+    GridAutoFlow, JustifyContent, Position, TextAlign, WritingMode,
 };
 
 mod algo;
@@ -86,10 +86,10 @@ pub trait LayoutTreeNode: Sized {
     /// Sometimes float-point is not accurate enough. You can use the fixed-point types provided by the `fixed` crate.
     type Length: LengthNum;
 
-    /// A custem length type used in `DefLength::Custom`.
+    /// A custom length type used in `DefLength::Custom`.
     ///
     /// If you do not need it, simply use `i32`.
-    type LengthCustom: PartialEq;
+    type LengthCustom: PartialEq + std::fmt::Debug + Clone;
 
     /// A helper type for tree traversal.
     ///
@@ -205,13 +205,18 @@ pub trait LayoutTreeVisitor<T: LayoutTreeNode> {
     /// When `LayoutNode::mark_dirty` is called, some related nodes (e.g. the ancestors) are also marked dirty automatically.
     /// These calls tells which nodes are marked dirty.
     fn dirty_marked(&self) {}
+
+    ///  Get children iterator.
+    fn children_iter<'a, 'b: 'a>(&'b self) -> impl Iterator<Item = &'a T>
+    where
+        T: 'a;
 }
 
 /// The styles of a tree node.
 ///
 /// The values are similar to corresponding CSS properties.
 #[allow(missing_docs)]
-pub trait LayoutStyle<L: LengthNum, T: PartialEq = i32> {
+pub trait LayoutStyle<L: LengthNum, T: PartialEq + Clone = i32> {
     fn display(&self) -> Display;
     fn position(&self) -> Position;
     fn direction(&self) -> Direction;
@@ -258,6 +263,15 @@ pub trait LayoutStyle<L: LengthNum, T: PartialEq = i32> {
     }
     fn row_gap(&self) -> DefLength<L, T> {
         DefLength::Undefined
+    }
+    fn grid_template_rows(&self) -> LayoutGridTemplate<L, T> {
+        LayoutGridTemplate::None
+    }
+    fn grid_template_columns(&self) -> LayoutGridTemplate<L, T> {
+        LayoutGridTemplate::None
+    }
+    fn grid_auto_flow(&self) -> GridAutoFlow {
+        GridAutoFlow::Row
     }
 }
 

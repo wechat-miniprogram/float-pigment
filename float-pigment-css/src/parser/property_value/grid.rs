@@ -9,7 +9,7 @@ use crate::{
 #[inline(never)]
 pub(crate) fn line_names<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
-    properties: &mut Vec<PropertyMeta>,
+    properties: &mut [PropertyMeta],
     st: &mut ParseState,
 ) -> Result<Vec<String>, ParseError<'i, CustomError>> {
     let next = parser.next()?;
@@ -31,7 +31,7 @@ pub(crate) fn line_names<'a, 't: 'a, 'i: 't>(
 #[inline(never)]
 pub(crate) fn fr_repr<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
-    _properties: &mut Vec<PropertyMeta>,
+    _properties: &mut [PropertyMeta],
     _st: &mut ParseState,
 ) -> Result<f32, ParseError<'i, CustomError>> {
     let next = parser.next()?;
@@ -49,7 +49,7 @@ pub(crate) fn fr_repr<'a, 't: 'a, 'i: 't>(
 #[inline(never)]
 pub(crate) fn grid_auto_flow_repr<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
-    _properties: &mut Vec<PropertyMeta>,
+    _properties: &mut [PropertyMeta],
     _st: &mut ParseState,
 ) -> Result<GridAutoFlow, ParseError<'i, CustomError>> {
     #[derive(PartialEq, Clone, Copy)]

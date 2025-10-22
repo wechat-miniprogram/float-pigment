@@ -6,7 +6,7 @@ use float_pigment_css::num_traits::Zero;
 ///   - The size of each gap
 ///   - The number of items (children or flex-lines) between which there are gaps
 #[inline(always)]
-fn sum_axis_gaps<L: LengthNum>(gap: L, num_items: usize) -> L {
+pub(crate) fn sum_axis_gaps<L: LengthNum>(gap: L, num_items: usize) -> L {
     if num_items <= 1 {
         L::zero()
     } else {
@@ -15,7 +15,7 @@ fn sum_axis_gaps<L: LengthNum>(gap: L, num_items: usize) -> L {
 }
 
 #[inline(always)]
-fn resolve_row_gap<T: LayoutTreeNode>(
+pub(crate) fn resolve_row_gap<T: LayoutTreeNode>(
     style: &T::Style,
     node: &T,
     inner_size: &Normalized<OptionSize<T::Length>>,
@@ -29,7 +29,7 @@ fn resolve_row_gap<T: LayoutTreeNode>(
 }
 
 #[inline(always)]
-fn resolve_column_gap<T: LayoutTreeNode>(
+pub(crate) fn resolve_column_gap<T: LayoutTreeNode>(
     style: &T::Style,
     node: &T,
     inner_size: &Normalized<OptionSize<T::Length>>,
@@ -229,12 +229,11 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
         //    margin, border, and padding from the space available to the flex container
         //    in that dimension and use that value. This might result in an infinite value.
 
-        let available_space = {
-            Normalized(OptionSize::new(
-                requested_size.width.or(request.max_content.width) - padding_border.horizontal(),
-                requested_size.height.or(request.max_content.height) - padding_border.vertical(),
-            ))
-        };
+        let available_space = Normalized(OptionSize::new(
+            requested_size.width.or(request.max_content.width) - padding_border.horizontal(),
+            requested_size.height.or(request.max_content.height) - padding_border.vertical(),
+        ));
+
         let inner_max_content = OptionSize::new(
             request.max_content.width - padding_border.horizontal(),
             request.max_content.height - padding_border.vertical(),
