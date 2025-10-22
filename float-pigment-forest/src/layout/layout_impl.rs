@@ -1,5 +1,5 @@
 use float_pigment_css::length_num::*;
-use float_pigment_css::typing::TextAlign;
+use float_pigment_css::typing::{GridAutoFlow, TextAlign};
 use float_pigment_css::{
     num_traits::Zero,
     typing::{
@@ -12,7 +12,7 @@ use float_pigment_layout::{
     LayoutTreeNode, LayoutTreeVisitor, MeasureResult, OptionNum, OptionSize, Point, Size, Vector,
 };
 
-use crate::{convert_node_ref_to_ptr, Length};
+use crate::{convert_node_ref_to_ptr, LayoutGridTemplate, Length};
 use crate::{
     env::Env,
     node::{ChildOperation, Node},
@@ -268,6 +268,14 @@ impl LayoutTreeVisitor<Node> for Node {
     #[inline]
     fn child_at(&self, index: usize) -> Option<&Node> {
         unsafe { self.get_child_at(index) }
+    }
+
+    #[inline]
+    fn children_iter<'a, 'b: 'a>(&'b self) -> impl Iterator<Item = &'a Node>
+    where
+        Node: 'a,
+    {
+        unsafe { self.children().into_iter() }
     }
 }
 #[derive(Debug, Clone)]
@@ -665,5 +673,19 @@ impl LayoutStyle<Len> for Node {
     #[inline]
     fn column_gap(&self) -> Length {
         self.style_manager().column_gap()
+    }
+    #[inline]
+    fn grid_template_rows(&self) -> LayoutGridTemplate {
+        self.style_manager().grid_template_rows()
+    }
+
+    #[inline]
+    fn grid_template_columns(&self) -> LayoutGridTemplate {
+        self.style_manager().grid_template_columns()
+    }
+
+    #[inline]
+    fn grid_auto_flow(&self) -> GridAutoFlow {
+        self.style_manager().grid_auto_flow()
     }
 }

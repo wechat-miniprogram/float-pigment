@@ -60,6 +60,7 @@ impl fmt::Display for Display {
                 Self::Grid => "grid",
                 Self::FlowRoot => "flow-root",
                 Self::InlineFlex => "inline-flex",
+                Self::InlineGrid => "inline-grid",
             }
         )
     }

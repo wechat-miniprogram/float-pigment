@@ -172,18 +172,28 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                             collapsed_margin: CollapsedBlockMargin::zero(),
                         }
                     }
-                    Display::Block | Display::InlineBlock | Display::Inline | Display::Grid => {
-                        algo::flow::Flow::compute(
-                            self,
-                            env,
-                            node,
-                            request.clone(),
-                            margin,
-                            border,
-                            padding_border,
-                        )
-                    }
+                    Display::Block
+                    | Display::InlineBlock
+                    | Display::Inline
+                    | Display::InlineGrid => algo::flow::Flow::compute(
+                        self,
+                        env,
+                        node,
+                        request.clone(),
+                        margin,
+                        border,
+                        padding_border,
+                    ),
                     Display::Flex | Display::InlineFlex => algo::flex_box::FlexBox::compute(
+                        self,
+                        env,
+                        node,
+                        request.clone(),
+                        margin,
+                        border,
+                        padding_border,
+                    ),
+                    Display::Grid => algo::grid::GridContainer::compute(
                         self,
                         env,
                         node,

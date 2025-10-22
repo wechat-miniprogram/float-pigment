@@ -445,6 +445,7 @@ pub enum Display {
     Grid,
     FlowRoot,
     InlineFlex,
+    InlineGrid,
 }
 
 #[allow(missing_docs)]

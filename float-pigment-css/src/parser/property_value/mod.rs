@@ -871,18 +871,14 @@ pub(crate) fn element_func_repr<'a, 't: 'a, 'i: 't>(
 
 pub(crate) fn custom_ident_repr<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
-    _properties: &mut Vec<PropertyMeta>,
+    _properties: &mut [PropertyMeta],
     _st: &mut ParseState,
 ) -> Result<String, ParseError<'i, CustomError>> {
     let next = parser.next()?.clone();
     match &next {
-        Token::Ident(name) => {
-            return Ok(name.to_string());
-        }
-        Token::QuotedString(name) => {
-            return Ok(name.to_string());
-        }
-        _ => return Err(parser.new_unexpected_token_error::<CustomError>(next.clone())),
+        Token::Ident(name) => Ok(name.to_string()),
+        Token::QuotedString(name) => Ok(name.to_string()),
+        _ => Err(parser.new_unexpected_token_error::<CustomError>(next.clone())),
     }
 }
 

@@ -8,11 +8,11 @@ use float_pigment_css::{
     parser::parse_inline_style,
     property::{NodeProperties, Property, PropertyValueWithGlobal},
     sheet::PropertyMeta,
-    typing::{AspectRatio, Display, Gap},
+    typing::{AspectRatio, Display, Gap, GridTemplate, TrackListItem, TrackSize},
 };
 pub use float_pigment_forest::Len;
 use float_pigment_forest::{layout::LayoutPosition, node::Length, *};
-use float_pigment_layout::DefLength;
+use float_pigment_layout::{DefLength, LayoutGridTemplate, LayoutTrackListItem, LayoutTrackSize};
 use float_pigment_mlp::{
     context::{Context, Parse},
     node::{attribute::Attribute, NodeType},
@@ -582,6 +582,19 @@ impl TestCtx {
                         }
                     });
                 }
+                "grid-template-rows" => {
+                    node.set_grid_template_rows({
+                        convert_grid_template(node_props.grid_template_rows())
+                    });
+                }
+                "grid-template-columns" => {
+                    node.set_grid_template_columns({
+                        convert_grid_template(node_props.grid_template_columns())
+                    });
+                }
+                "grid-auto-flow" => {
+                    node.set_grid_auto_flow(node_props.grid_auto_flow());
+                }
                 _ => {}
             }
         });
@@ -589,6 +602,29 @@ impl TestCtx {
         warnings.iter().for_each(|w| {
             println!("{w:?}");
         });
+    }
+}
+
+fn convert_grid_template(grid_template: GridTemplate) -> LayoutGridTemplate<Len> {
+    match grid_template {
+        GridTemplate::None => LayoutGridTemplate::None,
+        GridTemplate::TrackList(x) => LayoutGridTemplate::TrackList({
+            x.into_iter()
+                .map(|x| match x {
+                    TrackListItem::LineNames(line_names) => LayoutTrackListItem::LineNames(
+                        line_names.into_iter().map(|x| x.to_string()).collect(),
+                    ),
+                    TrackListItem::TrackSize(track_size) => {
+                        LayoutTrackListItem::TrackSize(match track_size {
+                            TrackSize::MinContent => LayoutTrackSize::MinContent,
+                            TrackSize::MaxContent => LayoutTrackSize::MaxContent,
+                            TrackSize::Fr(x) => LayoutTrackSize::Fr(x),
+                            TrackSize::Length(x) => LayoutTrackSize::Length(def_length(x)),
+                        })
+                    }
+                })
+                .collect()
+        }),
     }
 }
 

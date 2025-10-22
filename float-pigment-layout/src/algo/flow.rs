@@ -101,7 +101,7 @@ fn for_each_block_or_inline_series<T: LayoutTreeNode>(
                 return;
             }
             match child_style.display() {
-                Display::Inline | Display::Grid => {
+                Display::Inline => {
                     if child_node.should_measure(env) {
                         end_nodes.push(child_node);
                     } else {
@@ -109,10 +109,10 @@ fn for_each_block_or_inline_series<T: LayoutTreeNode>(
                         middle_nodes.push(child_node);
                     }
                 }
-                Display::InlineBlock | Display::InlineFlex => {
+                Display::InlineBlock | Display::InlineFlex | Display::InlineGrid => {
                     end_nodes.push(child_node);
                 }
-                Display::Block | Display::Flex => {
+                Display::Block | Display::Flex | Display::Grid => {
                     if !end_nodes.is_empty() {
                         f(
                             env,

@@ -204,6 +204,7 @@ property_value_format! (PropertyValueWithGlobal, {
         | "grid" => DisplayType::Grid
         | "flow-root" => DisplayType::FlowRoot
         | "inline-flex" => DisplayType::InlineFlex
+        | "inline-grid" => DisplayType::InlineGrid
     }};
     position: {{ Position
         = "static" => PositionType::Static

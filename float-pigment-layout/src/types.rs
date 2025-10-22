@@ -174,7 +174,7 @@ impl<L: LengthNum> VectorProxy<L> for Vector<L> {
 
 /// A length type that can be undefined or auto.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum DefLength<L: LengthNum, T: PartialEq = i32> {
+pub enum DefLength<L: LengthNum, T: PartialEq + Clone = i32> {
     /// The length is undetermined.
     Undefined,
 
@@ -193,7 +193,7 @@ pub enum DefLength<L: LengthNum, T: PartialEq = i32> {
     Custom(T),
 }
 
-impl<L: LengthNum, T: PartialEq + Display> Display for DefLength<L, T> {
+impl<L: LengthNum, T: PartialEq + Display + Clone> Display for DefLength<L, T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Undefined => write!(f, "Undefined"),
@@ -205,13 +205,13 @@ impl<L: LengthNum, T: PartialEq + Display> Display for DefLength<L, T> {
     }
 }
 
-impl<L: LengthNum, T: PartialEq> Default for DefLength<L, T> {
+impl<L: LengthNum, T: PartialEq + Clone> Default for DefLength<L, T> {
     fn default() -> Self {
         Self::Undefined
     }
 }
 
-impl<L: LengthNum, T: PartialEq> DefLength<L, T> {
+impl<L: LengthNum, T: PartialEq + Clone> DefLength<L, T> {
     pub(crate) fn resolve<N: LayoutTreeNode<Length = L, LengthCustom = T>>(
         &self,
         parent: OptionNum<L>,
@@ -330,6 +330,12 @@ impl<L: LengthNum> OptionNum<L> {
     #[inline]
     pub fn map(self, f: impl FnOnce(L) -> L) -> Self {
         Self(self.0.map(f))
+    }
+}
+
+impl<L: LengthNum> From<Option<L>> for OptionNum<L> {
+    fn from(value: Option<L>) -> Self {
+        Self(value)
     }
 }
 
@@ -986,6 +992,29 @@ impl<T> Deref for Normalized<T> {
 #[inline(always)]
 pub(crate) fn size_to_option<L: LengthNum>(size: Size<L>) -> OptionSize<L> {
     OptionSize::new(OptionNum::some(size.width), OptionNum::some(size.height))
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum LayoutGridTemplate<L: LengthNum, T: PartialEq + Clone = i32> {
+    None,
+    TrackList(Vec<LayoutTrackListItem<L, T>>),
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum LayoutTrackListItem<L: LengthNum, T: PartialEq + Clone = i32> {
+    LineNames(Vec<String>),
+    TrackSize(LayoutTrackSize<L, T>),
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum LayoutTrackSize<L: LengthNum, T: PartialEq + Clone = i32> {
+    MinContent,
+    MaxContent,
+    Fr(f32),
+    Length(DefLength<L, T>),
 }
 
 #[cfg(test)]
