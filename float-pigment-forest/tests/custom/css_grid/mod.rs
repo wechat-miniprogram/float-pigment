@@ -79,3 +79,16 @@ fn grid_item_with_margin() {
         true
     )
 }
+
+#[test]
+fn grid_item_with_border() {
+    assert_xml!(
+        r#"
+        <div style="display: grid; width: 300px; grid-template-columns: 100px 100px" >
+          <div style="width: 50px; padding: 10px; border-bottom: 1px solid black;" expect_height="101" expect_width="70"></div>
+          <div style="width: 50px; height: 100px; border-bottom: 1px solid black;" expect_height="101" expect_width="50"></div>
+        </div>
+    "#,
+        true
+    )
+}
