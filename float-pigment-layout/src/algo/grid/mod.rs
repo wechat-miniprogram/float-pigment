@@ -416,27 +416,33 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                     layout_grid_matrix.items[(row_index, column_index)].as_mut()
                 {
                     let mut layout_node = grid_matrix_item.node.layout_node().unit();
+
                     layout_node.gen_origin(
                         axis_info,
                         Size::new(
                             grid_matrix_item.track_size.width.val().unwrap(),
                             grid_matrix_item.track_size.height.val().unwrap(),
                         ),
-                        inline_offset,
-                        block_offset,
-                    );
-                    layout_node.result.origin = Point::new(
-                        inline_offset
-                            + grid_matrix_item
-                                .margin
-                                .main_axis_start(axis_info.dir, axis_info.main_dir_rev)
-                                .or_zero(),
                         block_offset
                             + grid_matrix_item
                                 .margin
                                 .cross_axis_start(axis_info.dir, axis_info.cross_dir_rev)
                                 .or_zero(),
+                        inline_offset
+                            + grid_matrix_item
+                                .margin
+                                .main_axis_start(axis_info.dir, axis_info.main_dir_rev)
+                                .or_zero(),
                     );
+                    layout_node.save_all_results(
+                        grid_matrix_item.node,
+                        env,
+                        Size::new(
+                            grid_matrix_item.track_size.width,
+                            grid_matrix_item.track_size.height,
+                        ),
+                    );
+
                     inline_offset += grid_matrix_item.track_size.width.val().unwrap();
                     current_block_size = grid_matrix_item.track_size.height.val().unwrap();
                 }
