@@ -279,10 +279,11 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                         grid_item.track_inline_size.resolve(OptionNum::none(), node),
                         grid_item.track_block_size.resolve(OptionNum::none(), node),
                     ));
-                    let (_, child_border, child_padding_border) = child.margin_border_padding(
-                        child_node,
-                        OptionSize::new(OptionNum::none(), OptionNum::none()),
-                    );
+                    let (child_margin, child_border, child_padding_border) = child
+                        .margin_border_padding(
+                            child_node,
+                            OptionSize::new(OptionNum::none(), OptionNum::none()),
+                        );
                     let css_size = child.css_border_box_size(
                         child_node,
                         OptionSize::new(OptionNum::none(), OptionNum::none()),
@@ -306,11 +307,17 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                             size,
                             parent_inner_size: track_size,
                             max_content: track_size,
-                            kind: ComputeRequestKind::Position,
+                            kind: request.kind,
                             parent_is_block: false,
                         },
                     );
-                    layout_grid_matrix.items[(row, column)] = Some((res, track_size.0, child_node));
+                    layout_grid_matrix.items[(row, column)] = Some(GridMatrixItem {
+                        node: child_node,
+                        margin: child_margin,
+                        css_size,
+                        result: res,
+                        track_size: track_size.0,
+                    });
                 }
             }
         }
@@ -319,25 +326,23 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
 
         for col_index in 0..layout_grid_matrix.column_count {
             let inline_size: <T as LayoutTreeNode>::Length;
-            if let Some(Some((_, specified_track_size, _))) =
+            if let Some(Some(grid_matrix_item)) =
                 layout_grid_matrix.items.iter_col(col_index).find(|item| {
-                    if item.is_none() {
-                        false
-                    } else {
-                        item.unwrap().1.width.is_some()
+                    if let Some(item) = item.as_ref() {
+                        return item.track_size.width.is_some();
                     }
+                    false
                 })
             {
-                inline_size = specified_track_size.width.val().unwrap();
+                inline_size = grid_matrix_item.track_size.width.val().unwrap();
             } else {
                 inline_size = layout_grid_matrix.items.iter_col(col_index).fold(
                     T::Length::zero(),
                     |acc, cur| {
-                        if cur.is_some() {
-                            acc.max(cur.unwrap().0.size.width)
-                        } else {
-                            acc
+                        if let Some(cur) = cur.as_ref() {
+                            return acc.max(cur.result.size.width);
                         }
+                        acc
                     },
                 );
             }
@@ -346,22 +351,11 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                 .iter_col_mut(col_index)
                 .for_each(|item| {
                     if item.is_some() {
-                        let item = item.as_mut().unwrap();
-                        let (_, track_size, node) = item;
-                        track_size.width = OptionNum::some(inline_size);
-                        let (_, child_border, child_padding_border) =
-                            node.layout_node().unit().margin_border_padding(
-                                node,
-                                OptionSize::new(OptionNum::none(), OptionNum::none()),
-                            );
-                        let css_size = node.layout_node().unit().css_border_box_size(
-                            node,
-                            OptionSize::new(OptionNum::none(), OptionNum::none()),
-                            child_border,
-                            child_padding_border,
-                        );
-                        if css_size.width.is_none() {
-                            node.layout_node().unit().result.size.width = inline_size;
+                        let grid_matrix_item = item.as_mut().unwrap();
+                        grid_matrix_item.track_size.width = OptionNum::some(inline_size);
+                        if grid_matrix_item.css_size.width.is_none() {
+                            grid_matrix_item.node.layout_node().unit().result.size.width =
+                                inline_size;
                         }
                     }
                 });
@@ -371,25 +365,23 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
 
         for row_index in 0..layout_grid_matrix.row_count {
             let block_size;
-            if let Some(Some((_, specified_track_size, _))) =
+            if let Some(Some(grid_matrix_item)) =
                 layout_grid_matrix.items.iter_row(row_index).find(|item| {
-                    let item = item.as_ref();
                     if let Some(item) = item.as_ref() {
-                        return item.1.height.is_some();
+                        return item.track_size.height.is_some();
                     }
                     false
                 })
             {
-                block_size = specified_track_size.height.val().unwrap();
+                block_size = grid_matrix_item.track_size.height.val().unwrap();
             } else {
                 block_size = layout_grid_matrix.items.iter_row(row_index).fold(
                     T::Length::zero(),
                     |acc, cur| {
-                        if cur.is_some() {
-                            acc.max(cur.unwrap().0.size.height)
-                        } else {
-                            acc
+                        if let Some(cur) = cur.as_ref() {
+                            return acc.max(cur.result.size.height);
                         }
+                        acc
                     },
                 );
             }
@@ -398,22 +390,17 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                 .iter_row_mut(row_index)
                 .for_each(|item| {
                     if item.is_some() {
-                        let item = item.as_mut().unwrap();
-                        let (_, track_size, node) = item;
-                        track_size.height = OptionNum::some(block_size);
-                        let (_, child_border, child_padding_border) =
-                            node.layout_node().unit().margin_border_padding(
-                                node,
-                                OptionSize::new(OptionNum::none(), OptionNum::none()),
-                            );
-                        let css_size = node.layout_node().unit().css_border_box_size(
-                            node,
-                            OptionSize::new(OptionNum::none(), OptionNum::none()),
-                            child_border,
-                            child_padding_border,
-                        );
-                        if css_size.height.is_none() {
-                            node.layout_node().unit().result.size.height = block_size;
+                        let grid_matrix_item = item.as_mut().unwrap();
+                        grid_matrix_item.track_size.height = OptionNum::some(block_size);
+
+                        if grid_matrix_item.css_size.height.is_none() {
+                            grid_matrix_item
+                                .node
+                                .layout_node()
+                                .unit()
+                                .result
+                                .size
+                                .height = block_size;
                         }
                     }
                 });
@@ -425,13 +412,33 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             let mut current_block_size = T::Length::zero();
             let mut inline_offset = T::Length::zero();
             for column_index in 0..layout_grid_matrix.column_count {
-                if let Some((_, track_size, child)) =
+                if let Some(grid_matrix_item) =
                     layout_grid_matrix.items[(row_index, column_index)].as_mut()
                 {
-                    child.layout_node().unit().result.origin =
-                        Point::new(inline_offset, block_offset);
-                    inline_offset += track_size.width.val().unwrap();
-                    current_block_size = track_size.height.val().unwrap();
+                    let mut layout_node = grid_matrix_item.node.layout_node().unit();
+                    layout_node.gen_origin(
+                        axis_info,
+                        Size::new(
+                            grid_matrix_item.track_size.width.val().unwrap(),
+                            grid_matrix_item.track_size.height.val().unwrap(),
+                        ),
+                        inline_offset,
+                        block_offset,
+                    );
+                    layout_node.result.origin = Point::new(
+                        inline_offset
+                            + grid_matrix_item
+                                .margin
+                                .main_axis_start(axis_info.dir, axis_info.main_dir_rev)
+                                .or_zero(),
+                        block_offset
+                            + grid_matrix_item
+                                .margin
+                                .cross_axis_start(axis_info.dir, axis_info.cross_dir_rev)
+                                .or_zero(),
+                    );
+                    inline_offset += grid_matrix_item.track_size.width.val().unwrap();
+                    current_block_size = grid_matrix_item.track_size.height.val().unwrap();
                 }
             }
             block_offset += current_block_size;
@@ -575,9 +582,9 @@ impl<'a, T: LayoutTreeNode> Debug for GridMatrix<'a, T> {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub(crate) struct LayoutGridMatrix<'a, T: LayoutTreeNode> {
-    items: Grid<Option<(ComputeResult<T::Length>, Size<OptionNum<T::Length>>, &'a T)>>,
+    items: Grid<Option<GridMatrixItem<'a, T>>>,
     row_count: usize,
     column_count: usize,
 }
@@ -590,4 +597,14 @@ impl<'a, T: LayoutTreeNode> LayoutGridMatrix<'a, T> {
             column_count,
         }
     }
+}
+
+#[derive(Clone, PartialEq, Debug)]
+
+pub(crate) struct GridMatrixItem<'a, T: LayoutTreeNode> {
+    node: &'a T,
+    margin: EdgeOption<T::Length>,
+    css_size: Size<OptionNum<T::Length>>,
+    result: ComputeResult<T::Length>,
+    track_size: Size<OptionNum<T::Length>>,
 }
