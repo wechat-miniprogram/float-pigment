@@ -1001,6 +1001,12 @@ pub enum LayoutGridTemplate<L: LengthNum, T: PartialEq + Clone = i32> {
     TrackList(Vec<LayoutTrackListItem<L, T>>),
 }
 
+impl<L: LengthNum, T: PartialEq + Clone> Default for LayoutGridTemplate<L, T> {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
 #[allow(missing_docs)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum LayoutTrackListItem<L: LengthNum, T: PartialEq + Clone = i32> {
