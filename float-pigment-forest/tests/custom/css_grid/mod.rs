@@ -66,3 +66,16 @@ fn grid_3() {
         true
     )
 }
+
+#[test]
+fn grid_item_with_margin() {
+    assert_xml!(
+        r#"
+        <div style="display: grid; width: 300px; grid-template-columns: 100px 100px" >
+          <div style="margin-top: 10px; margin-left: 10px; width: 50px; height: 50px;" expect_top="10" expect_left="10"></div>
+          <div style="margin-top: 10px; margin-left: 10px; width: 50px; height: 50px;" expect_top="10" expect_left="110"></div>
+        </div>
+    "#,
+        true
+    )
+}
