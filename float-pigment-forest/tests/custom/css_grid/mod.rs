@@ -60,7 +60,7 @@ fn grid_3() {
             <div style="height: 300px;" expect_height="300"></div>
           </div>
           <div expect_width="250" expect_height="300">header3</div>
-            <div expect_width="250" expect_height="16">foote</div>
+          <div expect_width="250" expect_height="16">foote</div>
         </div>
     "#,
         true
