@@ -27,7 +27,6 @@ impl<'a, T: LayoutTreeNode> GridLayoutItem<'a, T> {
         }
     }
 
-    // FIXME
     pub(crate) fn track_inline_size(&self) -> OptionNum<T::Length> {
         self.track_size.width.clone()
     }
