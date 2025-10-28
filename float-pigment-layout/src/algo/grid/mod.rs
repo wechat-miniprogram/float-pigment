@@ -225,15 +225,40 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                     if grid_matrix_item.is_unoccupied() {
                         continue;
                     }
+
                     let grid_matrix_item = grid_matrix_item.get_auto_placed_unchecked();
                     let mut layout_node = grid_matrix_item.node.layout_node().unit();
 
+                    let size = Size::new(
+                        grid_matrix_item
+                            .css_size
+                            .width
+                            .or(grid_matrix_item.track_size.width),
+                        grid_matrix_item
+                            .css_size
+                            .height
+                            .or(grid_matrix_item.track_size.height),
+                    );
+
+                    layout_node.compute_internal(
+                        env,
+                        grid_matrix_item.node,
+                        ComputeRequest {
+                            size: Normalized(size),
+                            parent_inner_size: Normalized(grid_matrix_item.track_size),
+                            max_content: Normalized(grid_matrix_item.track_size),
+                            kind: request.kind,
+                            parent_is_block: false,
+                        },
+                    );
+                    let track_size = Size::new(
+                        grid_matrix_item.track_size.width.val().unwrap(),
+                        grid_matrix_item.track_size.height.val().unwrap(),
+                    );
+
                     layout_node.gen_origin(
                         axis_info,
-                        Size::new(
-                            grid_matrix_item.track_size.width.val().unwrap(),
-                            grid_matrix_item.track_size.height.val().unwrap(),
-                        ),
+                        track_size,
                         block_offset
                             + grid_matrix_item
                                 .margin
@@ -245,18 +270,8 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                                 .main_axis_start(axis_info.dir, axis_info.main_dir_rev)
                                 .or_zero(),
                     );
-                    layout_node.save_all_results(
-                        grid_matrix_item.node,
-                        env,
-                        Size::new(
-                            grid_matrix_item.track_size.width,
-                            grid_matrix_item.track_size.height,
-                        ),
-                    );
-                    drop(layout_node);
-
-                    inline_offset += grid_matrix_item.track_size.width.val().unwrap();
-                    current_block_size = grid_matrix_item.track_size.height.val().unwrap();
+                    inline_offset += track_size.width;
+                    current_block_size = track_size.height;
                 }
             }
             block_offset += current_block_size;
