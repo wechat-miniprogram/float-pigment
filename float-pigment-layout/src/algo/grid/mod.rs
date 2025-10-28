@@ -8,16 +8,12 @@ mod track_size;
 mod matrix;
 
 use crate::{
-    algo::grid::{
+    AxisInfo, CollapsedBlockMargin, ComputeRequest, ComputeRequestKind, ComputeResult, DefLength, Edge, EdgeOption, LayoutAlgorithm, LayoutGridTemplate, LayoutStyle, LayoutTrackListItem, LayoutTrackSize, LayoutTreeNode, LayoutUnit, MinMax, Normalized, OptionNum, OptionSize, Point, Size, Vector, algo::grid::{
         grid_item::GridLayoutItem,
-        matrix::{estimate_track_count, GridLayoutMatrix, GridMatrix, MatrixCell},
+        matrix::{GridLayoutMatrix, GridMatrix, MatrixCell, estimate_track_count},
         placement::place_grid_items,
         track_size::apply_track_size,
-    },
-    compute_special_position_children, AxisInfo, CollapsedBlockMargin, ComputeRequest,
-    ComputeRequestKind, ComputeResult, DefLength, Edge, EdgeOption, LayoutGridTemplate,
-    LayoutStyle, LayoutTrackListItem, LayoutTrackSize, LayoutTreeNode, LayoutUnit, MinMax,
-    Normalized, OptionNum, OptionSize, Point, Size, Vector,
+    }, compute_special_position_children
 };
 
 #[derive(Clone, PartialEq)]
@@ -252,6 +248,7 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                             grid_matrix_item.track_size.width,
                             grid_matrix_item.track_size.height,
                         ),
+                        LayoutAlgorithm::Block, // FIXME here should be a compute_internal
                     );
                     drop(layout_node);
 
