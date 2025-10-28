@@ -717,7 +717,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                 }
                                 last_baseline_ascent_option =
                                     Some(child_res.last_baseline_ascent + baseline_diff);
-                                child.save_all_results(child_node, env, node_inner_size);
+                                child.save_all_results(child_node, env, node_inner_size, LayoutAlgorithm::Inline);
                             }
                         }
                     }
@@ -743,6 +743,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                 middle_node,
                                 env,
                                 node_inner_size,
+                                LayoutAlgorithm::Inline,
                             );
                             let (_, border, padding_border) = middle_node_layout_unit
                                 .margin_border_padding(middle_node, node_inner_size);
