@@ -717,7 +717,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                 }
                                 last_baseline_ascent_option =
                                     Some(child_res.last_baseline_ascent + baseline_diff);
-                                child.save_all_results(child_node, env, node_inner_size, LayoutAlgorithm::Inline);
+                                child.save_all_results(child_node, env, node_inner_size, LayoutAlgorithm::InlineMeasure);
                             }
                         }
                     }

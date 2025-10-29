@@ -487,8 +487,14 @@ pub enum LayoutAlgorithm {
     /// this node will not be an inline node.
     Inline,
 
+    /// Used when the node measured as an inline node.
+    InlineMeasure,
+
     /// Used when the node is a block node.
     Block,
+
+    /// Used when the node measured as a block node.
+    BlockMeasure,
 
     /// Used when the node is a flex container, e.g. `display: flex`.
     Flex,
