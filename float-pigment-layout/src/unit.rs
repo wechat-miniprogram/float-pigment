@@ -146,7 +146,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
         request: ComputeRequest<T::Length>,
     ) -> ComputeResult<T::Length> {
         let style = node.style();
-        let layout_algorithm = match style.display() {
+        let mut layout_algorithm = match style.display() {
             Display::None => LayoutAlgorithm::None,
             Display::Block
             | Display::InlineBlock
@@ -173,6 +173,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                 border,
                 padding_border,
             ) {
+                layout_algorithm = LayoutAlgorithm::BlockMeasure;
                 ret
             } else {
                 match layout_algorithm {
