@@ -239,6 +239,10 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
         node.size_updated(env, self.result.size, &self.computed_style);
     }
 
+    pub(crate) fn update_result_layout_algorithm(&mut self, f: impl FnOnce(LayoutAlgorithm) -> LayoutAlgorithm) {
+        self.layout_algorithm = f(self.layout_algorithm);
+    }
+
     pub(crate) fn save_computed_style(
         &mut self,
         margin: EdgeOption<T::Length>,

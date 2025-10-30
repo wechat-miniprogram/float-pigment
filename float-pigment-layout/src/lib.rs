@@ -493,12 +493,21 @@ pub enum LayoutAlgorithm {
     /// Used when the node is a block node.
     Block,
 
+    /// Used when the node is an inline-block node.
+    InlineBlock,
+
     /// Used when the node measured as a block node.
     BlockMeasure,
 
     /// Used when the node is a flex container, e.g. `display: flex`.
     Flex,
 
+    /// Used when the node is an inline-flex node.
+    InlineFlex,
+
     /// Used when the node is a grid container, e.g. `display: grid`.
     Grid,
+
+    /// Used when the node is an inline-grid node.
+    InlineGrid,
 }
