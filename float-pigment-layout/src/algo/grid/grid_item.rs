@@ -10,6 +10,8 @@ pub(crate) struct GridLayoutItem<'a, T: LayoutTreeNode> {
     pub(crate) margin: EdgeOption<T::Length>,
     pub(crate) css_size: Size<OptionNum<T::Length>>,
     pub(crate) track_size: Size<OptionNum<T::Length>>,
+    pub(crate) min_content_size: Option<Size<T::Length>>,
+    pub(crate) computed_size: Size<T::Length>,
 }
 
 impl<'a, T: LayoutTreeNode> GridLayoutItem<'a, T> {
@@ -24,6 +26,8 @@ impl<'a, T: LayoutTreeNode> GridLayoutItem<'a, T> {
             margin,
             css_size,
             track_size,
+            min_content_size: None,
+            computed_size: Size::zero(),
         }
     }
 
@@ -33,6 +37,22 @@ impl<'a, T: LayoutTreeNode> GridLayoutItem<'a, T> {
 
     pub(crate) fn track_block_size(&self) -> OptionNum<T::Length> {
         self.track_size.height.clone()
+    }
+
+    pub(crate) fn min_content_size(&self) -> Option<&Size<T::Length>> {
+        self.min_content_size.as_ref()
+    }
+
+    pub(crate) fn set_min_content_size(&mut self, min_content_size: Size<T::Length>) {
+        self.min_content_size = Some(min_content_size);
+    }
+
+    pub(crate) fn computed_size(&self) -> Size<T::Length> {
+        self.computed_size
+    }
+
+    pub(crate) fn set_computed_size(&mut self, computed_size: Size<T::Length>) {
+        self.computed_size = computed_size;
     }
 }
 

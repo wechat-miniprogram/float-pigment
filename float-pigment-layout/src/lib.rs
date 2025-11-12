@@ -57,6 +57,8 @@ use float_pigment_css::typing::{
     GridAutoFlow, JustifyContent, Position, TextAlign, WritingMode,
 };
 
+pub use unit::SizingMode;
+
 mod algo;
 mod cache;
 mod special_positioned;
@@ -154,6 +156,7 @@ pub trait LayoutTreeNode: Sized {
         max: Size<Self::Length>,
         max_content: OptionSize<Self::Length>,
         update_position: bool,
+        sizing_mode: SizingMode,
     ) -> MeasureResult<Self::Length>;
 
     /// Convert the current node to a `Self::InlineUnit`.
@@ -168,6 +171,7 @@ pub trait LayoutTreeNode: Sized {
         min: Size<Self::Length>,
         max: Size<Self::Length>,
         max_content: OptionSize<Self::Length>,
+        sizing_mode: SizingMode,
     ) -> MeasureResult<Self::Length>;
 
     /// A notifier that the layout size of itself (or any node in the subtree) has been re-evaluated.
@@ -398,6 +402,7 @@ pub trait InlineMeasure<T: LayoutTreeNode> {
         req_size: OptionSize<T::Length>,
         max_content_with_max_size: OptionSize<T::Length>,
         update_position: bool,
+        sizing_mode: SizingMode,
     ) -> (
         Size<T::Length>,
         Vec<(Point<T::Length>, MeasureResult<T::Length>)>,
