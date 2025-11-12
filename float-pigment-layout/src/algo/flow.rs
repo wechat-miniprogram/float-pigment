@@ -246,16 +246,31 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
             + compute_res.size.main_size(axis_info.dir);
 
         total_main_size += padding_border.main_axis_end(axis_info.dir, axis_info.main_dir_rev);
-        let size = Size::new_with_dir(
-            axis_info.dir,
-            node_size
-                .main_size(axis_info.dir)
-                .unwrap_or(total_main_size),
-            node_size.cross_size(axis_info.dir).unwrap_or(
+
+        let size = match request.sizing_mode {
+            SizingMode::Normal => Size::new_with_dir(
+                axis_info.dir,
+                node_size
+                    .main_size(axis_info.dir)
+                    .unwrap_or(total_main_size),
+                node_size.cross_size(axis_info.dir).unwrap_or(
+                    compute_res.size.cross_size(axis_info.dir)
+                        + padding_border.cross_axis_sum(axis_info.dir),
+                ),
+            ),
+            SizingMode::MinContent => Size::new_with_dir(
+                axis_info.dir,
+                total_main_size,
                 compute_res.size.cross_size(axis_info.dir)
                     + padding_border.cross_axis_sum(axis_info.dir),
             ),
-        );
+            SizingMode::MaxContent => Size::new_with_dir(
+                axis_info.dir,
+                total_main_size,
+                compute_res.size.cross_size(axis_info.dir)
+                    + padding_border.cross_axis_sum(axis_info.dir),
+            ),
+        };
         let size = self.min_max_size_limit(
             node,
             *request.parent_inner_size,
@@ -463,6 +478,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                             max_content,
                             kind: request.kind.shift_to_all_size(),
                             parent_is_block: true,
+                            sizing_mode: request.sizing_mode,
                         },
                     );
                     let mut main_offset = padding_border
@@ -606,6 +622,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                         *request.max_content,
                                         child_border,
                                         child_padding_border,
+                                        request.sizing_mode,
                                     ) {
                                     // for measure-able node, use the measure result
                                     unit
@@ -643,6 +660,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                             max_content,
                                             kind: request.kind.shift_to_all_size(),
                                             parent_is_block: true,
+                                            sizing_mode: request.sizing_mode,
                                         },
                                     );
                                     T::InlineUnit::new(
@@ -672,6 +690,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                             ),
                             *request.max_content,
                             request.kind == ComputeRequestKind::Position,
+                            request.sizing_mode,
                         );
 
                         if block_size.main_size(axis_info.dir) > T::Length::zero() {
