@@ -178,15 +178,11 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                             min_max_limit_css_size.0.width.or(track_size.width),
                             min_max_limit_css_size.0.height.or(track_size.height),
                         ));
-
                         let min_content_res = child_layout_node.compute_internal(
                             env,
                             grid_item.node,
                             ComputeRequest {
-                                size: Normalized(OptionSize::new(
-                                    OptionNum::zero(),
-                                    OptionNum::none(),
-                                )),
+                                size: Normalized(track_size),
                                 parent_inner_size: Normalized(track_size),
                                 max_content: Normalized(track_size),
                                 kind: ComputeRequestKind::AllSize,
@@ -210,17 +206,17 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
 
                         let mut grid_layout_item =
                             GridLayoutItem::new(child_node, child_margin, css_size, track_size);
-                        grid_layout_item.set_min_content_size(min_content_res.size.0);
+                        grid_layout_item.set_min_content_size(min_content_res.min_content_size.0);
                         grid_layout_item.set_computed_size(res.size.0);
                         if let Some(min_content_size) = each_min_content_size.get_mut(column) {
                             if min_content_size.is_none() {
-                                min_content_size.replace(min_content_res.size.0);
+                                min_content_size.replace(min_content_res.min_content_size.0);
                             } else {
                                 min_content_size.replace(
                                     min_content_size
                                         .as_ref()
                                         .unwrap()
-                                        .max(min_content_res.size.0),
+                                        .max(min_content_res.min_content_size.0),
                                 );
                             }
                         }
@@ -338,6 +334,7 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         );
         let ret = ComputeResult {
             size: Normalized(size),
+            min_content_size: Normalized(size),
             first_baseline_ascent: Vector::zero(),
             last_baseline_ascent: Vector::zero(),
             collapsed_margin: CollapsedBlockMargin::zero(),
