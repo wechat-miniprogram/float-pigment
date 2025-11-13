@@ -976,6 +976,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
         if request.kind != ComputeRequestKind::Position {
             let ret = ComputeResult {
                 size: container_size,
+                min_content_size: container_size,
                 first_baseline_ascent: Vector::zero(),
                 last_baseline_ascent: Vector::zero(),
                 collapsed_margin,
@@ -1374,6 +1375,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
 
         let ret = ComputeResult {
             size: container_size,
+            min_content_size: container_size,
             first_baseline_ascent: self_first_baseline_ascent
                 .unwrap_or_else(|| container_size.to_vector()),
             last_baseline_ascent: self_last_baseline_ascent

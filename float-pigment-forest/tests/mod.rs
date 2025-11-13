@@ -124,9 +124,6 @@ impl TextInfo {
         max_content_width: Len,
         max_content_height: Len,
     ) -> Size<Len> {
-        if min_width.is_zero() && max_width.is_zero() && max_height == Len::MAX {
-            return Size::new(Len::from_f32(50.), Len::from_f32(16.));
-        }
         let text_len = self.text_len;
         if text_len == 0 {
             println!(
