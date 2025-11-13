@@ -169,6 +169,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                         self.clear_display_none_result(node);
                         ComputeResult {
                             size: Normalized(Size::zero()),
+                            min_content_size: Normalized(Size::zero()),
                             first_baseline_ascent: Vector::zero(),
                             last_baseline_ascent: Vector::zero(),
                             collapsed_margin: CollapsedBlockMargin::zero(),
@@ -282,9 +283,6 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
         request: &ComputeRequest<T::Length>,
         collapsed_margin: Option<CollapsedBlockMargin<T::Length>>,
     ) -> Option<ComputeResult<T::Length>> {
-        if request.sizing_mode != SizingMode::Normal {
-            return None;
-        }
         let collapsed_margin = if let Some(x) = collapsed_margin {
             x
         } else if request.parent_is_block {
@@ -300,6 +298,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                         let size = Size::new(width, height);
                         return Some(ComputeResult {
                             size: Normalized(size),
+                            min_content_size: Normalized(size),
                             first_baseline_ascent: size.to_vector(),
                             last_baseline_ascent: size.to_vector(),
                             collapsed_margin,
@@ -312,6 +311,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                     let size = Size::new(width, T::Length::zero());
                     return Some(ComputeResult {
                         size: Normalized(size),
+                        min_content_size: Normalized(size),
                         first_baseline_ascent: size.to_vector(),
                         last_baseline_ascent: size.to_vector(),
                         collapsed_margin,
@@ -323,6 +323,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                     let size = Size::new(T::Length::zero(), height);
                     return Some(ComputeResult {
                         size: Normalized(size),
+                        min_content_size: Normalized(size),
                         first_baseline_ascent: size.to_vector(),
                         last_baseline_ascent: size.to_vector(),
                         collapsed_margin,
@@ -586,10 +587,15 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                 request.kind == ComputeRequestKind::Position,
                 request.sizing_mode,
             );
-            let size = Normalized(Size::new(
-                r.size.width + padding_border.horizontal(),
-                r.size.height + padding_border.vertical(),
-            )); // original r.size is normalized
+            let size = match request.sizing_mode {
+                SizingMode::Normal => Normalized(Size::new(
+                    r.size.width + padding_border.horizontal(),
+                    r.size.height + padding_border.vertical(),
+                )), // original r.size is normalized
+                SizingMode::MinContent | SizingMode::MaxContent => {
+                    Normalized(Size::new(r.size.width, r.size.height))
+                }
+            };
             let first_baseline_ascent =
                 r.first_baseline_ascent + Vector::new(padding_border.left, padding_border.top);
             let last_baseline_ascent =
@@ -597,6 +603,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
             let axis_info = AxisInfo::from_writing_mode(node.style().writing_mode());
             let ret = ComputeResult {
                 size,
+                min_content_size: size,
                 first_baseline_ascent,
                 last_baseline_ascent,
                 collapsed_margin: CollapsedBlockMargin::from_margin(
@@ -636,7 +643,10 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
             let css_box_size =
                 self.css_border_box_size(node, parent_inner_size, border, padding_border);
             let req_size = match sizing_mode {
-                SizingMode::Normal => css_box_size,
+                SizingMode::Normal => OptionSize::new(
+                    css_box_size.width - padding_border.horizontal(),
+                    css_box_size.height - padding_border.vertical(),
+                ),
                 SizingMode::MinContent => OptionSize::new(OptionNum::zero(), OptionNum::none()),
                 SizingMode::MaxContent => OptionSize::new(OptionNum::none(), OptionNum::none()),
             };
@@ -661,10 +671,16 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                 ),
                 sizing_mode,
             );
-            let size = Size::new(
-                r.size.width + padding_border.horizontal(),
-                r.size.height + padding_border.vertical(),
-            );
+
+            let size = match sizing_mode {
+                SizingMode::Normal => Size::new(
+                    r.size.width + padding_border.horizontal(),
+                    r.size.height + padding_border.vertical(),
+                ), // original r.size is normalized
+                SizingMode::MinContent | SizingMode::MaxContent => {
+                    Size::new(r.size.width, r.size.height)
+                }
+            };
             let first_baseline_ascent =
                 r.first_baseline_ascent + Vector::new(padding_border.left, padding_border.top);
             let last_baseline_ascent =
@@ -721,6 +737,8 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
     }
 }
 
+#[allow(missing_docs)]
+/// SizingMode is used to determine the sizing mode of the node.
 #[derive(Clone, PartialEq, Copy, Hash, Eq, Debug)]
 pub enum SizingMode {
     Normal,
@@ -759,8 +777,9 @@ impl<L: LengthNum> fmt::Debug for ComputeRequest<L> {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct ComputeResult<L: LengthNum> {
     pub(crate) size: Normalized<Size<L>>, // only valid on corresponding size which the request includes
-    pub(crate) first_baseline_ascent: Vector<L>, // only valid on position request
-    pub(crate) last_baseline_ascent: Vector<L>, // only valid on position request
+    pub(crate) min_content_size: Normalized<Size<L>>, // only valid on corresponding size which the request includes
+    pub(crate) first_baseline_ascent: Vector<L>,      // only valid on position request
+    pub(crate) last_baseline_ascent: Vector<L>,       // only valid on position request
     pub(crate) collapsed_margin: CollapsedBlockMargin<L>, // only valid on corresponding size which the request includes and collapsed_margin set
 }
 
