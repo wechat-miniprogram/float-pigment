@@ -92,3 +92,37 @@ fn grid_item_with_border() {
         true
     )
 }
+
+#[test]
+fn grid_item_min_content_size() {
+    assert_xml!(
+        r#"
+        <div style="display: grid; width: 100px; grid-template-columns: auto auto" >
+          <div expect_width="100">
+            <div style="width: 100px; height: 100px;" expect_width="100" expect_height="100"></div>
+          </div>
+          <div expect_width="100">
+            <div style="width: 100px; height: 100px;" expect_width="100" expect_height="100"></div>
+          </div>       
+        </div>
+    "#,
+        true
+    )
+}
+
+#[test]
+fn grid_item_min_content_size_2() {
+    assert_xml!(
+        r#"
+        <div style="display: grid; width: 20px; grid-template-columns: auto auto" >
+          <div>
+            <div>hello</div>
+          </div>
+          <div>
+            <div>world</div>
+          </div>       
+        </div>
+    "#,
+        true
+    )
+}

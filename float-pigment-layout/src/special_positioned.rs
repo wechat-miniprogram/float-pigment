@@ -176,6 +176,7 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
                     max_content,
                     kind: ComputeRequestKind::AllSize,
                     parent_is_block: false,
+                    sizing_mode: SizingMode::Normal,
                 },
             )
             .size;
@@ -191,6 +192,7 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
                 max_content,
                 kind: ComputeRequestKind::Position,
                 parent_is_block: false,
+                sizing_mode: SizingMode::Normal,
             },
         )
     } else {
@@ -203,6 +205,7 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
                 max_content,
                 kind: ComputeRequestKind::Position,
                 parent_is_block: false,
+                sizing_mode: SizingMode::Normal,
             },
         )
     };
