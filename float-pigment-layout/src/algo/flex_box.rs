@@ -349,6 +349,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                         max_content,
                         kind: main_size_request_kind.shift_to_all_size(),
                         parent_is_block: false,
+                        sizing_mode: request.sizing_mode,
                     },
                 )
                 .size
@@ -501,6 +502,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                                 max_content,
                                 kind: main_size_request_kind.shift_to_all_size(),
                                 parent_is_block: false,
+                                sizing_mode: request.sizing_mode,
                             },
                         )
                         .size
@@ -805,6 +807,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                             flex_child.early_positioning != EarlyPositioning::NoPositioning,
                         ),
                         parent_is_block: false,
+                        sizing_mode: request.sizing_mode,
                     },
                 );
                 flex_child
@@ -1036,6 +1039,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                                 max_content: Normalized(size), // main_size and cross_size is both normalized above
                                 kind: ComputeRequestKind::Position,
                                 parent_is_block: false,
+                                sizing_mode: request.sizing_mode,
                             },
                         );
                     }
