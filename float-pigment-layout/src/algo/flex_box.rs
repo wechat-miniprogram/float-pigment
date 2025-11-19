@@ -888,6 +888,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                     .map(|child| {
                         if child.final_align_self == AlignSelf::Baseline {
                             child.first_baseline_ascent.cross_axis(dir)
+                                + child.margin.cross_axis_start(dir, cross_dir_rev).or_zero()
                         } else {
                             T::Length::zero()
                         }
@@ -898,17 +899,17 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                     .items
                     .iter()
                     .map(|child| {
-                        if child.final_align_self == AlignSelf::Baseline
-                            && child.margin.cross_axis_start(dir, cross_dir_rev).is_none()
-                            && child.margin.cross_axis_end(dir, cross_dir_rev).is_none()
-                        {
+                            dbg!(&child.first_baseline_ascent, &child.margin);
+                        if child.final_align_self == AlignSelf::Baseline {
                             max_baseline - child.first_baseline_ascent.cross_axis(dir)
                                 + child.hypothetical_outer_size.cross_size(dir)
+                                + child.margin.cross_axis_end(dir, cross_dir_rev).or_zero()
                         } else {
                             child.hypothetical_outer_size.cross_size(dir)
                         }
                     })
                     .fold(T::Length::zero(), |acc, x| acc.max(x));
+                dbg!(line.cross_size, max_baseline);
             }
 
             //    If the flex container is single-line, then clamp the line’s cross-size to be within the container’s computed min
