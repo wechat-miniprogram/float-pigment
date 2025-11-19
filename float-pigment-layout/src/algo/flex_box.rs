@@ -899,7 +899,6 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                     .items
                     .iter()
                     .map(|child| {
-                            dbg!(&child.first_baseline_ascent, &child.margin);
                         if child.final_align_self == AlignSelf::Baseline {
                             max_baseline - child.first_baseline_ascent.cross_axis(dir)
                                 + child.hypothetical_outer_size.cross_size(dir)
@@ -909,7 +908,6 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                         }
                     })
                     .fold(T::Length::zero(), |acc, x| acc.max(x));
-                dbg!(line.cross_size, max_baseline);
             }
 
             //    If the flex container is single-line, then clamp the line’s cross-size to be within the container’s computed min
