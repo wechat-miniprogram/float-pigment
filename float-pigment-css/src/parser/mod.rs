@@ -322,7 +322,13 @@ pub fn parse_property_value_string(
     let mut parser = Parser::new(&mut parser_input);
     let mut properties = vec![];
     let mut state: ParseState = ParseState::new(None, StyleParsingDebugMode::None, None);
-    let _ = parse_property_value(&mut parser, property_name, &mut properties, &mut state, None);
+    let _ = parse_property_value(
+        &mut parser,
+        property_name,
+        &mut properties,
+        &mut state,
+        None,
+    );
     (properties, state.warnings)
 }
 
@@ -2128,7 +2134,10 @@ mod test {
     fn parse_property_value_string() {
         let (prop_none, warnings) = super::parse_property_value_string("display", "none");
         assert!(warnings.is_empty());
-        assert_eq!(prop_none[0].property().unwrap(), Property::Display(DisplayType::None));
+        assert_eq!(
+            prop_none[0].property().unwrap(),
+            Property::Display(DisplayType::None)
+        );
     }
 
     #[cfg(test)]
