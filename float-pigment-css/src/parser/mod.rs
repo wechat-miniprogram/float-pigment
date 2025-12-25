@@ -313,6 +313,25 @@ pub fn parse_inline_style(
     (properties, state.warnings)
 }
 
+/// Parse a string of the property value of the specified `property_name`.
+pub fn parse_property_value_string(
+    property_name: &str,
+    source: &str,
+) -> (Vec<PropertyMeta>, Vec<Warning>) {
+    let mut parser_input = ParserInput::new(source);
+    let mut parser = Parser::new(&mut parser_input);
+    let mut properties = vec![];
+    let mut state: ParseState = ParseState::new(None, StyleParsingDebugMode::None, None);
+    let _ = parse_property_value(
+        &mut parser,
+        property_name,
+        &mut properties,
+        &mut state,
+        None,
+    );
+    (properties, state.warnings)
+}
+
 pub(crate) fn parse_selector_only(source: &str) -> Result<Selector, Warning> {
     let mut parser_input = ParserInput::new(source);
     let mut parser = Parser::new(&mut parser_input);
@@ -2011,6 +2030,7 @@ fn parse_custom_property_value_with_important<'a, 't: 'a, 'i: 't>(
 
 #[cfg(test)]
 mod test {
+    use crate::{property::Property, typing::DisplayType};
 
     use super::{is_url, parse_color_to_rgba, resolve_relative_path};
 
@@ -2108,6 +2128,16 @@ mod test {
         assert!(is_url("data:application/octet-stream;base64,AAEAAAALAIAAAwAwR1NVQrD+s+0AAAE4AAAAQk9TLzJAKEx+AAABfAAAAFZjbWFw65cFHQAAAhwAAAJQZ2x5ZvCRR/EAAASUAAAKtGhlYWQLKIN9AAAA4AAAADZoaGVhCCwD+gAAALwAAAAkaG10eEJo//8AA="));
         assert!(!is_url("www.wxweb/float-pigment"));
         assert!(!is_url("www.wxweb/float-pigment"));
+    }
+
+    #[test]
+    fn parse_property_value_string() {
+        let (prop_none, warnings) = super::parse_property_value_string("display", "none");
+        assert!(warnings.is_empty());
+        assert_eq!(
+            prop_none[0].property().unwrap(),
+            Property::Display(DisplayType::None)
+        );
     }
 
     #[cfg(test)]
