@@ -860,6 +860,40 @@ mod base {
     }
 
     #[test]
+    fn radial_gradient_repr() {
+        test_parse_property!(
+            background_image,
+            "background-image",
+            "radial-gradient(circle closest-corner at right 20px, red, green, blue);",
+            BackgroundImage::List(
+                vec![BackgroundImageItem::Gradient(
+                    BackgroundImageGradientItem::RadialGradient(
+                        GradientShape::Circle,
+                        GradientSize::ClosestCorner,
+                        GradientPosition::Pos(Length::Ratio(1.), Length::Px(20.)),
+                        vec![
+                            GradientColorItem::ColorHint(
+                                Color::Specified(255, 0, 0, 255),
+                                Length::Ratio(0.)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 128, 0, 255),
+                                Length::Ratio(0.5)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 0, 255, 255),
+                                Length::Ratio(1.0)
+                            )
+                        ]
+                        .into()
+                    )
+                ),]
+                .into()
+            )
+        );
+    }
+
+    #[test]
     fn conic_gradient_repr() {
         test_parse_property!(
             background_image,
@@ -2541,6 +2575,39 @@ mod background {
         );
     }
 
+    #[test]
+    fn background_image_gradient_position() {
+        test_parse_property!(
+            background_image,
+            "background-image",
+            "radial-gradient(circle closest-corner at left bottom, green 20%, blue 75%, red)",
+            BackgroundImage::List(
+                vec![BackgroundImageItem::Gradient(
+                    BackgroundImageGradientItem::RadialGradient(
+                        GradientShape::Circle,
+                        GradientSize::ClosestCorner,
+                        GradientPosition::Pos(Length::Ratio(0.), Length::Ratio(1.)),
+                        vec![
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 128, 0, 255),
+                                Length::Ratio(0.2)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 0, 255, 255),
+                                Length::Ratio(0.75)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(255, 0, 0, 255),
+                                Length::Ratio(1.)
+                            )
+                        ]
+                        .into()
+                    )
+                )]
+                .into()
+            )
+        );
+    }
     // 0x32
     #[test]
     fn background_size() {
