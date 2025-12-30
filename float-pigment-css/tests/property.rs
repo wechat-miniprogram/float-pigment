@@ -560,6 +560,291 @@ mod base {
                 .into()
             )
         );
+        test_parse_property!(
+            background_image,
+            "background-image",
+            "radial-gradient(circle closest-corner at right 20px, red, green, blue);",
+            BackgroundImage::List(
+                vec![BackgroundImageItem::Gradient(
+                    BackgroundImageGradientItem::RadialGradient(
+                        GradientShape::Circle,
+                        GradientSize::ClosestCorner,
+                        GradientPosition::Pos(Length::Ratio(1.), Length::Px(20.)),
+                        vec![
+                            GradientColorItem::ColorHint(
+                                Color::Specified(255, 0, 0, 255),
+                                Length::Ratio(0.)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 128, 0, 255),
+                                Length::Ratio(0.5)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 0, 255, 255),
+                                Length::Ratio(1.0)
+                            )
+                        ]
+                        .into()
+                    )
+                ),]
+                .into()
+            )
+        );
+        // <position-one>
+        test_parse_property!(
+            background_image,
+            "background-image",
+            "radial-gradient(circle closest-corner at bottom, red, green, blue);",
+            BackgroundImage::List(
+                vec![BackgroundImageItem::Gradient(
+                    BackgroundImageGradientItem::RadialGradient(
+                        GradientShape::Circle,
+                        GradientSize::ClosestCorner,
+                        GradientPosition::Pos(Length::Ratio(0.5), Length::Ratio(1.0)),
+                        vec![
+                            GradientColorItem::ColorHint(
+                                Color::Specified(255, 0, 0, 255),
+                                Length::Ratio(0.)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 128, 0, 255),
+                                Length::Ratio(0.5)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 0, 255, 255),
+                                Length::Ratio(1.0)
+                            )
+                        ]
+                        .into()
+                    )
+                ),]
+                .into()
+            )
+        );
+        test_parse_property!(
+            background_image,
+            "background-image",
+            "radial-gradient(circle closest-corner at center, red, green, blue);",
+            BackgroundImage::List(
+                vec![BackgroundImageItem::Gradient(
+                    BackgroundImageGradientItem::RadialGradient(
+                        GradientShape::Circle,
+                        GradientSize::ClosestCorner,
+                        GradientPosition::Pos(Length::Ratio(0.5), Length::Ratio(0.5)),
+                        vec![
+                            GradientColorItem::ColorHint(
+                                Color::Specified(255, 0, 0, 255),
+                                Length::Ratio(0.)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 128, 0, 255),
+                                Length::Ratio(0.5)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 0, 255, 255),
+                                Length::Ratio(1.0)
+                            )
+                        ]
+                        .into()
+                    )
+                ),]
+                .into()
+            )
+        );
+        test_parse_property!(
+            background_image,
+            "background-image",
+            "radial-gradient(circle closest-corner at left, red, green, blue);",
+            BackgroundImage::List(
+                vec![BackgroundImageItem::Gradient(
+                    BackgroundImageGradientItem::RadialGradient(
+                        GradientShape::Circle,
+                        GradientSize::ClosestCorner,
+                        GradientPosition::Pos(Length::Ratio(0.0), Length::Ratio(0.5)),
+                        vec![
+                            GradientColorItem::ColorHint(
+                                Color::Specified(255, 0, 0, 255),
+                                Length::Ratio(0.)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 128, 0, 255),
+                                Length::Ratio(0.5)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 0, 255, 255),
+                                Length::Ratio(1.0)
+                            )
+                        ]
+                        .into()
+                    )
+                ),]
+                .into()
+            )
+        );
+        test_parse_property!(
+            background_image,
+            "background-image",
+            "radial-gradient(circle closest-corner at 30px, red, green, blue);",
+            BackgroundImage::List(
+                vec![BackgroundImageItem::Gradient(
+                    BackgroundImageGradientItem::RadialGradient(
+                        GradientShape::Circle,
+                        GradientSize::ClosestCorner,
+                        GradientPosition::Pos(Length::Px(30.0), Length::Ratio(0.5)),
+                        vec![
+                            GradientColorItem::ColorHint(
+                                Color::Specified(255, 0, 0, 255),
+                                Length::Ratio(0.)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 128, 0, 255),
+                                Length::Ratio(0.5)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 0, 255, 255),
+                                Length::Ratio(1.0)
+                            )
+                        ]
+                        .into()
+                    )
+                ),]
+                .into()
+            )
+        );
+        // <position-two>
+        test_parse_property!(
+            background_image,
+            "background-image",
+            "radial-gradient(circle closest-corner at left top, red, green, blue);",
+            BackgroundImage::List(
+                vec![BackgroundImageItem::Gradient(
+                    BackgroundImageGradientItem::RadialGradient(
+                        GradientShape::Circle,
+                        GradientSize::ClosestCorner,
+                        GradientPosition::Pos(Length::Ratio(0.0), Length::Ratio(0.0)),
+                        vec![
+                            GradientColorItem::ColorHint(
+                                Color::Specified(255, 0, 0, 255),
+                                Length::Ratio(0.)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 128, 0, 255),
+                                Length::Ratio(0.5)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 0, 255, 255),
+                                Length::Ratio(1.0)
+                            )
+                        ]
+                        .into()
+                    )
+                ),]
+                .into()
+            )
+        );
+        test_parse_property!(
+            background_image,
+            "background-image",
+            "radial-gradient(circle closest-corner at 30% bottom, red, green, blue);",
+            BackgroundImage::List(
+                vec![BackgroundImageItem::Gradient(
+                    BackgroundImageGradientItem::RadialGradient(
+                        GradientShape::Circle,
+                        GradientSize::ClosestCorner,
+                        GradientPosition::Pos(Length::Ratio(0.3), Length::Ratio(1.0)),
+                        vec![
+                            GradientColorItem::ColorHint(
+                                Color::Specified(255, 0, 0, 255),
+                                Length::Ratio(0.)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 128, 0, 255),
+                                Length::Ratio(0.5)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 0, 255, 255),
+                                Length::Ratio(1.0)
+                            )
+                        ]
+                        .into()
+                    )
+                ),]
+                .into()
+            )
+        );
+
+        test_parse_property!(
+            background_image,
+            "background-image",
+            "radial-gradient(circle closest-corner at bottom 30%, red, green, blue);",
+            BackgroundImage::List(vec![].into())
+        );
+
+        test_parse_property!(
+            background_image,
+            "background-image",
+            "radial-gradient(circle closest-corner at center center, red, green, blue);",
+            BackgroundImage::List(
+                vec![BackgroundImageItem::Gradient(
+                    BackgroundImageGradientItem::RadialGradient(
+                        GradientShape::Circle,
+                        GradientSize::ClosestCorner,
+                        GradientPosition::Pos(Length::Ratio(0.5), Length::Ratio(0.5)),
+                        vec![
+                            GradientColorItem::ColorHint(
+                                Color::Specified(255, 0, 0, 255),
+                                Length::Ratio(0.)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 128, 0, 255),
+                                Length::Ratio(0.5)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 0, 255, 255),
+                                Length::Ratio(1.0)
+                            )
+                        ]
+                        .into()
+                    )
+                ),]
+                .into()
+            )
+        );
+
+        // <position-four>
+        test_parse_property!(
+            background_image,
+            "background-image",
+            "radial-gradient(circle closest-corner at left 20px bottom 10%, red, green, blue);",
+            BackgroundImage::List(
+                vec![BackgroundImageItem::Gradient(
+                    BackgroundImageGradientItem::RadialGradient(
+                        GradientShape::Circle,
+                        GradientSize::ClosestCorner,
+                        GradientPosition::SpecifiedPos(
+                            GradientSpecifiedPos::Left(Length::Px(20.0)),
+                            GradientSpecifiedPos::Bottom(Length::Ratio(0.1))
+                        ),
+                        vec![
+                            GradientColorItem::ColorHint(
+                                Color::Specified(255, 0, 0, 255),
+                                Length::Ratio(0.)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 128, 0, 255),
+                                Length::Ratio(0.5)
+                            ),
+                            GradientColorItem::ColorHint(
+                                Color::Specified(0, 0, 255, 255),
+                                Length::Ratio(1.0)
+                            )
+                        ]
+                        .into()
+                    )
+                ),]
+                .into()
+            )
+        );
         let mut ssg = StyleSheetGroup::new();
         let ss = StyleSheet::from_str(
             r#"
@@ -857,40 +1142,6 @@ mod base {
         );
         let np = query(&ssg, "", "", ["s"], []);
         assert_eq!(np.background_image(), BackgroundImage::List(vec![].into()));
-    }
-
-    #[test]
-    fn radial_gradient_repr() {
-        test_parse_property!(
-            background_image,
-            "background-image",
-            "radial-gradient(circle closest-corner at right 20px, red, green, blue);",
-            BackgroundImage::List(
-                vec![BackgroundImageItem::Gradient(
-                    BackgroundImageGradientItem::RadialGradient(
-                        GradientShape::Circle,
-                        GradientSize::ClosestCorner,
-                        GradientPosition::Pos(Length::Ratio(1.), Length::Px(20.)),
-                        vec![
-                            GradientColorItem::ColorHint(
-                                Color::Specified(255, 0, 0, 255),
-                                Length::Ratio(0.)
-                            ),
-                            GradientColorItem::ColorHint(
-                                Color::Specified(0, 128, 0, 255),
-                                Length::Ratio(0.5)
-                            ),
-                            GradientColorItem::ColorHint(
-                                Color::Specified(0, 0, 255, 255),
-                                Length::Ratio(1.0)
-                            )
-                        ]
-                        .into()
-                    )
-                ),]
-                .into()
-            )
-        );
     }
 
     #[test]

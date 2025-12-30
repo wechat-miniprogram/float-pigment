@@ -1322,6 +1322,23 @@ impl fmt::Display for GradientPosition {
                         &tmp
                     }
                 }
+                GradientPosition::SpecifiedPos(x, y) => {
+                    let horizontal_str = match x {
+                        GradientSpecifiedPos::Left(v) => format!("left {}", v.to_string()),
+                        GradientSpecifiedPos::Right(v) => format!("right {}", v.to_string()),
+                        GradientSpecifiedPos::Top(v) => format!("top {}", v.to_string()),
+                        GradientSpecifiedPos::Bottom(v) => format!("bottom {}", v.to_string()),
+                    };
+
+                    let vertical_str = match y {
+                        GradientSpecifiedPos::Left(v) => format!("left {}", v.to_string()),
+                        GradientSpecifiedPos::Right(v) => format!("right {}", v.to_string()),
+                        GradientSpecifiedPos::Top(v) => format!("top {}", v.to_string()),
+                        GradientSpecifiedPos::Bottom(v) => format!("bottom {}", v.to_string()),
+                    };
+                    tmp = format!("{horizontal_str} {vertical_str}");
+                    &tmp
+                }
             }
         )
     }

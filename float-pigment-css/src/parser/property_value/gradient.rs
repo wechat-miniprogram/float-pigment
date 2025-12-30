@@ -681,13 +681,36 @@ fn gradient_position_repr<'a, 't: 'a, 'i: 't>(
                 y_length = Some(parsed_length);
             }
         }
-
+        if let (Some(x_length), Some(y_length)) = (x_length, y_length) {
+            match (x_dir_start, y_dir_start) {
+                (Some(true), Some(true)) => {
+                    return Ok(GradientPosition::SpecifiedPos(
+                        GradientSpecifiedPos::Left(x_length),
+                        GradientSpecifiedPos::Top(y_length),
+                    ));
+                }
+                (Some(true), Some(false)) => {
+                    return Ok(GradientPosition::SpecifiedPos(
+                        GradientSpecifiedPos::Left(x_length),
+                        GradientSpecifiedPos::Bottom(y_length),
+                    ));
+                }
+                (Some(false), Some(true)) => {
+                    return Ok(GradientPosition::SpecifiedPos(
+                        GradientSpecifiedPos::Right(x_length),
+                        GradientSpecifiedPos::Top(y_length),
+                    ));
+                }
+                (Some(false), Some(false)) => {
+                    return Ok(GradientPosition::SpecifiedPos(
+                        GradientSpecifiedPos::Right(x_length),
+                        GradientSpecifiedPos::Bottom(y_length),
+                    ));
+                }
+                _ => {}
+            }
+        }
         Err(parser.new_custom_error(CustomError::Unsupported))
-        // FIXME: Support length-percentage with dir
-        // Ok(GradientPosition::Pos(
-        //     x_length.unwrap_or_else(|| Length::Ratio(0.5)),
-        //     y_length.unwrap_or_else(|| Length::Ratio(0.5)),
-        // ))
     });
 
     if parse_position_four_res.is_ok() && (!strict || parser.is_exhausted()) {
