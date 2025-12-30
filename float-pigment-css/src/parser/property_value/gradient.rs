@@ -827,16 +827,15 @@ fn gradient_position_repr<'a, 't: 'a, 'i: 't>(
                         _ => {}
                     }
                 }
-
-                if x_length.is_some() && y_length.is_some() {
+                if let (Some(x_length), Some(y_length)) = (x_length, y_length) {
                     // hit [ left | center | right ] && [ top | center | bottom ]
-                    return Ok(GradientPosition::Pos(x_length.unwrap(), y_length.unwrap()));
+                    return Ok(GradientPosition::Pos(x_length, y_length));
                 }
             } else {
                 if let Ok(parsed_length) = try_parse_length(parser) {
-                    if x_length.is_some() {
+                    if let Some(x_length) = x_length {
                         // hit [ left | center | right ] <length-percentage>
-                        return Ok(GradientPosition::Pos(x_length.unwrap(), parsed_length));
+                        return Ok(GradientPosition::Pos(x_length, parsed_length));
                     }
                 }
             }
