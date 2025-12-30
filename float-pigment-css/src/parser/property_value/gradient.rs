@@ -576,7 +576,7 @@ fn gradient_position_repr<'a, 't: 'a, 'i: 't>(
     let try_parse_keyword = |parser: &mut Parser<'i, 't>, allowed: &[GradientPositionKeyword]| {
         parser.try_parse::<_, _, ParseError<'i, CustomError>>(|parser| {
             let ident = parser.expect_ident()?;
-            let keyword = str_to_keyword(&ident.to_string())
+            let keyword = str_to_keyword(ident.as_ref())
                 .ok_or_else(|| parser.new_custom_error(CustomError::Unsupported))?;
             if allowed.contains(&keyword) {
                 Ok(keyword)
