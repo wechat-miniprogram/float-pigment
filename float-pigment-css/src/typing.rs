@@ -1119,6 +1119,23 @@ pub enum GradientSize {
 pub enum GradientPosition {
     #[resolve_font_size(Length::resolve_em)]
     Pos(Length, Length),
+    SpecifiedPos(GradientSpecifiedPos, GradientSpecifiedPos),
+}
+
+#[allow(missing_docs)]
+#[repr(C)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ResolveFontSize)]
+#[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
+pub enum GradientSpecifiedPos {
+    #[resolve_font_size(Length::resolve_em)]
+    Left(Length),
+    #[resolve_font_size(Length::resolve_em)]
+    Right(Length),
+    #[resolve_font_size(Length::resolve_em)]
+    Top(Length),
+    #[resolve_font_size(Length::resolve_em)]
+    Bottom(Length),
+    // TODO: Support x/y-start/end, block-start/end, inline-start/end, start, end
 }
 
 /// Gradient shape types in image description.
