@@ -1412,6 +1412,8 @@ fn generate_anonymous_flex_items<T: LayoutTreeNode>(
     dir: AxisDirection,
 ) -> Vec<FlexItem<T>> {
     let mut flex_items: Vec<FlexItem<T>> = Vec::with_capacity(node.tree_visitor().children_len());
+    let mut needs_sort = false;
+    let mut prev_order = i32::MIN;
     node.tree_visitor()
         .for_each_child(|child_node, child_index| {
             if is_independent_positioning(child_node) {
@@ -1419,6 +1421,13 @@ fn generate_anonymous_flex_items<T: LayoutTreeNode>(
             }
             let child_layout_unit = child_node.layout_node().unit();
             let child_style = child_node.style();
+
+            let order = child_style.order();
+            if order < prev_order {
+                needs_sort = true;
+            }
+            prev_order = order;
+
             let (margin, border, padding_border) =
                 child_layout_unit.margin_border_padding(child_node, **inner_size);
             let size = child_layout_unit.css_border_box_size(
@@ -1431,7 +1440,7 @@ fn generate_anonymous_flex_items<T: LayoutTreeNode>(
 
             let flex_item = FlexItem {
                 child_index,
-                order: child_style.order(),
+                order,
                 size,
                 margin,
                 border,
@@ -1492,7 +1501,9 @@ fn generate_anonymous_flex_items<T: LayoutTreeNode>(
             };
             flex_items.push(flex_item);
         });
-    flex_items.sort_by(|a, b| a.order.cmp(&b.order));
+    if needs_sort {
+        flex_items.sort_by(|a, b| a.order.cmp(&b.order));
+    }
     flex_items
 }
 
