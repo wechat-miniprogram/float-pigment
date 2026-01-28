@@ -1,5 +1,9 @@
-// WPT-based tests for align-self: baseline
-// Based on Web Platform Tests for CSS Flexbox
+// WPT-style tests for `align-self: baseline`
+// Inspired by WPT CSS Flexbox tests, covering baseline alignment:
+// - `align-self: baseline` aligns items such that their baselines align
+// - The baseline is determined by the first line of text or the bottom edge for replaced elements
+// - Items are shifted so their baselines align at the same cross-axis position
+// - This is useful for aligning text content across flex items
 
 use crate::*;
 

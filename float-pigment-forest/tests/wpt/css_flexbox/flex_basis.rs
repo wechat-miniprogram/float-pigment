@@ -1,5 +1,9 @@
-// WPT-based tests for flex-basis property
-// Based on Web Platform Tests for CSS Flexbox
+// WPT-style tests for the `flex-basis` property
+// Inspired by WPT CSS Flexbox tests, covering initial main-axis size:
+// - `flex-basis` sets the initial main-axis size of a flex item before free space is distributed
+// - Can be a length (fixed or percentage), `auto` (uses width/height), `content` (intrinsic size), or `0`
+// - The base size (flex-basis) is used to calculate free space for flex-grow and overflow for flex-shrink
+// - In column direction, flex-basis affects height instead of width
 
 use crate::*;
 

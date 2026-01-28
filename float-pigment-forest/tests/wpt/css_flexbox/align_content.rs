@@ -1,6 +1,9 @@
-// WPT-based tests for align-content property
-// Based on Web Platform Tests for CSS Flexbox
-// Note: align-content only works when flex-wrap is enabled and there are multiple lines
+// WPT-style tests for the `align-content` property
+// Inspired by WPT CSS Flexbox tests, covering cross-axis alignment of flex lines:
+// - `align-content` aligns flex lines along the cross axis when there are multiple lines
+// - Only has effect when `flex-wrap: wrap` (or wrap-reverse) and there are multiple flex lines
+// - Values: flex-start, start, center, flex-end, end, space-between, space-around, space-evenly, stretch
+// - Distributes free space along the cross axis between flex lines
 
 use crate::*;
 

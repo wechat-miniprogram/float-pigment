@@ -1,5 +1,11 @@
-// WPT-based tests for border-width property
-// Based on Web Platform Tests for CSS Borders
+// WPT-style tests for border-width properties
+// Inspired by WPT CSS Borders tests, covering individual border width properties:
+// - `border-top-width`, `border-right-width`, `border-bottom-width`, `border-left-width`
+// - Can be fixed lengths, percentages, or keywords (thin=1px, medium=3px, thick=5px)
+// - Border width affects the box model: with `content-box`, width/height exclude borders
+// - With `border-box`, width/height include borders
+// - Percentage values are resolved relative to the containing block's width
+// Note: This engine only supports border-width properties, not border-style or border-color
 
 use crate::*;
 

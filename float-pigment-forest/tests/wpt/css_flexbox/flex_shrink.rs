@@ -1,5 +1,9 @@
-// WPT-based tests for flex-shrink property
-// Based on Web Platform Tests for CSS Flexbox
+// WPT-style tests for the `flex-shrink` property
+// Inspired by WPT CSS Flexbox tests, covering main-axis space compression:
+// - `flex-shrink` determines how flex items shrink when there isn't enough space
+// - Default value is 1 (can shrink)
+// - When items overflow the container, they shrink proportionally based on flex-shrink values
+// - Items with flex-shrink=0 do not shrink below their base size
 
 use crate::*;
 

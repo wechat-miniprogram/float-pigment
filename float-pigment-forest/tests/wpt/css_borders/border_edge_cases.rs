@@ -1,5 +1,12 @@
-// WPT-based tests for border edge cases and combinations
-// Based on Web Platform Tests for CSS Borders
+// WPT-style tests for border edge cases and combinations
+// Inspired by WPT CSS Borders tests, covering complex scenarios:
+// - Borders with very large widths, auto/percentage widths, min/max constraints
+// - Borders in flex containers (affecting flex-grow/shrink calculations)
+// - Borders with box-sizing (content-box vs border-box)
+// - Asymmetric borders with various combinations
+// - Borders with margins, padding, gaps, and alignment
+// - Nested borders and positioned elements
+// Note: This engine only supports border-width properties (border-*-width), not border-style, border-color, or border-radius
 
 use crate::*;
 

@@ -1,5 +1,10 @@
-// WPT-based tests for order property
-// Based on Web Platform Tests for CSS Flexbox
+// WPT-style tests for the `order` property
+// Inspired by WPT CSS Flexbox tests, covering visual order control:
+// - `order` controls the order in which flex items appear visually
+// - Default value is 0
+// - Items are sorted by their order value (ascending), then by document order
+// - Negative values are allowed and come before 0
+// - Order affects visual layout but not the DOM order
 
 use crate::*;
 
