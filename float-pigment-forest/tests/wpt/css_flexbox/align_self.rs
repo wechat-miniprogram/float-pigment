@@ -1,6 +1,9 @@
-// WPT-based tests for align-self property
-// Based on Web Platform Tests for CSS Flexbox
-// Note: align-self: baseline is tested in align_self_baseline.rs
+// WPT-style tests for the `align-self` property
+// Inspired by WPT CSS Flexbox tests, covering individual item cross-axis alignment:
+// - `align-self` overrides the container's `align-items` for individual flex items
+// - Values: auto (inherits from align-items), stretch, flex-start, start, center, flex-end, end, baseline
+// - Allows fine-grained control over how individual items align along the cross axis
+// - Note: `align-self: baseline` is tested separately in `align_self_baseline.rs`
 
 use crate::*;
 

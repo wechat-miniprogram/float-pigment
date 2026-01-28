@@ -1,5 +1,11 @@
-// WPT-based tests for flex shorthand property
-// Based on Web Platform Tests for CSS Flexbox
+// WPT-style tests for the `flex` shorthand property
+// Inspired by WPT CSS Flexbox tests, covering combined flex-grow, flex-shrink, and flex-basis:
+// - `flex` is a shorthand for `flex-grow`, `flex-shrink`, and `flex-basis`
+// - Syntax: `flex: <grow> <shrink> <basis>` or keywords: `initial`, `auto`, `none`, or a positive number
+// - `flex: 1` is equivalent to `flex: 1 1 0%`
+// - `flex: auto` is equivalent to `flex: 1 1 auto`
+// - `flex: none` is equivalent to `flex: 0 0 auto`
+// - `flex: initial` is equivalent to `flex: 0 1 auto`
 
 use crate::*;
 

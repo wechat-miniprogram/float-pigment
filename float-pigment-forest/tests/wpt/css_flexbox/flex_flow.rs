@@ -1,5 +1,9 @@
-// WPT-based tests for flex-flow shorthand property
-// Based on Web Platform Tests for CSS Flexbox
+// WPT-style tests for the `flex-flow` shorthand property
+// Inspired by WPT CSS Flexbox tests, covering combined flex-direction and flex-wrap:
+// - `flex-flow` is a shorthand for `flex-direction` and `flex-wrap`
+// - Syntax: `flex-flow: <flex-direction> <flex-wrap>`
+// - Both values are optional; defaults apply if omitted
+// - Examples: `row wrap`, `column nowrap`, `row-reverse wrap-reverse`
 
 use crate::*;
 

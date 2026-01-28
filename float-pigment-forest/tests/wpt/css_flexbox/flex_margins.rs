@@ -1,5 +1,9 @@
-// WPT-based tests for flex item margins
-// Based on Web Platform Tests for CSS Flexbox
+// WPT-style tests for flex item margins
+// Inspired by WPT CSS Flexbox tests, covering margin behavior in flex containers:
+// - Margins on flex items participate in space distribution
+// - `margin: auto` absorbs all available space in that direction, useful for centering
+// - Margins do not collapse in flex containers
+// - Percentage margins are resolved relative to the containing block's width
 
 use crate::*;
 
