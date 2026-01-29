@@ -137,3 +137,15 @@ fn row_gap_with_percentage_in_flex_column_box() {
     "#
     )
 }
+
+#[test]
+fn flex_item_with_gap_should_shrink_to_fit() {
+    assert_xml!(
+        r#"
+        <div style="display: flex; width: 100px; height: 50px; flex-direction: column; gap: 10px;" expect_height="50">
+          <div style="height: 30px;" expect_top="0" expect_height="20"></div>
+          <div style="height: 30px;" expect_top="30" expect_height="20"></div>
+        </div>
+    "#
+    )
+}

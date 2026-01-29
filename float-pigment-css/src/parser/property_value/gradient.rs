@@ -508,79 +508,327 @@ fn radial_gradient_shape<'a, 't: 'a, 'i: 't>(
         Err(parser.new_custom_error(CustomError::Unsupported))
     })
 }
+#[derive(PartialEq, Clone, Debug, Copy, Eq)]
+enum GradientPositionKeyword {
+    Center,
+    Top,
+    Left,
+    Right,
+    Bottom,
+}
 
+fn parse_at_ident<'a, 't: 'a, 'i: 't>(
+    parser: &'a mut Parser<'i, 't>,
+) -> Result<(), ParseError<'i, CustomError>> {
+    parser.expect_ident_matching("at")?;
+    Ok(())
+}
+
+/// Gradient Position Syntax Rule
+/// <position-one> | <position-two> | <position-four>
+///
+/// TODO: Support x/y-start/end, block-start/end, inline-start/end, start, end
+///
+/// <position-one>:
+///   left | center | right | top | bottom | <length-percentage>
+///
+/// <position-two>:
+///   [ left | center | right ] && [ top | center | bottom ]
+///   | [ left | center | right | <length-percentage> ] [ top | center | bottom | <length-percentage> ]
+///
+/// <position-four>:
+///   [ [ left | right ] <length-percentage> ] && [ [ top | bottom ] <length-percentage> ]
 fn gradient_position_repr<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
     properties: &mut Vec<PropertyMeta>,
     st: &mut ParseState,
     strict: bool,
 ) -> Result<GradientPosition, ParseError<'i, CustomError>> {
-    parser.try_parse(|parser| {
-        let next = parser.expect_ident_matching("at");
-        if next.is_err() {
-            return Err(parser.new_custom_error(CustomError::Eop));
+    let str_to_keyword = |s: &str| -> Option<GradientPositionKeyword> {
+        match s {
+            "left" => Some(GradientPositionKeyword::Left),
+            "right" => Some(GradientPositionKeyword::Right),
+            "center" => Some(GradientPositionKeyword::Center),
+            "top" => Some(GradientPositionKeyword::Top),
+            "bottom" => Some(GradientPositionKeyword::Bottom),
+            _ => None,
         }
-        let ret: Result<Length, ParseError<'i, CustomError>> = parser.try_parse(|parser| {
-            let x = length(parser, properties, st)?;
-            Ok(x)
-        });
-        let mut pos_y = Length::Ratio(0.5);
-        let pos_x = if let Ok(ret) = ret {
-            ret
+    };
+
+    let keyword_to_x = |keyword| -> Option<Length> {
+        match keyword {
+            GradientPositionKeyword::Left => Some(Length::Ratio(0.0)),
+            GradientPositionKeyword::Right => Some(Length::Ratio(1.0)),
+            GradientPositionKeyword::Center => Some(Length::Ratio(0.5)),
+            _ => None,
+        }
+    };
+
+    let keyword_to_y = |keyword| -> Option<Length> {
+        match keyword {
+            GradientPositionKeyword::Top => Some(Length::Ratio(0.0)),
+            GradientPositionKeyword::Bottom => Some(Length::Ratio(1.0)),
+            GradientPositionKeyword::Center => Some(Length::Ratio(0.5)),
+            _ => None,
+        }
+    };
+
+    let try_parse_keyword = |parser: &mut Parser<'i, 't>, allowed: &[GradientPositionKeyword]| {
+        parser.try_parse::<_, _, ParseError<'i, CustomError>>(|parser| {
+            let ident = parser.expect_ident()?;
+            let keyword = str_to_keyword(ident.as_ref())
+                .ok_or_else(|| parser.new_custom_error(CustomError::Unsupported))?;
+            if allowed.contains(&keyword) {
+                Ok(keyword)
+            } else {
+                Err(parser.new_custom_error(CustomError::Unsupported))
+            }
+        })
+    };
+
+    let mut try_parse_length = |parser: &mut Parser<'i, 't>| {
+        parser
+            .try_parse::<_, _, ParseError<'i, CustomError>>(|parser| length(parser, properties, st))
+    };
+
+    // <position-four>
+    let parse_position_four_res = parser.try_parse(|parser| {
+        let mut x_dir_start = None;
+        let mut x_length = None;
+        let mut y_dir_start = None;
+        let mut y_length = None;
+
+        if let Ok(parsed_keyword) = try_parse_keyword(
+            parser,
+            &[
+                GradientPositionKeyword::Left,
+                GradientPositionKeyword::Right,
+                GradientPositionKeyword::Top,
+                GradientPositionKeyword::Bottom,
+            ],
+        ) {
+            match parsed_keyword {
+                GradientPositionKeyword::Left => x_dir_start = Some(true),
+                GradientPositionKeyword::Right => x_dir_start = Some(false),
+                GradientPositionKeyword::Top => y_dir_start = Some(true),
+                GradientPositionKeyword::Bottom => y_dir_start = Some(false),
+                _ => return Err(parser.new_custom_error(CustomError::Unsupported)),
+            }
+        }
+
+        if let Ok(parsed_length) = try_parse_length(parser) {
+            if x_dir_start.is_some() {
+                x_length = Some(parsed_length);
+            } else {
+                y_length = Some(parsed_length);
+            }
+        }
+
+        let second_allowed = if x_dir_start.is_some() {
+            &[
+                GradientPositionKeyword::Top,
+                GradientPositionKeyword::Bottom,
+            ]
         } else {
-            parser.try_parse(|parser| {
-                let next = parser.expect_ident();
-                if next.is_err() {
-                    return Err(parser.new_custom_error(CustomError::Unsupported));
-                }
-                match next.unwrap().to_string().as_str() {
-                    "center" => Ok(Length::Ratio(0.5)),
-                    "left" => Ok(Length::Ratio(0.)),
-                    "right" => Ok(Length::Ratio(1.)),
-                    "bottom" => {
-                        pos_y = Length::Ratio(1.);
-                        Ok(Length::Ratio(0.5))
-                    }
-                    "top" => {
-                        pos_y = Length::Ratio(0.);
-                        Ok(Length::Ratio(0.5))
-                    }
-                    _ => Err(parser.new_custom_error(CustomError::Unsupported)),
-                }
-            })?
+            &[
+                GradientPositionKeyword::Left,
+                GradientPositionKeyword::Right,
+            ]
         };
 
-        if parser.is_exhausted() {
-            return Ok(GradientPosition::Pos(pos_x, pos_y));
-        }
-        let ret: Result<Length, ParseError<'i, CustomError>> = parser.try_parse(|parser| {
-            let y = length(parser, properties, st)?;
-            Ok(y)
-        });
-        let pos_y = if let Ok(r) = ret {
-            r
-        } else {
-            parser.try_parse::<_, _, ParseError<'i, CustomError>>(|parser| {
-                let next = parser.expect_ident();
-                if next.is_err() {
-                    return Err(parser.new_custom_error(CustomError::Unsupported));
+        if let Ok(parsed_keyword) = try_parse_keyword(parser, second_allowed) {
+            if x_dir_start.is_some() {
+                match parsed_keyword {
+                    GradientPositionKeyword::Top => y_dir_start = Some(true),
+                    GradientPositionKeyword::Bottom => y_dir_start = Some(false),
+                    _ => return Err(parser.new_custom_error(CustomError::Unsupported)),
                 }
-                match next.unwrap().to_string().as_str() {
-                    "center" => Ok(Length::Ratio(0.5)),
-                    "top" => Ok(Length::Ratio(0.)),
-                    "bottom" => Ok(Length::Ratio(1.)),
-                    _ => Err(parser.new_custom_error(CustomError::Unsupported)),
+            } else {
+                match parsed_keyword {
+                    GradientPositionKeyword::Left => x_dir_start = Some(true),
+                    GradientPositionKeyword::Right => x_dir_start = Some(false),
+                    _ => return Err(parser.new_custom_error(CustomError::Unsupported)),
                 }
-            })?
-        };
-        if !strict {
-            return Ok(GradientPosition::Pos(pos_x, pos_y));
+            }
         }
-        if parser.is_exhausted() {
-            return Ok(GradientPosition::Pos(pos_x, pos_y));
+
+        if let Ok(parsed_length) = try_parse_length(parser) {
+            if y_length.is_some() {
+                x_length = Some(parsed_length);
+            } else {
+                y_length = Some(parsed_length);
+            }
+        }
+
+        if let (Some(x_len), Some(y_len)) = (x_length, y_length) {
+            if let (Some(x_dir), Some(y_dir)) = (x_dir_start, y_dir_start) {
+                let x_pos = if x_dir {
+                    GradientSpecifiedPos::Left(x_len)
+                } else {
+                    GradientSpecifiedPos::Right(x_len)
+                };
+                let y_pos = if y_dir {
+                    GradientSpecifiedPos::Top(y_len)
+                } else {
+                    GradientSpecifiedPos::Bottom(y_len)
+                };
+                return Ok(GradientPosition::SpecifiedPos(x_pos, y_pos));
+            }
         }
         Err(parser.new_custom_error(CustomError::Unsupported))
-    })
+    });
+
+    if parse_position_four_res.is_ok() && (!strict || parser.is_exhausted()) {
+        return parse_position_four_res;
+    }
+
+    const ALL_KEYWORDS: &[GradientPositionKeyword] = &[
+        GradientPositionKeyword::Left,
+        GradientPositionKeyword::Right,
+        GradientPositionKeyword::Top,
+        GradientPositionKeyword::Bottom,
+        GradientPositionKeyword::Center,
+    ];
+
+    // <position-two>
+    let parse_position_two_res = parser.try_parse::<_, _, ParseError<'i, CustomError>>(|parser| {
+        let mut x_length = None;
+        let mut y_length = None;
+
+        if let Ok(first_keyword) = try_parse_keyword(parser, ALL_KEYWORDS) {
+            // hit [ left | center | right ] && [ top | center | bottom ]
+            // or [ left | center | right ] [ top | center | bottom | <length-percentage> ]
+            let mut first_keyword_is_center = false;
+
+            if first_keyword == GradientPositionKeyword::Center {
+                first_keyword_is_center = true;
+            } else if let Some(x) = keyword_to_x(first_keyword) {
+                x_length = Some(x)
+            } else if let Some(y) = keyword_to_y(first_keyword) {
+                y_length = Some(y);
+            }
+
+            let second_allowed = if x_length.is_some() {
+                &[
+                    GradientPositionKeyword::Top,
+                    GradientPositionKeyword::Bottom,
+                    GradientPositionKeyword::Center,
+                ]
+            } else if y_length.is_some() {
+                &[
+                    GradientPositionKeyword::Left,
+                    GradientPositionKeyword::Right,
+                    GradientPositionKeyword::Center,
+                ]
+            } else {
+                ALL_KEYWORDS
+            };
+
+            if let Ok(second_keyword) = try_parse_keyword(parser, second_allowed) {
+                if first_keyword_is_center {
+                    if let Some(x) = keyword_to_x(second_keyword) {
+                        // hit center [ left | center | right ]
+                        return Ok(GradientPosition::Pos(x, Length::Ratio(0.5)));
+                    } else if let Some(y) = keyword_to_y(second_keyword) {
+                        // hit center [ top | center | bottom ]
+                        return Ok(GradientPosition::Pos(Length::Ratio(0.5), y));
+                    } else if second_keyword == GradientPositionKeyword::Center {
+                        // hit center center
+                        return Ok(GradientPosition::Pos(
+                            Length::Ratio(0.5),
+                            Length::Ratio(0.5),
+                        ));
+                    }
+                } else if let Some(x) = x_length.clone() {
+                    if let Some(y) = keyword_to_y(second_keyword) {
+                        // hit [ left | right ] [ top | center | bottom ]
+                        return Ok(GradientPosition::Pos(x, y));
+                    }
+                } else if let Some(y) = y_length.clone() {
+                    if let Some(x) = keyword_to_x(second_keyword) {
+                        // hit [ top | bottom ] [ left | center | right ]
+                        return Ok(GradientPosition::Pos(x, y));
+                    }
+                }
+            } else if let Ok(parsed_length) = try_parse_length(parser) {
+                if let Some(x_length) = x_length {
+                    // hit [ left | center | right ] <length-percentage>
+                    return Ok(GradientPosition::Pos(x_length, parsed_length));
+                }
+            }
+        } else if let Ok(first_length) = try_parse_length(parser) {
+            // hit <length-percentage> [ top | center | bottom | <length-percentage> ]
+            x_length = Some(first_length);
+
+            if let Ok(parsed_keyword) = try_parse_keyword(
+                parser,
+                &[
+                    GradientPositionKeyword::Top,
+                    GradientPositionKeyword::Bottom,
+                    GradientPositionKeyword::Center,
+                ],
+            ) {
+                // hit <length-percentage> [ top | center | bottom]
+                if let Some(y) = keyword_to_y(parsed_keyword) {
+                    return Ok(GradientPosition::Pos(
+                        x_length.unwrap_or_else(|| Length::Ratio(0.5)),
+                        y,
+                    ));
+                }
+            } else if let Ok(parsed_length) = try_parse_length(parser) {
+                // hit <length-percentage> <length-percentage>
+                return Ok(GradientPosition::Pos(
+                    x_length.unwrap_or_else(|| Length::Ratio(0.5)),
+                    parsed_length,
+                ));
+            }
+        }
+
+        Err(parser.new_custom_error(CustomError::Unsupported))
+    });
+
+    if parse_position_two_res.is_ok() && (!strict || parser.is_exhausted()) {
+        return parse_position_two_res;
+    }
+
+    let single_keyword_to_pos = |keyword| -> GradientPosition {
+        match keyword {
+            GradientPositionKeyword::Left => {
+                GradientPosition::Pos(Length::Ratio(0.0), Length::Ratio(0.5))
+            }
+            GradientPositionKeyword::Right => {
+                GradientPosition::Pos(Length::Ratio(1.0), Length::Ratio(0.5))
+            }
+            GradientPositionKeyword::Top => {
+                GradientPosition::Pos(Length::Ratio(0.5), Length::Ratio(0.0))
+            }
+            GradientPositionKeyword::Bottom => {
+                GradientPosition::Pos(Length::Ratio(0.5), Length::Ratio(1.0))
+            }
+            GradientPositionKeyword::Center => {
+                GradientPosition::Pos(Length::Ratio(0.5), Length::Ratio(0.5))
+            }
+        }
+    };
+
+    // <position-one>
+    let parse_position_one_res = parser.try_parse::<_, _, ParseError<'i, CustomError>>(|parser| {
+        if let Ok(parsed_keyword) = try_parse_keyword(parser, ALL_KEYWORDS) {
+            // hit left | center | right | top | bottom
+            return Ok(single_keyword_to_pos(parsed_keyword));
+        }
+        if let Ok(parsed_length) = try_parse_length(parser) {
+            // hit <length-percentage>
+            return Ok(GradientPosition::Pos(parsed_length, Length::Ratio(0.5)));
+        }
+        return Err(parser.new_custom_error(CustomError::Unsupported));
+    });
+
+    if parse_position_one_res.is_ok() && (!strict || parser.is_exhausted()) {
+        return parse_position_one_res;
+    }
+
+    Err(parser.new_custom_error(CustomError::Unsupported))
 }
 
 #[inline(never)]
@@ -702,12 +950,18 @@ pub(crate) fn radial_gradient_repr<'a, 't: 'a, 'i: 't>(
             if illegal {
                 return Err(parser.new_custom_error(CustomError::Unsupported));
             }
-            // match position
+            let at_ident = parser.try_parse(|parser| parse_at_ident(parser));
+            if at_ident.is_err() && parser.is_exhausted() {
+                return Ok((
+                    shape,
+                    size,
+                    GradientPosition::Pos(Length::Ratio(0.5), Length::Ratio(0.5)),
+                ));
+            }
             let position = match gradient_position_repr(parser, properties, st, true) {
                 Ok(r) => r,
                 Err(_) => GradientPosition::Pos(Length::Ratio(0.5), Length::Ratio(0.5)),
             };
-
             if !parser.is_exhausted() {
                 return Err(parser.new_custom_error(CustomError::Unsupported));
             }
@@ -728,8 +982,20 @@ pub(crate) fn parse_conic_gradient_angle_position<'a, 't: 'a, 'i: 't>(
             angle(parser, properties, st)
         })
         .ok();
+    let at_ident = parser.try_parse(|parser| parse_at_ident(parser));
+    if at_ident.is_err() {
+        return (angle, None);
+    }
     let position = parser
-        .try_parse(|parser| gradient_position_repr(parser, properties, st, false))
+        .try_parse(
+            |parser| match gradient_position_repr(parser, properties, st, false) {
+                Ok(r) => Ok::<_, ParseError<'i, CustomError>>(r),
+                Err(_) => Ok(GradientPosition::Pos(
+                    Length::Ratio(0.5),
+                    Length::Ratio(0.5),
+                )),
+            },
+        )
         .ok();
     (angle, position)
 }
