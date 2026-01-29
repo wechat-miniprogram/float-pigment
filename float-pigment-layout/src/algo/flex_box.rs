@@ -140,6 +140,7 @@ struct FlexLine<'a, T: LayoutTreeNode> {
     cross_size: T::Length,
     extra_offset_cross: T::Length,
     first_baseline_ascent: T::Length,
+    total_gap: T::Length,
 }
 
 pub(crate) trait FlexBox<T: LayoutTreeNode> {
@@ -399,6 +400,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                     cross_size: T::Length::zero(),
                     extra_offset_cross: T::Length::zero(),
                     first_baseline_ascent: T::Length::zero(),
+                    total_gap: T::Length::zero(),
                 });
             } else {
                 let mut flex_items = &mut flex_items[..];
@@ -429,6 +431,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                         cross_size: T::Length::zero(),
                         extra_offset_cross: T::Length::zero(),
                         first_baseline_ascent: T::Length::zero(),
+                        total_gap: T::Length::zero(),
                     });
                     flex_items = rest;
                 }
@@ -447,6 +450,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                 main_axis_gap::<T>(dir, style, node, &requested_inner_size),
                 line.items.len(),
             );
+            line.total_gap = total_main_axis_gap;
             // 1. Determine the used flex factor. Sum the outer hypothetical main sizes of all
             //    items on the line. If the sum is less than the flex container’s inner main size,
             //    use the flex grow factor for the rest of this algorithm; otherwise, use the
@@ -707,7 +711,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                         line.items
                             .iter()
                             .map(|item| item.outer_target_size.main_size(dir)),
-                    );
+                    ) + line.total_gap;
                     acc.max(length)
                 });
                 let size = longest_line + padding_border.main_axis_sum(dir);
@@ -888,6 +892,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                     .map(|child| {
                         if child.final_align_self == AlignSelf::Baseline {
                             child.first_baseline_ascent.cross_axis(dir)
+                                + child.margin.cross_axis_start(dir, cross_dir_rev).or_zero()
                         } else {
                             T::Length::zero()
                         }
@@ -898,12 +903,10 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                     .items
                     .iter()
                     .map(|child| {
-                        if child.final_align_self == AlignSelf::Baseline
-                            && child.margin.cross_axis_start(dir, cross_dir_rev).is_none()
-                            && child.margin.cross_axis_end(dir, cross_dir_rev).is_none()
-                        {
+                        if child.final_align_self == AlignSelf::Baseline {
                             max_baseline - child.first_baseline_ascent.cross_axis(dir)
                                 + child.hypothetical_outer_size.cross_size(dir)
+                                + child.margin.cross_axis_end(dir, cross_dir_rev).or_zero()
                         } else {
                             child.hypothetical_outer_size.cross_size(dir)
                         }
@@ -928,15 +931,15 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
         //      and the sum of the flex lines' cross sizes is less than the flex container’s inner cross size,
         //      increase the cross size of each flex line by equal amounts such that the sum of their cross sizes
         //      exactly equals the flex container’s inner cross size.
+        let total_cross_axis_gap = sum_axis_gaps(
+            cross_axis_gap::<T>(dir, style, node, &requested_inner_size),
+            flex_lines.len(),
+        );
 
         if style.align_content() == AlignContent::Stretch {
             let requested_cross_size = requested_size.cross_size(dir).or_zero();
             let min_inner_cross =
                 self_min_max_limit.cross_size(requested_cross_size, dir) - padding_border_cross;
-            let total_cross_axis_gap = sum_axis_gaps(
-                cross_axis_gap::<T>(dir, style, node, &requested_inner_size),
-                flex_lines.len(),
-            );
             let line_total_cross: T::Length =
                 length_sum(flex_lines.iter().map(|line| line.cross_size)) + total_cross_axis_gap;
 
@@ -955,7 +958,8 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
         //     - Otherwise, use the sum of the flex lines' cross sizes, clamped by the used
         //       min and max cross sizes of the flex container.
 
-        let total_cross_size = length_sum(flex_lines.iter().map(|line| line.cross_size));
+        let total_cross_size =
+            length_sum(flex_lines.iter().map(|line| line.cross_size)) + total_cross_axis_gap;
         container_size.set_cross_size(
             dir,
             self_min_max_limit.cross_size(
@@ -1067,11 +1071,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
         //     2. Align the items along the main-axis per justify-content.
 
         for line in &mut flex_lines {
-            let total_main_axis_gap = sum_axis_gaps(
-                main_axis_gap::<T>(dir, style, node, &requested_inner_size),
-                line.items.len(),
-            );
-            let used_space: T::Length = total_main_axis_gap
+            let used_space: T::Length = line.total_gap
                 + length_sum(
                     line.items
                         .iter()
@@ -1417,6 +1417,8 @@ fn generate_anonymous_flex_items<T: LayoutTreeNode>(
     dir: AxisDirection,
 ) -> Vec<FlexItem<T>> {
     let mut flex_items: Vec<FlexItem<T>> = Vec::with_capacity(node.tree_visitor().children_len());
+    let mut needs_sort = false;
+    let mut prev_order = i32::MIN;
     node.tree_visitor()
         .for_each_child(|child_node, child_index| {
             if is_independent_positioning(child_node) {
@@ -1424,6 +1426,13 @@ fn generate_anonymous_flex_items<T: LayoutTreeNode>(
             }
             let child_layout_unit = child_node.layout_node().unit();
             let child_style = child_node.style();
+
+            let order = child_style.order();
+            if order < prev_order {
+                needs_sort = true;
+            }
+            prev_order = order;
+
             let (margin, border, padding_border) =
                 child_layout_unit.margin_border_padding(child_node, **inner_size);
             let size = child_layout_unit.css_border_box_size(
@@ -1436,7 +1445,7 @@ fn generate_anonymous_flex_items<T: LayoutTreeNode>(
 
             let flex_item = FlexItem {
                 child_index,
-                order: child_style.order(),
+                order,
                 size,
                 margin,
                 border,
@@ -1497,7 +1506,9 @@ fn generate_anonymous_flex_items<T: LayoutTreeNode>(
             };
             flex_items.push(flex_item);
         });
-    flex_items.sort_by(|a, b| a.order.cmp(&b.order));
+    if needs_sort {
+        flex_items.sort_by(|a, b| a.order.cmp(&b.order));
+    }
     flex_items
 }
 
