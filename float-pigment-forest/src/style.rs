@@ -6,7 +6,7 @@ use float_pigment_css::{num_traits::Zero, typing::GridAutoFlow};
 use crate::{LayoutGridTemplate, Len, Length};
 use float_pigment_css::typing::{
     AlignContent, AlignItems, AlignSelf, BoxSizing, Direction, Display, FlexDirection, FlexWrap,
-    JustifyContent, Overflow, Position, TextAlign, WritingMode,
+    JustifyContent, JustifyItems, JustifySelf, Overflow, Position, TextAlign, WritingMode,
 };
 use lazy_static::lazy_static;
 
@@ -181,6 +181,8 @@ struct FlexStyle {
     pub align_content: AlignContent,
     pub align_items: AlignItems,
     pub align_self: AlignSelf,
+    pub justify_items: JustifyItems,
+    pub justify_self: JustifySelf,
     pub flex_basis: Length,
 }
 impl Default for FlexStyle {
@@ -195,6 +197,8 @@ impl Default for FlexStyle {
             align_content: AlignContent::Stretch,
             align_items: AlignItems::Stretch,
             align_self: AlignSelf::Auto,
+            justify_items: JustifyItems::Stretch,
+            justify_self: JustifySelf::Auto,
             flex_basis: Length::Auto,
         }
     }
@@ -970,6 +974,32 @@ impl StyleManager {
         }
         self.clone_style(StyleBit::Flex);
         self.flex_style().align_self = value;
+        true
+    }
+
+    pub(crate) fn justify_items(&self) -> JustifyItems {
+        self.flex_style().justify_items.clone()
+    }
+
+    pub(crate) fn set_justify_items(&self, value: JustifyItems) -> bool {
+        if self.flex_style().justify_items == value {
+            return false;
+        }
+        self.clone_style(StyleBit::Flex);
+        self.flex_style().justify_items = value;
+        true
+    }
+
+    pub(crate) fn justify_self(&self) -> JustifySelf {
+        self.flex_style().justify_self.clone()
+    }
+
+    pub(crate) fn set_justify_self(&self, value: JustifySelf) -> bool {
+        if self.flex_style().justify_self == value {
+            return false;
+        }
+        self.clone_style(StyleBit::Flex);
+        self.flex_style().justify_self = value;
         true
     }
 

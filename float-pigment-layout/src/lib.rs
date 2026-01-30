@@ -54,7 +54,7 @@ use core::{
 
 use float_pigment_css::typing::{
     AlignContent, AlignItems, AlignSelf, BoxSizing, Direction, Display, FlexDirection, FlexWrap,
-    GridAutoFlow, JustifyContent, Position, TextAlign, WritingMode,
+    GridAutoFlow, JustifyContent, JustifyItems, JustifySelf, Position, TextAlign, WritingMode,
 };
 
 pub use unit::SizingMode;
@@ -276,6 +276,12 @@ pub trait LayoutStyle<L: LengthNum, T: PartialEq + Clone = i32> {
     }
     fn grid_auto_flow(&self) -> GridAutoFlow {
         GridAutoFlow::Row
+    }
+    fn justify_items(&self) -> JustifyItems {
+        JustifyItems::Stretch
+    }
+    fn justify_self(&self) -> JustifySelf {
+        JustifySelf::Auto
     }
 }
 
