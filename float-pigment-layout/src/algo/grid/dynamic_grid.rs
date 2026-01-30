@@ -118,6 +118,7 @@ impl<T> DynamicGrid<T> {
     /// Get a reference to the element at (row, col).
     ///
     /// Returns `None` if the position is out of bounds.
+    #[allow(dead_code)]
     #[inline]
     pub fn get(&self, row: usize, col: usize) -> Option<&T> {
         if row < self.rows && col < self.cols {
@@ -140,6 +141,7 @@ impl<T> DynamicGrid<T> {
     }
 
     /// Returns an iterator over all elements in row-major order.
+    #[allow(dead_code)]
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         self.data.iter()
     }
