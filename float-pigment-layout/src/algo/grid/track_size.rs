@@ -102,7 +102,7 @@ pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
                         }
                     }
                 }
-                total_specified_track_size = total_specified_track_size + current_size;
+                total_specified_track_size += current_size;
             }
             LayoutTrackListItem::TrackSize(LayoutTrackSize::Fr(fr_value)) => {
                 // Mark Fr tracks with their fr value

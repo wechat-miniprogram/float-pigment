@@ -181,10 +181,16 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         let grid_template_rows = style.grid_template_rows();
         let grid_template_columns = style.grid_template_columns();
 
-        let (row_track_list, row_track_auto_count, row_total_fr) =
-            initialize_track_list::<T>(&grid_template_rows);
-        let (column_track_list, column_track_auto_count, column_total_fr) =
-            initialize_track_list::<T>(&grid_template_columns);
+        let InitializedTrackListInfo {
+            list: row_track_list,
+            auto_count: row_track_auto_count,
+            total_fr: row_total_fr,
+        } = initialize_track_list::<T>(&grid_template_rows);
+        let InitializedTrackListInfo {
+            list: column_track_list,
+            auto_count: column_track_auto_count,
+            total_fr: column_total_fr,
+        } = initialize_track_list::<T>(&grid_template_columns);
 
         let (estimated_row_count, estimated_column_count) = estimate_track_count(
             node,
@@ -540,11 +546,11 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                                 .main_axis_start(axis_info.dir, axis_info.main_dir_rev)
                                 .or_zero(),
                     );
-                    inline_offset = inline_offset + track_size.width;
+                    inline_offset += track_size.width;
                     current_block_size = track_size.height;
                 }
             }
-            block_offset = block_offset + current_block_size;
+            block_offset += current_block_size;
         }
 
         let size = Size::new(
@@ -597,14 +603,15 @@ fn grid_template_track_iterator<T: LayoutTreeNode>(
     }
 }
 
-/// Returns (track_list, auto_count, total_fr)
-fn initialize_track_list<T: LayoutTreeNode>(
-    grid_template_rows: &LayoutGridTemplate<T::Length, T::LengthCustom>,
-) -> (
-    Vec<&LayoutTrackListItem<T::Length, T::LengthCustom>>,
-    usize,
-    f32,
-) {
+pub(crate) struct InitializedTrackListInfo<'a, T: LayoutTreeNode> {
+    list: Vec<&'a LayoutTrackListItem<T::Length, T::LengthCustom>>,
+    auto_count: usize,
+    total_fr: f32,
+}
+
+fn initialize_track_list<'a, T: LayoutTreeNode>(
+    grid_template_rows: &'a LayoutGridTemplate<T::Length, T::LengthCustom>,
+) -> InitializedTrackListInfo<'a, T> {
     let mut track_auto_count = 0;
     let mut total_fr: f32 = 0.0;
     let track_list = grid_template_track_iterator::<T>(grid_template_rows, |item| {
@@ -621,7 +628,11 @@ fn initialize_track_list<T: LayoutTreeNode>(
     })
     .map(|it| it.collect::<Vec<_>>())
     .unwrap_or(Vec::with_capacity(0));
-    (track_list, track_auto_count, total_fr)
+    InitializedTrackListInfo {
+        list: track_list,
+        auto_count: track_auto_count,
+        total_fr,
+    }
 }
 
 /// Finalize column (inline) track sizes.
