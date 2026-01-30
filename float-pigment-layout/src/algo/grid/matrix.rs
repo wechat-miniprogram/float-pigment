@@ -9,12 +9,13 @@
 use std::fmt::Debug;
 
 use float_pigment_css::typing::GridAutoFlow;
-use grid::Grid;
 
 use crate::{
-    algo::grid::grid_item::{GridItem, GridLayoutItem},
-    is_display_none, is_independent_positioning, LayoutStyle, LayoutTrackListItem, LayoutTreeNode,
-    LayoutTreeVisitor,
+    algo::grid::{
+        dynamic_grid::DynamicGrid,
+        grid_item::{GridItem, GridLayoutItem},
+    },
+    LayoutTreeNode,
 };
 
 /// Represents the state of a cell in the grid matrix.
@@ -59,40 +60,58 @@ impl<T> MatrixCell<T> {
 /// - Explicit grid: Defined by `grid-template-rows` and `grid-template-columns`
 /// - Implicit grid: Automatically created when items overflow the explicit grid
 ///
-/// This structure tracks both the explicit track counts and the auto track counts
-/// to properly implement the track sizing algorithm.
+/// This structure uses `DynamicGrid` internally to support dynamic expansion
+/// during item placement, eliminating the need for a separate estimation pass.
 #[derive(Clone, PartialEq)]
 pub(crate) struct GridMatrix<'a, T: LayoutTreeNode> {
-    /// The 2D grid storing cell contents
-    inner: Grid<MatrixCell<GridItem<'a, T>>>,
-    /// Total number of rows (explicit + implicit)
-    row_count: usize,
+    /// The 2D grid storing cell contents (dynamically expandable)
+    inner: DynamicGrid<MatrixCell<GridItem<'a, T>>>,
     /// Number of rows with `auto` sizing function
     row_auto_count: usize,
-    /// Total number of columns (explicit + implicit)
-    column_count: usize,
     /// Number of columns with `auto` sizing function
     column_auto_count: usize,
+    /// Minimum row count from explicit grid template
+    explicit_row_count: usize,
+    /// Minimum column count from explicit grid template
+    explicit_column_count: usize,
     /// The auto-placement flow direction
     flow: GridAutoFlow,
 }
 
 impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
+    /// Create a new empty grid matrix.
+    ///
+    /// The grid starts empty and expands dynamically when items are placed.
+    /// This avoids pre-allocating cells that may not be needed (e.g., when
+    /// all children are absolutely positioned or display:none).
+    ///
+    /// The explicit_row_count and explicit_column_count are used to control
+    /// the auto-placement algorithm's wrapping behavior, but don't cause
+    /// pre-allocation.
     pub(crate) fn new(
-        row_count: usize,
-        column_count: usize,
+        explicit_row_count: usize,
+        explicit_column_count: usize,
         row_auto_count: usize,
         column_auto_count: usize,
         flow: GridAutoFlow,
     ) -> Self {
         Self {
-            inner: Grid::new(row_count, column_count),
-            row_count,
+            // Start with empty grid - cells created on-demand during placement
+            inner: DynamicGrid::new(),
             row_auto_count,
-            column_count,
             column_auto_count,
+            explicit_row_count,
+            explicit_column_count,
             flow,
         }
+    }
+
+    /// Place an item at the specified position, expanding the grid if needed.
+    ///
+    /// This is the key method for dynamic grid expansion - it ensures the
+    /// grid is large enough before placing the item.
+    pub(crate) fn place_item(&mut self, row: usize, column: usize, item: GridItem<'a, T>) {
+        self.inner.set(row, column, MatrixCell::AutoPlaced(item));
     }
 
     pub(crate) fn get_item_mut(
@@ -107,14 +126,16 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
         self.inner.iter_mut()
     }
 
+    /// Returns the current number of rows (may exceed explicit grid).
     #[inline(always)]
     pub(crate) fn row_count(&self) -> usize {
-        self.row_count
+        self.inner.rows()
     }
 
+    /// Returns the current number of columns (may exceed explicit grid).
     #[inline(always)]
     pub(crate) fn column_count(&self) -> usize {
-        self.column_count
+        self.inner.cols()
     }
 
     #[inline(always)]
@@ -127,89 +148,42 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
         self.column_auto_count
     }
 
+    #[inline(always)]
+    pub(crate) fn explicit_row_count(&self) -> usize {
+        self.explicit_row_count
+    }
+
+    #[inline(always)]
+    pub(crate) fn explicit_column_count(&self) -> usize {
+        self.explicit_column_count
+    }
+
+    #[inline(always)]
+    pub(crate) fn flow(&self) -> GridAutoFlow {
+        self.flow.clone()
+    }
+
     pub(crate) fn update_item(
         &mut self,
         row: usize,
         column: usize,
         cell: MatrixCell<GridItem<'a, T>>,
     ) {
-        self.inner[(row, column)] = cell;
+        self.inner.set(row, column, cell);
     }
 }
 
 impl<'a, T: LayoutTreeNode> Debug for GridMatrix<'a, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let r = write!(
+        write!(
             f,
-            "GridMatrix {{ grid_items: {:?} row_count: {}, column_count: {} }}",
-            self.inner, self.row_count, self.column_count
-        );
-        r
+            "GridMatrix {{ row_count: {}, column_count: {}, explicit: {}x{} }}",
+            self.row_count(),
+            self.column_count(),
+            self.explicit_row_count,
+            self.explicit_column_count
+        )
     }
-}
-
-/// Estimate the grid dimensions before placement.
-///
-/// CSS Grid §7.1: Resolving the Grid
-/// <https://www.w3.org/TR/css-grid-1/#explicit-grids>
-///
-/// This function calculates the total number of rows and columns needed
-/// for the grid, considering both:
-/// - Explicit tracks from `grid-template-rows/columns`
-/// - Implicit tracks needed for auto-placed items
-///
-/// The estimation follows the same algorithm as `place_grid_items` but
-/// only counts positions without creating actual grid items.
-pub(crate) fn estimate_track_count<'a, T: LayoutTreeNode>(
-    node: &'a T,
-    style: &'a T::Style,
-    row_track_list: &[&LayoutTrackListItem<T::Length, T::LengthCustom>],
-    column_track_list: &[&LayoutTrackListItem<T::Length, T::LengthCustom>],
-) -> (usize, usize) {
-    // Start with explicit track counts (minimum 1)
-    let mut row_num = row_track_list.len().max(1);
-    let mut column_num = column_track_list.len().max(1);
-
-    let mut cur_row = 0;
-    let mut cur_column = 0;
-
-    // Count only grid-participating children
-    let children_iter = node
-        .tree_visitor()
-        .children_iter()
-        .enumerate()
-        .filter(|(_, node)| {
-            !is_independent_positioning(*node) && !is_display_none::<T>(node.style())
-        });
-
-    // Simulate auto-placement to count needed rows/columns
-    children_iter.for_each(|_| match style.grid_auto_flow() {
-        GridAutoFlow::Row | GridAutoFlow::RowDense => {
-            if cur_column >= column_num {
-                cur_column = 0;
-                cur_row += 1;
-                if cur_row >= row_num {
-                    row_num = cur_row + 1;
-                }
-            }
-
-            cur_column += 1;
-        }
-        GridAutoFlow::Column | GridAutoFlow::ColumnDense => {
-            if cur_row >= row_num {
-                cur_row = 0;
-                cur_column += 1;
-                if cur_column >= column_num {
-                    column_num = cur_column + 1;
-                }
-            }
-            cur_row += 1;
-        }
-    });
-    (
-        row_num.max(row_track_list.len().max(1)),
-        column_num.max(column_track_list.len().max(1)),
-    )
 }
 
 /// The layout matrix stores computed layout information for each grid cell.
@@ -217,28 +191,24 @@ pub(crate) fn estimate_track_count<'a, T: LayoutTreeNode>(
 /// This is used in the final positioning phase after track sizes have been
 /// determined. It stores the actual computed sizes and positions of items.
 pub(crate) struct GridLayoutMatrix<'a, T: LayoutTreeNode> {
-    pub(crate) inner: Grid<MatrixCell<GridLayoutItem<'a, T>>>,
-    row_count: usize,
-    column_count: usize,
+    pub(crate) inner: DynamicGrid<MatrixCell<GridLayoutItem<'a, T>>>,
 }
 
 impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
     pub(crate) fn new(row_count: usize, column_count: usize) -> Self {
         Self {
-            inner: Grid::new(row_count, column_count),
-            row_count,
-            column_count,
+            inner: DynamicGrid::with_size(row_count, column_count),
         }
     }
 
     #[inline(always)]
     pub(crate) fn row_count(&self) -> usize {
-        self.row_count
+        self.inner.rows()
     }
 
     #[inline(always)]
     pub(crate) fn column_count(&self) -> usize {
-        self.column_count
+        self.inner.cols()
     }
 
     pub(crate) fn update_item(
@@ -247,6 +217,6 @@ impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
         column: usize,
         cell: MatrixCell<GridLayoutItem<'a, T>>,
     ) {
-        self.inner[(row, column)] = cell;
+        self.inner.set(row, column, cell);
     }
 }

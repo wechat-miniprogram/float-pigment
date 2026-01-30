@@ -18,7 +18,8 @@ float-pigment-layout/src/algo/grid/
 ├── track_size.rs   # Track sizing calculations (fr, auto, fixed)
 ├── placement.rs    # Grid item placement algorithm
 ├── matrix.rs       # Grid matrix data structure
-└── grid_item.rs    # Grid item structure definitions
+├── grid_item.rs    # Grid item structure definitions
+└── dynamic_grid.rs # Dynamic 2D grid data structure
 ```
 
 ---
@@ -60,14 +61,14 @@ This implementation uses a simplified single-pass approach with 9 steps:
 |                 |                                                                 |
 |                 v                                                                 |
 |      +------------------------+                                                   |
-|      | 4. Placement           | <---- W3C S8.5 Auto Placement                     |
+|      | 4. Placement           | <---- W3C S8.5 Grid Item Placement Algorithm      |
 |      +----------+-------------+                                                   |
 |                 |                                                                 |
 |                 v                                                                 |
 |      +------------------------+       +-------------------------------------+     |
 |      | 5. Track Sizing        | <-----| W3C S11.3 Track Sizing Algorithm    |     |
 |      |    (columns, rows)     |       |  - S11.4 Initialize Track Sizes     |     |
-|      +----------+-------------+       |  - S11.7 Expand fr Tracks           |     |
+|      +----------+-------------+       |  - S11.7 Expand Flexible Tracks     |     |
 |                 |                     +-------------------------------------+     |
 |                 v                                                                 |
 |      +------------------------+                                                   |
@@ -128,11 +129,13 @@ Parse `grid-template-rows` / `grid-template-columns`:
 Place items into grid matrix according to `grid-auto-flow`:
 
 1. Filter out `position: absolute` and `display: none` items
-2. Initialize empty grid matrix
+2. Initialize empty dynamic grid matrix (`DynamicGrid`)
 3. Place each item in order:
    - `row` mode: Left to right, top to bottom
    - `column` mode: Top to bottom, left to right
-4. Output: `GridMatrix` (item position mapping)
+   - **Auto-expansion**: Automatically creates implicit tracks when exceeding explicit grid boundaries
+4. Output: `GridMatrix` (item position mapping, sized to actual row/column count used)
+
 
 #### Step 5: Track Sizing
 
@@ -193,37 +196,37 @@ Calculate final position for each item:
 
 | Property | Status | Description |
 |----------|--------|-------------|
-| `display: grid` | ✅ | Block-level Grid container |
-| `display: inline-grid` | ✅ | Inline-level Grid container |
-| `grid-template-columns` | ✅ | Define explicit column tracks |
-| `grid-template-rows` | ✅ | Define explicit row tracks |
+| `display: grid` | ✅ | Block-level Grid Container |
+| `display: inline-grid` | ✅ | Inline-level Grid Container |
+| `grid-template-columns` | ✅ | Define Explicit Column Tracks |
+| `grid-template-rows` | ✅ | Define Explicit Row Tracks |
 | `grid-auto-flow` | ✅ | Auto-placement direction (row/column) |
-| `grid-auto-flow: dense` | ⚠️ | Dense packing not implemented |
-| `gap` / `row-gap` / `column-gap` | ✅ | Track gaps |
-| `align-items` | ✅ | Default block-axis alignment |
-| `justify-items` | ✅ | Default inline-axis alignment |
-| `align-content` | ✅ | Track block-axis distribution |
-| `justify-content` | ✅ | Track inline-axis distribution |
+| `grid-auto-flow: dense` | ⚠️ | Dense Packing not implemented |
+| `gap` / `row-gap` / `column-gap` | ✅ | Gutters (track gaps) |
+| `align-items` | ✅ | Default Block-axis Alignment |
+| `justify-items` | ✅ | Default Inline-axis Alignment |
+| `align-content` | ✅ | Content Distribution (block-axis) |
+| `justify-content` | ✅ | Content Distribution (inline-axis) |
 
 ### Grid Item Properties
 
 | Property | Status | Description |
 |----------|--------|-------------|
-| `align-self` | ✅ | Item block-axis alignment |
-| `justify-self` | ✅ | Item inline-axis alignment |
-| `grid-column-start` | ❌ | Not implemented |
-| `grid-column-end` | ❌ | Not implemented |
-| `grid-row-start` | ❌ | Not implemented |
-| `grid-row-end` | ❌ | Not implemented |
+| `align-self` | ✅ | Self-Alignment (block-axis) |
+| `justify-self` | ✅ | Self-Alignment (inline-axis) |
+| `grid-column-start` | ❌ | Line-based Placement not implemented |
+| `grid-column-end` | ❌ | Line-based Placement not implemented |
+| `grid-row-start` | ❌ | Line-based Placement not implemented |
+| `grid-row-end` | ❌ | Line-based Placement not implemented |
 
 ### Track Sizing Functions
 
 | Value | Status | Description |
 |-------|--------|-------------|
-| `<length>` | ✅ | Fixed pixel value (e.g., `100px`) |
+| `<length>` | ✅ | Fixed length value (e.g., `100px`) |
 | `<percentage>` | ✅ | Percentage value (e.g., `50%`) |
 | `auto` | ✅ | Auto-adjust based on content |
-| `fr` | ✅ | Flexible unit, distributes remaining space proportionally |
+| `<flex>` (`fr`) | ✅ | Flexible length, distributes remaining space proportionally |
 | `min-content` | ⚠️ | Partial support |
 | `max-content` | ⚠️ | Partial support |
 | `minmax()` | ❌ | Not implemented |
@@ -241,15 +244,12 @@ Calculate final position for each item:
   - Re-resolve row sizes when min-content contribution changes due to column sizes
   - Affected scenarios: Text wrapping, `aspect-ratio`, nested Flex/Grid
 
-- [ ] **Explicit Item Placement** (W3C §8.3)
+- [ ] **Line-based Placement** (W3C §8.3)
   - `grid-column-start` / `grid-column-end`
   - `grid-row-start` / `grid-row-end`
   - `grid-column` / `grid-row` shorthands
   - `grid-area` shorthand
-
-- [ ] **Spanning Items** (W3C §8.3)
   - `span` keyword support
-  - Multi-track spanning layout
 
 ### Medium Priority
 
@@ -259,11 +259,11 @@ Calculate final position for each item:
   - `fit-content(limit)` function
   - `auto-fill` / `auto-fit` keywords
 
-- [ ] **Grid Area Naming** (W3C §7.3)
+- [ ] **Named Grid Areas** (W3C §7.3)
   - `grid-template-areas` property
   - Named area placement
 
-- [ ] **Dense Packing Mode** (W3C §8.5)
+- [ ] **Dense Packing** (W3C §8.5)
   - `grid-auto-flow: dense`
   - `grid-auto-flow: row dense`
   - `grid-auto-flow: column dense`
@@ -332,7 +332,7 @@ All test case assertion values conform to W3C specification-defined calculation 
 
 | Data Structure | Complexity | Description |
 |----------------|------------|-------------|
-| GridMatrix | O(R × C) | Stores item placement info |
+| DynamicGrid | O(R × C) | Dynamically expandable 2D matrix |
 | GridLayoutMatrix | O(R × C) | Stores layout computation results |
 | Track Lists | O(R + C) | Row/column track definition lists |
 | each_inline_size | O(C) | Column size temporary vector |
@@ -407,7 +407,6 @@ All test case assertion values conform to W3C specification-defined calculation 
 +------------------------------------------------------------------------+
 ```
 
-**Space Complexity O(R × C) has room for optimization** ⚠️
 
 ```
 +------------------------------------------------------------------------+
@@ -417,13 +416,15 @@ All test case assertion values conform to W3C specification-defined calculation 
 |   Must store:                                                          |
 |   +-- Track size info  --> O(R + C)                                    |
 |   +-- Item info        --> O(N)                                        |
+|   +-- Cell mapping     --> O(R x C) for 2D positioning                 |
 |                                                                        |
 |   +----------------------------------------------------------------+   |
-|   | Theoretical Lower Bound: Big-Omega(R + C + N)                  |   |
+|   | Lower Bound: Big-Omega(R + C + N)                              |   |
+|   | For dense grids: N ~ R x C, so Big-Omega(R x C)                |   |
 |   +----------------------------------------------------------------+   |
 |                                                                        |
-|   [!] Current: O(R x C) - stores full grid matrix                      |
-|   [*] Optimization: sparse matrix or streaming to O(R + C + N)         |
+|   [OK] Current: O(R x C) - standard for 2D grid layout                 |
+|   [*] Optimization: lazy allocation reduces actual memory usage        |
 |                                                                        |
 +------------------------------------------------------------------------+
 ```
@@ -432,10 +433,11 @@ All test case assertion values conform to W3C specification-defined calculation 
 
 | Implementation | Time Complexity | Space Complexity | Notes |
 |----------------|-----------------|------------------|-------|
-| **This Implementation** | O(R × C) | O(R × C) | Single pass, no iteration |
+| **This Implementation** | O(R × C) | O(R × C) | Custom dynamic data structure |
 | Chrome (Blink) | O(k × R × C) | O(R × C) | k is iteration count (≤2) |
 | Firefox (Gecko) | O(k × R × C) | O(R × C) | Full W3C implementation |
 | WebKit | O(k × R × C) | O(R × C) | Full W3C implementation |
+| Taffy | O(R × C) | O(R × C) | Custom dynamic data structure |
 
 **Notes**:
 - This implementation omits W3C §11.1 Step 3-4 iterative re-resolution, thus is a **single pass**
@@ -457,14 +459,14 @@ All test case assertion values conform to W3C specification-defined calculation 
 |                                                                        |
 |   +----------------------------------------------------------------+   |
 |   | SPACE COMPLEXITY: O(R x C)                                     |   |
-|   |   +-- Optimal?       [NO] Theoretical: O(R+C+N)                |   |
+|   |   +-- Standard for 2D grid layout                              |   |
 |   |   +-- Industry level: On par with major browsers               |   |
 |   +----------------------------------------------------------------+   |
 |                                                                        |
 |   +----------------------------------------------------------------+   |
 |   | SUMMARY                                                        |   |
-|   | Time-optimal, space has room for improvement but meets         |   |
-|   | industry standards.                                            |   |
+|   | Time-optimal, space complexity meets industry standards.       |   |
+|   | Lazy allocation strategy reduces actual memory footprint.      |   |
 |   +----------------------------------------------------------------+   |
 |                                                                        |
 +------------------------------------------------------------------------+

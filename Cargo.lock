@@ -804,7 +804,6 @@ version = "0.7.1"
 dependencies = [
  "euclid",
  "float-pigment-css",
- "grid",
  "log",
  "lru",
  "paste",
@@ -1007,12 +1006,6 @@ checksum = "ef89398e90033fc6bc65e9bd42fd29bbbfd483bda5b56dc5562f455550618165"
 dependencies = [
  "gl_generator 0.14.0",
 ]
-
-[[package]]
-name = "grid"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9e2d4c0a8296178d8802098410ca05d86b17a10bb5ab559b3fb404c1f948220"
 
 [[package]]
 name = "half"

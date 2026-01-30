@@ -6,9 +6,8 @@
 use float_pigment_css::typing::GridAutoFlow;
 
 use crate::{
-    algo::grid::{grid_item::GridItem, matrix::MatrixCell, GridMatrix},
-    is_display_none, is_independent_positioning, LayoutStyle, LayoutTrackListItem, LayoutTreeNode,
-    LayoutTreeVisitor,
+    algo::grid::{grid_item::GridItem, GridMatrix},
+    is_display_none, is_independent_positioning, LayoutTreeNode, LayoutTreeVisitor,
 };
 
 /// Place grid items into the grid using the auto-placement algorithm.
@@ -34,12 +33,11 @@ use crate::{
 pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
     grid_matrix: &mut GridMatrix<'a, T>,
     node: &'a T,
-    style: &'a T::Style,
-    row_track_list: &[&LayoutTrackListItem<T::Length, T::LengthCustom>],
-    column_track_list: &[&LayoutTrackListItem<T::Length, T::LengthCustom>],
 ) {
-    let mut row_num = row_track_list.len().max(1);
-    let mut column_num = column_track_list.len().max(1);
+    // Get dimensions from explicit grid template
+    let explicit_row_count = grid_matrix.explicit_row_count();
+    let explicit_column_count = grid_matrix.explicit_column_count();
+    let flow = grid_matrix.flow();
 
     // Current auto-placement cursor position
     let mut cur_row = 0;
@@ -60,7 +58,7 @@ pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
     // CSS Grid §8.5: Auto-placement algorithm
     // https://www.w3.org/TR/css-grid-1/#auto-placement-algo
     // TODO: Implement grid-auto-flow: dense (sparse vs dense packing)
-    children_iter.for_each(|(origin_idx, child)| match style.grid_auto_flow() {
+    children_iter.for_each(|(origin_idx, child)| match flow {
         // ═══════════════════════════════════════════════════════════════════
         // Row-major auto-placement (grid-auto-flow: row)
         // CSS Grid §8.5: https://www.w3.org/TR/css-grid-1/#auto-placement-algo
@@ -68,16 +66,14 @@ pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
         // ═══════════════════════════════════════════════════════════════════
         GridAutoFlow::Row | GridAutoFlow::RowDense => {
             // Wrap to next row if we've filled the current row
-            if cur_column >= column_num {
+            if cur_column >= explicit_column_count.max(1) {
                 cur_column = 0;
                 cur_row += 1;
-                // Create implicit row if needed
-                if cur_row >= row_num {
-                    row_num = cur_row + 1;
-                }
             }
+
+            // Create and place the grid item - DynamicGrid handles expansion
             let grid_item = GridItem::new(child, origin_idx, cur_row, cur_column);
-            grid_matrix.update_item(cur_row, cur_column, MatrixCell::AutoPlaced(grid_item));
+            grid_matrix.place_item(cur_row, cur_column, grid_item);
             cur_column += 1;
         }
         // ═══════════════════════════════════════════════════════════════════
@@ -86,17 +82,14 @@ pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
         // ═══════════════════════════════════════════════════════════════════
         GridAutoFlow::Column | GridAutoFlow::ColumnDense => {
             // Wrap to next column if we've filled the current column
-            if cur_row >= row_num {
+            if cur_row >= explicit_row_count.max(1) {
                 cur_row = 0;
                 cur_column += 1;
-                // Create implicit column if needed
-                if cur_column >= column_num {
-                    column_num = cur_column + 1;
-                }
             }
 
+            // Create and place the grid item - DynamicGrid handles expansion
             let grid_item = GridItem::new(child, origin_idx, cur_row, cur_column);
-            grid_matrix.update_item(cur_row, cur_column, MatrixCell::AutoPlaced(grid_item));
+            grid_matrix.place_item(cur_row, cur_column, grid_item);
             cur_row += 1;
         }
     });
