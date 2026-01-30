@@ -163,6 +163,7 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
         self.flow.clone()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn update_item(
         &mut self,
         row: usize,
