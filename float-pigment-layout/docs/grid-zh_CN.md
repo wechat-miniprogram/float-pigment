@@ -18,7 +18,8 @@ float-pigment-layout/src/algo/grid/
 ├── track_size.rs   # 轨道尺寸计算 (fr, auto, fixed)
 ├── placement.rs    # Grid 项目放置算法
 ├── matrix.rs       # Grid 矩阵数据结构
-└── grid_item.rs    # Grid 项目结构定义
+├── grid_item.rs    # Grid 项目结构定义
+└── dynamic_grid.rs # 动态二维网格数据结构
 ```
 
 ---
@@ -60,14 +61,14 @@ float-pigment-layout/src/algo/grid/
 |                 |                                                                 |
 |                 v                                                                 |
 |      +------------------------+                                                   |
-|      | 4. Placement           | <---- W3C S8.5 Auto Placement                     |
+|      | 4. Placement           | <---- W3C S8.5 Grid Item Placement Algorithm      |
 |      +----------+-------------+                                                   |
 |                 |                                                                 |
 |                 v                                                                 |
 |      +------------------------+       +-------------------------------------+     |
 |      | 5. Track Sizing        | <-----| W3C S11.3 Track Sizing Algorithm    |     |
 |      |    (columns, rows)     |       |  - S11.4 Initialize Track Sizes     |     |
-|      +----------+-------------+       |  - S11.7 Expand fr Tracks           |     |
+|      +----------+-------------+       |  - S11.7 Expand Flexible Tracks     |     |
 |                 |                     +-------------------------------------+     |
 |                 v                                                                 |
 |      +------------------------+                                                   |
@@ -128,11 +129,13 @@ float-pigment-layout/src/algo/grid/
 按 `grid-auto-flow` 将项目放入网格矩阵：
 
 1. 过滤掉 `position: absolute` 和 `display: none` 的项目
-2. 初始化空的网格矩阵
+2. 初始化空的动态网格矩阵（`DynamicGrid`）
 3. 按顺序放置每个项目：
    - `row` 模式：从左到右、从上到下
    - `column` 模式：从上到下、从左到右
-4. 输出：`GridMatrix`（项目位置映射）
+   - **自动扩展**：超出显式网格边界时，自动创建隐式轨道
+4. 输出：`GridMatrix`（项目位置映射，尺寸为实际使用的行/列数）
+
 
 #### Step 5: Track Sizing（轨道尺寸计算）
 
@@ -189,41 +192,41 @@ float-pigment-layout/src/algo/grid/
 
 ## 支持的属性
 
-### Grid 容器属性
+### Grid Container 属性
 
 | 属性 | 状态 | 说明 |
 |-----|------|-----|
-| `display: grid` | ✅ | 块级 Grid 容器 |
-| `display: inline-grid` | ✅ | 内联级 Grid 容器 |
-| `grid-template-columns` | ✅ | 定义显式列轨道 |
-| `grid-template-rows` | ✅ | 定义显式行轨道 |
+| `display: grid` | ✅ | 块级 Grid 容器 (Block-level Grid Container) |
+| `display: inline-grid` | ✅ | 内联级 Grid 容器 (Inline-level Grid Container) |
+| `grid-template-columns` | ✅ | 定义显式列轨道 (Explicit Column Tracks) |
+| `grid-template-rows` | ✅ | 定义显式行轨道 (Explicit Row Tracks) |
 | `grid-auto-flow` | ✅ | 自动放置方向 (row/column) |
-| `grid-auto-flow: dense` | ⚠️ | 未实现密集填充 |
-| `gap` / `row-gap` / `column-gap` | ✅ | 轨道间隙 |
-| `align-items` | ✅ | 默认块轴对齐 |
-| `justify-items` | ✅ | 默认内联轴对齐 |
-| `align-content` | ✅ | 轨道块轴分布 (content distribution) |
-| `justify-content` | ✅ | 轨道内联轴分布 (content distribution) |
+| `grid-auto-flow: dense` | ⚠️ | 未实现密集放置 (Dense Packing) |
+| `gap` / `row-gap` / `column-gap` | ✅ | 轨道间隙 (Gutters) |
+| `align-items` | ✅ | 默认块轴对齐 (Block-axis Alignment) |
+| `justify-items` | ✅ | 默认内联轴对齐 (Inline-axis Alignment) |
+| `align-content` | ✅ | 轨道块轴分布 (Content Distribution) |
+| `justify-content` | ✅ | 轨道内联轴分布 (Content Distribution) |
 
-### Grid 项目属性
+### Grid Item 属性
 
 | 属性 | 状态 | 说明 |
 |-----|------|-----|
-| `align-self` | ✅ | 项目块轴对齐 |
-| `justify-self` | ✅ | 项目内联轴对齐 |
-| `grid-column-start` | ❌ | 未实现 |
-| `grid-column-end` | ❌ | 未实现 |
-| `grid-row-start` | ❌ | 未实现 |
-| `grid-row-end` | ❌ | 未实现 |
+| `align-self` | ✅ | 项目块轴对齐 (Self-Alignment) |
+| `justify-self` | ✅ | 项目内联轴对齐 (Self-Alignment) |
+| `grid-column-start` | ❌ | 未实现 (Line-based Placement) |
+| `grid-column-end` | ❌ | 未实现 (Line-based Placement) |
+| `grid-row-start` | ❌ | 未实现 (Line-based Placement) |
+| `grid-row-end` | ❌ | 未实现 (Line-based Placement) |
 
-### 轨道尺寸函数
+### 轨道尺寸函数 (Track Sizing Functions)
 
 | 值 | 状态 | 说明 |
 |---|------|-----|
-| `<length>` | ✅ | 固定像素值 (如 `100px`) |
+| `<length>` | ✅ | 固定长度值 (如 `100px`) |
 | `<percentage>` | ✅ | 百分比值 (如 `50%`) |
 | `auto` | ✅ | 根据内容自动调整 |
-| `fr` | ✅ | 弹性单位，按比例分配剩余空间 |
+| `<flex>` (`fr`) | ✅ | 弹性长度 (Flexible Length)，按比例分配剩余空间 |
 | `min-content` | ⚠️ | 部分支持 |
 | `max-content` | ⚠️ | 部分支持 |
 | `minmax()` | ❌ | 未实现 |
@@ -241,29 +244,26 @@ float-pigment-layout/src/algo/grid/
   - 当 min-content contribution 因列尺寸改变时，重新计算行尺寸
   - 影响场景：文本换行、`aspect-ratio`、嵌套 Flex/Grid
 
-- [ ] **显式项目放置** (W3C §8.3)
+- [ ] **基于网格线的放置 (Line-based Placement)** (W3C §8.3)
   - `grid-column-start` / `grid-column-end`
   - `grid-row-start` / `grid-row-end`
   - `grid-column` / `grid-row` 简写
   - `grid-area` 简写
-
-- [ ] **跨轨道项目** (W3C §8.3)
   - `span` 关键字支持
-  - 多轨道跨越布局
 
 ### 中优先级
 
-- [ ] **轨道尺寸函数** (W3C §7.2)
+- [ ] **轨道尺寸函数 (Track Sizing Functions)** (W3C §7.2)
   - `minmax(min, max)` 函数
   - `repeat(count, tracks)` 函数
   - `fit-content(limit)` 函数
   - `auto-fill` / `auto-fit` 关键字
 
-- [ ] **Grid 区域命名** (W3C §7.3)
+- [ ] **命名网格区域 (Named Grid Areas)** (W3C §7.3)
   - `grid-template-areas` 属性
   - 命名区域放置
 
-- [ ] **密集填充模式** (W3C §8.5)
+- [ ] **密集放置 (Dense Packing)** (W3C §8.5)
   - `grid-auto-flow: dense`
   - `grid-auto-flow: row dense`
   - `grid-auto-flow: column dense`
@@ -273,7 +273,7 @@ float-pigment-layout/src/algo/grid/
 - [ ] **完善 min-content / max-content** (W3C §11.5 / CSS Sizing 3)
   - 完整的内在尺寸计算
 
-- [ ] **隐式轨道尺寸** (W3C §7.6)
+- [ ] **隐式轨道尺寸 (Implicit Track Sizing)** (W3C §7.6)
   - `grid-auto-rows`
   - `grid-auto-columns`
 
@@ -332,7 +332,7 @@ float-pigment-layout/src/algo/grid/
 
 | 数据结构 | 复杂度 | 说明 |
 |---------|--------|------|
-| GridMatrix | O(R × C) | 存储项目放置信息 |
+| DynamicGrid | O(R × C) | 动态扩展的二维矩阵 |
 | GridLayoutMatrix | O(R × C) | 存储布局计算结果 |
 | Track Lists | O(R + C) | 行/列轨道定义列表 |
 | each_inline_size | O(C) | 列尺寸临时向量 |
@@ -407,7 +407,6 @@ float-pigment-layout/src/algo/grid/
 +------------------------------------------------------------------------+
 ```
 
-**空间复杂度 O(R × C) 存在优化空间** ⚠️
 
 ```
 +------------------------------------------------------------------------+
@@ -417,13 +416,15 @@ float-pigment-layout/src/algo/grid/
 |   Must store:                                                          |
 |   +-- Track size info  --> O(R + C)                                    |
 |   +-- Item info        --> O(N)                                        |
+|   +-- Cell mapping     --> O(R x C) for 2D positioning                 |
 |                                                                        |
 |   +----------------------------------------------------------------+   |
-|   | Theoretical Lower Bound: Big-Omega(R + C + N)                  |   |
+|   | Lower Bound: Big-Omega(R + C + N)                              |   |
+|   | For dense grids: N ~ R x C, so Big-Omega(R x C)                |   |
 |   +----------------------------------------------------------------+   |
 |                                                                        |
-|   [!] Current: O(R x C) - stores full grid matrix                      |
-|   [*] Optimization: sparse matrix or streaming to O(R + C + N)         |
+|   [OK] Current: O(R x C) - standard for 2D grid layout                 |
+|   [*] Optimization: lazy allocation reduces actual memory usage        |
 |                                                                        |
 +------------------------------------------------------------------------+
 ```
@@ -432,10 +433,11 @@ float-pigment-layout/src/algo/grid/
 
 | 实现 | 时间复杂度 | 空间复杂度 | 备注 |
 |-----|-----------|-----------|------|
-| **本实现** | O(R × C) | O(R × C) | 单次遍历，无迭代 |
+| **本实现** | O(R × C) | O(R × C) | 自定义动态数据结构 |
 | Chrome (Blink) | O(k × R × C) | O(R × C) | k 为迭代次数 (≤2) |
 | Firefox (Gecko) | O(k × R × C) | O(R × C) | 完整 W3C 实现 |
 | WebKit | O(k × R × C) | O(R × C) | 完整 W3C 实现 |
+| Taffy | O(R × C) | O(R × C) | 自定义动态数据结构 |
 
 **说明**:
 - 本实现省略了 W3C §11.1 Step 3-4 的迭代重计算，因此是**单次遍历**
@@ -457,14 +459,14 @@ float-pigment-layout/src/algo/grid/
 |                                                                        |
 |   +----------------------------------------------------------------+   |
 |   | SPACE COMPLEXITY: O(R x C)                                     |   |
-|   |   +-- Optimal?       [NO] Theoretical: O(R+C+N)                |   |
+|   |   +-- Standard for 2D grid layout                              |   |
 |   |   +-- Industry level: On par with major browsers               |   |
 |   +----------------------------------------------------------------+   |
 |                                                                        |
 |   +----------------------------------------------------------------+   |
 |   | SUMMARY                                                        |   |
-|   | Time-optimal, space has room for improvement but meets         |   |
-|   | industry standards.                                            |   |
+|   | Time-optimal, space complexity meets industry standards.       |   |
+|   | Lazy allocation strategy reduces actual memory footprint.      |   |
 |   +----------------------------------------------------------------+   |
 |                                                                        |
 +------------------------------------------------------------------------+

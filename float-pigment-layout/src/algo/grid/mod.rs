@@ -42,6 +42,7 @@ use float_pigment_css::length_num::LengthNum;
 use float_pigment_css::num_traits::Zero;
 
 mod alignment;
+mod dynamic_grid;
 mod grid_item;
 mod matrix;
 mod placement;
@@ -55,7 +56,7 @@ use crate::{
             resolve_grid_justify_self,
         },
         grid_item::GridLayoutItem,
-        matrix::{estimate_track_count, GridLayoutMatrix, GridMatrix, MatrixCell},
+        matrix::{GridLayoutMatrix, GridMatrix, MatrixCell},
         placement::place_grid_items,
         track_size::apply_track_size,
     },
@@ -102,7 +103,7 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
     ///
     /// 1. **Available Space**: Calculate container content box
     /// 2. **Gutters** (§10.1): Calculate row-gap and column-gap
-    /// 3. **Explicit Grid** (§7.2): Parse grid-template-rows/columns
+    /// 3. **Explicit Grid** (§7.1): Resolve grid-template-rows/columns
     /// 4. **Placement** (§8.5): Place items using auto-placement
     /// 5. **Track Sizing** (§11.3): Size columns, then rows (single pass)
     /// 6. **Item Sizing**: Compute each item's size
@@ -173,7 +174,7 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
 
         // ═══════════════════════════════════════════════════════════════════════
         // STEP 3: Resolve the Explicit Grid
-        // CSS Grid §7.2: https://www.w3.org/TR/css-grid-1/#explicit-grids
+        // CSS Grid §7.1: https://www.w3.org/TR/css-grid-1/#explicit-grids
         //
         // The grid-template-columns and grid-template-rows properties define
         // the line names and track sizing functions of the explicit grid.
@@ -192,22 +193,40 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             total_fr: column_total_fr,
         } = initialize_track_list::<T>(&grid_template_columns);
 
-        let (estimated_row_count, estimated_column_count) = estimate_track_count(
-            node,
-            style,
-            row_track_list.as_slice(),
-            column_track_list.as_slice(),
+        // ═══════════════════════════════════════════════════════════════════════
+        // STEP 4: Grid Item Placement (Single-Pass with Dynamic Expansion)
+        // CSS Grid §8.5: https://www.w3.org/TR/css-grid-1/#auto-placement-algo
+        //
+        // Grid items are placed according to the auto-placement algorithm.
+        // Using DynamicGrid, the matrix automatically expands when items are
+        // placed beyond the explicit grid boundaries, eliminating the need
+        // for a separate estimation pass.
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let mut grid_matrix = GridMatrix::new(
+            row_track_list.len(),    // Explicit row count
+            column_track_list.len(), // Explicit column count
+            row_track_auto_count,
+            column_track_auto_count,
+            style.grid_auto_flow(),
         );
+
+        // Single-pass placement with automatic grid expansion
+        place_grid_items(&mut grid_matrix, node);
+
+        // After placement, get the actual grid dimensions (may include implicit tracks)
+        let actual_row_count = grid_matrix.row_count();
+        let actual_column_count = grid_matrix.column_count();
 
         // Calculate total gap space: (n-1) gaps for n tracks
         // CSS Grid §10.1: Gutters are only placed between tracks, not at edges
-        let total_column_gaps = if estimated_column_count > 1 {
-            column_gap.mul_i32(estimated_column_count as i32 - 1)
+        let total_column_gaps = if actual_column_count > 1 {
+            column_gap.mul_i32(actual_column_count as i32 - 1)
         } else {
             T::Length::zero()
         };
-        let total_row_gaps = if estimated_row_count > 1 {
-            row_gap.mul_i32(estimated_row_count as i32 - 1)
+        let total_row_gaps = if actual_row_count > 1 {
+            row_gap.mul_i32(actual_row_count as i32 - 1)
         } else {
             T::Length::zero()
         };
@@ -215,31 +234,6 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         // Subtract gaps from available space before track sizing
         available_grid_space.width = available_grid_space.width - total_column_gaps;
         available_grid_space.height = available_grid_space.height - total_row_gaps;
-
-        // ═══════════════════════════════════════════════════════════════════════
-        // STEP 4: Grid Item Placement
-        // CSS Grid §8.5: https://www.w3.org/TR/css-grid-1/#auto-placement-algo
-        //
-        // Grid items are placed according to the auto-placement algorithm,
-        // which fills the grid in row-major or column-major order based on
-        // the grid-auto-flow property.
-        // ═══════════════════════════════════════════════════════════════════════
-
-        let mut grid_matrix = GridMatrix::new(
-            estimated_row_count,
-            estimated_column_count,
-            row_track_auto_count,
-            column_track_auto_count,
-            style.grid_auto_flow(),
-        );
-
-        place_grid_items(
-            &mut grid_matrix,
-            node,
-            style,
-            row_track_list.as_slice(),
-            column_track_list.as_slice(),
-        );
 
         // ═══════════════════════════════════════════════════════════════════════
         // STEP 5: Track Sizing Algorithm
@@ -289,9 +283,8 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         let mut grid_layout_matrix =
             GridLayoutMatrix::new(grid_matrix.row_count(), grid_matrix.column_count());
 
-        let mut each_min_content_size: Vec<Option<_>> =
-            Vec::with_capacity(grid_matrix.column_auto_count());
-        each_min_content_size.fill(None);
+        let mut each_min_content_size: Vec<Option<Size<T::Length>>> =
+            vec![None; grid_matrix.column_count()];
         for row in 0..grid_matrix.row_count() {
             for column in 0..grid_matrix.column_count() {
                 let grid_item = grid_matrix.get_item_mut(row, column);
