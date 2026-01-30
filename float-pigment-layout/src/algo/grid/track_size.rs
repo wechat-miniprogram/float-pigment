@@ -1,3 +1,8 @@
+//! Track Sizing Implementation
+//!
+//! CSS Grid Layout Module Level 1 - §11.3 Track Sizing Algorithm
+//! <https://www.w3.org/TR/css-grid-1/#algo-track-sizing>
+
 use crate::{
     algo::grid::{GridFlow, GridMatrix},
     DefLength, LayoutTrackListItem, LayoutTrackSize, LayoutTreeNode, OptionNum,
@@ -5,9 +10,18 @@ use crate::{
 use float_pigment_css::{length_num::LengthNum, num_traits::Zero};
 use std::fmt::Debug;
 
+/// Represents the sizing state of a track during the sizing algorithm.
+///
+/// CSS Grid §11.4: Initialize Track Sizes
+/// <https://www.w3.org/TR/css-grid-1/#algo-init>
 #[derive(Clone, PartialEq)]
 pub(crate) enum TrackSize<T: LayoutTreeNode> {
+    /// Original track sizing function (auto, length, percentage)
     Original(DefLength<T::Length, T::LengthCustom>),
+    /// Flexible length (fr unit) with its fr value
+    /// CSS Grid §7.2.4: https://www.w3.org/TR/css-grid-1/#fr-unit
+    Fr(f32),
+    /// Resolved fixed size after track sizing algorithm
     Fixed(OptionNum<T::Length>),
 }
 
@@ -15,11 +29,31 @@ impl<T: LayoutTreeNode> Debug for TrackSize<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Original(length) => write!(f, "Original({:?})", length),
+            Self::Fr(fr) => write!(f, "Fr({:?})", fr),
             Self::Fixed(length) => write!(f, "Fixed({:?})", length),
         }
     }
 }
 
+/// Apply track sizing to the grid.
+///
+/// CSS Grid §11.3: Track Sizing Algorithm
+/// <https://www.w3.org/TR/css-grid-1/#algo-track-sizing>
+///
+/// This function implements the track sizing algorithm in three phases:
+///
+/// ## Phase 1: Initialize Track Sizes (§11.4)
+/// - Process fixed-length tracks (`100px`, `50%`)
+/// - Mark flexible (`fr`) tracks for later processing
+///
+/// ## Phase 2: Calculate Fr Unit Size (§11.7.1)
+/// - Compute remaining space after fixed tracks
+/// - Calculate size per `fr` unit: `remaining_space / total_fr`
+///
+/// ## Phase 3: Resolve All Track Sizes (§11.5-11.7)
+/// - **Auto tracks**: Share remaining space equally (when no fr tracks)
+/// - **Fr tracks**: `track_size = fr_value * size_per_fr`
+/// - **Fixed tracks**: Use the resolved value
 pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
     track_list: &[&LayoutTrackListItem<T::Length, T::LengthCustom>],
     flow: GridFlow,
@@ -27,6 +61,7 @@ pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
     parent_node: &'a T,
     current_flow_parent_size: OptionNum<T::Length>,
     available_grid_space: &mut OptionNum<T::Length>,
+    total_fr: f32,
 ) {
     let mut total_specified_track_size = T::Length::zero();
     let (secondary_count, auto_count) = match flow {
@@ -34,28 +69,25 @@ pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
         GridFlow::Column => (grid_matrix.row_count(), grid_matrix.column_auto_count()),
     };
 
-    // handle specified track size
-    track_list
-        .iter()
-        .enumerate()
-        .filter(|(_, item)| {
-            matches!(
-                item,
-                LayoutTrackListItem::TrackSize(LayoutTrackSize::Length(_))
-            )
-        })
-        .for_each(|(idx, track_item)| {
-            let mut current_size = T::Length::zero();
-            for index in 0..secondary_count {
-                let grid_item = match flow {
-                    GridFlow::Row => grid_matrix.get_item_mut(idx, index),
-                    GridFlow::Column => grid_matrix.get_item_mut(index, idx),
-                };
-                if let Some(grid_item) = grid_item {
-                    if !grid_item.is_unoccupied() {
-                        if let LayoutTrackListItem::TrackSize(LayoutTrackSize::Length(length)) =
-                            track_item
-                        {
+    // ═══════════════════════════════════════════════════════════════════════
+    // Phase 1: Initialize Track Sizes
+    // CSS Grid §11.4: https://www.w3.org/TR/css-grid-1/#algo-init
+    //
+    // For each track, initialize its base size and growth limit based on
+    // its track sizing function.
+    // ═══════════════════════════════════════════════════════════════════════
+    track_list.iter().enumerate().for_each(|(idx, track_item)| {
+        match track_item {
+            LayoutTrackListItem::TrackSize(LayoutTrackSize::Length(length)) => {
+                // Handle fixed length tracks
+                let mut current_size = T::Length::zero();
+                for index in 0..secondary_count {
+                    let grid_item = match flow {
+                        GridFlow::Row => grid_matrix.get_item_mut(idx, index),
+                        GridFlow::Column => grid_matrix.get_item_mut(index, idx),
+                    };
+                    if let Some(grid_item) = grid_item {
+                        if !grid_item.is_unoccupied() {
                             current_size = length
                                 .resolve(current_flow_parent_size, parent_node)
                                 .or_zero();
@@ -70,56 +102,125 @@ pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
                         }
                     }
                 }
+                total_specified_track_size = total_specified_track_size + current_size;
             }
-            total_specified_track_size += current_size
-        });
+            LayoutTrackListItem::TrackSize(LayoutTrackSize::Fr(fr_value)) => {
+                // Mark Fr tracks with their fr value
+                for index in 0..secondary_count {
+                    let grid_item = match flow {
+                        GridFlow::Row => grid_matrix.get_item_mut(idx, index),
+                        GridFlow::Column => grid_matrix.get_item_mut(index, idx),
+                    };
+                    if let Some(grid_item) = grid_item {
+                        if !grid_item.is_unoccupied() {
+                            match flow {
+                                GridFlow::Row => grid_item
+                                    .get_auto_placed_mut_unchecked()
+                                    .update_track_block_size(TrackSize::Fr(*fr_value)),
+                                GridFlow::Column => grid_item
+                                    .get_auto_placed_mut_unchecked()
+                                    .update_track_inline_size(TrackSize::Fr(*fr_value)),
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    });
 
     if available_grid_space.is_none() && total_specified_track_size > T::Length::zero() {
         *available_grid_space = OptionNum::some(total_specified_track_size);
     }
 
-    // handle auto track size
+    // ═══════════════════════════════════════════════════════════════════════
+    // Phase 2: Calculate the size per fr unit
+    // CSS Grid §11.7: Expand Flexible Tracks
+    // https://www.w3.org/TR/css-grid-1/#algo-flex-tracks
+    //
+    // The fr unit represents a fraction of the leftover space.
+    // size_per_fr = (available_space - fixed_tracks_size) / total_fr
+    // ═══════════════════════════════════════════════════════════════════════
+    let remaining_space = if let Some(available) = available_grid_space.val() {
+        if available > total_specified_track_size {
+            available - total_specified_track_size
+        } else {
+            T::Length::zero()
+        }
+    } else {
+        T::Length::zero()
+    };
+
+    let size_per_fr = if total_fr > 0.0 {
+        remaining_space.div_f32(total_fr)
+    } else {
+        T::Length::zero()
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Phase 3: Resolve all track sizes
+    // CSS Grid §11.5-11.7
+    //
+    // - Auto tracks (§11.5): Resolve based on content contribution
+    // - Fr tracks (§11.7): size = fr_value × size_per_fr
+    // - Percentage tracks: size = percentage × container_size
+    // - Fixed tracks: Already resolved
+    // ═══════════════════════════════════════════════════════════════════════
     grid_matrix.iter_mut().for_each(|grid_item| {
         if grid_item.is_unoccupied() {
             return;
         }
         let grid_item = grid_item.get_auto_placed_mut_unchecked();
-        if let TrackSize::Original(track_size) = match flow {
+        let track_size_ref = match flow {
             GridFlow::Row => &grid_item.track_block_size,
             GridFlow::Column => &grid_item.track_inline_size,
-        } {
-            let fixed_track_size = match track_size {
-                DefLength::Auto => {
-                    let track_size = if available_grid_space.is_some()
-                        && auto_count > 0
-                        && available_grid_space.val().unwrap() > total_specified_track_size
-                    {
-                        TrackSize::Fixed(OptionNum::some(
-                            (available_grid_space.val().unwrap() - total_specified_track_size)
-                                .div_f32(auto_count as f32),
-                        ))
-                    } else {
-                        TrackSize::Fixed(OptionNum::none())
-                    };
-                    track_size
+        };
+
+        let fixed_track_size = match track_size_ref {
+            TrackSize::Original(def_length) => {
+                match def_length {
+                    DefLength::Auto => {
+                        // Auto tracks: share remaining space equally (after fr tracks)
+                        let track_size = if available_grid_space.is_some()
+                            && auto_count > 0
+                            && total_fr == 0.0  // Only use auto distribution when no fr tracks
+                            && available_grid_space.val().unwrap() > total_specified_track_size
+                        {
+                            TrackSize::Fixed(OptionNum::some(
+                                (available_grid_space.val().unwrap() - total_specified_track_size)
+                                    .div_f32(auto_count as f32),
+                            ))
+                        } else {
+                            TrackSize::Fixed(OptionNum::none())
+                        };
+                        track_size
+                    }
+                    DefLength::Points(points) => TrackSize::Fixed(OptionNum::some(points.clone())),
+                    DefLength::Percent(percent) => {
+                        let track_size = if let Some(available_width) = available_grid_space.val() {
+                            TrackSize::Fixed(OptionNum::some(available_width.mul_f32(*percent)))
+                        } else {
+                            TrackSize::Fixed(OptionNum::none())
+                        };
+                        track_size
+                    }
+                    _ => TrackSize::Fixed(OptionNum::none()),
                 }
-                DefLength::Points(points) => TrackSize::Fixed(OptionNum::some(points.clone())),
-                DefLength::Percent(percent) => {
-                    let track_size = if let Some(available_width) = available_grid_space.val() {
-                        TrackSize::Fixed(OptionNum::some(available_width.mul_f32(*percent)))
-                    } else {
-                        TrackSize::Fixed(OptionNum::none())
-                    };
-                    track_size
-                }
-                _ => {
-                    unreachable!()
-                }
-            };
-            match flow {
-                GridFlow::Row => grid_item.update_track_block_size(fixed_track_size),
-                GridFlow::Column => grid_item.update_track_inline_size(fixed_track_size),
             }
+            TrackSize::Fr(fr_value) => {
+                // Fr tracks: size = fr_value * size_per_fr
+                let fr_size = size_per_fr.mul_f32(*fr_value);
+                TrackSize::Fixed(OptionNum::some(fr_size))
+            }
+            TrackSize::Fixed(_) => {
+                // Already fixed, skip
+                return;
+            }
+        };
+
+        match flow {
+            GridFlow::Row => grid_item.update_track_block_size(fixed_track_size),
+            GridFlow::Column => grid_item.update_track_inline_size(fixed_track_size),
         }
     });
 }

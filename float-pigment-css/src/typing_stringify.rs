@@ -551,6 +551,29 @@ impl fmt::Display for JustifyItems {
                 JustifyItems::SelfEnd => "self-end",
                 JustifyItems::Left => "left",
                 JustifyItems::Right => "right",
+                JustifyItems::Normal => "normal",
+            }
+        )
+    }
+}
+impl fmt::Display for JustifySelf {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                JustifySelf::Auto => "auto",
+                JustifySelf::Normal => "normal",
+                JustifySelf::Stretch => "stretch",
+                JustifySelf::Center => "center",
+                JustifySelf::Start => "start",
+                JustifySelf::End => "end",
+                JustifySelf::FlexStart => "flex-start",
+                JustifySelf::FlexEnd => "flex-end",
+                JustifySelf::SelfStart => "self-start",
+                JustifySelf::SelfEnd => "self-end",
+                JustifySelf::Left => "left",
+                JustifySelf::Right => "right",
             }
         )
     }

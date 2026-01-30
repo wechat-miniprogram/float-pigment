@@ -1,16 +1,41 @@
+//! Grid Item Structures
+//!
+//! CSS Grid Layout Module Level 1 - §6 Grid Items
+//! <https://www.w3.org/TR/css-grid-1/#grid-items>
+//!
+//! This module defines the data structures for grid items during the
+//! placement and layout phases.
+
 use std::fmt::Debug;
 
 use crate::{
     algo::grid::track_size::TrackSize, DefLength, EdgeOption, LayoutTreeNode, OptionNum, Size,
 };
 
+/// Grid item with computed layout information.
+///
+/// CSS Grid §6.2: Grid Item Sizing
+/// <https://www.w3.org/TR/css-grid-1/#grid-item-sizing>
+///
+/// This structure stores the final layout information for a grid item
+/// after the track sizing algorithm has been applied, including:
+/// - The item's margin box
+/// - The CSS-specified size
+/// - The track size (cell size in the grid)
+/// - Min-content and computed sizes for intrinsic sizing
 #[derive(Clone, PartialEq)]
 pub(crate) struct GridLayoutItem<'a, T: LayoutTreeNode> {
+    /// Reference to the DOM node
     pub(crate) node: &'a T,
+    /// The item's margin (top, right, bottom, left)
     pub(crate) margin: EdgeOption<T::Length>,
+    /// The CSS-specified width/height (may be auto)
     pub(crate) css_size: Size<OptionNum<T::Length>>,
+    /// The track size (grid cell size allocated to this item)
     pub(crate) track_size: Size<OptionNum<T::Length>>,
+    /// The item's min-content size (used for intrinsic track sizing)
     pub(crate) min_content_size: Option<Size<T::Length>>,
+    /// The item's final computed size
     pub(crate) computed_size: Size<T::Length>,
 }
 
@@ -56,13 +81,28 @@ impl<'a, T: LayoutTreeNode> GridLayoutItem<'a, T> {
     }
 }
 
+/// Grid item during the placement phase.
+///
+/// CSS Grid §8: Grid Item Placement
+/// <https://www.w3.org/TR/css-grid-1/#placement>
+///
+/// This structure represents a grid item during the auto-placement phase,
+/// before track sizes have been fully resolved. It stores:
+/// - The item's position in the grid (row, column)
+/// - The track sizing function for its row/column
 #[derive(Clone, PartialEq)]
 pub(crate) struct GridItem<'a, T: LayoutTreeNode> {
+    /// The item's row index in the grid (0-based)
     row: usize,
+    /// The item's column index in the grid (0-based)
     column: usize,
+    /// Original DOM index for maintaining source order
     origin_index: usize,
+    /// Reference to the DOM node
     pub(crate) node: &'a T,
+    /// Track sizing function for the block (row) axis
     pub(crate) track_block_size: TrackSize<T>,
+    /// Track sizing function for the inline (column) axis
     pub(crate) track_inline_size: TrackSize<T>,
 }
 

@@ -1,5 +1,5 @@
 use float_pigment_css::length_num::*;
-use float_pigment_css::typing::{GridAutoFlow, TextAlign};
+use float_pigment_css::typing::{GridAutoFlow, JustifyItems, JustifySelf, TextAlign};
 use float_pigment_css::{
     num_traits::Zero,
     typing::{
@@ -695,5 +695,15 @@ impl LayoutStyle<Len> for Node {
     #[inline]
     fn grid_auto_flow(&self) -> GridAutoFlow {
         self.style_manager().grid_auto_flow()
+    }
+
+    #[inline]
+    fn justify_items(&self) -> JustifyItems {
+        self.style_manager().justify_items()
+    }
+
+    #[inline]
+    fn justify_self(&self) -> JustifySelf {
+        self.style_manager().justify_self()
     }
 }

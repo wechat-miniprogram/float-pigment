@@ -655,6 +655,27 @@ pub enum JustifyItems {
     SelfEnd,
     Left,
     Right,
+    Normal,
+}
+
+#[allow(missing_docs)]
+#[repr(C)]
+#[property_value_type(PropertyValueWithGlobal for JustifySelfType)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ResolveFontSize)]
+#[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
+pub enum JustifySelf {
+    Auto,
+    Normal,
+    Stretch,
+    Center,
+    Start,
+    End,
+    FlexStart,
+    FlexEnd,
+    SelfStart,
+    SelfEnd,
+    Left,
+    Right,
 }
 
 #[allow(missing_docs)]

@@ -1,7 +1,8 @@
 use crate::{env::Env, layout::LayoutPosition, style::StyleManager};
 use float_pigment_css::typing::{
     AlignContent, AlignItems, AlignSelf, BoxSizing, Direction, FlexDirection, FlexWrap,
-    GridAutoFlow, JustifyContent, Overflow, Position, TextAlign, WritingMode,
+    GridAutoFlow, JustifyContent, JustifyItems, JustifySelf, Overflow, Position, TextAlign,
+    WritingMode,
 };
 
 use float_pigment_css::{length_num::*, typing::Display};
@@ -641,6 +642,8 @@ pub trait StyleSetter {
     unsafe fn set_align_content(&self, value: AlignContent);
     unsafe fn set_align_items(&self, value: AlignItems);
     unsafe fn set_align_self(&self, value: AlignSelf);
+    unsafe fn set_justify_items(&self, value: JustifyItems);
+    unsafe fn set_justify_self(&self, value: JustifySelf);
     unsafe fn set_aspect_ratio(&self, value: Option<f32>);
     unsafe fn set_order(&self, value: i32);
     unsafe fn set_text_align(&self, value: TextAlign);
@@ -674,6 +677,16 @@ impl StyleSetter for Node {
     }
     unsafe fn set_align_self(&self, align_self: AlignSelf) {
         if self.style_manager_mut().set_align_self(align_self) {
+            self.mark_dirty_propagate();
+        }
+    }
+    unsafe fn set_justify_items(&self, justify_items: JustifyItems) {
+        if self.style_manager_mut().set_justify_items(justify_items) {
+            self.mark_dirty_propagate();
+        }
+    }
+    unsafe fn set_justify_self(&self, justify_self: JustifySelf) {
+        if self.style_manager_mut().set_justify_self(justify_self) {
             self.mark_dirty_propagate();
         }
     }

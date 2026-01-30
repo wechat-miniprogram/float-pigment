@@ -544,6 +544,8 @@ impl TestCtx {
                 "align-content" => node.set_align_content(node_props.align_content()),
                 "align-items" => node.set_align_items(node_props.align_items()),
                 "align-self" => node.set_align_self(node_props.align_self()),
+                "justify-items" => node.set_justify_items(node_props.justify_items()),
+                "justify-self" => node.set_justify_self(node_props.justify_self()),
                 "aspect-ratio" => match node_props.aspect_ratio() {
                     AspectRatio::Auto => node.set_aspect_ratio(None),
                     AspectRatio::Ratio(x, y) => {

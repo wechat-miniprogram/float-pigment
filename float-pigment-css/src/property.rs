@@ -170,6 +170,7 @@ property_list! (PropertyValueWithGlobal, {
     0xa5 GridTemplateRows: GridTemplateType as Initial default GridTemplate::None;
     0xa6 GridTemplateColumns: GridTemplateType as Initial default GridTemplate::None;
     0xa7 GridAutoFlow: GridAutoFlowType as Initial default GridAutoFlow::Row;
+    0xa8 JustifySelf: JustifySelfType as Initial default JustifySelf::Auto;
 
 
     0xd0 ListStyleType: ListStyleTypeType as Inherit default ListStyleType::Disc;
@@ -337,6 +338,21 @@ property_value_format! (PropertyValueWithGlobal, {
         | "self-end" => JustifyItems::SelfEnd
         | "left" => JustifyItems::Left
         | "right" => JustifyItems::Right
+        | "normal" => JustifyItems::Normal
+    }};
+    justify_self: {{JustifySelf
+        = "auto" => JustifySelf::Auto
+        | "normal" => JustifySelf::Normal
+        | "stretch" => JustifySelf::Stretch
+        | "center" => JustifySelf::Center
+        | "flex-start" => JustifySelf::FlexStart
+        | "flex-end" => JustifySelf::FlexEnd
+        | "start" => JustifySelf::Start
+        | "end" => JustifySelf::End
+        | "self-start" => JustifySelf::SelfStart
+        | "self-end" => JustifySelf::SelfEnd
+        | "left" => JustifySelf::Left
+        | "right" => JustifySelf::Right
     }};
     order: {{ Order = <number> -> |x: Number| Number::I32(x.to_i32()); }};
     <gap_repr: Gap>:
