@@ -278,24 +278,6 @@ Apply self-alignment and calculate final item position:
 
 ---
 
-## Test Coverage
-
-Currently **135** Grid test cases covering:
-
-| Category | Test Count | File |
-|----------|------------|------|
-| Explicit Track Sizing | 14 | `grid_template.rs` |
-| Auto-placement | 12 | `grid_auto_flow.rs` |
-| Gutters | 15 | `gap.rs` |
-| Flexible Length (`fr`) | 11 | `fr_unit.rs` |
-| Basic Layout | 18 | `grid_basics.rs` |
-| Box Alignment | 38 | `alignment.rs` |
-| Other | 27 | - |
-
-All test assertion values conform to W3C specification-defined calculation logic.
-
----
-
 ## Algorithm Complexity Analysis
 
 ### Symbol Definitions
@@ -322,7 +304,8 @@ All test assertion values conform to W3C specification-defined calculation logic
 
 **Total Time Complexity**: **O(R × C)**
 
-> Note: For dense grids where N ≈ R × C, complexity is equivalent to O(N)
+- For dense grids (N ≈ R × C), theoretical lower bound is Ω(R × C), current implementation achieves this
+- For sparse grids (N << R × C), theoretical lower bound is Ω(N + R + C), current implementation is not optimal
 
 ### Space Complexity
 
@@ -336,137 +319,20 @@ All test assertion values conform to W3C specification-defined calculation logic
 
 **Total Space Complexity**: **O(R × C)**
 
-### Complexity Characteristics
+---
 
-```
-+------------------------------------------------------------------------+
-|                         Complexity Summary                             |
-+------------------------------------------------------------------------+
-|                                                                        |
-|        +------------------------------------------------+              |
-|        |     Time: O(R x C)        Space: O(R x C)      |              |
-|        +------------------------------------------------+              |
-|                                                                        |
-|   +----------------------------------------------------------------+   |
-|   | Best Case: Small grid (e.g. 3x3)                               |   |
-|   |   - Time  = O(1) (constant for fixed small grids)              |   |
-|   |   - Space = O(1) (9 cells)                                     |   |
-|   +----------------------------------------------------------------+   |
-|                                                                        |
-|   +----------------------------------------------------------------+   |
-|   | General Case: Medium grid (e.g. 10x10)                         |   |
-|   |   - Time  ~ O(100)                                             |   |
-|   |   - Space ~ 100 cells                                          |   |
-|   +----------------------------------------------------------------+   |
-|                                                                        |
-|   +----------------------------------------------------------------+   |
-|   | Notes:                                                         |   |
-|   |   - Each item layout is an independent sub-problem             |   |
-|   |   - Nested Grid/Flex increases actual computation              |   |
-|   |   - Caching can reduce redundant calculations                  |   |
-|   +----------------------------------------------------------------+   |
-|                                                                        |
-+------------------------------------------------------------------------+
-```
+## Test Coverage
 
-### Comparison with Flexbox
+Currently **135** Grid test cases covering:
 
-| Layout Mode | Time Complexity | Space Complexity |
-|-------------|-----------------|------------------|
-| Grid | O(R × C) | O(R × C) |
-| Flexbox | O(N) | O(N) |
+| Category | Test Count | File |
+|----------|------------|------|
+| Explicit Track Sizing | 14 | `grid_template.rs` |
+| Auto-placement | 12 | `grid_auto_flow.rs` |
+| Gutters | 15 | `gap.rs` |
+| Flexible Length (`fr`) | 11 | `fr_unit.rs` |
+| Basic Layout | 18 | `grid_basics.rs` |
+| Box Alignment | 38 | `alignment.rs` |
+| Other | 27 | - |
 
-> Grid layout has higher complexity than one-dimensional Flexbox due to maintaining a 2D grid matrix.
-> However, for practical UI scenarios, grid dimensions are typically small and performance differences are negligible.
-
-### Complexity Optimality Analysis
-
-**Time Complexity O(R × C) is asymptotically optimal** ✅
-
-```
-+------------------------------------------------------------------------+
-|                   Time Complexity Lower Bound Analysis                 |
-+------------------------------------------------------------------------+
-|                                                                        |
-|   Grid layout requires:                                                |
-|   +-- Determine each track size  --> At least R + C tracks             |
-|   +-- Place N items into cells   --> At least N items                  |
-|   +-- Position each item         --> At least N items                  |
-|                                                                        |
-|   +----------------------------------------------------------------+   |
-|   | Lower Bound: Big-Omega(R + C + N)                              |   |
-|   | When grid is nearly full (N ~ R x C), bound is Big-Omega(R x C)|   |
-|   +----------------------------------------------------------------+   |
-|                                                                        |
-|   [OK] Current: O(R x C) = Achieves theoretical lower bound            |
-|                                                                        |
-+------------------------------------------------------------------------+
-```
-
-
-**Space Complexity O(R × C) meets theoretical lower bound**
-
-```
-+------------------------------------------------------------------------+
-|                  Space Complexity Lower Bound Analysis                 |
-+------------------------------------------------------------------------+
-|                                                                        |
-|   Must store:                                                          |
-|   +-- Track size info  --> O(R + C)                                    |
-|   +-- Item info        --> O(N)                                        |
-|   +-- Cell mapping     --> O(R x C) for 2D positioning                 |
-|                                                                        |
-|   +----------------------------------------------------------------+   |
-|   | Lower Bound: Big-Omega(R + C + N)                              |   |
-|   | For dense grids: N ~ R x C, so Big-Omega(R x C)                |   |
-|   +----------------------------------------------------------------+   |
-|                                                                        |
-|   [OK] Current: O(R x C) - standard for 2D grid layout                 |
-|   [*] Optimization: lazy allocation reduces actual memory usage        |
-|                                                                        |
-+------------------------------------------------------------------------+
-```
-
-### Industry Implementation Comparison
-
-| Implementation | Time Complexity | Space Complexity | Notes |
-|----------------|-----------------|------------------|-------|
-| **float-pigment** | O(R × C) | O(R × C) | Single-pass, dynamic grid structure |
-| Chromium (Blink) | O(k × R × C) | O(R × C) | k = iteration count (≤2) |
-| Firefox (Gecko) | O(k × R × C) | O(R × C) | Full W3C conformance |
-| WebKit | O(k × R × C) | O(R × C) | Full W3C conformance |
-| Taffy | O(R × C) | O(R × C) | Single-pass, dynamic grid structure |
-
-**Notes**:
-- This implementation omits W3C §11.1 Step 3-4 iterative re-resolution, resulting in **single-pass** execution
-- Major browser engines implement full W3C spec with iterative re-resolution (complexity O(k × R × C))
-- In practice, k is typically 1-2, so performance difference is negligible
-
-### Conclusion
-
-```
-+------------------------------------------------------------------------+
-|                        Complexity Evaluation                           |
-+------------------------------------------------------------------------+
-|                                                                        |
-|   +----------------------------------------------------------------+   |
-|   | TIME COMPLEXITY: O(R x C)                                      |   |
-|   |   +-- Asymptotically optimal: achieves theoretical lower bound |   |
-|   |   +-- Industry comparison: faster than full W3C (single-pass)  |   |
-|   +----------------------------------------------------------------+   |
-|                                                                        |
-|   +----------------------------------------------------------------+   |
-|   | SPACE COMPLEXITY: O(R x C)                                     |   |
-|   |   +-- Standard for 2D grid layout data structures              |   |
-|   |   +-- Industry comparison: on par with major browser engines   |   |
-|   +----------------------------------------------------------------+   |
-|                                                                        |
-|   +----------------------------------------------------------------+   |
-|   | SUMMARY                                                        |   |
-|   | Time complexity is asymptotically optimal.                     |   |
-|   | Space complexity meets industry standards.                     |   |
-|   | Lazy allocation reduces actual memory footprint.               |   |
-|   +----------------------------------------------------------------+   |
-|                                                                        |
-+------------------------------------------------------------------------+
-```
+All test assertion values conform to W3C specification-defined calculation logic.
