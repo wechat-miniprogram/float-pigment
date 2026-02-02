@@ -19,12 +19,17 @@ use crate::{
 ///
 /// This structure stores the final layout information for a grid item
 /// after the track sizing algorithm has been applied, including:
+/// - The item's position in the grid (row, column)
 /// - The item's margin box
 /// - The CSS-specified size
 /// - The track size (cell size in the grid)
 /// - Min-content and computed sizes for intrinsic sizing
 #[derive(Clone, PartialEq)]
 pub(crate) struct GridLayoutItem<'a, T: LayoutTreeNode> {
+    /// The item's row index in the grid (0-based)
+    pub(crate) row: usize,
+    /// The item's column index in the grid (0-based)
+    pub(crate) column: usize,
     /// Reference to the DOM node
     pub(crate) node: &'a T,
     /// The item's margin (top, right, bottom, left)
@@ -41,12 +46,16 @@ pub(crate) struct GridLayoutItem<'a, T: LayoutTreeNode> {
 
 impl<'a, T: LayoutTreeNode> GridLayoutItem<'a, T> {
     pub(crate) fn new(
+        row: usize,
+        column: usize,
         node: &'a T,
         margin: EdgeOption<T::Length>,
         css_size: Size<OptionNum<T::Length>>,
         track_size: Size<OptionNum<T::Length>>,
     ) -> Self {
         Self {
+            row,
+            column,
             node,
             margin,
             css_size,
@@ -54,6 +63,16 @@ impl<'a, T: LayoutTreeNode> GridLayoutItem<'a, T> {
             min_content_size: None,
             computed_size: Size::zero(),
         }
+    }
+
+    #[inline(always)]
+    pub(crate) fn row(&self) -> usize {
+        self.row
+    }
+
+    #[inline(always)]
+    pub(crate) fn column(&self) -> usize {
+        self.column
     }
 
     pub(crate) fn track_inline_size(&self) -> OptionNum<T::Length> {
@@ -127,6 +146,19 @@ impl<'a, T: LayoutTreeNode> GridItem<'a, T> {
             track_inline_size: TrackSize::Original(DefLength::Auto),
         }
     }
+
+    /// Get the item's row index.
+    #[inline(always)]
+    pub(crate) fn row(&self) -> usize {
+        self.row
+    }
+
+    /// Get the item's column index.
+    #[inline(always)]
+    pub(crate) fn column(&self) -> usize {
+        self.column
+    }
+
     pub(crate) fn update_track_block_size(&mut self, track_block_size: TrackSize<T>) {
         self.track_block_size = track_block_size;
     }

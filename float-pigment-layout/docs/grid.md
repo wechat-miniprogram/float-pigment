@@ -65,9 +65,9 @@ This implementation uses a simplified single-pass approach with 9 steps:
 |     +-- Calculate min-content / max-content contribution for each item            |
 |     +-- Use outer size (margin-box) for track sizing                              |
 |                                                                                   |
-|  7. Finalize Tracks (§11.5)                                                       |
+|  7. Finalize Tracks (§11.5)                                                        |
 |     +-- Adjust auto track sizes based on item outer size                          |
-|     +-- (§11.6 Maximize Tracks NOT separately implemented)                        |
+|     +-- (§11.6 Maximize Tracks NOT implemented)                                   |
 |                                                                                   |
 |  8. Content Distribution (§10.5)                                                  |
 |     +-- Apply align-content: distribute remaining space on block axis             |
@@ -82,7 +82,7 @@ This implementation uses a simplified single-pass approach with 9 steps:
 |     - §11.1 Step 3-4: iterative re-resolution NOT implemented                     |
 |     - §8.5: dense packing mode NOT implemented                                    |
 |     - §11.4: base size / growth limit NOT separately maintained                   |
-|     - §11.6: Maximize Tracks NOT separately implemented                           |
+|     - §11.6: Maximize Tracks NOT implemented (free space not distributed)         |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -296,28 +296,33 @@ Apply self-alignment and calculate final item position:
 | 2 | Gutters | O(1) | Constant-time calculation |
 | 3 | Explicit Grid | O(R + C) | Iterate track definition list |
 | 4 | Placement | O(N) | Auto-place all grid items |
-| 5 | Track Sizing | O(R + C) | Process row and column tracks |
-| 6 | Item Sizing | O(R × C) | Iterate grid matrix for item sizing |
-| 7 | Finalize Tracks | O(R × C) | Finalize track base sizes |
+| 5 | Track Sizing | O(N) | Iterate items for track sizing |
+| 6 | Item Sizing | O(N) | Iterate items for item sizing |
+| 7 | Finalize Tracks | O(N + R + C) | Finalize track base sizes |
 | 8 | Content-distribution | O(R + C) | Calculate track distribution offsets |
-| 9 | Item Positioning | O(R × C) | Apply self-alignment and positioning |
+| 9 | Item Positioning | O(N) | Iterate items for self-alignment |
 
-**Total Time Complexity**: **O(R × C)**
+**Total Time Complexity**: **O(N + R + C)**
 
-- For dense grids (N ≈ R × C), theoretical lower bound is Ω(R × C), current implementation achieves this
-- For sparse grids (N << R × C), theoretical lower bound is Ω(N + R + C), current implementation is not optimal
+- For dense grids (N ≈ R × C), complexity is O(R × C)
+- For sparse grids (N << R × C), complexity approaches O(N), achieving theoretical optimum
 
 ### Space Complexity
 
 | Data Structure | Complexity | Description |
 |----------------|------------|-------------|
-| DynamicGrid | O(R × C) | Dynamically expandable 2D matrix |
-| GridLayoutMatrix | O(R × C) | Stores layout computation results |
+| GridMatrix.occupancy | O(R × C) | Occupancy state (1 byte per cell) |
+| GridMatrix.items | O(N) | Grid items list |
+| GridLayoutMatrix.items | O(N) | Layout items list |
+| GridLayoutMatrix.offsets | O(R + C) | Precomputed row/column offsets |
 | Track Lists | O(R + C) | Row/column track definition lists |
 | each_inline_size | O(C) | Column size temporary vector |
 | each_block_size | O(R) | Row size temporary vector |
 
-**Total Space Complexity**: **O(R × C)**
+**Total Space Complexity**: **O(R × C + N)**
+
+- Occupancy tracking uses 1 byte per cell, more efficient than storing full GridItem
+- Items stored separately in Vec for O(N) iteration
 
 ---
 

@@ -40,6 +40,7 @@ impl<T: Default> DynamicGrid<T> {
     /// Create a grid with specified initial dimensions.
     ///
     /// All cells are initialized to `T::default()`.
+    #[allow(dead_code)]
     pub fn with_size(rows: usize, cols: usize) -> Self {
         let mut data = Vec::with_capacity(rows * cols);
         for _ in 0..(rows * cols) {
@@ -131,6 +132,7 @@ impl<T> DynamicGrid<T> {
     /// Get a mutable reference to the element at (row, col).
     ///
     /// Returns `None` if the position is out of bounds.
+    #[allow(dead_code)]
     #[inline]
     pub fn get_mut(&mut self, row: usize, col: usize) -> Option<&mut T> {
         if row < self.rows && col < self.cols {
@@ -147,6 +149,7 @@ impl<T> DynamicGrid<T> {
     }
 
     /// Returns a mutable iterator over all elements in row-major order.
+    #[allow(dead_code)]
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
         self.data.iter_mut()
     }
@@ -155,6 +158,7 @@ impl<T> DynamicGrid<T> {
     ///
     /// # Panics
     /// Panics if `row >= self.rows`.
+    #[allow(dead_code)]
     pub fn iter_row(&self, row: usize) -> impl Iterator<Item = &T> {
         assert!(row < self.rows, "Row index out of bounds");
         let start = row * self.cols;
@@ -166,6 +170,7 @@ impl<T> DynamicGrid<T> {
     ///
     /// # Panics
     /// Panics if `row >= self.rows`.
+    #[allow(dead_code)]
     pub fn iter_row_mut(&mut self, row: usize) -> impl Iterator<Item = &mut T> {
         assert!(row < self.rows, "Row index out of bounds");
         let start = row * self.cols;
@@ -179,12 +184,14 @@ impl<T> DynamicGrid<T> {
     ///
     /// # Panics
     /// Panics if `col >= self.cols`.
+    #[allow(dead_code)]
     pub fn iter_col(&self, col: usize) -> impl Iterator<Item = &T> + '_ {
         assert!(col < self.cols, "Column index out of bounds");
         (0..self.rows).map(move |r| &self.data[r * self.cols + col])
     }
 
     /// Returns a mutable iterator over elements in a specific column.
+    #[allow(dead_code)]
     pub fn iter_col_mut(&mut self, col: usize) -> ColumnIterMut<'_, T> {
         assert!(col < self.cols, "Column index out of bounds");
         ColumnIterMut {

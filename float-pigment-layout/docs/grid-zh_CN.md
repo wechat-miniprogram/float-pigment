@@ -65,7 +65,7 @@ float-pigment-layout/src/algo/grid/
 |     +-- 计算每个项目的 min-content / max-content contribution                      |
 |     +-- 使用 outer size (margin-box) 参与 track sizing                            |
 |                                                                                   |
-|  7. Finalize Tracks (§11.5)                                                       |
+|  7. Finalize Tracks (§11.5)                                                        |
 |     +-- 根据项目 outer size 调整 auto 轨道尺寸                                      |
 |     +-- (§11.6 Maximize Tracks 未独立实现)                                          |
 |                                                                                   |
@@ -82,7 +82,7 @@ float-pigment-layout/src/algo/grid/
 |     - §11.1 Step 3-4: iterative re-resolution NOT implemented                     |
 |     - §8.5: dense packing mode NOT implemented                                    |
 |     - §11.4: base size / growth limit NOT separately maintained                   |
-|     - §11.6: Maximize Tracks NOT separately implemented                           |
+|     - §11.6: Maximize Tracks NOT implemented (free space not distributed)         |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -296,28 +296,33 @@ float-pigment-layout/src/algo/grid/
 | 2 | Gutters | O(1) | constant-time calculation |
 | 3 | Explicit Grid | O(R + C) | 遍历 track definition list |
 | 4 | Placement | O(N) | auto-place all grid items |
-| 5 | Track Sizing | O(R + C) | 处理 row 和 column tracks |
-| 6 | Item Sizing | O(R × C) | 遍历 grid matrix 计算 item sizing |
-| 7 | Finalize Tracks | O(R × C) | finalize track base sizes |
+| 5 | Track Sizing | O(N) | 遍历 items 应用 track sizing |
+| 6 | Item Sizing | O(N) | 遍历 items 计算 item sizing |
+| 7 | Finalize Tracks | O(N + R + C) | finalize track base sizes |
 | 8 | Content-distribution | O(R + C) | 计算 track distribution offsets |
-| 9 | Item Positioning | O(R × C) | 应用 self-alignment 和 positioning |
+| 9 | Item Positioning | O(N) | 遍历 items 应用 self-alignment |
 
-**总时间复杂度**: **O(R × C)**
+**总时间复杂度**: **O(N + R + C)**
 
-- 对于 dense grid（N ≈ R × C），理论下界为 Ω(R × C)，当前实现达到下界
-- 对于 sparse grid（N << R × C），理论下界为 Ω(N + R + C)，当前实现未达到最优
+- 对于 dense grid（N ≈ R × C），复杂度为 O(R × C)
+- 对于 sparse grid（N << R × C），复杂度接近 O(N)，达到理论最优
 
 ### 空间复杂度
 
 | 数据结构 | 复杂度 | 说明 |
 |---------|--------|------|
-| DynamicGrid | O(R × C) | 动态扩展的二维矩阵 |
-| GridLayoutMatrix | O(R × C) | 存储布局计算结果 |
+| GridMatrix.occupancy | O(R × C) | occupancy 状态 (1 byte per cell) |
+| GridMatrix.items | O(N) | grid items 列表 |
+| GridLayoutMatrix.items | O(N) | layout items 列表 |
+| GridLayoutMatrix.offsets | O(R + C) | 预计算的行/列偏移 |
 | Track Lists | O(R + C) | 行/列轨道定义列表 |
 | each_inline_size | O(C) | 列尺寸临时向量 |
 | each_block_size | O(R) | 行尺寸临时向量 |
 
-**总空间复杂度**: **O(R × C)**
+**总空间复杂度**: **O(R × C + N)**
+
+- Occupancy 追踪使用 1 byte per cell，比存储完整 GridItem 更高效
+- Items 独立存储在 Vec 中，支持 O(N) 遍历
 
 ---
 

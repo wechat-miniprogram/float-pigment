@@ -28,6 +28,16 @@
 //! 6. Apply content alignment (§10.5)
 //! 7. Position items with self-alignment (§10.3-10.4)
 //!
+//! ## Optimization
+//!
+//! This implementation separates occupancy tracking from item storage:
+//! - Occupancy grid: O(R × C) bytes using 1-byte enum
+//! - Items Vec: O(N) items stored separately
+//!
+//! This achieves:
+//! - **Time**: O(N) for item positioning (instead of O(R × C))
+//! - **Space**: More efficient for sparse grids
+//!
 //! ## Known Limitations
 //!
 //! - **No iterative re-resolution**: Steps 3-4 of W3C algorithm not implemented.
@@ -56,7 +66,7 @@ use crate::{
             resolve_grid_justify_self,
         },
         grid_item::GridLayoutItem,
-        matrix::{GridLayoutMatrix, GridMatrix, MatrixCell},
+        matrix::{GridLayoutMatrix, GridMatrix},
         placement::place_grid_items,
         track_size::apply_track_size,
     },
@@ -285,93 +295,80 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
 
         let mut each_min_content_size: Vec<Option<Size<T::Length>>> =
             vec![None; grid_matrix.column_count()];
-        for row in 0..grid_matrix.row_count() {
-            for column in 0..grid_matrix.column_count() {
-                let grid_item = grid_matrix.get_item_mut(row, column);
-                if let Some(grid_item) = grid_item {
-                    if !grid_item.is_unoccupied() {
-                        let grid_item = grid_item.get_auto_placed_unchecked();
-                        let child_node = grid_item.node;
-                        let mut child_layout_node = grid_item.node.layout_node().unit();
 
-                        let fixed_track_inline_size =
-                            grid_item.fixed_track_inline_size().unwrap().clone();
-                        let fixed_track_block_size =
-                            grid_item.fixed_track_block_size().unwrap().clone();
+        for grid_item in grid_matrix.items() {
+            let row = grid_item.row();
+            let column = grid_item.column();
+            let child_node = grid_item.node;
+            let mut child_layout_node = child_node.layout_node().unit();
 
-                        let track_size = Size::new(fixed_track_inline_size, fixed_track_block_size);
+            let fixed_track_inline_size = grid_item.fixed_track_inline_size().unwrap().clone();
+            let fixed_track_block_size = grid_item.fixed_track_block_size().unwrap().clone();
 
-                        let (child_margin, child_border, child_padding_border) =
-                            child_layout_node.margin_border_padding(child_node, track_size);
-                        let css_size = child_layout_node.css_border_box_size(
-                            child_node,
-                            track_size,
-                            child_border,
-                            child_padding_border,
-                        );
-                        let min_max_limit_css_size = child_layout_node
-                            .normalized_min_max_limit(
-                                child_node,
-                                track_size,
-                                border,
-                                padding_border,
-                            )
-                            .normalized_size(css_size);
+            let track_size = Size::new(fixed_track_inline_size, fixed_track_block_size);
 
-                        let size = Normalized(Size::new(
-                            min_max_limit_css_size.0.width.or(track_size.width),
-                            min_max_limit_css_size.0.height.or(track_size.height),
-                        ));
-                        let min_content_res = child_layout_node.compute_internal(
-                            env,
-                            grid_item.node,
-                            ComputeRequest {
-                                size: Normalized(track_size),
-                                parent_inner_size: Normalized(track_size),
-                                max_content: Normalized(track_size),
-                                kind: ComputeRequestKind::AllSize,
-                                parent_is_block: false,
-                                sizing_mode: SizingMode::MinContent,
-                            },
-                        );
+            let (child_margin, child_border, child_padding_border) =
+                child_layout_node.margin_border_padding(child_node, track_size);
+            let css_size = child_layout_node.css_border_box_size(
+                child_node,
+                track_size,
+                child_border,
+                child_padding_border,
+            );
+            let min_max_limit_css_size = child_layout_node
+                .normalized_min_max_limit(child_node, track_size, border, padding_border)
+                .normalized_size(css_size);
 
-                        let res = child_layout_node.compute_internal(
-                            env,
-                            grid_item.node,
-                            ComputeRequest {
-                                size,
-                                parent_inner_size: Normalized(track_size),
-                                max_content: Normalized(track_size),
-                                kind: ComputeRequestKind::AllSize,
-                                parent_is_block: false,
-                                sizing_mode: request.sizing_mode,
-                            },
-                        );
+            let size = Normalized(Size::new(
+                min_max_limit_css_size.0.width.or(track_size.width),
+                min_max_limit_css_size.0.height.or(track_size.height),
+            ));
+            let min_content_res = child_layout_node.compute_internal(
+                env,
+                child_node,
+                ComputeRequest {
+                    size: Normalized(track_size),
+                    parent_inner_size: Normalized(track_size),
+                    max_content: Normalized(track_size),
+                    kind: ComputeRequestKind::AllSize,
+                    parent_is_block: false,
+                    sizing_mode: SizingMode::MinContent,
+                },
+            );
 
-                        let mut grid_layout_item =
-                            GridLayoutItem::new(child_node, child_margin, css_size, track_size);
-                        grid_layout_item.set_min_content_size(min_content_res.min_content_size.0);
-                        grid_layout_item.set_computed_size(res.size.0);
-                        if let Some(min_content_size) = each_min_content_size.get_mut(column) {
-                            if min_content_size.is_none() {
-                                min_content_size.replace(min_content_res.min_content_size.0);
-                            } else {
-                                min_content_size.replace(
-                                    min_content_size
-                                        .as_ref()
-                                        .unwrap()
-                                        .max(min_content_res.min_content_size.0),
-                                );
-                            }
-                        }
-                        grid_layout_matrix.update_item(
-                            row,
-                            column,
-                            MatrixCell::AutoPlaced(grid_layout_item),
-                        );
-                    }
+            let res = child_layout_node.compute_internal(
+                env,
+                child_node,
+                ComputeRequest {
+                    size,
+                    parent_inner_size: Normalized(track_size),
+                    max_content: Normalized(track_size),
+                    kind: ComputeRequestKind::AllSize,
+                    parent_is_block: false,
+                    sizing_mode: request.sizing_mode,
+                },
+            );
+
+            let mut grid_layout_item =
+                GridLayoutItem::new(row, column, child_node, child_margin, css_size, track_size);
+            grid_layout_item.set_min_content_size(min_content_res.min_content_size.0);
+            grid_layout_item.set_computed_size(res.size.0);
+
+            // Update column min-content size
+            if let Some(min_content_size) = each_min_content_size.get_mut(column) {
+                if min_content_size.is_none() {
+                    min_content_size.replace(min_content_res.min_content_size.0);
+                } else {
+                    min_content_size.replace(
+                        min_content_size
+                            .as_ref()
+                            .unwrap()
+                            .max(min_content_res.min_content_size.0),
+                    );
                 }
             }
+
+            grid_layout_matrix.add_item(grid_layout_item);
         }
 
         let total_min_content_size =
@@ -394,21 +391,22 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
 
         // ═══════════════════════════════════════════════════════════════════════
         // STEP 7: Finalize Track Sizes
-        // CSS Grid §11.6-11.7: https://www.w3.org/TR/css-grid-1/#algo-grow-tracks
+        // CSS Grid §11.5: https://www.w3.org/TR/css-grid-1/#algo-content
         //
-        // Adjust track sizes to their final values:
+        // Adjust track sizes based on item content:
         // - For auto tracks: size to fit content (using outer/margin-box size)
         // - For fixed tracks: use the specified size
-        // - For fr tracks: share remaining space proportionally (§11.7)
+        //
+        // NOTE: §11.6 Maximize Tracks (distributing free space) NOT implemented.
         // ═══════════════════════════════════════════════════════════════════════
-        let each_inline_size =
-            adjust_each_inline_size(&mut grid_layout_matrix, should_use_min_content_size);
+        let (each_inline_size, each_block_size) =
+            compute_track_sizes(&mut grid_layout_matrix, should_use_min_content_size);
+
         let total_inline_size: T::Length = each_inline_size
             .iter()
             .fold(T::Length::zero(), |acc, cur| acc + *cur)
             + total_column_gaps;
 
-        let each_block_size = adjust_each_block_size(&mut grid_layout_matrix);
         let total_block_size: T::Length = each_block_size
             .iter()
             .fold(T::Length::zero(), |acc, cur| acc + *cur)
@@ -442,6 +440,13 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             grid_layout_matrix.column_count(),
         );
 
+        // Precompute row and column offsets for O(1) lookup during positioning
+        // This includes content alignment gaps
+        let row_gap_with_alignment = row_gap + block_gap_addition;
+        let column_gap_with_alignment = column_gap + inline_gap_addition;
+        grid_layout_matrix.set_row_sizes(&each_block_size, row_gap_with_alignment);
+        grid_layout_matrix.set_column_sizes(&each_inline_size, column_gap_with_alignment);
+
         // ═══════════════════════════════════════════════════════════════════════
         // STEP 9: Item Positioning and Self-Alignment
         // CSS Grid §10.3-10.4: https://www.w3.org/TR/css-grid-1/#grid-align
@@ -452,98 +457,77 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         //
         // Items are positioned at: base_offset + alignment_offset + margin
         // ═══════════════════════════════════════════════════════════════════════
-        let mut block_offset = block_content_offset;
-        for row_index in 0..grid_layout_matrix.row_count() {
-            // Add row gap before non-first rows (original gap + content alignment gap)
-            if row_index > 0 {
-                block_offset = block_offset + row_gap + block_gap_addition;
-            }
+        for grid_layout_item in grid_layout_matrix.items() {
+            let row = grid_layout_item.row();
+            let column = grid_layout_item.column();
 
-            let mut current_block_size = T::Length::zero();
-            let mut inline_offset = inline_content_offset;
-            let mut is_first_column_in_row = true;
-            for column_index in 0..grid_layout_matrix.column_count() {
-                if let Some(grid_matrix_item) =
-                    grid_layout_matrix.inner.get_mut(row_index, column_index)
-                {
-                    if grid_matrix_item.is_unoccupied() {
-                        continue;
-                    }
+            let block_offset = block_content_offset + grid_layout_matrix.get_row_offset(row);
+            let inline_offset =
+                inline_content_offset + grid_layout_matrix.get_column_offset(column);
 
-                    // Add column gap before non-first items (original gap + content alignment gap)
-                    if !is_first_column_in_row {
-                        inline_offset = inline_offset + column_gap + inline_gap_addition;
-                    }
-                    is_first_column_in_row = false;
+            let mut layout_node = grid_layout_item.node.layout_node().unit();
 
-                    let grid_matrix_item = grid_matrix_item.get_auto_placed_unchecked();
-                    let mut layout_node = grid_matrix_item.node.layout_node().unit();
+            let size = Size::new(
+                grid_layout_item
+                    .css_size
+                    .width
+                    .or(grid_layout_item.track_size.width),
+                grid_layout_item
+                    .css_size
+                    .height
+                    .or(grid_layout_item.track_size.height),
+            );
 
-                    let size = Size::new(
-                        grid_matrix_item
-                            .css_size
-                            .width
-                            .or(grid_matrix_item.track_size.width),
-                        grid_matrix_item
-                            .css_size
-                            .height
-                            .or(grid_matrix_item.track_size.height),
-                    );
+            let compute_result = layout_node.compute_internal(
+                env,
+                grid_layout_item.node,
+                ComputeRequest {
+                    size: Normalized(size),
+                    parent_inner_size: Normalized(grid_layout_item.track_size),
+                    max_content: Normalized(grid_layout_item.track_size),
+                    kind: request.kind,
+                    parent_is_block: false,
+                    sizing_mode: request.sizing_mode,
+                },
+            );
 
-                    let compute_result = layout_node.compute_internal(
-                        env,
-                        grid_matrix_item.node,
-                        ComputeRequest {
-                            size: Normalized(size),
-                            parent_inner_size: Normalized(grid_matrix_item.track_size),
-                            max_content: Normalized(grid_matrix_item.track_size),
-                            kind: request.kind,
-                            parent_is_block: false,
-                            sizing_mode: request.sizing_mode,
-                        },
-                    );
-                    let track_size = Size::new(
-                        grid_matrix_item.track_size.width.val().unwrap(),
-                        grid_matrix_item.track_size.height.val().unwrap(),
-                    );
+            let track_size = Size::new(
+                grid_layout_item.track_size.width.val().unwrap(),
+                grid_layout_item.track_size.height.val().unwrap(),
+            );
 
-                    // Calculate alignment for the grid item within its cell
-                    let child_style = grid_matrix_item.node.style();
-                    let align_self = resolve_grid_align_self::<T>(child_style, style);
-                    let justify_self = resolve_grid_justify_self::<T>(child_style, style);
+            // Calculate alignment for the grid item within its cell
+            let child_style = grid_layout_item.node.style();
+            let align_self = resolve_grid_align_self::<T>(child_style, style);
+            let justify_self = resolve_grid_justify_self::<T>(child_style, style);
 
-                    // Get the actual item size (computed size)
-                    let item_size = compute_result.size.0;
+            // Get the actual item size (computed size)
+            let item_size = compute_result.size.0;
 
-                    // Calculate alignment offset in block axis (vertical)
-                    let align_offset =
-                        calculate_alignment_offset(align_self, item_size.height, track_size.height);
+            // Calculate alignment offset in block axis (vertical)
+            let align_offset =
+                calculate_alignment_offset(align_self, item_size.height, track_size.height);
 
-                    // Calculate justify offset in inline axis (horizontal)
-                    let justify_offset =
-                        calculate_justify_offset(justify_self, item_size.width, track_size.width);
+            // Calculate justify offset in inline axis (horizontal)
+            let justify_offset =
+                calculate_justify_offset(justify_self, item_size.width, track_size.width);
 
-                    layout_node.gen_origin(
-                        axis_info,
-                        track_size,
-                        block_offset
-                            + align_offset
-                            + grid_matrix_item
-                                .margin
-                                .cross_axis_start(axis_info.dir, axis_info.cross_dir_rev)
-                                .or_zero(),
-                        inline_offset
-                            + justify_offset
-                            + grid_matrix_item
-                                .margin
-                                .main_axis_start(axis_info.dir, axis_info.main_dir_rev)
-                                .or_zero(),
-                    );
-                    inline_offset += track_size.width;
-                    current_block_size = track_size.height;
-                }
-            }
-            block_offset += current_block_size;
+            layout_node.gen_origin(
+                axis_info,
+                track_size,
+                block_offset
+                    + align_offset
+                    + grid_layout_item
+                        .margin
+                        .cross_axis_start(axis_info.dir, axis_info.cross_dir_rev)
+                        .or_zero(),
+                inline_offset
+                    + justify_offset
+                    + grid_layout_item
+                        .margin
+                        .main_axis_start(axis_info.dir, axis_info.main_dir_rev)
+                        .or_zero(),
+            );
         }
 
         let size = Size::new(
@@ -628,188 +612,103 @@ fn initialize_track_list<'a, T: LayoutTreeNode>(
     }
 }
 
-/// Finalize column (inline) track sizes.
+/// Compute final track sizes based on item content.
 ///
-/// CSS Grid §11.5-11.6: Track Sizing Algorithm
-/// <https://www.w3.org/TR/css-grid-1/#algo-track-sizing>
+/// CSS Grid §11.5: https://www.w3.org/TR/css-grid-1/#algo-content
 ///
-/// For each column:
-/// - **Explicit tracks**: Use the specified size (e.g., `100px`, `50%`)
-/// - **Auto tracks**: Size based on item outer size (margin-box)
+/// - For explicit tracks: use the specified size (at least min-content)
+/// - For auto tracks: use the item's outer size (margin box)
 ///
-/// CSS Grid - Grid Item Contributions:
-/// <https://www.w3.org/TR/css-grid-1/#min-size-contribution>
-/// > "The min-content/max-content contribution of a grid item is its outer size"
+/// NOTE: §11.6 Maximize Tracks (distributing free space to tracks) NOT implemented.
 ///
-/// This means auto tracks must consider the item's margin when sizing.
-pub(crate) fn adjust_each_inline_size<T: LayoutTreeNode>(
+/// Returns (column_sizes, row_sizes).
+fn compute_track_sizes<T: LayoutTreeNode>(
     grid_layout_matrix: &mut GridLayoutMatrix<T>,
     should_use_min_content_size: bool,
-) -> Vec<T::Length> {
-    let mut each_inline_size = Vec::with_capacity(grid_layout_matrix.column_count());
-
+) -> (Vec<T::Length>, Vec<T::Length>) {
+    let row_count = grid_layout_matrix.row_count();
     let column_count = grid_layout_matrix.column_count();
 
-    for col_index in 0..column_count {
-        let inline_size: <T as LayoutTreeNode>::Length;
-        if let Some(item) = grid_layout_matrix
-            .inner
-            .iter_col(col_index)
-            .filter(|item| !item.is_unoccupied())
-            .find(|item| {
-                item.get_auto_placed_unchecked()
-                    .track_inline_size()
-                    .is_some()
-            })
-        {
-            // Track has explicit size - use it directly without adding margin
-            // Margin only affects item position within the track, not the track size
-            inline_size = if !should_use_min_content_size {
-                item.get_auto_placed_unchecked()
-                    .track_inline_size()
-                    .val()
-                    .unwrap()
-                    .max(
-                        grid_layout_matrix
-                            .inner
-                            .iter_col(col_index)
-                            .filter(|item| !item.is_unoccupied())
-                            .fold(T::Length::zero(), |acc, cur| {
-                                acc.max(
-                                    cur.get_auto_placed_unchecked()
-                                        .min_content_size()
-                                        .unwrap()
-                                        .width,
-                                )
-                            }),
-                    )
+    // Initialize track sizes with default values
+    let mut column_sizes: Vec<Option<T::Length>> = vec![None; column_count];
+    let mut row_sizes: Vec<Option<T::Length>> = vec![None; row_count];
+
+    // Track whether each column/row has explicit size
+    let mut column_has_explicit: Vec<bool> = vec![false; column_count];
+    let mut row_has_explicit: Vec<bool> = vec![false; row_count];
+
+    // Collect sizes from items
+    for item in grid_layout_matrix.items() {
+        let row = item.row();
+        let column = item.column();
+
+        // Handle column sizing
+        if item.track_inline_size().is_some() {
+            // Track has explicit size
+            column_has_explicit[column] = true;
+            let track_width = item.track_inline_size().val().unwrap();
+            let min_content_width = item.min_content_size().unwrap().width;
+            let width = if !should_use_min_content_size {
+                track_width.max(min_content_width)
             } else {
-                grid_layout_matrix
-                    .inner
-                    .iter_col(col_index)
-                    .filter(|item| !item.is_unoccupied())
-                    .fold(T::Length::zero(), |acc, cur| {
-                        acc.max(
-                            cur.get_auto_placed_unchecked()
-                                .min_content_size()
-                                .unwrap()
-                                .width,
-                        )
-                    })
+                min_content_width
             };
+            column_sizes[column] =
+                Some(column_sizes[column].map(|s| s.max(width)).unwrap_or(width));
         } else {
-            // For auto tracks, use the outer size (margin box) per W3C spec:
-            // https://www.w3.org/TR/css-grid-1/#algo-track-sizing
-            // "The min-content/max-content contribution of a grid item is its outer size"
-            inline_size = if !should_use_min_content_size {
-                grid_layout_matrix
-                    .inner
-                    .iter_col(col_index)
-                    .filter(|item| !item.is_unoccupied())
-                    .fold(T::Length::zero(), |acc, cur| {
-                        let item = cur.get_auto_placed_unchecked();
-                        // outer size = border-box width + margin-left + margin-right
-                        let outer_width = item.computed_size().width + item.margin.horizontal();
-                        let min_content_outer_width =
-                            item.min_content_size().unwrap().width + item.margin.horizontal();
-                        acc.max(outer_width.max(min_content_outer_width))
-                    })
+            // Auto track - use outer size (margin box)
+            let outer_width = if !should_use_min_content_size {
+                let computed = item.computed_size().width + item.margin.horizontal();
+                let min_content = item.min_content_size().unwrap().width + item.margin.horizontal();
+                computed.max(min_content)
             } else {
-                grid_layout_matrix
-                    .inner
-                    .iter_col(col_index)
-                    .filter(|item| !item.is_unoccupied())
-                    .fold(T::Length::zero(), |acc, cur| {
-                        let item = cur.get_auto_placed_unchecked();
-                        // outer size = min-content width + margin-left + margin-right
-                        acc.max(item.min_content_size().unwrap().width + item.margin.horizontal())
-                    })
-            }
+                item.min_content_size().unwrap().width + item.margin.horizontal()
+            };
+            column_sizes[column] = Some(
+                column_sizes[column]
+                    .map(|s| s.max(outer_width))
+                    .unwrap_or(outer_width),
+            );
         }
 
-        grid_layout_matrix
-            .inner
-            .iter_col_mut(col_index)
-            .filter(|item| !item.is_unoccupied())
-            .for_each(|item| {
-                let item: &mut GridLayoutItem<'_, T> = item.get_auto_placed_mut_unchecked();
-                item.track_size.width = OptionNum::some(inline_size);
-                // if item.css_size.width.is_none() {
-                //     item.node.layout_node().unit().result.size.width = inline_size;
-                // }
-            });
-
-        each_inline_size.push(inline_size);
-    }
-
-    each_inline_size
-}
-
-/// Finalize row (block) track sizes.
-///
-/// CSS Grid §11.5-11.6: Track Sizing Algorithm
-/// <https://www.w3.org/TR/css-grid-1/#algo-track-sizing>
-///
-/// For each row:
-/// - **Explicit tracks**: Use the specified size (e.g., `50px`, `30%`)
-/// - **Auto tracks**: Size based on item outer size (margin-box)
-///
-/// CSS Grid - Grid Item Contributions:
-/// <https://www.w3.org/TR/css-grid-1/#min-size-contribution>
-/// > "The min-content/max-content contribution of a grid item is its outer size"
-///
-/// For auto rows, the row height = max(all items' margin-box heights in that row)
-pub(crate) fn adjust_each_block_size<T: LayoutTreeNode>(
-    grid_layout_matrix: &mut GridLayoutMatrix<T>,
-) -> Vec<T::Length> {
-    let mut each_block_size = Vec::with_capacity(grid_layout_matrix.row_count());
-
-    let row_count = grid_layout_matrix.row_count();
-
-    for row_index in 0..row_count {
-        let block_size;
-
-        if let Some(item) = grid_layout_matrix
-            .inner
-            .iter_row(row_index)
-            .filter(|item| !item.is_unoccupied())
-            .find(|item| {
-                item.get_auto_placed_unchecked()
-                    .track_block_size()
-                    .is_some()
-            })
-        {
-            block_size = item
-                .get_auto_placed_unchecked()
-                .track_block_size()
-                .val()
-                .unwrap();
+        // Handle row sizing
+        if item.track_block_size().is_some() {
+            // Track has explicit size
+            row_has_explicit[row] = true;
+            let track_height = item.track_block_size().val().unwrap();
+            row_sizes[row] = Some(
+                row_sizes[row]
+                    .map(|s| s.max(track_height))
+                    .unwrap_or(track_height),
+            );
         } else {
-            // For auto tracks, use the outer size (margin box) per W3C spec:
-            // https://www.w3.org/TR/css-grid-1/#algo-track-sizing
-            // "The min-content/max-content contribution of a grid item is its outer size"
-            block_size = grid_layout_matrix
-                .inner
-                .iter_row(row_index)
-                .filter(|item| !item.is_unoccupied())
-                .fold(T::Length::zero(), |acc, cur| {
-                    let item = cur.get_auto_placed_unchecked();
-                    // outer size = border-box height + margin-top + margin-bottom
-                    acc.max(item.computed_size().height + item.margin.vertical())
-                });
+            // Auto track - use outer size (margin box)
+            let outer_height = item.computed_size().height + item.margin.vertical();
+            row_sizes[row] = Some(
+                row_sizes[row]
+                    .map(|s| s.max(outer_height))
+                    .unwrap_or(outer_height),
+            );
         }
-        grid_layout_matrix
-            .inner
-            .iter_row_mut(row_index)
-            .filter(|item| !item.is_unoccupied())
-            .for_each(|item| {
-                let item = item.get_auto_placed_mut_unchecked();
-                item.track_size.height = OptionNum::some(block_size);
-                // if item.css_size.height.is_none() {
-                //     item.node.layout_node().unit().result.size.height = block_size;
-                // }
-            });
-        each_block_size.push(block_size)
     }
-    each_block_size
+
+    // Convert Option<Length> to Length, defaulting to zero
+    let column_sizes: Vec<T::Length> = column_sizes
+        .into_iter()
+        .map(|s| s.unwrap_or(T::Length::zero()))
+        .collect();
+    let row_sizes: Vec<T::Length> = row_sizes
+        .into_iter()
+        .map(|s| s.unwrap_or(T::Length::zero()))
+        .collect();
+
+    // Update items with final track sizes
+    for item in grid_layout_matrix.items_mut() {
+        let row = item.row();
+        let column = item.column();
+        item.track_size.width = OptionNum::some(column_sizes[column]);
+        item.track_size.height = OptionNum::some(row_sizes[row]);
+    }
+
+    (column_sizes, row_sizes)
 }
