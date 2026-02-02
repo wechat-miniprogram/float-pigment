@@ -278,24 +278,6 @@ float-pigment-layout/src/algo/grid/
 
 ---
 
-## 测试覆盖
-
-当前共有 **135 个** Grid 测试用例，覆盖：
-
-| 类别 | 测试数 | 文件 |
-|-----|-------|-----|
-| Explicit Track Sizing | 14 | `grid_template.rs` |
-| Auto-placement | 12 | `grid_auto_flow.rs` |
-| Gutters | 15 | `gap.rs` |
-| Flexible Length (`fr`) | 11 | `fr_unit.rs` |
-| Basic Layout | 18 | `grid_basics.rs` |
-| Box Alignment | 38 | `alignment.rs` |
-| Other | 27 | - |
-
-所有测试断言值均符合 W3C 规范定义的计算逻辑。
-
----
-
 ## 算法复杂度分析
 
 ### 符号定义
@@ -322,7 +304,8 @@ float-pigment-layout/src/algo/grid/
 
 **总时间复杂度**: **O(R × C)**
 
-> 注：对于 dense grid（N ≈ R × C），复杂度等价于 O(N)
+- 对于 dense grid（N ≈ R × C），理论下界为 Ω(R × C)，当前实现达到下界
+- 对于 sparse grid（N << R × C），理论下界为 Ω(N + R + C)，当前实现未达到最优
 
 ### 空间复杂度
 
@@ -336,137 +319,20 @@ float-pigment-layout/src/algo/grid/
 
 **总空间复杂度**: **O(R × C)**
 
-### 复杂度特点
+---
 
-```
-+------------------------------------------------------------------------+
-|                         Complexity Summary                             |
-+------------------------------------------------------------------------+
-|                                                                        |
-|        +------------------------------------------------+              |
-|        |     Time: O(R x C)        Space: O(R x C)      |              |
-|        +------------------------------------------------+              |
-|                                                                        |
-|   +----------------------------------------------------------------+   |
-|   | Best Case: Small grid (e.g. 3x3)                               |   |
-|   |   - Time  = O(1) (constant for fixed small grids)              |   |
-|   |   - Space = O(1) (9 cells)                                     |   |
-|   +----------------------------------------------------------------+   |
-|                                                                        |
-|   +----------------------------------------------------------------+   |
-|   | General Case: Medium grid (e.g. 10x10)                         |   |
-|   |   - Time  ~ O(100)                                             |   |
-|   |   - Space ~ 100 cells                                          |   |
-|   +----------------------------------------------------------------+   |
-|                                                                        |
-|   +----------------------------------------------------------------+   |
-|   | Notes:                                                         |   |
-|   |   - Each item layout is an independent sub-problem             |   |
-|   |   - Nested Grid/Flex increases actual computation              |   |
-|   |   - Caching can reduce redundant calculations                  |   |
-|   +----------------------------------------------------------------+   |
-|                                                                        |
-+------------------------------------------------------------------------+
-```
+## 测试覆盖
 
-### 与 Flexbox 对比
+当前共有 **135 个** Grid 测试用例，覆盖：
 
-| Layout Mode | 时间复杂度 | 空间复杂度 |
-|-------------|-----------|-----------|
-| Grid | O(R × C) | O(R × C) |
-| Flexbox | O(N) | O(N) |
+| 类别 | 测试数 | 文件 |
+|-----|-------|-----|
+| Explicit Track Sizing | 14 | `grid_template.rs` |
+| Auto-placement | 12 | `grid_auto_flow.rs` |
+| Gutters | 15 | `gap.rs` |
+| Flexible Length (`fr`) | 11 | `fr_unit.rs` |
+| Basic Layout | 18 | `grid_basics.rs` |
+| Box Alignment | 38 | `alignment.rs` |
+| Other | 27 | - |
 
-> Grid layout 由于需要维护 2D grid matrix，复杂度高于一维的 Flexbox。
-> 但对于实际的 UI 场景，grid dimensions 通常较小，性能差异可忽略。
-
-### 复杂度最优性分析
-
-**时间复杂度 O(R × C) 是渐近最优的 (asymptotically optimal)** ✅
-
-```
-+------------------------------------------------------------------------+
-|                   Time Complexity Lower Bound Analysis                 |
-+------------------------------------------------------------------------+
-|                                                                        |
-|   Grid layout requires:                                                |
-|   +-- Determine each track size  --> At least R + C tracks             |
-|   +-- Place N items into cells   --> At least N items                  |
-|   +-- Position each item         --> At least N items                  |
-|                                                                        |
-|   +----------------------------------------------------------------+   |
-|   | Lower Bound: Big-Omega(R + C + N)                              |   |
-|   | When grid is nearly full (N ~ R x C), bound is Big-Omega(R x C)|   |
-|   +----------------------------------------------------------------+   |
-|                                                                        |
-|   [OK] Current: O(R x C) = Achieves theoretical lower bound            |
-|                                                                        |
-+------------------------------------------------------------------------+
-```
-
-
-**空间复杂度 O(R × C) 符合理论下界**
-
-```
-+------------------------------------------------------------------------+
-|                  Space Complexity Lower Bound Analysis                 |
-+------------------------------------------------------------------------+
-|                                                                        |
-|   Must store:                                                          |
-|   +-- Track size info  --> O(R + C)                                    |
-|   +-- Item info        --> O(N)                                        |
-|   +-- Cell mapping     --> O(R x C) for 2D positioning                 |
-|                                                                        |
-|   +----------------------------------------------------------------+   |
-|   | Lower Bound: Big-Omega(R + C + N)                              |   |
-|   | For dense grids: N ~ R x C, so Big-Omega(R x C)                |   |
-|   +----------------------------------------------------------------+   |
-|                                                                        |
-|   [OK] Current: O(R x C) - standard for 2D grid layout                 |
-|   [*] Optimization: lazy allocation reduces actual memory usage        |
-|                                                                        |
-+------------------------------------------------------------------------+
-```
-
-### 与业界实现对比
-
-| 实现 | 时间复杂度 | 空间复杂度 | 备注 |
-|-----|-----------|-----------|------|
-| **float-pigment** | O(R × C) | O(R × C) | single-pass, dynamic grid structure |
-| Chromium (Blink) | O(k × R × C) | O(R × C) | k = iteration count (≤2) |
-| Firefox (Gecko) | O(k × R × C) | O(R × C) | full W3C conformance |
-| WebKit | O(k × R × C) | O(R × C) | full W3C conformance |
-| Taffy | O(R × C) | O(R × C) | single-pass, dynamic grid structure |
-
-**说明**:
-- 本实现省略了 W3C §11.1 Step 3-4 的 iterative re-resolution，因此是 **single-pass** 执行
-- 主流 browser engines 实现完整 W3C 规范，需要 iterative re-resolution，复杂度为 O(k × R × C)
-- 实践中 k 通常为 1-2，性能差异可忽略
-
-### 结论
-
-```
-+------------------------------------------------------------------------+
-|                        Complexity Evaluation                           |
-+------------------------------------------------------------------------+
-|                                                                        |
-|   +----------------------------------------------------------------+   |
-|   | TIME COMPLEXITY: O(R x C)                                      |   |
-|   |   +-- Asymptotically optimal: achieves theoretical lower bound |   |
-|   |   +-- Industry comparison: faster than full W3C (single-pass)  |   |
-|   +----------------------------------------------------------------+   |
-|                                                                        |
-|   +----------------------------------------------------------------+   |
-|   | SPACE COMPLEXITY: O(R x C)                                     |   |
-|   |   +-- Standard for 2D grid layout data structures              |   |
-|   |   +-- Industry comparison: on par with major browser engines   |   |
-|   +----------------------------------------------------------------+   |
-|                                                                        |
-|   +----------------------------------------------------------------+   |
-|   | SUMMARY                                                        |   |
-|   | Time complexity is asymptotically optimal.                     |   |
-|   | Space complexity meets industry standards.                     |   |
-|   | Lazy allocation reduces actual memory footprint.               |   |
-|   +----------------------------------------------------------------+   |
-|                                                                        |
-+------------------------------------------------------------------------+
-```
+所有测试断言值均符合 W3C 规范定义的计算逻辑。
