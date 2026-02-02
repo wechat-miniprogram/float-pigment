@@ -26,166 +26,162 @@ float-pigment-layout/src/algo/grid/
 
 ## Algorithm Flow
 
-### W3C Specification Flow (§11.1)
+### W3C Specification Reference
 
-According to [W3C CSS Grid §11.1](https://www.w3.org/TR/css-grid-1/#algo-grid-sizing), the Grid Sizing Algorithm includes the following steps:
+For the complete Grid layout flow, see: [W3C CSS Grid Layout Module Level 1 - §11 Grid Layout Algorithm](https://www.w3.org/TR/css-grid-1/#layout-algorithm)
 
-1. **First**: Use Track Sizing Algorithm to compute **column** sizes
-2. **Next**: Use Track Sizing Algorithm to compute **row** sizes
-3. **Then**: If min-content contribution changed based on row sizes, **re-resolve columns**
-4. **Next**: If min-content contribution changed based on column sizes, **re-resolve rows**
-5. **Finally**: Align tracks via `align-content` and `justify-content`
-
-### Current Implementation Flow
+### float-pigment Implementation Flow
 
 This implementation uses a simplified single-pass approach with 9 steps:
 
 ```
 +-----------------------------------------------------------------------------------+
-|                            Grid Layout Algorithm                                  |
+|                      float-pigment Grid Layout Flow                               |
 +-----------------------------------------------------------------------------------+
 |                                                                                   |
-|      +------------------------+                                                   |
-|      | 1. Available Space     | <---- W3C S11.1 Grid Sizing Algorithm             |
-|      +----------+-------------+                                                   |
-|                 |                                                                 |
-|                 v                                                                 |
-|      +------------------------+                                                   |
-|      | 2. Gutters (Gap)       | <---- W3C S10.1 Gutters                           |
-|      +----------+-------------+                                                   |
-|                 |                                                                 |
-|                 v                                                                 |
-|      +------------------------+                                                   |
-|      | 3. Explicit Grid       | <---- W3C S7.1 The Explicit Grid                  |
-|      +----------+-------------+                                                   |
-|                 |                                                                 |
-|                 v                                                                 |
-|      +------------------------+                                                   |
-|      | 4. Placement           | <---- W3C S8.5 Grid Item Placement Algorithm      |
-|      +----------+-------------+                                                   |
-|                 |                                                                 |
-|                 v                                                                 |
-|      +------------------------+       +-------------------------------------+     |
-|      | 5. Track Sizing        | <-----| W3C S11.3 Track Sizing Algorithm    |     |
-|      |    (columns, rows)     |       |  - S11.4 Initialize Track Sizes     |     |
-|      +----------+-------------+       |  - S11.7 Expand Flexible Tracks     |     |
-|                 |                     +-------------------------------------+     |
-|                 v                                                                 |
-|      +------------------------+                                                   |
-|      | 6. Item Sizing         | <---- W3C S11.5 Resolve Intrinsic Track Sizes     |
-|      +----------+-------------+                                                   |
-|                 |                                                                 |
-|                 v                                                                 |
-|      +------------------------+                                                   |
-|      | 7. Finalize Tracks     | <---- W3C S11.6-11.7 Maximize/Expand Tracks       |
-|      +----------+-------------+                                                   |
-|                 |                                                                 |
-|                 v                                                                 |
-|      +------------------------+                                                   |
-|      | 8. Content Distribution | <---- W3C S10.5 Aligning the Grid                |
-|      +----------+-------------+                                                   |
-|                 |                                                                 |
-|                 v                                                                 |
-|      +------------------------+                                                   |
-|      | 9. Item Positioning    | <---- W3C S10.3-10.4 Self-Alignment               |
-|      +------------------------+                                                   |
+|  1. Available Space (§11.1)                                                       |
+|     +-- Calculate grid container's content-box available space                    |
+|     +-- Constrain available space by min/max-width/height                         |
+|                                                                                   |
+|  2. Gutters (§10.1)                                                               |
+|     +-- Parse row-gap / column-gap properties                                     |
+|     +-- Calculate actual pixel values for gaps                                    |
+|                                                                                   |
+|  3. Explicit Grid (§7.1)                                                          |
+|     +-- Parse grid-template-rows / grid-template-columns                          |
+|     +-- Initialize track list (TrackList)                                         |
+|                                                                                   |
+|  4. Placement (§8.5)                                                              |
+|     +-- Filter grid items (exclude absolute / display:none)                       |
+|     +-- Single-pass placement using DynamicGrid                                   |
+|     +-- Support grid-auto-flow: row / column (dense NOT implemented)              |
+|                                                                                   |
+|  5. Track Sizing (§11.3)                                                          |
+|     +-- Initialize track sizes (simplified, no growth limit)                      |
+|     +-- §11.7 Flex Tracks: Calculate fr unit pixel values                         |
+|     +-- Size columns first, then rows                                             |
+|                                                                                   |
+|  6. Item Sizing (§11.5)                                                           |
+|     +-- Calculate min-content / max-content contribution for each item            |
+|     +-- Use outer size (margin-box) for track sizing                              |
+|                                                                                   |
+|  7. Finalize Tracks (§11.5)                                                       |
+|     +-- Adjust auto track sizes based on item outer size                          |
+|     +-- (§11.6 Maximize Tracks NOT separately implemented)                        |
+|                                                                                   |
+|  8. Content Distribution (§10.5)                                                  |
+|     +-- Apply align-content: distribute remaining space on block axis             |
+|     +-- Apply justify-content: distribute remaining space on inline axis          |
+|                                                                                   |
+|  9. Item Positioning (§10.3-10.4)                                                 |
+|     +-- Apply align-self: item alignment within cell on block axis                |
+|     +-- Apply justify-self: item alignment within cell on inline axis             |
 |                                                                                   |
 +-----------------------------------------------------------------------------------+
-| [!] NOT IMPLEMENTED: W3C S11.1 Step 3-4 iterative re-resolution                   |
+| [!] LIMITATIONS vs W3C Specification:                                             |
+|     - §11.1 Step 3-4: iterative re-resolution NOT implemented                     |
+|     - §8.5: dense packing mode NOT implemented                                    |
+|     - §11.4: base size / growth limit NOT separately maintained                   |
+|     - §11.6: Maximize Tracks NOT separately implemented                           |
 +-----------------------------------------------------------------------------------+
 ```
 
-### Step Details
+#### Step Details
 
-#### Step 1: Available Space
+##### Step 1: Available Space
 
-Calculate the content-box available space of the Grid container:
+Calculate the available grid space (content-box) of the grid container:
 
-1. Get container's `width` / `height` (or derive from parent constraints)
-2. Subtract `padding` and `border`
-3. Output: `available_inline_size` (available width), `available_block_size` (available height)
+1. Determine container's `width` / `height` (or derive from containing block constraints)
+2. Subtract `padding` and `border` to get content-box dimensions
+3. Output: `available_inline_size` (inline-axis), `available_block_size` (block-axis)
 
-#### Step 2: Gutters
+##### Step 2: Gutters
 
-Process `gap` / `row-gap` / `column-gap` properties:
+Resolve `gap` / `row-gap` / `column-gap` properties:
 
-1. Resolve `row-gap` and `column-gap` values (supports `px`, `%`)
-2. Calculate total gap space: `total_row_gap = row_gap × (row_count - 1)`
-3. Subtract gaps from available space: `available_for_tracks = available - total_gap`
+1. Resolve `row-gap` and `column-gap` to used values (supports `<length>`, `<percentage>`)
+2. Calculate total gutter space: `total_row_gap = row_gap × (row_count - 1)`
+3. Subtract gutters from available space: `available_for_tracks = available - total_gap`
 
-#### Step 3: Explicit Grid
+##### Step 3: Explicit Grid
 
-Parse `grid-template-rows` / `grid-template-columns`:
+Parse `grid-template-rows` / `grid-template-columns` to define explicit grid:
 
-1. Iterate through track definition list
-2. Classify track types:
-   - Fixed values (`100px`, `50%`) → Calculate pixel values directly
-   - `fr` units → Mark for distribution
-   - `auto` → Mark for calculation
-3. Output: Row/column track counts, initial track sizes
+1. Iterate through track sizing function list
+2. Classify track sizing functions:
+   - Fixed sizing (`100px`, `50%`) → Resolve to used pixel values
+   - Flexible sizing (`fr`) → Mark for free space distribution
+   - Intrinsic sizing (`auto`) → Mark for content-based sizing
+3. Output: Row/column track counts, initialized track sizes
 
-#### Step 4: Placement
+##### Step 4: Placement
 
-Place items into grid matrix according to `grid-auto-flow`:
+Auto-place items into grid matrix according to `grid-auto-flow`:
 
 1. Filter out `position: absolute` and `display: none` items
 2. Initialize empty dynamic grid matrix (`DynamicGrid`)
-3. Place each item in order:
-   - `row` mode: Left to right, top to bottom
-   - `column` mode: Top to bottom, left to right
-   - **Auto-expansion**: Automatically creates implicit tracks when exceeding explicit grid boundaries
-4. Output: `GridMatrix` (item position mapping, sized to actual row/column count used)
+3. Place each item using auto-placement algorithm:
+   - `row` mode: row-major order (left to right, top to bottom)
+   - `column` mode: column-major order (top to bottom, left to right)
+   - **Implicit track creation**: Automatically creates implicit tracks when exceeding explicit grid
+   - ⚠️ `dense` mode NOT implemented (`RowDense`/`ColumnDense` behave same as `Row`/`Column`)
+4. Output: `GridMatrix` (item placement mapping, sized to actual grid dimensions)
 
 
-#### Step 5: Track Sizing
+##### Step 5: Track Sizing
 
-Calculate final size for each track, columns first then rows:
+Calculate used track size for each track, columns first then rows:
 
-1. **Fixed tracks**: Use resolved pixel values directly
-2. **`fr` tracks**:
-   - Calculate remaining space: `remaining = available - fixed_tracks - gaps`
-   - Calculate size per `fr`: `size_per_fr = remaining / total_fr`
-   - Track sizes: `track_size = fr_value × size_per_fr`
-3. **`auto` tracks**: Set to 0 initially, adjust in Step 7 based on content
+1. **Fixed sizing function**: Use resolved pixel values directly
+2. **Flexible sizing function (`fr`)**:
+   - Calculate free space: `free_space = available - fixed_tracks - gutters`
+   - Calculate hypothetical fr size: `fr_size = free_space / total_fr`
+   - Used track size: `track_size = fr_value × fr_size`
+3. **`auto` sizing function**: Initialize to 0, adjust in Step 7 based on content contribution
 
-#### Step 6: Item Sizing
+> ⚠️ Simplified: Does NOT separately maintain W3C §11.4 `base size` and `growth limit`
 
-Recursively calculate size of each Grid item:
+##### Step 6: Item Sizing
+
+Recursively calculate size contribution of each grid item:
 
 1. Iterate through each item in grid matrix
-2. Determine item's available space (cell size it occupies)
-3. Recursively call layout algorithm to compute item size
+2. Determine item's available space (grid area it spans)
+3. Recursively invoke layout algorithm to compute item size
 4. Output: Each item's `width`, `height`
 
-#### Step 7: Finalize Tracks
+##### Step 7: Finalize Tracks
 
-Adjust `auto` tracks based on item sizes:
+Adjust auto track sizes based on item contribution:
 
 1. Iterate through all `auto` tracks
-2. Take maximum margin-box size of all items in that track
+2. Take maximum outer size (margin-box) of all items spanning that track
 3. Update track size
 4. Output: Final `each_inline_size[]`, `each_block_size[]`
 
-#### Step 8: Content Distribution
+> ⚠️ Simplified: W3C §11.6 "Maximize Tracks" NOT separately implemented
 
-Apply `align-content` / `justify-content`:
+##### Step 8: Content Distribution
 
-1. Calculate difference between total track size and container size
-2. Calculate offset based on distribution mode:
+Apply `align-content` / `justify-content` for content distribution:
+
+1. Calculate free space: `free_space = container_size - total_track_size`
+2. Calculate offset based on distribution value:
    - `start`: initial offset = 0
-   - `end`: initial offset = remaining space
-   - `center`: initial offset = remaining space / 2
-   - `space-between/around/evenly`: Calculate extra gap between tracks
+   - `end`: initial offset = free space
+   - `center`: initial offset = free space / 2
+   - `space-between` / `space-around` / `space-evenly`: Calculate additional inter-track spacing
 3. Output: `(initial_offset, gap_addition)`
 
-#### Step 9: Item Positioning
+##### Step 9: Item Positioning
 
-Calculate final position for each item:
+Apply self-alignment and calculate final item position:
 
 1. Iterate through grid matrix
-2. Accumulate track sizes and gaps to get cell position
-3. Apply Content Distribution offset
-4. Apply Self-Alignment (`align-self` / `justify-self`) offset
+2. Accumulate track sizes and gutters to determine grid area position
+3. Apply content-distribution offset
+4. Apply self-alignment (`align-self` / `justify-self`) offset within grid area
 5. Set item's `left`, `top`, `width`, `height`
 
 ---
@@ -196,42 +192,42 @@ Calculate final position for each item:
 
 | Property | Status | Description |
 |----------|--------|-------------|
-| `display: grid` | ✅ | Block-level Grid Container |
-| `display: inline-grid` | ✅ | Inline-level Grid Container |
-| `grid-template-columns` | ✅ | Define Explicit Column Tracks |
-| `grid-template-rows` | ✅ | Define Explicit Row Tracks |
-| `grid-auto-flow` | ✅ | Auto-placement direction (row/column) |
-| `grid-auto-flow: dense` | ⚠️ | Dense Packing not implemented |
-| `gap` / `row-gap` / `column-gap` | ✅ | Gutters (track gaps) |
-| `align-items` | ✅ | Default Block-axis Alignment |
-| `justify-items` | ✅ | Default Inline-axis Alignment |
-| `align-content` | ✅ | Content Distribution (block-axis) |
-| `justify-content` | ✅ | Content Distribution (inline-axis) |
+| `display: grid` | ✅ | block-level grid container |
+| `display: inline-grid` | ✅ | inline-level grid container |
+| `grid-template-columns` | ✅ | explicit column track sizing |
+| `grid-template-rows` | ✅ | explicit row track sizing |
+| `grid-auto-flow` | ✅ | auto-placement direction (row/column) |
+| `grid-auto-flow: dense` | ⚠️ | dense packing mode not implemented |
+| `gap` / `row-gap` / `column-gap` | ✅ | gutters between tracks |
+| `align-items` | ✅ | default block-axis alignment for items |
+| `justify-items` | ✅ | default inline-axis alignment for items |
+| `align-content` | ✅ | content-distribution (block-axis) |
+| `justify-content` | ✅ | content-distribution (inline-axis) |
 
 ### Grid Item Properties
 
 | Property | Status | Description |
 |----------|--------|-------------|
-| `align-self` | ✅ | Self-Alignment (block-axis) |
-| `justify-self` | ✅ | Self-Alignment (inline-axis) |
-| `grid-column-start` | ❌ | Line-based Placement not implemented |
-| `grid-column-end` | ❌ | Line-based Placement not implemented |
-| `grid-row-start` | ❌ | Line-based Placement not implemented |
-| `grid-row-end` | ❌ | Line-based Placement not implemented |
+| `align-self` | ✅ | self-alignment (block-axis) |
+| `justify-self` | ✅ | self-alignment (inline-axis) |
+| `grid-column-start` | ❌ | line-based placement not implemented |
+| `grid-column-end` | ❌ | line-based placement not implemented |
+| `grid-row-start` | ❌ | line-based placement not implemented |
+| `grid-row-end` | ❌ | line-based placement not implemented |
 
 ### Track Sizing Functions
 
 | Value | Status | Description |
 |-------|--------|-------------|
-| `<length>` | ✅ | Fixed length value (e.g., `100px`) |
-| `<percentage>` | ✅ | Percentage value (e.g., `50%`) |
-| `auto` | ✅ | Auto-adjust based on content |
-| `<flex>` (`fr`) | ✅ | Flexible length, distributes remaining space proportionally |
-| `min-content` | ⚠️ | Partial support |
-| `max-content` | ⚠️ | Partial support |
-| `minmax()` | ❌ | Not implemented |
-| `repeat()` | ❌ | Not implemented |
-| `fit-content()` | ❌ | Not implemented |
+| `<length>` | ✅ | fixed track sizing function (e.g., `100px`) |
+| `<percentage>` | ✅ | percentage track sizing function (e.g., `50%`) |
+| `auto` | ✅ | intrinsic track sizing (content-based) |
+| `<flex>` (`fr`) | ✅ | flexible track sizing function |
+| `min-content` | ⚠️ | intrinsic sizing (partial support) |
+| `max-content` | ⚠️ | intrinsic sizing (partial support) |
+| `minmax()` | ❌ | not implemented |
+| `repeat()` | ❌ | not implemented |
+| `fit-content()` | ❌ | not implemented |
 
 ---
 
@@ -240,42 +236,42 @@ Calculate final position for each item:
 ### High Priority
 
 - [ ] **Iterative Re-resolution** (W3C §11.1 Step 3-4)
-  - Re-resolve column sizes when min-content contribution changes due to row sizes
-  - Re-resolve row sizes when min-content contribution changes due to column sizes
-  - Affected scenarios: Text wrapping, `aspect-ratio`, nested Flex/Grid
+  - Re-resolve column track sizes when min-content contribution changes due to row sizes
+  - Re-resolve row track sizes when min-content contribution changes due to column sizes
+  - Affected scenarios: text wrapping, `aspect-ratio`, nested flex/grid
 
 - [ ] **Line-based Placement** (W3C §8.3)
   - `grid-column-start` / `grid-column-end`
   - `grid-row-start` / `grid-row-end`
-  - `grid-column` / `grid-row` shorthands
-  - `grid-area` shorthand
+  - `grid-column` / `grid-row` shorthand properties
+  - `grid-area` shorthand property
   - `span` keyword support
 
 ### Medium Priority
 
 - [ ] **Track Sizing Functions** (W3C §7.2)
-  - `minmax(min, max)` function
-  - `repeat(count, tracks)` function
-  - `fit-content(limit)` function
+  - `minmax(min, max)` sizing function
+  - `repeat(count, tracks)` notation
+  - `fit-content(limit)` sizing function
   - `auto-fill` / `auto-fit` keywords
 
 - [ ] **Named Grid Areas** (W3C §7.3)
   - `grid-template-areas` property
-  - Named area placement
+  - Named area-based placement
 
-- [ ] **Dense Packing** (W3C §8.5)
+- [ ] **Dense Packing Mode** (W3C §8.5)
   - `grid-auto-flow: dense`
   - `grid-auto-flow: row dense`
   - `grid-auto-flow: column dense`
 
 ### Low Priority
 
-- [ ] **Complete min-content / max-content** (W3C §11.5 / CSS Sizing 3)
-  - Full intrinsic size calculation
+- [ ] **Intrinsic Sizing Keywords** (W3C §11.5 / CSS Sizing 3)
+  - Full `min-content` / `max-content` sizing support
 
 - [ ] **Implicit Track Sizing** (W3C §7.6)
-  - `grid-auto-rows`
-  - `grid-auto-columns`
+  - `grid-auto-rows` property
+  - `grid-auto-columns` property
 
 - [ ] **Subgrid** (CSS Grid Level 2)
   - `subgrid` keyword
@@ -288,15 +284,15 @@ Currently **135** Grid test cases covering:
 
 | Category | Test Count | File |
 |----------|------------|------|
-| Track Templates | 14 | `grid_template.rs` |
-| Auto Flow | 12 | `grid_auto_flow.rs` |
-| Gaps | 15 | `gap.rs` |
-| fr Unit | 11 | `fr_unit.rs` |
+| Explicit Track Sizing | 14 | `grid_template.rs` |
+| Auto-placement | 12 | `grid_auto_flow.rs` |
+| Gutters | 15 | `gap.rs` |
+| Flexible Length (`fr`) | 11 | `fr_unit.rs` |
 | Basic Layout | 18 | `grid_basics.rs` |
-| Alignment | 38 | `alignment.rs` |
+| Box Alignment | 38 | `alignment.rs` |
 | Other | 27 | - |
 
-All test case assertion values conform to W3C specification-defined calculation logic.
+All test assertion values conform to W3C specification-defined calculation logic.
 
 ---
 
@@ -314,19 +310,19 @@ All test case assertion values conform to W3C specification-defined calculation 
 
 | Step | Operation | Complexity | Description |
 |------|-----------|------------|-------------|
-| 1 | Available Space | O(1) | Constant time calculation |
-| 2 | Gutters | O(1) | Constant time calculation |
-| 3 | Explicit Grid | O(R + C) | Iterate track template list |
-| 4 | Placement | O(N) | Iterate all items for placement |
-| 5 | Track Sizing | O(R + C) | Process row and column tracks separately |
-| 6 | Item Sizing | O(R × C) | Iterate entire grid matrix for sizing |
-| 7 | Finalize Tracks | O(R × C) | Iterate rows/columns to finalize sizes |
-| 8 | Content Distribution | O(R + C) | Calculate track distribution offsets |
-| 9 | Item Positioning | O(R × C) | Iterate matrix to position each item |
+| 1 | Available Space | O(1) | Constant-time calculation |
+| 2 | Gutters | O(1) | Constant-time calculation |
+| 3 | Explicit Grid | O(R + C) | Iterate track definition list |
+| 4 | Placement | O(N) | Auto-place all grid items |
+| 5 | Track Sizing | O(R + C) | Process row and column tracks |
+| 6 | Item Sizing | O(R × C) | Iterate grid matrix for item sizing |
+| 7 | Finalize Tracks | O(R × C) | Finalize track base sizes |
+| 8 | Content-distribution | O(R + C) | Calculate track distribution offsets |
+| 9 | Item Positioning | O(R × C) | Apply self-alignment and positioning |
 
 **Total Time Complexity**: **O(R × C)**
 
-> Note: When N ≈ R × C (dense grid), complexity is equivalent to O(N)
+> Note: For dense grids where N ≈ R × C, complexity is equivalent to O(N)
 
 ### Space Complexity
 
@@ -375,13 +371,13 @@ All test case assertion values conform to W3C specification-defined calculation 
 
 ### Comparison with Flexbox
 
-| Algorithm | Time Complexity | Space Complexity |
-|-----------|-----------------|------------------|
+| Layout Mode | Time Complexity | Space Complexity |
+|-------------|-----------------|------------------|
 | Grid | O(R × C) | O(R × C) |
 | Flexbox | O(N) | O(N) |
 
-> Grid has slightly higher complexity than one-dimensional Flexbox due to maintaining a 2D matrix structure.
-> However, for practical UI layout scenarios, grid sizes are typically small and performance differences are negligible.
+> Grid layout has higher complexity than one-dimensional Flexbox due to maintaining a 2D grid matrix.
+> However, for practical UI scenarios, grid dimensions are typically small and performance differences are negligible.
 
 ### Complexity Optimality Analysis
 
@@ -389,7 +385,7 @@ All test case assertion values conform to W3C specification-defined calculation 
 
 ```
 +------------------------------------------------------------------------+
-|                     Theoretical Lower Bound Analysis                   |
+|                   Time Complexity Lower Bound Analysis                 |
 +------------------------------------------------------------------------+
 |                                                                        |
 |   Grid layout requires:                                                |
@@ -408,9 +404,11 @@ All test case assertion values conform to W3C specification-defined calculation 
 ```
 
 
+**Space Complexity O(R × C) meets theoretical lower bound**
+
 ```
 +------------------------------------------------------------------------+
-|                     Theoretical Lower Bound Analysis                   |
+|                  Space Complexity Lower Bound Analysis                 |
 +------------------------------------------------------------------------+
 |                                                                        |
 |   Must store:                                                          |
@@ -433,16 +431,16 @@ All test case assertion values conform to W3C specification-defined calculation 
 
 | Implementation | Time Complexity | Space Complexity | Notes |
 |----------------|-----------------|------------------|-------|
-| **This Implementation** | O(R × C) | O(R × C) | Custom dynamic data structure |
-| Chrome (Blink) | O(k × R × C) | O(R × C) | k is iteration count (≤2) |
-| Firefox (Gecko) | O(k × R × C) | O(R × C) | Full W3C implementation |
-| WebKit | O(k × R × C) | O(R × C) | Full W3C implementation |
-| Taffy | O(R × C) | O(R × C) | Custom dynamic data structure |
+| **float-pigment** | O(R × C) | O(R × C) | Single-pass, dynamic grid structure |
+| Chromium (Blink) | O(k × R × C) | O(R × C) | k = iteration count (≤2) |
+| Firefox (Gecko) | O(k × R × C) | O(R × C) | Full W3C conformance |
+| WebKit | O(k × R × C) | O(R × C) | Full W3C conformance |
+| Taffy | O(R × C) | O(R × C) | Single-pass, dynamic grid structure |
 
 **Notes**:
-- This implementation omits W3C §11.1 Step 3-4 iterative re-resolution, thus is a **single pass**
-- Major browsers implement full W3C spec, requiring iterative re-resolution with O(k × R × C) complexity
-- In practice, k is typically 1-2, so the difference is minimal
+- This implementation omits W3C §11.1 Step 3-4 iterative re-resolution, resulting in **single-pass** execution
+- Major browser engines implement full W3C spec with iterative re-resolution (complexity O(k × R × C))
+- In practice, k is typically 1-2, so performance difference is negligible
 
 ### Conclusion
 
@@ -453,20 +451,21 @@ All test case assertion values conform to W3C specification-defined calculation 
 |                                                                        |
 |   +----------------------------------------------------------------+   |
 |   | TIME COMPLEXITY: O(R x C)                                      |   |
-|   |   +-- Optimal?       [YES] Achieves theoretical lower bound    |   |
-|   |   +-- Industry level: Better than full W3C (no iteration)      |   |
+|   |   +-- Asymptotically optimal: achieves theoretical lower bound |   |
+|   |   +-- Industry comparison: faster than full W3C (single-pass)  |   |
 |   +----------------------------------------------------------------+   |
 |                                                                        |
 |   +----------------------------------------------------------------+   |
 |   | SPACE COMPLEXITY: O(R x C)                                     |   |
-|   |   +-- Standard for 2D grid layout                              |   |
-|   |   +-- Industry level: On par with major browsers               |   |
+|   |   +-- Standard for 2D grid layout data structures              |   |
+|   |   +-- Industry comparison: on par with major browser engines   |   |
 |   +----------------------------------------------------------------+   |
 |                                                                        |
 |   +----------------------------------------------------------------+   |
 |   | SUMMARY                                                        |   |
-|   | Time-optimal, space complexity meets industry standards.       |   |
-|   | Lazy allocation strategy reduces actual memory footprint.      |   |
+|   | Time complexity is asymptotically optimal.                     |   |
+|   | Space complexity meets industry standards.                     |   |
+|   | Lazy allocation reduces actual memory footprint.               |   |
 |   +----------------------------------------------------------------+   |
 |                                                                        |
 +------------------------------------------------------------------------+
