@@ -64,9 +64,9 @@ pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
     total_fr: f32,
 ) {
     let mut total_specified_track_size = T::Length::zero();
-    let (secondary_count, auto_count) = match flow {
-        GridFlow::Row => (grid_matrix.column_count(), grid_matrix.row_auto_count()),
-        GridFlow::Column => (grid_matrix.row_count(), grid_matrix.column_auto_count()),
+    let auto_count = match flow {
+        GridFlow::Row => grid_matrix.row_auto_count(),
+        GridFlow::Column => grid_matrix.column_auto_count(),
     };
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -76,58 +76,42 @@ pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
     // For each track, initialize its base size and growth limit based on
     // its track sizing function.
     // ═══════════════════════════════════════════════════════════════════════
-    track_list.iter().enumerate().for_each(|(idx, track_item)| {
-        match track_item {
-            LayoutTrackListItem::TrackSize(LayoutTrackSize::Length(length)) => {
-                // Handle fixed length tracks
-                let mut current_size = T::Length::zero();
-                for index in 0..secondary_count {
-                    let grid_item = match flow {
-                        GridFlow::Row => grid_matrix.get_item_mut(idx, index),
-                        GridFlow::Column => grid_matrix.get_item_mut(index, idx),
-                    };
-                    if let Some(grid_item) = grid_item {
-                        if !grid_item.is_unoccupied() {
-                            current_size = length
-                                .resolve(current_flow_parent_size, parent_node)
-                                .or_zero();
-                            match flow {
-                                GridFlow::Row => grid_item
-                                    .get_auto_placed_mut_unchecked()
-                                    .update_track_block_size(TrackSize::Original(length.clone())),
-                                GridFlow::Column => grid_item
-                                    .get_auto_placed_mut_unchecked()
-                                    .update_track_inline_size(TrackSize::Original(length.clone())),
-                            }
-                        }
-                    }
-                }
-                total_specified_track_size += current_size;
-            }
-            LayoutTrackListItem::TrackSize(LayoutTrackSize::Fr(fr_value)) => {
-                // Mark Fr tracks with their fr value
-                for index in 0..secondary_count {
-                    let grid_item = match flow {
-                        GridFlow::Row => grid_matrix.get_item_mut(idx, index),
-                        GridFlow::Column => grid_matrix.get_item_mut(index, idx),
-                    };
-                    if let Some(grid_item) = grid_item {
-                        if !grid_item.is_unoccupied() {
-                            match flow {
-                                GridFlow::Row => grid_item
-                                    .get_auto_placed_mut_unchecked()
-                                    .update_track_block_size(TrackSize::Fr(*fr_value)),
-                                GridFlow::Column => grid_item
-                                    .get_auto_placed_mut_unchecked()
-                                    .update_track_inline_size(TrackSize::Fr(*fr_value)),
-                            }
-                        }
-                    }
-                }
-            }
-            _ => {}
+
+    // Calculate total specified track size from the track list
+    for track_item in track_list.iter() {
+        if let LayoutTrackListItem::TrackSize(LayoutTrackSize::Length(length)) = track_item {
+            let current_size = length
+                .resolve(current_flow_parent_size, parent_node)
+                .or_zero();
+            total_specified_track_size += current_size;
         }
-    });
+    }
+
+    // Apply track sizes to items
+    for item in grid_matrix.items_mut() {
+        let track_idx = match flow {
+            GridFlow::Row => item.row(),
+            GridFlow::Column => item.column(),
+        };
+
+        if track_idx < track_list.len() {
+            match track_list[track_idx] {
+                LayoutTrackListItem::TrackSize(LayoutTrackSize::Length(length)) => match flow {
+                    GridFlow::Row => {
+                        item.update_track_block_size(TrackSize::Original(length.clone()))
+                    }
+                    GridFlow::Column => {
+                        item.update_track_inline_size(TrackSize::Original(length.clone()))
+                    }
+                },
+                LayoutTrackListItem::TrackSize(LayoutTrackSize::Fr(fr_value)) => match flow {
+                    GridFlow::Row => item.update_track_block_size(TrackSize::Fr(*fr_value)),
+                    GridFlow::Column => item.update_track_inline_size(TrackSize::Fr(*fr_value)),
+                },
+                _ => {}
+            }
+        }
+    }
 
     if available_grid_space.is_none() && total_specified_track_size > T::Length::zero() {
         *available_grid_space = OptionNum::some(total_specified_track_size);
@@ -166,14 +150,10 @@ pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
     // - Percentage tracks: size = percentage × container_size
     // - Fixed tracks: Already resolved
     // ═══════════════════════════════════════════════════════════════════════
-    grid_matrix.iter_mut().for_each(|grid_item| {
-        if grid_item.is_unoccupied() {
-            return;
-        }
-        let grid_item = grid_item.get_auto_placed_mut_unchecked();
+    for item in grid_matrix.items_mut() {
         let track_size_ref = match flow {
-            GridFlow::Row => &grid_item.track_block_size,
-            GridFlow::Column => &grid_item.track_inline_size,
+            GridFlow::Row => &item.track_block_size,
+            GridFlow::Column => &item.track_inline_size,
         };
 
         let fixed_track_size = match track_size_ref {
@@ -214,13 +194,13 @@ pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
             }
             TrackSize::Fixed(_) => {
                 // Already fixed, skip
-                return;
+                continue;
             }
         };
 
         match flow {
-            GridFlow::Row => grid_item.update_track_block_size(fixed_track_size),
-            GridFlow::Column => grid_item.update_track_inline_size(fixed_track_size),
+            GridFlow::Row => item.update_track_block_size(fixed_track_size),
+            GridFlow::Column => item.update_track_inline_size(fixed_track_size),
         }
-    });
+    }
 }
