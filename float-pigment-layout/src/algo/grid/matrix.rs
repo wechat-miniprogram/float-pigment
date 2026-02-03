@@ -240,9 +240,9 @@ impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
         let mut offset = T::Length::zero();
         self.row_offsets[0] = offset;
         for (i, &size) in sizes.iter().enumerate() {
-            offset = offset + size;
+            offset += size;
             if i < sizes.len() - 1 {
-                offset = offset + gap;
+                offset += gap;
             }
             self.row_offsets[i + 1] = offset;
         }
@@ -256,9 +256,9 @@ impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
         let mut offset = T::Length::zero();
         self.column_offsets[0] = offset;
         for (i, &size) in sizes.iter().enumerate() {
-            offset = offset + size;
+            offset += size;
             if i < sizes.len() - 1 {
-                offset = offset + gap;
+                offset += gap;
             }
             self.column_offsets[i + 1] = offset;
         }
