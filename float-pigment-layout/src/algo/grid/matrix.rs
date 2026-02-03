@@ -37,43 +37,6 @@ pub(crate) enum CellOccupancyState {
     Occupied,
 }
 
-/// Legacy MatrixCell enum for backward compatibility.
-/// Kept for potential future use.
-#[allow(dead_code)]
-#[derive(Clone, PartialEq, Debug)]
-pub(crate) enum MatrixCell<T> {
-    /// Cell is empty (available for auto-placement)
-    Unoccupied,
-    /// Cell contains an auto-placed grid item
-    AutoPlaced(T),
-}
-
-impl<T> Default for MatrixCell<T> {
-    fn default() -> Self {
-        Self::Unoccupied
-    }
-}
-
-#[allow(dead_code)]
-impl<T> MatrixCell<T> {
-    pub(crate) fn is_unoccupied(&self) -> bool {
-        matches!(self, Self::Unoccupied)
-    }
-
-    pub(crate) fn get_auto_placed_unchecked(&self) -> &T {
-        match self {
-            Self::AutoPlaced(item) => item,
-            _ => unreachable!(),
-        }
-    }
-    pub(crate) fn get_auto_placed_mut_unchecked(&mut self) -> &mut T {
-        match self {
-            Self::AutoPlaced(item) => item,
-            _ => unreachable!(),
-        }
-    }
-}
-
 /// The grid matrix stores grid items during the placement phase.
 ///
 /// CSS Grid §7.1: The grid is a two-dimensional structure with:
