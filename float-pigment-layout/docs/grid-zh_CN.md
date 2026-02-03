@@ -16,6 +16,7 @@ float-pigment-layout/src/algo/grid/
 ├── mod.rs          # 主入口，Grid 布局算法实现
 ├── alignment.rs    # 对齐计算 (align/justify-items/self/content)
 ├── track_size.rs   # 轨道尺寸计算 (fr, auto, fixed)
+├── track.rs        # 轨道数据结构 (GridTrack, GridTracks)
 ├── placement.rs    # Grid 项目放置算法
 ├── matrix.rs       # Grid 矩阵数据结构
 ├── grid_item.rs    # Grid 项目结构定义
@@ -56,8 +57,8 @@ float-pigment-layout/src/algo/grid/
 |     +-- 使用动态网格 (DynamicGrid) 单次遍历放置项目                                 |
 |     +-- 支持 grid-auto-flow: row / column (dense 未实现)                           |
 |                                                                                   |
-|  5. Track Sizing (§11.3)                                                          |
-|     +-- 初始化轨道尺寸 (简化版，无 growth limit)                                    |
+|  5. Track Sizing (§11.3-11.4)                                                     |
+|     +-- 初始化轨道 base_size 和 growth_limit (§11.4)                               |
 |     +-- §11.7 Flex Tracks: 计算 fr 单位的实际像素值                                 |
 |     +-- 先计算列尺寸，再计算行尺寸                                                  |
 |                                                                                   |
@@ -65,9 +66,9 @@ float-pigment-layout/src/algo/grid/
 |     +-- 计算每个项目的 min-content / max-content contribution                      |
 |     +-- 使用 outer size (margin-box) 参与 track sizing                            |
 |                                                                                   |
-|  7. Finalize Tracks (§11.5)                                                        |
-|     +-- 根据项目 outer size 调整 auto 轨道尺寸                                      |
-|     +-- (§11.6 Maximize Tracks 未独立实现)                                          |
+|  7. Finalize Tracks (§11.5-11.6)                                                  |
+|     +-- 根据项目 outer size 调整 auto 轨道尺寸 (§11.5)                              |
+|     +-- §11.6 Maximize Tracks: 分配 free space 给 auto tracks                     |
 |                                                                                   |
 |  8. Content Distribution (§10.5)                                                  |
 |     +-- 应用 align-content: 分配 block axis 方向的剩余空间                          |
@@ -81,8 +82,6 @@ float-pigment-layout/src/algo/grid/
 | [!] LIMITATIONS vs W3C Specification:                                             |
 |     - §11.1 Step 3-4: iterative re-resolution NOT implemented                     |
 |     - §8.5: dense packing mode NOT implemented                                    |
-|     - §11.4: base size / growth limit NOT separately maintained                   |
-|     - §11.6: Maximize Tracks NOT implemented (free space not distributed)         |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -133,14 +132,14 @@ float-pigment-layout/src/algo/grid/
 
 计算每个 track 的 used track size，先 columns 后 rows：
 
-1. **Fixed sizing function**：直接使用解析后的像素值
-2. **Flexible sizing function (`fr`)**：
+1. **初始化 (§11.4)**：为每个 track 初始化 `base_size` 和 `growth_limit`
+   - Fixed sizing function：`base_size` = 解析后的像素值
+   - Flexible sizing function (`fr`)：`base_size` = 0，`growth_limit` = infinity
+   - `auto` sizing function：`base_size` = 0，`growth_limit` = infinity
+2. **Flexible tracks (§11.7)**：
    - 计算 free space：`free_space = available - fixed_tracks - gutters`
    - 计算 hypothetical fr size：`fr_size = free_space / total_fr`
    - Used track size：`track_size = fr_value × fr_size`
-3. **`auto` sizing function**：初始化为 0，待 Step 7 根据 content contribution 调整
-
-> ⚠️ 简化实现：未分别维护 W3C §11.4 规定的 `base size` 和 `growth limit`
 
 ##### Step 6: Item Sizing
 
@@ -155,12 +154,15 @@ float-pigment-layout/src/algo/grid/
 
 根据 item contribution 调整 auto track size：
 
-1. 遍历所有 `auto` tracks
-2. 取该 track 内所有 items 的最大 outer size (margin-box)
-3. 更新 track size
-4. 输出：最终的 `each_inline_size[]`、`each_block_size[]`
-
-> ⚠️ 简化实现：W3C §11.6 "Maximize Tracks" 未作为独立步骤实现
+1. **§11.5 Resolve Intrinsic Track Sizes**：
+   - 遍历所有 `auto` tracks
+   - 取该 track 内所有 items 的最大 outer size (margin-box)
+   - 更新 track `base_size`
+2. **§11.6 Maximize Tracks**：
+   - 仅当 container 有 definite size 时执行
+   - 计算 free space：`free_space = container_size - total_base_size - gutters`
+   - 将 free space 平均分配给 `growth_limit` 为 infinity 的 tracks (auto tracks)
+3. 输出：最终的 `each_inline_size[]`、`each_block_size[]`
 
 ##### Step 8: Content Distribution
 
