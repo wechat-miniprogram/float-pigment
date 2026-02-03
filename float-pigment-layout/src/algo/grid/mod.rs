@@ -3,30 +3,17 @@
 //! This module implements the CSS Grid Layout Module Level 1 specification.
 //! Reference: <https://www.w3.org/TR/css-grid-1/>
 //!
-//! ## W3C Grid Sizing Algorithm (§11.1)
-//! <https://www.w3.org/TR/css-grid-1/#algo-grid-sizing>
-//!
-//! The W3C specification defines Grid Sizing Algorithm with these steps:
-//!
-//! 1. **First**: Use track sizing algorithm to resolve grid **column** sizes
-//! 2. **Next**: Use track sizing algorithm to resolve grid **row** sizes
-//! 3. **Then**: If min-content contribution changed based on row sizes,
-//!    **re-resolve columns** (⚠️ NOT IMPLEMENTED)
-//! 4. **Next**: If min-content contribution changed based on column sizes,
-//!    **re-resolve rows** (⚠️ NOT IMPLEMENTED)
-//! 5. **Finally**: Align tracks via align-content/justify-content
-//!
 //! ## Current Implementation Steps
 //!
-//! This implementation follows a simplified approach:
-//!
-//! 1. Resolve explicit grid (§7.1)
-//! 2. Calculate gutters/gap (§10.1)
-//! 3. Place grid items (§8.5)
-//! 4. Size columns, then rows (§11.3) - single pass, no re-resolution
-//! 5. Compute item sizes and finalize tracks
-//! 6. Apply content alignment (§10.5)
-//! 7. Position items with self-alignment (§10.3-10.4)
+//! 1. STEP 1: Compute available grid space (§11.1)
+//! 2. STEP 2: Resolve gutters/gap (§10.1)
+//! 3. STEP 3: Resolve explicit grid (§7.1)
+//! 4. STEP 4: Place grid items (§8.5)
+//! 5. STEP 5: Track Sizing Algorithm with Iterative Re-resolution (§11.1, §11.3-11.7)
+//! 6. STEP 6: Compute item sizes (§11.5)
+//! 7. STEP 7: Finalize tracks + Maximize Tracks (§11.5-11.6)
+//! 8. STEP 8: Content alignment (§10.5)
+//! 9. STEP 9: Item positioning with self-alignment (§10.3-10.4)
 //!
 //! ## Optimization
 //!
@@ -37,11 +24,6 @@
 //! This achieves:
 //! - **Time**: O(N) for item positioning (instead of O(R × C))
 //! - **Space**: More efficient for sparse grids
-//!
-//! ## Known Limitations
-//!
-//! - **No iterative re-resolution**: Steps 3-4 of W3C algorithm not implemented.
-//!   This may cause incorrect sizing when item sizes depend on both axes.
 //!
 //! ## Related Specifications
 //! - CSS Grid Layout Module Level 1: <https://www.w3.org/TR/css-grid-1/>
@@ -247,7 +229,8 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         available_grid_space.height = available_grid_space.height - total_row_gaps;
 
         // ═══════════════════════════════════════════════════════════════════════
-        // STEP 5: Track Sizing Algorithm
+        // STEP 5: Track Sizing Algorithm (with Iterative Re-resolution)
+        // CSS Grid §11.1 Step 2-4: https://www.w3.org/TR/css-grid-1/#algo-grid-sizing
         // CSS Grid §11.3: https://www.w3.org/TR/css-grid-1/#algo-track-sizing
         //
         // This step sizes the grid tracks. The algorithm:
@@ -256,9 +239,18 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         // 3. Maximize tracks (§11.6)
         // 4. Expand flexible tracks (§11.7)
         //
+        // §11.1 Step 3-4: If min-content contribution changes based on row sizes,
+        // repeat the column sizing (once only).
+        //
         // fr unit (§7.2.4): https://www.w3.org/TR/css-grid-1/#fr-unit
         // Flexible lengths share remaining space proportionally.
         // ═══════════════════════════════════════════════════════════════════════
+
+        // Save original available space for potential re-iteration
+        let original_available_width = available_grid_space.width;
+        let original_available_height = available_grid_space.height;
+
+        // First pass: size columns then rows
         apply_track_size(
             column_track_list.as_slice(),
             GridFlow::Column,
@@ -278,6 +270,51 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             &mut available_grid_space.height,
             row_total_fr,
         );
+
+        // §11.1 Step 3-4: Check if iterative re-resolution is needed
+        // This is needed when items span auto tracks and have content that
+        // can reflow (e.g., text wrapping, aspect-ratio items).
+        let needs_re_resolution = column_track_auto_count > 0 && row_track_auto_count > 0;
+
+        if needs_re_resolution {
+            // Save current track sizes for comparison
+            let initial_column_sizes: Vec<_> = grid_matrix
+                .items()
+                .map(|item| item.fixed_track_inline_size().cloned())
+                .collect();
+
+            // Re-apply column sizing with updated constraints
+            available_grid_space.width = original_available_width;
+            apply_track_size(
+                column_track_list.as_slice(),
+                GridFlow::Column,
+                &mut grid_matrix,
+                node,
+                requested_inner_size.width,
+                &mut available_grid_space.width,
+                column_total_fr,
+            );
+
+            // Check if column sizes changed significantly
+            let column_sizes_changed = grid_matrix
+                .items()
+                .zip(initial_column_sizes.iter())
+                .any(|(item, initial)| item.fixed_track_inline_size() != initial.as_ref());
+
+            if column_sizes_changed {
+                // Re-apply row sizing with new column sizes
+                available_grid_space.height = original_available_height;
+                apply_track_size(
+                    row_track_list.as_slice(),
+                    GridFlow::Row,
+                    &mut grid_matrix,
+                    node,
+                    requested_inner_size.height,
+                    &mut available_grid_space.height,
+                    row_total_fr,
+                );
+            }
+        }
 
         // ═══════════════════════════════════════════════════════════════════════
         // STEP 6: Compute Item Sizes
@@ -392,14 +429,22 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
 
         // ═══════════════════════════════════════════════════════════════════════
         // STEP 7: Finalize Track Sizes
-        // CSS Grid §11.5: https://www.w3.org/TR/css-grid-1/#algo-content
+        // CSS Grid §11.5 + §11.7: https://www.w3.org/TR/css-grid-1/#algo-content
         //
         // Adjust track sizes based on item content:
         // - For auto tracks: size to fit content (using outer/margin-box size)
         // - For fixed tracks: use the specified size
+        // - For fr tracks: distribute remaining space (available - fixed - auto)
         // ═══════════════════════════════════════════════════════════════════════
-        let (column_result, row_result) =
-            compute_track_sizes(&mut grid_layout_matrix, should_use_min_content_size);
+        let (column_result, row_result) = compute_track_sizes(
+            &mut grid_layout_matrix,
+            should_use_min_content_size,
+            &column_track_list,
+            &row_track_list,
+            available_grid_space,
+            column_total_fr,
+            row_total_fr,
+        );
 
         // ═══════════════════════════════════════════════════════════════════════
         // STEP 7b: Maximize Tracks (§11.6)
@@ -667,15 +712,21 @@ struct TrackSizingResult<T: LayoutTreeNode> {
 
 /// Compute track sizes based on item content.
 ///
-/// CSS Grid §11.5: https://www.w3.org/TR/css-grid-1/#algo-content
+/// CSS Grid §11.5 + §11.7: https://www.w3.org/TR/css-grid-1/#algo-content
 ///
-/// - For explicit tracks: use the specified size (at least min-content)
+/// - For explicit tracks (fixed): use the specified size (at least min-content)
 /// - For auto tracks: use the item's outer size (margin box)
+/// - For fr tracks: distribute remaining space after fixed and auto tracks
 ///
 /// Returns (column_result, row_result).
 fn compute_track_sizes<T: LayoutTreeNode>(
     grid_layout_matrix: &mut GridLayoutMatrix<T>,
     should_use_min_content_size: bool,
+    column_track_list: &[&LayoutTrackListItem<T::Length, T::LengthCustom>],
+    row_track_list: &[&LayoutTrackListItem<T::Length, T::LengthCustom>],
+    available_grid_space: OptionSize<T::Length>,
+    column_total_fr: f32,
+    row_total_fr: f32,
 ) -> (TrackSizingResult<T>, TrackSizingResult<T>) {
     let row_count = grid_layout_matrix.row_count();
     let column_count = grid_layout_matrix.column_count();
@@ -684,62 +735,153 @@ fn compute_track_sizes<T: LayoutTreeNode>(
     let mut column_sizes: Vec<Option<T::Length>> = vec![None; column_count];
     let mut row_sizes: Vec<Option<T::Length>> = vec![None; row_count];
 
-    // Track whether each column/row has explicit size
+    // Track whether each column/row has explicit size (not auto, not fr)
     let mut column_has_explicit: Vec<bool> = vec![false; column_count];
     let mut row_has_explicit: Vec<bool> = vec![false; row_count];
 
-    // Collect sizes from items
+    // Track which columns/rows are fr tracks
+    let mut column_is_fr: Vec<bool> = vec![false; column_count];
+    let mut row_is_fr: Vec<bool> = vec![false; row_count];
+
+    // Identify fr tracks from track list
+    for (i, track) in column_track_list.iter().enumerate() {
+        if i < column_count {
+            if let LayoutTrackListItem::TrackSize(LayoutTrackSize::Fr(_)) = track {
+                column_is_fr[i] = true;
+            }
+        }
+    }
+    for (i, track) in row_track_list.iter().enumerate() {
+        if i < row_count {
+            if let LayoutTrackListItem::TrackSize(LayoutTrackSize::Fr(_)) = track {
+                row_is_fr[i] = true;
+            }
+        }
+    }
+
+    // Phase 1: Collect sizes from items (fixed and auto tracks only)
     for item in grid_layout_matrix.items() {
         let row = item.row();
         let column = item.column();
 
-        // Handle column sizing
-        if item.track_inline_size().is_some() {
-            // Track has explicit size
-            column_has_explicit[column] = true;
-            let track_width = item.track_inline_size().val().unwrap();
-            let min_content_width = item.min_content_size().unwrap().width;
-            let width = if !should_use_min_content_size {
-                track_width.max(min_content_width)
+        // Handle column sizing (skip fr tracks for now)
+        if !column_is_fr[column] {
+            if item.track_inline_size().is_some() {
+                // Track has explicit size (fixed)
+                column_has_explicit[column] = true;
+                let track_width = item.track_inline_size().val().unwrap();
+                let min_content_width = item.min_content_size().unwrap().width;
+                let width = if !should_use_min_content_size {
+                    track_width.max(min_content_width)
+                } else {
+                    min_content_width
+                };
+                column_sizes[column] =
+                    Some(column_sizes[column].map(|s| s.max(width)).unwrap_or(width));
             } else {
-                min_content_width
-            };
-            column_sizes[column] =
-                Some(column_sizes[column].map(|s| s.max(width)).unwrap_or(width));
-        } else {
-            // Auto track - use outer size (margin box)
-            let outer_width = if !should_use_min_content_size {
-                let computed = item.computed_size().width + item.margin.horizontal();
-                let min_content = item.min_content_size().unwrap().width + item.margin.horizontal();
-                computed.max(min_content)
-            } else {
-                item.min_content_size().unwrap().width + item.margin.horizontal()
-            };
-            column_sizes[column] = Some(
-                column_sizes[column]
-                    .map(|s| s.max(outer_width))
-                    .unwrap_or(outer_width),
-            );
+                // Auto track - use outer size (margin box)
+                let outer_width = if !should_use_min_content_size {
+                    let computed = item.computed_size().width + item.margin.horizontal();
+                    let min_content =
+                        item.min_content_size().unwrap().width + item.margin.horizontal();
+                    computed.max(min_content)
+                } else {
+                    item.min_content_size().unwrap().width + item.margin.horizontal()
+                };
+                column_sizes[column] = Some(
+                    column_sizes[column]
+                        .map(|s| s.max(outer_width))
+                        .unwrap_or(outer_width),
+                );
+            }
         }
 
-        // Handle row sizing
-        if item.track_block_size().is_some() {
-            // Track has explicit size
-            row_has_explicit[row] = true;
-            let track_height = item.track_block_size().val().unwrap();
-            row_sizes[row] = Some(
-                row_sizes[row]
-                    .map(|s| s.max(track_height))
-                    .unwrap_or(track_height),
-            );
-        } else {
-            // Auto track - use outer size (margin box)
-            let outer_height = item.computed_size().height + item.margin.vertical();
-            row_sizes[row] = Some(
-                row_sizes[row]
-                    .map(|s| s.max(outer_height))
-                    .unwrap_or(outer_height),
-            );
+        // Handle row sizing (skip fr tracks for now)
+        if !row_is_fr[row] {
+            if item.track_block_size().is_some() {
+                // Track has explicit size (fixed)
+                row_has_explicit[row] = true;
+                let track_height = item.track_block_size().val().unwrap();
+                row_sizes[row] = Some(
+                    row_sizes[row]
+                        .map(|s| s.max(track_height))
+                        .unwrap_or(track_height),
+                );
+            } else {
+                // Auto track - use outer size (margin box)
+                let outer_height = item.computed_size().height + item.margin.vertical();
+                row_sizes[row] = Some(
+                    row_sizes[row]
+                        .map(|s| s.max(outer_height))
+                        .unwrap_or(outer_height),
+                );
+            }
+        }
+    }
+
+    // Phase 2: Calculate fr track sizes (§11.7)
+    // fr tracks get: (available - fixed - auto) / total_fr * fr_value
+    use float_pigment_css::num_traits::Zero;
+
+    // Calculate total non-fr column size
+    let total_non_fr_column_size: T::Length = column_sizes
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| !column_is_fr[*i])
+        .fold(T::Length::zero(), |acc, (_, s)| {
+            acc + s.unwrap_or(T::Length::zero())
+        });
+
+    // Calculate fr column sizes
+    if column_total_fr > 0.0 {
+        if let Some(available_width) = available_grid_space.width.val() {
+            let remaining_for_fr = if available_width > total_non_fr_column_size {
+                available_width - total_non_fr_column_size
+            } else {
+                T::Length::zero()
+            };
+            let size_per_fr = remaining_for_fr.div_f32(column_total_fr);
+
+            for (i, track) in column_track_list.iter().enumerate() {
+                if i < column_count {
+                    if let LayoutTrackListItem::TrackSize(LayoutTrackSize::Fr(fr_value)) = track {
+                        let fr_size = size_per_fr.mul_f32(*fr_value);
+                        column_sizes[i] = Some(fr_size);
+                        column_has_explicit[i] = true; // Fr is explicit
+                    }
+                }
+            }
+        }
+    }
+
+    // Calculate total non-fr row size
+    let total_non_fr_row_size: T::Length = row_sizes
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| !row_is_fr[*i])
+        .fold(T::Length::zero(), |acc, (_, s)| {
+            acc + s.unwrap_or(T::Length::zero())
+        });
+
+    // Calculate fr row sizes
+    if row_total_fr > 0.0 {
+        if let Some(available_height) = available_grid_space.height.val() {
+            let remaining_for_fr = if available_height > total_non_fr_row_size {
+                available_height - total_non_fr_row_size
+            } else {
+                T::Length::zero()
+            };
+            let size_per_fr = remaining_for_fr.div_f32(row_total_fr);
+
+            for (i, track) in row_track_list.iter().enumerate() {
+                if i < row_count {
+                    if let LayoutTrackListItem::TrackSize(LayoutTrackSize::Fr(fr_value)) = track {
+                        let fr_size = size_per_fr.mul_f32(*fr_value);
+                        row_sizes[i] = Some(fr_size);
+                        row_has_explicit[i] = true; // Fr is explicit
+                    }
+                }
+            }
         }
     }
 

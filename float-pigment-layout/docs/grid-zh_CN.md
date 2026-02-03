@@ -55,12 +55,14 @@ float-pigment-layout/src/algo/grid/
 |  4. Placement (§8.5)                                                              |
 |     +-- 过滤 Grid 项目 (排除 absolute / display:none)                              |
 |     +-- 使用动态网格 (DynamicGrid) 单次遍历放置项目                                 |
-|     +-- 支持 grid-auto-flow: row / column (dense 未实现)                           |
+|     +-- grid-auto-flow: row / column (sparse packing)                             |
+|     +-- grid-auto-flow: row dense / column dense (dense packing)                  |
 |                                                                                   |
-|  5. Track Sizing (§11.3-11.4)                                                     |
+|  5. Track Sizing (§11.1 + §11.3-11.4)                                             |
 |     +-- 初始化轨道 base_size 和 growth_limit (§11.4)                               |
 |     +-- §11.7 Flex Tracks: 计算 fr 单位的实际像素值                                 |
 |     +-- 先计算列尺寸，再计算行尺寸                                                  |
+|     +-- §11.1 Step 3-4: Iterative re-resolution (当 auto tracks 存在时)           |
 |                                                                                   |
 |  6. Item Sizing (§11.5)                                                           |
 |     +-- 计算每个项目的 min-content / max-content contribution                      |
@@ -78,10 +80,6 @@ float-pigment-layout/src/algo/grid/
 |     +-- 应用 align-self: 项目在单元格内的 block axis 对齐                           |
 |     +-- 应用 justify-self: 项目在单元格内的 inline axis 对齐                        |
 |                                                                                   |
-+-----------------------------------------------------------------------------------+
-| [!] LIMITATIONS vs W3C Specification:                                             |
-|     - §11.1 Step 3-4: iterative re-resolution NOT implemented                     |
-|     - §8.5: dense packing mode NOT implemented                                    |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -121,10 +119,11 @@ float-pigment-layout/src/algo/grid/
 1. 过滤掉 `position: absolute` 和 `display: none` 的 items
 2. 初始化空的动态网格矩阵 (`DynamicGrid`)
 3. 使用 auto-placement algorithm 放置每个 item：
-   - `row` 模式：row-major order (从左到右、从上到下)
-   - `column` 模式：column-major order (从上到下、从左到右)
+   - `row` (default): row-major order，cursor 只向前移动 (sparse)
+   - `column`: column-major order，cursor 只向前移动 (sparse)
+   - `row dense`: row-major order，从头搜索空洞 (dense)
+   - `column dense`: column-major order，从头搜索空洞 (dense)
    - **Implicit track creation**：超出 explicit grid 边界时，自动创建 implicit tracks
-   - ⚠️ `dense` mode 未实现 (当前 `RowDense`/`ColumnDense` 等同于 `Row`/`Column`)
 4. 输出：`GridMatrix` (item placement mapping，尺寸为实际 grid 维度)
 
 
@@ -140,6 +139,10 @@ float-pigment-layout/src/algo/grid/
    - 计算 free space：`free_space = available - fixed_tracks - gutters`
    - 计算 hypothetical fr size：`fr_size = free_space / total_fr`
    - Used track size：`track_size = fr_value × fr_size`
+3. **Iterative Re-resolution (§11.1 Step 3-4)**：
+   - 当同时存在 auto 行和 auto 列时，检查是否需要重新计算
+   - 如果 column track sizes 因 row sizes 而改变，重新运行 track sizing
+   - 最多重复一次，避免无限循环
 
 ##### Step 6: Item Sizing
 
@@ -199,7 +202,7 @@ float-pigment-layout/src/algo/grid/
 | `grid-template-columns` | ✅ | explicit column track sizing |
 | `grid-template-rows` | ✅ | explicit row track sizing |
 | `grid-auto-flow` | ✅ | auto-placement direction (row/column) |
-| `grid-auto-flow: dense` | ⚠️ | dense packing mode 未实现 |
+| `grid-auto-flow: dense` | ✅ | dense packing mode (row dense / column dense) |
 | `gap` / `row-gap` / `column-gap` | ✅ | gutters between tracks |
 | `align-items` | ✅ | default block-axis alignment for items |
 | `justify-items` | ✅ | default inline-axis alignment for items |
@@ -237,11 +240,6 @@ float-pigment-layout/src/algo/grid/
 
 ### 高优先级
 
-- [ ] **Iterative Re-resolution** (W3C §11.1 Step 3-4)
-  - 当 min-content contribution 因 row sizes 改变时，重新计算 column track sizes
-  - 当 min-content contribution 因 column sizes 改变时，重新计算 row track sizes
-  - 影响场景：text wrapping、`aspect-ratio`、nested flex/grid
-
 - [ ] **Line-based Placement** (W3C §8.3)
   - `grid-column-start` / `grid-column-end`
   - `grid-row-start` / `grid-row-end`
@@ -260,11 +258,6 @@ float-pigment-layout/src/algo/grid/
 - [ ] **Named Grid Areas** (W3C §7.3)
   - `grid-template-areas` property
   - Named area-based placement
-
-- [ ] **Dense Packing Mode** (W3C §8.5)
-  - `grid-auto-flow: dense`
-  - `grid-auto-flow: row dense`
-  - `grid-auto-flow: column dense`
 
 ### 低优先级
 
@@ -330,16 +323,17 @@ float-pigment-layout/src/algo/grid/
 
 ## 测试覆盖
 
-当前共有 **135 个** Grid 测试用例，覆盖：
+当前共有 **~160 个** Grid 测试用例，覆盖：
 
 | 类别 | 测试数 | 文件 |
 |-----|-------|-----|
 | Explicit Track Sizing | 14 | `grid_template.rs` |
-| Auto-placement | 12 | `grid_auto_flow.rs` |
+| Auto-placement (含 dense) | 24 | `grid_auto_flow.rs` |
 | Gutters | 15 | `gap.rs` |
 | Flexible Length (`fr`) | 11 | `fr_unit.rs` |
 | Basic Layout | 18 | `grid_basics.rs` |
 | Box Alignment | 38 | `alignment.rs` |
+| Maximize Tracks | 14 | `maximize_tracks.rs` |
 | Other | 27 | - |
 
-所有测试断言值均符合 W3C 规范定义的计算逻辑。
+所有测试断言值均根据 W3C 规范推算，确保符合规范定义的计算逻辑。
