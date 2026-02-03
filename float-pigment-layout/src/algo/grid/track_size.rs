@@ -35,24 +35,25 @@ impl<T: LayoutTreeNode> Debug for TrackSize<T> {
     }
 }
 
-/// Apply track sizing to the grid.
+/// Apply track sizing to the grid (initial pass).
 ///
 /// CSS Grid §11.3: Track Sizing Algorithm
 /// <https://www.w3.org/TR/css-grid-1/#algo-track-sizing>
 ///
-/// This function implements the track sizing algorithm in three phases:
+/// This function implements the initial track sizing in three phases:
 ///
 /// ## Phase 1: Initialize Track Sizes (§11.4)
 /// - Process fixed-length tracks (`100px`, `50%`)
-/// - Mark flexible (`fr`) tracks for later processing
+/// - Mark flexible (`fr`) and `auto` tracks for later processing
 ///
-/// ## Phase 2: Calculate Fr Unit Size (§11.7.1)
-/// - Compute remaining space after fixed tracks
-/// - Calculate size per `fr` unit: `remaining_space / total_fr`
+/// ## Phase 2: Calculate Fr Unit Size (§11.7)
+/// - When no auto tracks: calculate `size_per_fr = remaining_space / total_fr`
+/// - When auto and fr mixed: defer fr calculation to STEP 7 (after auto tracks are sized)
 ///
-/// ## Phase 3: Resolve All Track Sizes (§11.5-11.7)
-/// - **Auto tracks**: Share remaining space equally (when no fr tracks)
-/// - **Fr tracks**: `track_size = fr_value * size_per_fr`
+/// ## Phase 3: Resolve Track Sizes (§11.5-11.7)
+/// - **Auto tracks**: size determined later by content (§11.5)
+/// - **Fr tracks (no auto)**: `track_size = fr_value * size_per_fr`
+/// - **Fr tracks (with auto)**: deferred to `compute_track_sizes`
 /// - **Fixed tracks**: Use the resolved value
 pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
     track_list: &[&LayoutTrackListItem<T::Length, T::LengthCustom>],
@@ -78,6 +79,7 @@ pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
     // ═══════════════════════════════════════════════════════════════════════
 
     // Calculate total specified track size from the track list
+    // Include both fixed lengths AND auto tracks (auto = 0 initially, will be sized later)
     for track_item in track_list.iter() {
         if let LayoutTrackListItem::TrackSize(LayoutTrackSize::Length(length)) = track_item {
             let current_size = length
@@ -85,6 +87,7 @@ pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
                 .or_zero();
             total_specified_track_size += current_size;
         }
+        // Note: auto tracks have base size = 0 initially, content-based sizing happens in §11.5
     }
 
     // Apply track sizes to items
@@ -123,8 +126,16 @@ pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
     // https://www.w3.org/TR/css-grid-1/#algo-flex-tracks
     //
     // The fr unit represents a fraction of the leftover space.
-    // size_per_fr = (available_space - fixed_tracks_size) / total_fr
+    // size_per_fr = (available_space - fixed_tracks_size - auto_tracks_size) / total_fr
+    //
+    // NOTE: When auto and fr are mixed, fr calculation is deferred to STEP 7
+    // because auto tracks need content-based sizing first (§11.5).
     // ═══════════════════════════════════════════════════════════════════════
+
+    // If there are auto tracks and fr tracks, defer fr calculation
+    // The fr size will be recalculated in compute_track_sizes after auto tracks are sized
+    let has_mixed_auto_and_fr = auto_count > 0 && total_fr > 0.0;
+
     let remaining_space = if let Some(available) = available_grid_space.val() {
         if available > total_specified_track_size {
             available - total_specified_track_size
@@ -135,9 +146,12 @@ pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
         T::Length::zero()
     };
 
-    let size_per_fr = if total_fr > 0.0 {
+    let size_per_fr = if total_fr > 0.0 && !has_mixed_auto_and_fr {
+        // Only calculate fr size if there are no auto tracks
         remaining_space.div_f32(total_fr)
     } else {
+        // When auto and fr are mixed, fr tracks get 0 here
+        // They will be recalculated in STEP 7 after auto tracks are sized
         T::Length::zero()
     };
 

@@ -55,12 +55,14 @@ This implementation uses a simplified single-pass approach with 9 steps:
 |  4. Placement (§8.5)                                                              |
 |     +-- Filter grid items (exclude absolute / display:none)                       |
 |     +-- Single-pass placement using DynamicGrid                                   |
-|     +-- Support grid-auto-flow: row / column (dense NOT implemented)              |
+|     +-- grid-auto-flow: row / column (sparse packing)                             |
+|     +-- grid-auto-flow: row dense / column dense (dense packing)                  |
 |                                                                                   |
-|  5. Track Sizing (§11.3-11.4)                                                     |
+|  5. Track Sizing (§11.1 + §11.3-11.4)                                             |
 |     +-- Initialize track base_size and growth_limit (§11.4)                       |
 |     +-- §11.7 Flex Tracks: Calculate fr unit pixel values                         |
 |     +-- Size columns first, then rows                                             |
+|     +-- §11.1 Step 3-4: Iterative re-resolution (when auto tracks exist)          |
 |                                                                                   |
 |  6. Item Sizing (§11.5)                                                           |
 |     +-- Calculate min-content / max-content contribution for each item            |
@@ -78,10 +80,6 @@ This implementation uses a simplified single-pass approach with 9 steps:
 |     +-- Apply align-self: item alignment within cell on block axis                |
 |     +-- Apply justify-self: item alignment within cell on inline axis             |
 |                                                                                   |
-+-----------------------------------------------------------------------------------+
-| [!] LIMITATIONS vs W3C Specification:                                             |
-|     - §11.1 Step 3-4: iterative re-resolution NOT implemented                     |
-|     - §8.5: dense packing mode NOT implemented                                    |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -121,10 +119,11 @@ Auto-place items into grid matrix according to `grid-auto-flow`:
 1. Filter out `position: absolute` and `display: none` items
 2. Initialize empty dynamic grid matrix (`DynamicGrid`)
 3. Place each item using auto-placement algorithm:
-   - `row` mode: row-major order (left to right, top to bottom)
-   - `column` mode: column-major order (top to bottom, left to right)
+   - `row` (default): row-major order, cursor only moves forward (sparse)
+   - `column`: column-major order, cursor only moves forward (sparse)
+   - `row dense`: row-major order, search from start for holes (dense)
+   - `column dense`: column-major order, search from start for holes (dense)
    - **Implicit track creation**: Automatically creates implicit tracks when exceeding explicit grid
-   - ⚠️ `dense` mode NOT implemented (`RowDense`/`ColumnDense` behave same as `Row`/`Column`)
 4. Output: `GridMatrix` (item placement mapping, sized to actual grid dimensions)
 
 
@@ -140,6 +139,10 @@ Calculate used track size for each track, columns first then rows:
    - Calculate free space: `free_space = available - fixed_tracks - gutters`
    - Calculate hypothetical fr size: `fr_size = free_space / total_fr`
    - Used track size: `track_size = fr_value × fr_size`
+3. **Iterative Re-resolution (§11.1 Step 3-4)**:
+   - When both auto rows and auto columns exist, check if re-resolution is needed
+   - If column track sizes change due to row sizes, re-run track sizing
+   - Maximum one iteration to avoid infinite loops
 
 ##### Step 6: Item Sizing
 
@@ -199,7 +202,7 @@ Apply self-alignment and calculate final item position:
 | `grid-template-columns` | ✅ | explicit column track sizing |
 | `grid-template-rows` | ✅ | explicit row track sizing |
 | `grid-auto-flow` | ✅ | auto-placement direction (row/column) |
-| `grid-auto-flow: dense` | ⚠️ | dense packing mode not implemented |
+| `grid-auto-flow: dense` | ✅ | dense packing mode (row dense / column dense) |
 | `gap` / `row-gap` / `column-gap` | ✅ | gutters between tracks |
 | `align-items` | ✅ | default block-axis alignment for items |
 | `justify-items` | ✅ | default inline-axis alignment for items |
@@ -237,11 +240,6 @@ Apply self-alignment and calculate final item position:
 
 ### High Priority
 
-- [ ] **Iterative Re-resolution** (W3C §11.1 Step 3-4)
-  - Re-resolve column track sizes when min-content contribution changes due to row sizes
-  - Re-resolve row track sizes when min-content contribution changes due to column sizes
-  - Affected scenarios: text wrapping, `aspect-ratio`, nested flex/grid
-
 - [ ] **Line-based Placement** (W3C §8.3)
   - `grid-column-start` / `grid-column-end`
   - `grid-row-start` / `grid-row-end`
@@ -260,11 +258,6 @@ Apply self-alignment and calculate final item position:
 - [ ] **Named Grid Areas** (W3C §7.3)
   - `grid-template-areas` property
   - Named area-based placement
-
-- [ ] **Dense Packing Mode** (W3C §8.5)
-  - `grid-auto-flow: dense`
-  - `grid-auto-flow: row dense`
-  - `grid-auto-flow: column dense`
 
 ### Low Priority
 
@@ -330,16 +323,17 @@ Apply self-alignment and calculate final item position:
 
 ## Test Coverage
 
-Currently **135** Grid test cases covering:
+Currently **~160** Grid test cases covering:
 
 | Category | Test Count | File |
 |----------|------------|------|
 | Explicit Track Sizing | 14 | `grid_template.rs` |
-| Auto-placement | 12 | `grid_auto_flow.rs` |
+| Auto-placement (incl. dense) | 24 | `grid_auto_flow.rs` |
 | Gutters | 15 | `gap.rs` |
 | Flexible Length (`fr`) | 11 | `fr_unit.rs` |
 | Basic Layout | 18 | `grid_basics.rs` |
 | Box Alignment | 38 | `alignment.rs` |
+| Maximize Tracks | 14 | `maximize_tracks.rs` |
 | Other | 27 | - |
 
-All test assertion values conform to W3C specification-defined calculation logic.
+All test assertion values are derived from W3C specification, ensuring compliance with spec-defined calculation logic.

@@ -287,3 +287,233 @@ fn grid_auto_flow_column_large_grid() {
         true
     )
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Dense Packing Mode Tests (grid-auto-flow: dense)
+// CSS Grid §8.5: https://www.w3.org/TR/css-grid-1/#auto-placement-algo
+//
+// Dense packing attempts to fill holes earlier in the grid, rather than
+// only placing items after the current cursor position.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Case: grid-auto-flow: row dense (basic)
+// Spec points:
+//   - Dense mode fills from the beginning for each item
+//   - Without holes, behaves same as sparse
+// In this test:
+//   - Container: 2 columns, row dense
+//   - 4 items fill sequentially (no holes to fill)
+#[test]
+fn grid_auto_flow_row_dense_basic() {
+    assert_xml!(
+        r#"
+        <div style="display: grid; grid-template-columns: 100px 100px; grid-auto-flow: row dense;">
+          <div style="height: 50px;" expect_left="0" expect_top="0"></div>
+          <div style="height: 50px;" expect_left="100" expect_top="0"></div>
+          <div style="height: 50px;" expect_left="0" expect_top="50"></div>
+          <div style="height: 50px;" expect_left="100" expect_top="50"></div>
+        </div>
+    "#,
+        true
+    )
+}
+
+// Case: grid-auto-flow: column dense (basic)
+// Spec points:
+//   - Dense mode in column direction
+//   - Items fill from top for each column
+// In this test:
+//   - Container: 2 rows, column dense
+//   - 4 items fill sequentially
+#[test]
+fn grid_auto_flow_column_dense_basic() {
+    assert_xml!(
+        r#"
+        <div style="display: grid; grid-template-rows: 50px 50px; grid-auto-flow: column dense;">
+          <div style="width: 80px;" expect_left="0" expect_top="0"></div>
+          <div style="width: 80px;" expect_left="0" expect_top="50"></div>
+          <div style="width: 80px;" expect_left="80" expect_top="0"></div>
+          <div style="width: 80px;" expect_left="80" expect_top="50"></div>
+        </div>
+    "#,
+        true
+    )
+}
+
+// Case: grid-auto-flow: row dense with 3 columns
+// Spec points:
+//   - Dense mode searches from beginning for each item
+// In this test:
+//   - Container: 3 columns, row dense
+//   - 6 items fill in order
+#[test]
+fn grid_auto_flow_row_dense_3_columns() {
+    assert_xml!(
+        r#"
+        <div style="display: grid; grid-template-columns: 60px 60px 60px; grid-auto-flow: row dense;">
+          <div style="height: 40px;" expect_left="0" expect_top="0"></div>
+          <div style="height: 40px;" expect_left="60" expect_top="0"></div>
+          <div style="height: 40px;" expect_left="120" expect_top="0"></div>
+          <div style="height: 40px;" expect_left="0" expect_top="40"></div>
+          <div style="height: 40px;" expect_left="60" expect_top="40"></div>
+          <div style="height: 40px;" expect_left="120" expect_top="40"></div>
+        </div>
+    "#,
+        true
+    )
+}
+
+// Case: grid-auto-flow: column dense with 3 rows
+// Spec points:
+//   - Dense mode in column direction with multiple rows
+// In this test:
+//   - Container: 3 rows, column dense
+//   - 6 items fill columns first
+#[test]
+fn grid_auto_flow_column_dense_3_rows() {
+    assert_xml!(
+        r#"
+        <div style="display: grid; grid-template-rows: 40px 40px 40px; grid-auto-flow: column dense;">
+          <div style="width: 60px;" expect_left="0" expect_top="0"></div>
+          <div style="width: 60px;" expect_left="0" expect_top="40"></div>
+          <div style="width: 60px;" expect_left="0" expect_top="80"></div>
+          <div style="width: 60px;" expect_left="60" expect_top="0"></div>
+          <div style="width: 60px;" expect_left="60" expect_top="40"></div>
+          <div style="width: 60px;" expect_left="60" expect_top="80"></div>
+        </div>
+    "#,
+        true
+    )
+}
+
+// Case: row dense with varying item heights
+// Spec points:
+//   - Dense packing still respects item sizes
+// In this test:
+//   - Container: 2 columns, row dense
+//   - Items with different heights
+#[test]
+fn grid_auto_flow_row_dense_varying_heights() {
+    assert_xml!(
+        r#"
+        <div style="display: grid; grid-template-columns: 100px 100px; grid-auto-flow: row dense;">
+          <div style="height: 30px;" expect_left="0" expect_top="0" expect_height="30"></div>
+          <div style="height: 60px;" expect_left="100" expect_top="0" expect_height="60"></div>
+          <div style="height: 40px;" expect_left="0" expect_top="60" expect_height="40"></div>
+          <div style="height: 20px;" expect_left="100" expect_top="60" expect_height="20"></div>
+        </div>
+    "#,
+        true
+    )
+}
+
+// Case: column dense with varying item widths
+// Spec points:
+//   - Dense packing respects item sizes in column mode
+// In this test:
+//   - Container: 2 rows, column dense
+//   - Items with different widths
+#[test]
+fn grid_auto_flow_column_dense_varying_widths() {
+    assert_xml!(
+        r#"
+        <div style="display: grid; grid-template-rows: 50px 50px; grid-auto-flow: column dense;">
+          <div style="width: 50px;" expect_left="0" expect_width="50"></div>
+          <div style="width: 80px;" expect_left="0" expect_width="80"></div>
+          <div style="width: 60px;" expect_left="80" expect_width="60"></div>
+          <div style="width: 40px;" expect_left="80" expect_width="40"></div>
+        </div>
+    "#,
+        true
+    )
+}
+
+// Case: row dense single column
+// Spec points:
+//   - Dense mode with single column stacks vertically
+// In this test:
+//   - Container: 1 column, row dense
+//   - Items stack vertically
+#[test]
+fn grid_auto_flow_row_dense_single_column() {
+    assert_xml!(
+        r#"
+        <div style="display: grid; grid-template-columns: 150px; grid-auto-flow: row dense;">
+          <div style="height: 30px;" expect_left="0" expect_top="0" expect_width="150"></div>
+          <div style="height: 40px;" expect_left="0" expect_top="30" expect_width="150"></div>
+          <div style="height: 50px;" expect_left="0" expect_top="70" expect_width="150"></div>
+        </div>
+    "#,
+        true
+    )
+}
+
+// Case: column dense single row
+// Spec points:
+//   - Dense mode with single row places items horizontally
+// In this test:
+//   - Container: 1 row, column dense
+//   - Items placed horizontally
+#[test]
+fn grid_auto_flow_column_dense_single_row() {
+    assert_xml!(
+        r#"
+        <div style="display: grid; grid-template-rows: 60px; grid-auto-flow: column dense;">
+          <div style="width: 50px;" expect_left="0" expect_top="0" expect_height="60"></div>
+          <div style="width: 70px;" expect_left="50" expect_top="0" expect_height="60"></div>
+          <div style="width: 60px;" expect_left="120" expect_top="0" expect_height="60"></div>
+        </div>
+    "#,
+        true
+    )
+}
+
+// Case: row dense large grid
+// Spec points:
+//   - Dense mode scales to large grids
+// In this test:
+//   - Container: 4 columns, row dense
+//   - 8 items fill 2 rows
+#[test]
+fn grid_auto_flow_row_dense_large_grid() {
+    assert_xml!(
+        r#"
+        <div style="display: grid; grid-template-columns: 50px 50px 50px 50px; grid-auto-flow: row dense;">
+          <div style="height: 30px;" expect_left="0" expect_top="0"></div>
+          <div style="height: 30px;" expect_left="50" expect_top="0"></div>
+          <div style="height: 30px;" expect_left="100" expect_top="0"></div>
+          <div style="height: 30px;" expect_left="150" expect_top="0"></div>
+          <div style="height: 30px;" expect_left="0" expect_top="30"></div>
+          <div style="height: 30px;" expect_left="50" expect_top="30"></div>
+          <div style="height: 30px;" expect_left="100" expect_top="30"></div>
+          <div style="height: 30px;" expect_left="150" expect_top="30"></div>
+        </div>
+    "#,
+        true
+    )
+}
+
+// Case: column dense large grid
+// Spec points:
+//   - Dense mode in column direction for large grids
+// In this test:
+//   - Container: 4 rows, column dense
+//   - 8 items fill 2 columns
+#[test]
+fn grid_auto_flow_column_dense_large_grid() {
+    assert_xml!(
+        r#"
+        <div style="display: grid; grid-template-rows: 30px 30px 30px 30px; grid-auto-flow: column dense;">
+          <div style="width: 50px;" expect_left="0" expect_top="0"></div>
+          <div style="width: 50px;" expect_left="0" expect_top="30"></div>
+          <div style="width: 50px;" expect_left="0" expect_top="60"></div>
+          <div style="width: 50px;" expect_left="0" expect_top="90"></div>
+          <div style="width: 50px;" expect_left="50" expect_top="0"></div>
+          <div style="width: 50px;" expect_left="50" expect_top="30"></div>
+          <div style="width: 50px;" expect_left="50" expect_top="60"></div>
+          <div style="width: 50px;" expect_left="50" expect_top="90"></div>
+        </div>
+    "#,
+        true
+    )
+}

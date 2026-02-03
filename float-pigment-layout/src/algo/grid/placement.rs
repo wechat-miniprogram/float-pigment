@@ -21,9 +21,15 @@ use crate::{
 /// The algorithm processes items in order and places them into the first
 /// available grid cell, controlled by `grid-auto-flow`:
 ///
-/// - `row` (default): Fill each row before moving to the next
-/// - `column`: Fill each column before moving to the next
-/// - `dense`: Fill holes left by larger items (not yet implemented)
+/// - `row` (default): Fill each row before moving to the next (sparse)
+/// - `column`: Fill each column before moving to the next (sparse)
+/// - `row dense`: Fill holes left by larger items (dense packing)
+/// - `column dense`: Fill holes left by larger items (dense packing)
+///
+/// ### Sparse vs Dense Packing
+///
+/// - **Sparse** (default): Cursor only moves forward, may leave holes
+/// - **Dense**: For each item, search from beginning for first available cell
 ///
 /// ## Implicit Grid (§7.5)
 /// <https://www.w3.org/TR/css-grid-1/#implicit-grids>
@@ -39,7 +45,7 @@ pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
     let explicit_column_count = grid_matrix.explicit_column_count();
     let flow = grid_matrix.flow();
 
-    // Current auto-placement cursor position
+    // Current auto-placement cursor position (for sparse mode)
     let mut cur_row = 0;
     let mut cur_column = 0;
 
@@ -57,14 +63,13 @@ pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
     // Process each grid item according to grid-auto-flow
     // CSS Grid §8.5: Auto-placement algorithm
     // https://www.w3.org/TR/css-grid-1/#auto-placement-algo
-    // TODO: Implement grid-auto-flow: dense (sparse vs dense packing)
     children_iter.for_each(|(origin_idx, child)| match flow {
         // ═══════════════════════════════════════════════════════════════════
-        // Row-major auto-placement (grid-auto-flow: row)
+        // Row-major sparse auto-placement (grid-auto-flow: row)
         // CSS Grid §8.5: https://www.w3.org/TR/css-grid-1/#auto-placement-algo
-        // Items are placed row by row, moving to the next row when needed.
+        // Items are placed row by row, cursor only moves forward.
         // ═══════════════════════════════════════════════════════════════════
-        GridAutoFlow::Row | GridAutoFlow::RowDense => {
+        GridAutoFlow::Row => {
             // Wrap to next row if we've filled the current row
             if cur_column >= explicit_column_count.max(1) {
                 cur_column = 0;
@@ -77,10 +82,22 @@ pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
             cur_column += 1;
         }
         // ═══════════════════════════════════════════════════════════════════
-        // Column-major auto-placement (grid-auto-flow: column)
-        // Items are placed column by column, moving to the next column when needed.
+        // Row-major dense auto-placement (grid-auto-flow: row dense)
+        // CSS Grid §8.5: https://www.w3.org/TR/css-grid-1/#auto-placement-algo
+        // For each item, search from beginning for first unoccupied cell.
         // ═══════════════════════════════════════════════════════════════════
-        GridAutoFlow::Column | GridAutoFlow::ColumnDense => {
+        GridAutoFlow::RowDense => {
+            let max_cols = explicit_column_count.max(1);
+            let (row, col) = find_first_unoccupied_row_major(grid_matrix, max_cols);
+
+            let grid_item = GridItem::new(child, origin_idx, row, col);
+            grid_matrix.place_item(row, col, grid_item);
+        }
+        // ═══════════════════════════════════════════════════════════════════
+        // Column-major sparse auto-placement (grid-auto-flow: column)
+        // Items are placed column by column, cursor only moves forward.
+        // ═══════════════════════════════════════════════════════════════════
+        GridAutoFlow::Column => {
             // Wrap to next column if we've filled the current column
             if cur_row >= explicit_row_count.max(1) {
                 cur_row = 0;
@@ -92,5 +109,68 @@ pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
             grid_matrix.place_item(cur_row, cur_column, grid_item);
             cur_row += 1;
         }
+        // ═══════════════════════════════════════════════════════════════════
+        // Column-major dense auto-placement (grid-auto-flow: column dense)
+        // For each item, search from beginning for first unoccupied cell.
+        // ═══════════════════════════════════════════════════════════════════
+        GridAutoFlow::ColumnDense => {
+            let max_rows = explicit_row_count.max(1);
+            let (row, col) = find_first_unoccupied_column_major(grid_matrix, max_rows);
+
+            let grid_item = GridItem::new(child, origin_idx, row, col);
+            grid_matrix.place_item(row, col, grid_item);
+        }
     });
+}
+
+/// Find the first unoccupied cell in row-major order.
+///
+/// CSS Grid §8.5: Dense packing - search from the start for holes.
+/// Returns (row, column) of the first available cell.
+fn find_first_unoccupied_row_major<'a, T: LayoutTreeNode>(
+    grid_matrix: &GridMatrix<'a, T>,
+    max_cols: usize,
+) -> (usize, usize) {
+    let mut row = 0;
+    let mut col = 0;
+
+    loop {
+        // Check if current cell is unoccupied
+        if !grid_matrix.is_occupied(row, col) {
+            return (row, col);
+        }
+
+        // Move to next cell in row-major order
+        col += 1;
+        if col >= max_cols {
+            col = 0;
+            row += 1;
+        }
+    }
+}
+
+/// Find the first unoccupied cell in column-major order.
+///
+/// CSS Grid §8.5: Dense packing - search from the start for holes.
+/// Returns (row, column) of the first available cell.
+fn find_first_unoccupied_column_major<'a, T: LayoutTreeNode>(
+    grid_matrix: &GridMatrix<'a, T>,
+    max_rows: usize,
+) -> (usize, usize) {
+    let mut row = 0;
+    let mut col = 0;
+
+    loop {
+        // Check if current cell is unoccupied
+        if !grid_matrix.is_occupied(row, col) {
+            return (row, col);
+        }
+
+        // Move to next cell in column-major order
+        row += 1;
+        if row >= max_rows {
+            row = 0;
+            col += 1;
+        }
+    }
 }
