@@ -56,6 +56,7 @@ mod dynamic_grid;
 mod grid_item;
 mod matrix;
 mod placement;
+mod track;
 mod track_size;
 
 use crate::{
@@ -396,11 +397,57 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         // Adjust track sizes based on item content:
         // - For auto tracks: size to fit content (using outer/margin-box size)
         // - For fixed tracks: use the specified size
-        //
-        // NOTE: §11.6 Maximize Tracks (distributing free space) NOT implemented.
         // ═══════════════════════════════════════════════════════════════════════
-        let (each_inline_size, each_block_size) =
+        let (column_result, row_result) =
             compute_track_sizes(&mut grid_layout_matrix, should_use_min_content_size);
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // STEP 7b: Maximize Tracks (§11.6)
+        // CSS Grid §11.6: https://www.w3.org/TR/css-grid-1/#algo-grow-tracks
+        //
+        // If free space is positive, distribute it equally to tracks with
+        // infinite growth limits (auto tracks).
+        //
+        // NOTE: Only apply when container has definite size in relevant axis.
+        // ═══════════════════════════════════════════════════════════════════════
+        use crate::algo::grid::track::GridTracks;
+
+        let mut column_tracks: GridTracks<T> =
+            GridTracks::from_sizes(&column_result.sizes, &column_result.has_explicit);
+        let mut row_tracks: GridTracks<T> =
+            GridTracks::from_sizes(&row_result.sizes, &row_result.has_explicit);
+
+        // Maximize column tracks only if container has definite width (not auto)
+        let has_definite_width = !matches!(style.width(), DefLength::Auto);
+        if has_definite_width {
+            if let Some(container_width) = requested_inner_size.0.width.val() {
+                let total_column_size = column_tracks.total_base_size();
+                let free_space = container_width - total_column_size - total_column_gaps;
+                column_tracks.maximize(free_space);
+            }
+        }
+
+        // Maximize row tracks only if container has definite height (not auto)
+        let has_definite_height = !matches!(style.height(), DefLength::Auto);
+        if has_definite_height {
+            if let Some(container_height) = requested_inner_size.0.height.val() {
+                let total_row_size = row_tracks.total_base_size();
+                let free_space = container_height - total_row_size - total_row_gaps;
+                row_tracks.maximize(free_space);
+            }
+        }
+
+        // Get final track sizes
+        let each_inline_size = column_tracks.resolved_sizes();
+        let each_block_size = row_tracks.resolved_sizes();
+
+        // Update items with maximized track sizes
+        for item in grid_layout_matrix.items_mut() {
+            let row = item.row();
+            let column = item.column();
+            item.track_size.width = OptionNum::some(each_inline_size[column]);
+            item.track_size.height = OptionNum::some(each_block_size[row]);
+        }
 
         let total_inline_size: T::Length = each_inline_size
             .iter()
@@ -612,20 +659,24 @@ fn initialize_track_list<'a, T: LayoutTreeNode>(
     }
 }
 
-/// Compute final track sizes based on item content.
+/// Track sizing result containing sizes and explicit flags.
+struct TrackSizingResult<T: LayoutTreeNode> {
+    sizes: Vec<T::Length>,
+    has_explicit: Vec<bool>,
+}
+
+/// Compute track sizes based on item content.
 ///
 /// CSS Grid §11.5: https://www.w3.org/TR/css-grid-1/#algo-content
 ///
 /// - For explicit tracks: use the specified size (at least min-content)
 /// - For auto tracks: use the item's outer size (margin box)
 ///
-/// NOTE: §11.6 Maximize Tracks (distributing free space to tracks) NOT implemented.
-///
-/// Returns (column_sizes, row_sizes).
+/// Returns (column_result, row_result).
 fn compute_track_sizes<T: LayoutTreeNode>(
     grid_layout_matrix: &mut GridLayoutMatrix<T>,
     should_use_min_content_size: bool,
-) -> (Vec<T::Length>, Vec<T::Length>) {
+) -> (TrackSizingResult<T>, TrackSizingResult<T>) {
     let row_count = grid_layout_matrix.row_count();
     let column_count = grid_layout_matrix.column_count();
 
@@ -710,5 +761,14 @@ fn compute_track_sizes<T: LayoutTreeNode>(
         item.track_size.height = OptionNum::some(row_sizes[row]);
     }
 
-    (column_sizes, row_sizes)
+    (
+        TrackSizingResult {
+            sizes: column_sizes,
+            has_explicit: column_has_explicit,
+        },
+        TrackSizingResult {
+            sizes: row_sizes,
+            has_explicit: row_has_explicit,
+        },
+    )
 }

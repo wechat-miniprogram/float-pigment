@@ -16,6 +16,7 @@ float-pigment-layout/src/algo/grid/
 ├── mod.rs          # Main entry, Grid layout algorithm implementation
 ├── alignment.rs    # Alignment calculations (align/justify-items/self/content)
 ├── track_size.rs   # Track sizing calculations (fr, auto, fixed)
+├── track.rs        # Track data structures (GridTrack, GridTracks)
 ├── placement.rs    # Grid item placement algorithm
 ├── matrix.rs       # Grid matrix data structure
 ├── grid_item.rs    # Grid item structure definitions
@@ -56,8 +57,8 @@ This implementation uses a simplified single-pass approach with 9 steps:
 |     +-- Single-pass placement using DynamicGrid                                   |
 |     +-- Support grid-auto-flow: row / column (dense NOT implemented)              |
 |                                                                                   |
-|  5. Track Sizing (§11.3)                                                          |
-|     +-- Initialize track sizes (simplified, no growth limit)                      |
+|  5. Track Sizing (§11.3-11.4)                                                     |
+|     +-- Initialize track base_size and growth_limit (§11.4)                       |
 |     +-- §11.7 Flex Tracks: Calculate fr unit pixel values                         |
 |     +-- Size columns first, then rows                                             |
 |                                                                                   |
@@ -65,9 +66,9 @@ This implementation uses a simplified single-pass approach with 9 steps:
 |     +-- Calculate min-content / max-content contribution for each item            |
 |     +-- Use outer size (margin-box) for track sizing                              |
 |                                                                                   |
-|  7. Finalize Tracks (§11.5)                                                        |
-|     +-- Adjust auto track sizes based on item outer size                          |
-|     +-- (§11.6 Maximize Tracks NOT implemented)                                   |
+|  7. Finalize Tracks (§11.5-11.6)                                                  |
+|     +-- Adjust auto track sizes based on item outer size (§11.5)                  |
+|     +-- §11.6 Maximize Tracks: Distribute free space to auto tracks               |
 |                                                                                   |
 |  8. Content Distribution (§10.5)                                                  |
 |     +-- Apply align-content: distribute remaining space on block axis             |
@@ -81,8 +82,6 @@ This implementation uses a simplified single-pass approach with 9 steps:
 | [!] LIMITATIONS vs W3C Specification:                                             |
 |     - §11.1 Step 3-4: iterative re-resolution NOT implemented                     |
 |     - §8.5: dense packing mode NOT implemented                                    |
-|     - §11.4: base size / growth limit NOT separately maintained                   |
-|     - §11.6: Maximize Tracks NOT implemented (free space not distributed)         |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -133,14 +132,14 @@ Auto-place items into grid matrix according to `grid-auto-flow`:
 
 Calculate used track size for each track, columns first then rows:
 
-1. **Fixed sizing function**: Use resolved pixel values directly
-2. **Flexible sizing function (`fr`)**:
+1. **Initialize (§11.4)**: Initialize `base_size` and `growth_limit` for each track
+   - Fixed sizing function: `base_size` = resolved pixel value
+   - Flexible sizing function (`fr`): `base_size` = 0, `growth_limit` = infinity
+   - `auto` sizing function: `base_size` = 0, `growth_limit` = infinity
+2. **Flexible tracks (§11.7)**:
    - Calculate free space: `free_space = available - fixed_tracks - gutters`
    - Calculate hypothetical fr size: `fr_size = free_space / total_fr`
    - Used track size: `track_size = fr_value × fr_size`
-3. **`auto` sizing function**: Initialize to 0, adjust in Step 7 based on content contribution
-
-> ⚠️ Simplified: Does NOT separately maintain W3C §11.4 `base size` and `growth limit`
 
 ##### Step 6: Item Sizing
 
@@ -155,12 +154,15 @@ Recursively calculate size contribution of each grid item:
 
 Adjust auto track sizes based on item contribution:
 
-1. Iterate through all `auto` tracks
-2. Take maximum outer size (margin-box) of all items spanning that track
-3. Update track size
-4. Output: Final `each_inline_size[]`, `each_block_size[]`
-
-> ⚠️ Simplified: W3C §11.6 "Maximize Tracks" NOT separately implemented
+1. **§11.5 Resolve Intrinsic Track Sizes**:
+   - Iterate through all `auto` tracks
+   - Take maximum outer size (margin-box) of all items spanning that track
+   - Update track `base_size`
+2. **§11.6 Maximize Tracks**:
+   - Only execute when container has definite size
+   - Calculate free space: `free_space = container_size - total_base_size - gutters`
+   - Distribute free space equally to tracks with `growth_limit` = infinity (auto tracks)
+3. Output: Final `each_inline_size[]`, `each_block_size[]`
 
 ##### Step 8: Content Distribution
 
