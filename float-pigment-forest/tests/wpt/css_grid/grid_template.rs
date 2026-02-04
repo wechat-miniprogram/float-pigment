@@ -258,19 +258,25 @@ fn grid_template_empty_container() {
 // Spec points:
 //   - `auto` tracks consider the min-content and max-content of items
 //   - Nested elements contribute to item sizing
+// W3C §11.5 + §11.6:
+//   - Auto tracks base_size = content min-content (§11.5)
+//   - Maximize distributes free space equally (§11.6)
 // In this test:
 //   - Container: width=300px, 2 auto columns
-//   - First column has nested 150px wide child (min-content)
-//   - Column distribution considers content size
+//   - Track 1: base_size = 150px (child content)
+//   - Track 2: base_size = 0px (no content width)
+//   - Free space: 300 - 150 - 0 = 150px
+//   - Maximize: each gets 75px (150 / 2)
+//   - Final: track 1 = 225px, track 2 = 75px
 #[test]
 fn grid_template_auto_with_nested_content() {
     assert_xml!(
         r#"
         <div style="display: grid; width: 300px; grid-template-columns: auto auto;">
-          <div expect_width="150">
+          <div expect_width="225">
             <div style="width: 150px; height: 50px;"></div>
           </div>
-          <div expect_width="150">
+          <div expect_width="75">
             <div style="height: 30px;"></div>
           </div>
         </div>

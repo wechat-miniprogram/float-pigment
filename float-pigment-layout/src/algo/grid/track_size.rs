@@ -174,20 +174,11 @@ pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
             TrackSize::Original(def_length) => {
                 match def_length {
                     DefLength::Auto => {
-                        // Auto tracks: share remaining space equally (after fr tracks)
-                        let track_size = if available_grid_space.is_some()
-                            && auto_count > 0
-                            && total_fr == 0.0  // Only use auto distribution when no fr tracks
-                            && available_grid_space.val().unwrap() > total_specified_track_size
-                        {
-                            TrackSize::Fixed(OptionNum::some(
-                                (available_grid_space.val().unwrap() - total_specified_track_size)
-                                    .div_f32(auto_count as f32),
-                            ))
-                        } else {
-                            TrackSize::Fixed(OptionNum::none())
-                        };
-                        track_size
+                        // Auto tracks: base size determined by content (§11.5)
+                        // Do NOT pre-allocate space here. Content-based sizing happens
+                        // in compute_track_sizes, and maximize_tracks (§11.6) distributes
+                        // free space afterward.
+                        TrackSize::Fixed(OptionNum::none())
                     }
                     DefLength::Points(points) => TrackSize::Fixed(OptionNum::some(points.clone())),
                     DefLength::Percent(percent) => {

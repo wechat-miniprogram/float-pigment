@@ -36,6 +36,13 @@ use crate::{
 ///
 /// When items don't fit in the explicit grid, new rows or columns are
 /// created automatically (implicit grid tracks).
+///
+/// ## Performance Optimization
+///
+/// Dense mode uses a search hint to avoid re-scanning filled rows/columns:
+/// - Track the first row/column that may have empty cells
+/// - Skip fully occupied rows/columns in subsequent searches
+/// - Reduces O(N × R × C) to approximately O(N + R × C) in typical cases
 pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
     grid_matrix: &mut GridMatrix<'a, T>,
     node: &'a T,
@@ -48,6 +55,11 @@ pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
     // Current auto-placement cursor position (for sparse mode)
     let mut cur_row = 0;
     let mut cur_column = 0;
+
+    // Dense mode optimization: track the first row/column that may have space
+    // This avoids re-scanning rows/columns that are known to be full
+    let mut dense_hint_row = 0;
+    let mut dense_hint_col = 0;
 
     // Filter out absolutely positioned and display:none items
     // CSS Grid §9: Absolutely positioned items are not grid items for placement
@@ -76,7 +88,7 @@ pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
                 cur_row += 1;
             }
 
-            // Create and place the grid item - DynamicGrid handles expansion
+            // Create and place the grid item
             let grid_item = GridItem::new(child, origin_idx, cur_row, cur_column);
             grid_matrix.place_item(cur_row, cur_column, grid_item);
             cur_column += 1;
@@ -84,11 +96,12 @@ pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
         // ═══════════════════════════════════════════════════════════════════
         // Row-major dense auto-placement (grid-auto-flow: row dense)
         // CSS Grid §8.5: https://www.w3.org/TR/css-grid-1/#auto-placement-algo
-        // For each item, search from beginning for first unoccupied cell.
+        // For each item, search from hint for first unoccupied cell.
         // ═══════════════════════════════════════════════════════════════════
         GridAutoFlow::RowDense => {
             let max_cols = explicit_column_count.max(1);
-            let (row, col) = find_first_unoccupied_row_major(grid_matrix, max_cols);
+            let (row, col) =
+                find_first_unoccupied_row_major(grid_matrix, max_cols, &mut dense_hint_row);
 
             let grid_item = GridItem::new(child, origin_idx, row, col);
             grid_matrix.place_item(row, col, grid_item);
@@ -104,18 +117,19 @@ pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
                 cur_column += 1;
             }
 
-            // Create and place the grid item - DynamicGrid handles expansion
+            // Create and place the grid item
             let grid_item = GridItem::new(child, origin_idx, cur_row, cur_column);
             grid_matrix.place_item(cur_row, cur_column, grid_item);
             cur_row += 1;
         }
         // ═══════════════════════════════════════════════════════════════════
         // Column-major dense auto-placement (grid-auto-flow: column dense)
-        // For each item, search from beginning for first unoccupied cell.
+        // For each item, search from hint for first unoccupied cell.
         // ═══════════════════════════════════════════════════════════════════
         GridAutoFlow::ColumnDense => {
             let max_rows = explicit_row_count.max(1);
-            let (row, col) = find_first_unoccupied_column_major(grid_matrix, max_rows);
+            let (row, col) =
+                find_first_unoccupied_column_major(grid_matrix, max_rows, &mut dense_hint_col);
 
             let grid_item = GridItem::new(child, origin_idx, row, col);
             grid_matrix.place_item(row, col, grid_item);
@@ -127,12 +141,21 @@ pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
 ///
 /// CSS Grid §8.5: Dense packing - search from the start for holes.
 /// Returns (row, column) of the first available cell.
+///
+/// ## Optimization
+///
+/// Uses `hint_row` to skip rows that are known to be full:
+/// - Start searching from `hint_row` instead of row 0
+/// - When a row is found to be completely full, advance `hint_row`
+/// - This reduces repeated scanning of filled rows
 fn find_first_unoccupied_row_major<'a, T: LayoutTreeNode>(
     grid_matrix: &GridMatrix<'a, T>,
     max_cols: usize,
+    hint_row: &mut usize,
 ) -> (usize, usize) {
-    let mut row = 0;
+    let mut row = *hint_row;
     let mut col = 0;
+    let mut row_start_col = 0; // Track where we started in this row
 
     loop {
         // Check if current cell is unoccupied
@@ -143,8 +166,14 @@ fn find_first_unoccupied_row_major<'a, T: LayoutTreeNode>(
         // Move to next cell in row-major order
         col += 1;
         if col >= max_cols {
+            // Completed scanning a full row without finding space
+            // If we started from col 0, this row is full - advance hint
+            if row_start_col == 0 && row == *hint_row {
+                *hint_row = row + 1;
+            }
             col = 0;
             row += 1;
+            row_start_col = 0;
         }
     }
 }
@@ -153,12 +182,21 @@ fn find_first_unoccupied_row_major<'a, T: LayoutTreeNode>(
 ///
 /// CSS Grid §8.5: Dense packing - search from the start for holes.
 /// Returns (row, column) of the first available cell.
+///
+/// ## Optimization
+///
+/// Uses `hint_col` to skip columns that are known to be full:
+/// - Start searching from `hint_col` instead of column 0
+/// - When a column is found to be completely full, advance `hint_col`
+/// - This reduces repeated scanning of filled columns
 fn find_first_unoccupied_column_major<'a, T: LayoutTreeNode>(
     grid_matrix: &GridMatrix<'a, T>,
     max_rows: usize,
+    hint_col: &mut usize,
 ) -> (usize, usize) {
     let mut row = 0;
-    let mut col = 0;
+    let mut col = *hint_col;
+    let mut col_start_row = 0; // Track where we started in this column
 
     loop {
         // Check if current cell is unoccupied
@@ -169,8 +207,14 @@ fn find_first_unoccupied_column_major<'a, T: LayoutTreeNode>(
         // Move to next cell in column-major order
         row += 1;
         if row >= max_rows {
+            // Completed scanning a full column without finding space
+            // If we started from row 0, this column is full - advance hint
+            if col_start_row == 0 && col == *hint_col {
+                *hint_col = col + 1;
+            }
             row = 0;
             col += 1;
+            col_start_row = 0;
         }
     }
 }

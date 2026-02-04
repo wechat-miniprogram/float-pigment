@@ -18,9 +18,8 @@ float-pigment-layout/src/algo/grid/
 ├── track_size.rs   # Track sizing calculations (fr, auto, fixed)
 ├── track.rs        # Track data structures (GridTrack, GridTracks)
 ├── placement.rs    # Grid item placement algorithm
-├── matrix.rs       # Grid matrix data structure
-├── grid_item.rs    # Grid item structure definitions
-└── dynamic_grid.rs # Dynamic 2D grid data structure
+├── matrix.rs       # Grid matrix data structure (uses HashSet for occupancy)
+└── grid_item.rs    # Grid item structure definitions
 ```
 
 ---
@@ -127,18 +126,17 @@ Auto-place items into grid matrix according to `grid-auto-flow`:
 4. Output: `GridMatrix` (item placement mapping, sized to actual grid dimensions)
 
 
-##### Step 5: Track Sizing
+##### Step 5: Track Sizing (Initial Pass)
 
-Calculate used track size for each track, columns first then rows:
+Calculate initial used track size for each track, columns first then rows:
 
 1. **Initialize (§11.4)**: Initialize `base_size` and `growth_limit` for each track
    - Fixed sizing function: `base_size` = resolved pixel value
    - Flexible sizing function (`fr`): `base_size` = 0, `growth_limit` = infinity
    - `auto` sizing function: `base_size` = 0, `growth_limit` = infinity
-2. **Flexible tracks (§11.7)**:
-   - Calculate free space: `free_space = available - fixed_tracks - gutters`
-   - Calculate hypothetical fr size: `fr_size = free_space / total_fr`
-   - Used track size: `track_size = fr_value × fr_size`
+2. **Flexible tracks (§11.7)** - only calculated in this step when no auto tracks:
+   - If no auto tracks: `fr_size = (available - fixed_tracks) / total_fr`
+   - If auto + fr mixed: deferred to Step 7 (need to determine auto content size first)
 3. **Iterative Re-resolution (§11.1 Step 3-4)**:
    - When both auto rows and auto columns exist, check if re-resolution is needed
    - If column track sizes change due to row sizes, re-run track sizing
@@ -155,17 +153,22 @@ Recursively calculate size contribution of each grid item:
 
 ##### Step 7: Finalize Tracks
 
-Adjust auto track sizes based on item contribution:
+Adjust track sizes based on item contribution and complete fr calculation:
 
 1. **§11.5 Resolve Intrinsic Track Sizes**:
    - Iterate through all `auto` tracks
    - Take maximum outer size (margin-box) of all items spanning that track
    - Update track `base_size`
-2. **§11.6 Maximize Tracks**:
+2. **§11.7 Expand Flexible Tracks** (iterative algorithm):
+   - Calculate `hypothetical_fr_size = free_space / total_flex`
+   - If any fr track's size < its min-content, freeze that track at min-content
+   - Repeat until stable
+   - Final: `track_size = hypothetical_fr_size × fr_value`
+3. **§11.6 Maximize Tracks**:
    - Only execute when container has definite size
    - Calculate free space: `free_space = container_size - total_base_size - gutters`
    - Distribute free space equally to tracks with `growth_limit` = infinity (auto tracks)
-3. Output: Final `each_inline_size[]`, `each_block_size[]`
+4. Output: Final `each_inline_size[]`, `each_block_size[]`
 
 ##### Step 8: Content Distribution
 
@@ -191,85 +194,42 @@ Apply self-alignment and calculate final item position:
 
 ---
 
-## Supported Properties
+## W3C Specification Comparison
 
-### Grid Container Properties
+### Specification Section Mapping
 
-| Property | Status | Description |
-|----------|--------|-------------|
-| `display: grid` | ✅ | block-level grid container |
-| `display: inline-grid` | ✅ | inline-level grid container |
-| `grid-template-columns` | ✅ | explicit column track sizing |
-| `grid-template-rows` | ✅ | explicit row track sizing |
-| `grid-auto-flow` | ✅ | auto-placement direction (row/column) |
-| `grid-auto-flow: dense` | ✅ | dense packing mode (row dense / column dense) |
-| `gap` / `row-gap` / `column-gap` | ✅ | gutters between tracks |
-| `align-items` | ✅ | default block-axis alignment for items |
-| `justify-items` | ✅ | default inline-axis alignment for items |
-| `align-content` | ✅ | content-distribution (block-axis) |
-| `justify-content` | ✅ | content-distribution (inline-axis) |
+| W3C Section | Content | Status | Notes |
+|------------|---------|--------|-------|
+| §6 Grid Items | Grid item definition | ✅ | Correctly filters `display: none`, supports `position: absolute` |
+| §7.1 Explicit Grid | `grid-template-rows/columns` | ✅ | Supports `<length>`, `<percentage>`, `auto`, `fr` |
+| §7.2 Implicit Grid | `grid-auto-rows/columns` | ⚠️ | Implicit tracks use default `auto` size |
+| §8.1-8.4 Line Placement | Line-based placement | ❌ | `grid-column/row-start/end` not implemented |
+| §8.5 Auto-placement | Auto-placement algorithm | ✅ | Full sparse and dense mode support |
+| §9 Absolute Positioning | Absolute positioning | ✅ | Correctly handles `position: absolute` items |
+| §10.1 Gutters | `gap`, `row-gap`, `column-gap` | ✅ | Full support |
+| §10.3 Row-axis Alignment | `justify-self` | ✅ | All values supported |
+| §10.4 Column-axis Alignment | `align-self` | ✅ | All values supported |
+| §10.5 Grid Alignment | `align-content`, `justify-content` | ✅ | Full support including `space-between` etc. |
+| §11.1 Grid Sizing Algorithm | Overall flow | ✅ | Implements iterative re-resolution (Step 3-4) |
+| §11.3 Track Sizing Algorithm | Track size calculation | ✅ | Follows spec order: columns→rows |
+| §11.4 Initialize Track Sizes | Initialize `base_size`/`growth_limit` | ✅ | Correct initialization |
+| §11.5 Intrinsic Track Sizes | Resolve intrinsic track sizes | ✅ | Uses min-content and max-content |
+| §11.6 Maximize Tracks | Distribute free space | ✅ | Equal distribution to `growth_limit=∞` tracks |
+| §11.7 Expand Flexible Tracks | fr iterative algorithm | ✅ | Full iterative freezing algorithm |
+| §11.8 Stretch auto Tracks | Stretch auto tracks | ✅ | When `align-content: normal/stretch` |
 
-### Grid Item Properties
+### Unimplemented Features
 
-| Property | Status | Description |
-|----------|--------|-------------|
-| `align-self` | ✅ | self-alignment (block-axis) |
-| `justify-self` | ✅ | self-alignment (inline-axis) |
-| `grid-column-start` | ❌ | line-based placement not implemented |
-| `grid-column-end` | ❌ | line-based placement not implemented |
-| `grid-row-start` | ❌ | line-based placement not implemented |
-| `grid-row-end` | ❌ | line-based placement not implemented |
-
-### Track Sizing Functions
-
-| Value | Status | Description |
-|-------|--------|-------------|
-| `<length>` | ✅ | fixed track sizing function (e.g., `100px`) |
-| `<percentage>` | ✅ | percentage track sizing function (e.g., `50%`) |
-| `auto` | ✅ | intrinsic track sizing (content-based) |
-| `<flex>` (`fr`) | ✅ | flexible track sizing function |
-| `min-content` | ⚠️ | intrinsic sizing (partial support) |
-| `max-content` | ⚠️ | intrinsic sizing (partial support) |
-| `minmax()` | ❌ | not implemented |
-| `repeat()` | ❌ | not implemented |
-| `fit-content()` | ❌ | not implemented |
-
----
-
-## TODO
-
-### High Priority
-
-- [ ] **Line-based Placement** (W3C §8.3)
-  - `grid-column-start` / `grid-column-end`
-  - `grid-row-start` / `grid-row-end`
-  - `grid-column` / `grid-row` shorthand properties
-  - `grid-area` shorthand property
-  - `span` keyword support
-
-### Medium Priority
-
-- [ ] **Track Sizing Functions** (W3C §7.2)
-  - `minmax(min, max)` sizing function
-  - `repeat(count, tracks)` notation
-  - `fit-content(limit)` sizing function
-  - `auto-fill` / `auto-fit` keywords
-
-- [ ] **Named Grid Areas** (W3C §7.3)
-  - `grid-template-areas` property
-  - Named area-based placement
-
-### Low Priority
-
-- [ ] **Intrinsic Sizing Keywords** (W3C §11.5 / CSS Sizing 3)
-  - Full `min-content` / `max-content` sizing support
-
-- [ ] **Implicit Track Sizing** (W3C §7.6)
-  - `grid-auto-rows` property
-  - `grid-auto-columns` property
-
-- [ ] **Subgrid** (CSS Grid Level 2)
-  - `subgrid` keyword
+| Feature | W3C Section | Priority | Notes |
+|---------|-------------|----------|-------|
+| Line-based Placement | §8.1-8.4 | High | `grid-column/row-start/end`, `span` keyword |
+| `minmax()` | §7.2.3 | Medium | Track min/max size constraints |
+| `repeat()` | §7.2.2 | Medium | Repeat track definitions |
+| `fit-content()` | §7.2.4 | Low | Content-fit sizing |
+| `auto-fill` / `auto-fit` | §7.2.2.1 | Medium | Auto-fill tracks |
+| Named Grid Areas | §7.3 | Medium | `grid-template-areas` |
+| `grid-auto-rows/columns` | §7.6 | Low | Implicit track size control |
+| Subgrid | CSS Grid Level 2 | Low | Subgrid feature |
 
 ---
 

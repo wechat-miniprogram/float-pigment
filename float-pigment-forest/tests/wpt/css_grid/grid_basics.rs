@@ -219,21 +219,25 @@ fn grid_fewer_items_than_cells() {
 }
 
 // Case: Grid item min-content affects auto track sizing
-// Spec points:
-//   - Auto tracks consider the min-content size of items
-//   - Min-content is the smallest size without overflow
+// W3C §11.5 + §11.6:
+//   - Auto tracks base_size = content min-content (§11.5)
+//   - Maximize distributes free space equally (§11.6)
 // In this test:
-//   - Container: 2 auto columns
-//   - First item has 100px wide child, forcing column to be at least 100px
+//   - Container: width=300px, 2 auto columns
+//   - Track 1: base_size = 100px (child content)
+//   - Track 2: base_size = 0px (no content width)
+//   - Free space: 300 - 100 - 0 = 200px
+//   - Maximize: each gets 100px (200 / 2)
+//   - Final: track 1 = 200px, track 2 = 100px
 #[test]
 fn grid_item_min_content() {
     assert_xml!(
         r#"
         <div style="display: grid; width: 300px; grid-template-columns: auto auto;">
-          <div expect_width="150">
+          <div expect_width="200">
             <div style="width: 100px; height: 30px;"></div>
           </div>
-          <div expect_width="150">
+          <div expect_width="100">
             <div style="height: 30px;"></div>
           </div>
         </div>
