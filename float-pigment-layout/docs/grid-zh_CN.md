@@ -13,13 +13,15 @@
 
 ```
 float-pigment-layout/src/algo/grid/
-├── mod.rs          # 主入口，Grid 布局算法实现
-├── alignment.rs    # 对齐计算 (align/justify-items/self/content)
-├── track_size.rs   # 轨道尺寸计算 (fr, auto, fixed)
-├── track.rs        # 轨道数据结构 (GridTrack, GridTracks)
-├── placement.rs    # Grid 项目放置算法
-├── matrix.rs       # Grid 矩阵数据结构 (使用 HashSet 跟踪占用)
-└── grid_item.rs    # Grid 项目结构定义
+├── mod.rs           # 主入口，Grid 布局算法实现
+├── alignment.rs     # 对齐计算 (align/justify-items/self/content)
+├── track_size.rs    # 初始轨道尺寸分配
+├── track_sizing.rs  # 轨道最终尺寸计算 (§11.5, §11.7)
+├── track.rs         # 轨道数据结构 (GridTrack, GridTracks)
+├── template.rs      # 轨道模板初始化 (§7.1)
+├── placement.rs     # Grid 项目放置算法 (§8.5)
+├── matrix.rs        # Grid 矩阵数据结构
+└── grid_item.rs     # Grid 项目结构定义
 ```
 
 ---
