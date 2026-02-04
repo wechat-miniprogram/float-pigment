@@ -13,13 +13,15 @@ This document describes the CSS Grid layout algorithm implementation in `float-p
 
 ```
 float-pigment-layout/src/algo/grid/
-├── mod.rs          # Main entry, Grid layout algorithm implementation
-├── alignment.rs    # Alignment calculations (align/justify-items/self/content)
-├── track_size.rs   # Track sizing calculations (fr, auto, fixed)
-├── track.rs        # Track data structures (GridTrack, GridTracks)
-├── placement.rs    # Grid item placement algorithm
-├── matrix.rs       # Grid matrix data structure (uses HashSet for occupancy)
-└── grid_item.rs    # Grid item structure definitions
+├── mod.rs           # Main entry, Grid layout algorithm
+├── alignment.rs     # Alignment calculations (align/justify-items/self/content)
+├── track_size.rs    # Initial track size assignment
+├── track_sizing.rs  # Final track sizing (§11.5, §11.7)
+├── track.rs         # Track data structures (GridTrack, GridTracks)
+├── template.rs      # Track template initialization (§7.1)
+├── placement.rs     # Grid item placement algorithm (§8.5)
+├── matrix.rs        # Grid matrix data structure
+└── grid_item.rs     # Grid item structure definitions
 ```
 
 ---
