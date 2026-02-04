@@ -146,6 +146,38 @@ pub(crate) fn calculate_justify_offset<L: LengthNum>(
     }
 }
 
+/// Calculate justify offset for RTL (right-to-left) direction.
+///
+/// CSS Writing Modes Level 3 - §2.1 Specifying Directionality
+/// <https://www.w3.org/TR/css-writing-modes-3/#direction>
+///
+/// In RTL mode, `start` and `end` are reversed:
+/// - `start`: Aligns to right edge (offset = available_space)
+/// - `end`: Aligns to left edge (offset = 0)
+/// - `left`/`right`: Physical directions remain unchanged
+/// - `center`: Unchanged
+pub(crate) fn calculate_justify_offset_rtl<L: LengthNum>(
+    justify_self: JustifySelf,
+    item_size: L,
+    cell_size: L,
+) -> L {
+    if cell_size <= item_size {
+        return L::zero();
+    }
+    let available_space = cell_size - item_size;
+    match justify_self {
+        // In RTL, `start` means right edge, so offset from left = available_space
+        JustifySelf::Start | JustifySelf::FlexStart | JustifySelf::SelfStart => available_space,
+        // In RTL, `end` means left edge, so offset = 0
+        JustifySelf::End | JustifySelf::FlexEnd | JustifySelf::SelfEnd => L::zero(),
+        // Physical directions remain unchanged
+        JustifySelf::Left => L::zero(),
+        JustifySelf::Right => available_space,
+        JustifySelf::Center => available_space.div_f32(2.0),
+        JustifySelf::Stretch | JustifySelf::Auto | JustifySelf::Normal => L::zero(),
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Content Distribution (§5)
 // https://www.w3.org/TR/css-align-3/#content-distribution
