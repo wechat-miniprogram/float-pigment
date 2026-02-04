@@ -46,8 +46,8 @@ use crate::{
     algo::grid::{
         alignment::{
             calculate_align_content_offset, calculate_alignment_offset,
-            calculate_justify_content_offset, calculate_justify_offset, resolve_grid_align_self,
-            resolve_grid_justify_self,
+            calculate_justify_content_offset, calculate_justify_offset,
+            calculate_justify_offset_rtl, resolve_grid_align_self, resolve_grid_justify_self,
         },
         grid_item::GridLayoutItem,
         matrix::{GridLayoutMatrix, GridMatrix},
@@ -56,7 +56,7 @@ use crate::{
         track_size::apply_track_size,
         track_sizing::compute_track_sizes,
     },
-    compute_special_position_children, AxisInfo, CollapsedBlockMargin, ComputeRequest,
+    compute_special_position_children, AxisInfo, AxisReverse, CollapsedBlockMargin, ComputeRequest,
     ComputeRequestKind, ComputeResult, DefLength, Edge, EdgeOption, LayoutStyle, LayoutTreeNode,
     LayoutUnit, Normalized, OptionNum, OptionSize, Point, Size, SizingMode, Vector,
 };
@@ -124,8 +124,8 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
 
         let style = node.style();
 
-        // TODO handle direction
-        let axis_info = AxisInfo::from_writing_mode(style.writing_mode());
+        let axis_info =
+            AxisInfo::from_writing_mode_and_direction(style.writing_mode(), style.direction());
         let collapsed_margin = CollapsedBlockMargin::from_margin(
             margin
                 .or_zero()
@@ -592,13 +592,32 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         //
         // Items are positioned at: base_offset + alignment_offset + margin
         // ═══════════════════════════════════════════════════════════════════════
+        // Check if inline axis is reversed (RTL in horizontal-tb)
+        let is_inline_reversed = matches!(axis_info.cross_dir_rev, AxisReverse::Reversed);
+
         for grid_layout_item in grid_layout_matrix.items() {
             let row = grid_layout_item.row();
             let column = grid_layout_item.column();
 
             let block_offset = block_content_offset + grid_layout_matrix.get_row_offset(row);
-            let inline_offset =
-                inline_content_offset + grid_layout_matrix.get_column_offset(column);
+
+            // For RTL: calculate offset from right edge instead of left edge
+            let track_width = grid_layout_item
+                .track_size
+                .width
+                .val()
+                .unwrap_or(T::Length::zero());
+            let inline_offset = if is_inline_reversed {
+                // RTL: position from right edge, accounting for content alignment
+                // inline_offset = container_width - content_offset - (column_offset + track_width)
+                container_content_width
+                    - inline_content_offset
+                    - grid_layout_matrix.get_column_offset(column)
+                    - track_width
+            } else {
+                // LTR: position from left edge
+                inline_content_offset + grid_layout_matrix.get_column_offset(column)
+            };
 
             let mut layout_node = grid_layout_item.node.layout_node().unit();
 
@@ -627,7 +646,7 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             );
 
             let track_size = Size::new(
-                grid_layout_item.track_size.width.val().unwrap(),
+                track_width,
                 grid_layout_item.track_size.height.val().unwrap(),
             );
 
@@ -644,11 +663,25 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                 calculate_alignment_offset(align_self, item_size.height, track_size.height);
 
             // Calculate justify offset in inline axis (horizontal)
-            let justify_offset =
-                calculate_justify_offset(justify_self, item_size.width, track_size.width);
+            // For RTL, reverse the justify alignment direction
+            let justify_offset = if is_inline_reversed {
+                calculate_justify_offset_rtl(justify_self, item_size.width, track_size.width)
+            } else {
+                calculate_justify_offset(justify_self, item_size.width, track_size.width)
+            };
+
+            // For RTL, we've already calculated the correct position, so use non-reversed axis_info
+            let axis_info_for_origin = if is_inline_reversed {
+                AxisInfo {
+                    cross_dir_rev: AxisReverse::NotReversed,
+                    ..axis_info
+                }
+            } else {
+                axis_info
+            };
 
             layout_node.gen_origin(
-                axis_info,
+                axis_info_for_origin,
                 track_size,
                 block_offset
                     + align_offset

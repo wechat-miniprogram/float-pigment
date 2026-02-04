@@ -1,7 +1,7 @@
 use core::{fmt::Display, ops::Deref};
 
 use euclid::UnknownUnit;
-use float_pigment_css::typing::WritingMode;
+use float_pigment_css::typing::{Direction, WritingMode};
 
 use crate::LayoutTreeNode;
 pub(crate) use float_pigment_css::length_num::{length_sum, LengthNum};
@@ -813,6 +813,55 @@ impl AxisInfo {
             WritingMode::VerticalRl => (
                 AxisDirection::Horizontal,
                 AxisReverse::Reversed,
+                AxisReverse::NotReversed,
+            ),
+        };
+        Self {
+            dir,
+            main_dir_rev,
+            cross_dir_rev,
+        }
+    }
+
+    /// Create AxisInfo considering both writing-mode and direction.
+    ///
+    /// CSS `direction` property (ltr/rtl) affects the inline axis direction:
+    /// - `direction: rtl` reverses the inline (cross) axis in horizontal-tb
+    /// - `direction: rtl` reverses the block (main) axis in vertical-* modes
+    pub(crate) fn from_writing_mode_and_direction(
+        writing_mode: WritingMode,
+        direction: Direction,
+    ) -> Self {
+        let (dir, main_dir_rev, cross_dir_rev) = match writing_mode {
+            WritingMode::HorizontalTb => (
+                AxisDirection::Vertical,
+                AxisReverse::NotReversed,
+                // direction: rtl reverses inline axis (horizontal in horizontal-tb)
+                if matches!(direction, Direction::RTL) {
+                    AxisReverse::Reversed
+                } else {
+                    AxisReverse::NotReversed
+                },
+            ),
+            WritingMode::VerticalLr => (
+                AxisDirection::Horizontal,
+                // direction: rtl reverses inline axis (vertical in vertical-lr)
+                if matches!(direction, Direction::RTL) {
+                    AxisReverse::Reversed
+                } else {
+                    AxisReverse::NotReversed
+                },
+                AxisReverse::NotReversed,
+            ),
+            WritingMode::VerticalRl => (
+                AxisDirection::Horizontal,
+                // direction: rtl reverses inline axis (vertical in vertical-rl)
+                // Note: vertical-rl already has reversed main axis
+                if matches!(direction, Direction::RTL) {
+                    AxisReverse::NotReversed // RTL cancels the reversal
+                } else {
+                    AxisReverse::Reversed
+                },
                 AxisReverse::NotReversed,
             ),
         };
