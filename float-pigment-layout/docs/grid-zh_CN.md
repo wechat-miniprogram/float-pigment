@@ -202,6 +202,7 @@ float-pigment-layout/src/algo/grid/
 
 | W3C 章节 | 规范内容 | 状态 | 说明 |
 |---------|---------|------|------|
+| §5 Grid Containers | `display: grid/inline-grid` | ✅ | 完整支持 |
 | §6 Grid Items | 网格项目定义 | ✅ | 正确过滤 `display: none`，支持 `position: absolute` |
 | §7.1 Explicit Grid | `grid-template-rows/columns` | ✅ | 支持 `<length>`, `<percentage>`, `auto`, `fr` |
 | §7.2 Implicit Grid | `grid-auto-rows/columns` | ⚠️ | 隐式轨道使用默认 `auto` 大小 |
@@ -219,18 +220,21 @@ float-pigment-layout/src/algo/grid/
 | §11.6 Maximize Tracks | 分配剩余空间 | ✅ | 平均分配给 `growth_limit=∞` 的轨道 |
 | §11.7 Expand Flexible Tracks | fr 迭代算法 | ✅ | 完整实现迭代冻结算法 |
 | §11.8 Stretch auto Tracks | 拉伸 auto 轨道 | ✅ | 当 `align-content: normal/stretch` 时执行 |
+| CSS Writing Modes §2.1 | `direction: ltr/rtl` | ✅ | 完整支持 RTL 布局，区分逻辑/物理关键字 |
 
 ### 未实现功能
 
 | 功能 | W3C 章节 | 优先级 | 说明 |
 |-----|---------|--------|------|
 | Line-based Placement | §8.1-8.4 | 高 | `grid-column/row-start/end`, `span` keyword |
-| `minmax()` | §7.2.3 | 中 | 轨道最小/最大尺寸约束 |
 | `repeat()` | §7.2.2 | 中 | 重复轨道定义 |
-| `fit-content()` | §7.2.4 | 低 | 内容适应尺寸 |
+| `minmax()` | §7.2.3 | 中 | 轨道最小/最大尺寸约束 |
 | `auto-fill` / `auto-fit` | §7.2.2.1 | 中 | 自动填充轨道 |
 | Named Grid Areas | §7.3 | 中 | `grid-template-areas` |
-| `grid-auto-rows/columns` | §7.6 | 低 | 隐式轨道大小控制 |
+| `fit-content()` | §7.2.4 | 低 | 内容适应尺寸 |
+| `grid-auto-rows/columns` | §7.5-7.6 | 低 | 隐式轨道大小控制 |
+| Shorthand Properties | §7.4 | 低 | `grid-template`, `grid` 简写 |
+| Named Lines | §8.4 | 低 | `[line-name]` 命名网格线 |
 | Subgrid | CSS Grid Level 2 | 低 | 子网格 |
 
 ---

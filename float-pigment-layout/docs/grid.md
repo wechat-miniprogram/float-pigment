@@ -202,6 +202,7 @@ Apply self-alignment and calculate final item position:
 
 | W3C Section | Content | Status | Notes |
 |------------|---------|--------|-------|
+| §5 Grid Containers | `display: grid/inline-grid` | ✅ | Full support |
 | §6 Grid Items | Grid item definition | ✅ | Correctly filters `display: none`, supports `position: absolute` |
 | §7.1 Explicit Grid | `grid-template-rows/columns` | ✅ | Supports `<length>`, `<percentage>`, `auto`, `fr` |
 | §7.2 Implicit Grid | `grid-auto-rows/columns` | ⚠️ | Implicit tracks use default `auto` size |
@@ -219,18 +220,21 @@ Apply self-alignment and calculate final item position:
 | §11.6 Maximize Tracks | Distribute free space | ✅ | Equal distribution to `growth_limit=∞` tracks |
 | §11.7 Expand Flexible Tracks | fr iterative algorithm | ✅ | Full iterative freezing algorithm |
 | §11.8 Stretch auto Tracks | Stretch auto tracks | ✅ | When `align-content: normal/stretch` |
+| CSS Writing Modes §2.1 | `direction: ltr/rtl` | ✅ | Full RTL support, distinguishes logical/physical keywords |
 
 ### Unimplemented Features
 
 | Feature | W3C Section | Priority | Notes |
 |---------|-------------|----------|-------|
 | Line-based Placement | §8.1-8.4 | High | `grid-column/row-start/end`, `span` keyword |
-| `minmax()` | §7.2.3 | Medium | Track min/max size constraints |
 | `repeat()` | §7.2.2 | Medium | Repeat track definitions |
-| `fit-content()` | §7.2.4 | Low | Content-fit sizing |
+| `minmax()` | §7.2.3 | Medium | Track min/max size constraints |
 | `auto-fill` / `auto-fit` | §7.2.2.1 | Medium | Auto-fill tracks |
 | Named Grid Areas | §7.3 | Medium | `grid-template-areas` |
-| `grid-auto-rows/columns` | §7.6 | Low | Implicit track size control |
+| `fit-content()` | §7.2.4 | Low | Content-fit sizing |
+| `grid-auto-rows/columns` | §7.5-7.6 | Low | Implicit track size control |
+| Shorthand Properties | §7.4 | Low | `grid-template`, `grid` shorthands |
+| Named Lines | §8.4 | Low | `[line-name]` named grid lines |
 | Subgrid | CSS Grid Level 2 | Low | Subgrid feature |
 
 ---
