@@ -8,34 +8,20 @@
 //!
 //! ## Optimization
 //!
-//! Separates occupancy tracking from item storage for better performance:
-//! - Occupancy: 1-byte enum per cell
-//! - Items: stored in Vec for efficient iteration
+//! Uses HashSet for occupancy tracking instead of a 2D array:
+//! - O(1) lookup for occupied cells
+//! - O(N) space where N = number of items (not R × C)
+//! - Items stored in Vec for efficient iteration
 
+use std::collections::HashSet;
 use std::fmt::Debug;
 
 use float_pigment_css::typing::GridAutoFlow;
 
 use crate::{
-    algo::grid::{
-        dynamic_grid::DynamicGrid,
-        grid_item::{GridItem, GridLayoutItem},
-    },
+    algo::grid::grid_item::{GridItem, GridLayoutItem},
     LayoutTreeNode,
 };
-
-/// The occupancy state of a single grid cell.
-///
-/// CSS Grid §8.5: During auto-placement, cells can be occupied or empty.
-/// This is a compact 1-byte representation for efficient memory usage.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-pub(crate) enum CellOccupancyState {
-    /// Cell is empty (available for auto-placement)
-    #[default]
-    Unoccupied,
-    /// Cell is occupied by an auto-placed item
-    Occupied,
-}
 
 /// The grid matrix stores grid items during the placement phase.
 ///
@@ -43,15 +29,16 @@ pub(crate) enum CellOccupancyState {
 /// - Explicit grid: Defined by `grid-template-rows` and `grid-template-columns`
 /// - Implicit grid: Automatically created when items overflow the explicit grid
 ///
-/// This structure uses `DynamicGrid` internally to support dynamic expansion
-/// during item placement, eliminating the need for a separate estimation pass.
-///
-/// Separates occupancy tracking (1 byte per cell) from item storage (Vec)
-/// for efficient item iteration.
+/// Uses HashSet for occupancy tracking - more efficient for sparse grids
+/// where most cells are empty.
 #[derive(Clone, PartialEq)]
 pub(crate) struct GridMatrix<'a, T: LayoutTreeNode> {
-    /// The 2D grid storing only occupancy state (1 byte per cell)
-    occupancy: DynamicGrid<CellOccupancyState>,
+    /// Set of occupied cell positions (row, column)
+    occupied: HashSet<(usize, usize)>,
+    /// Maximum row index + 1 (tracks grid boundary)
+    max_row: usize,
+    /// Maximum column index + 1 (tracks grid boundary)
+    max_col: usize,
     /// The grid items stored separately for efficient iteration
     items: Vec<GridItem<'a, T>>,
     /// Number of rows with `auto` sizing function
@@ -80,8 +67,9 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
         flow: GridAutoFlow,
     ) -> Self {
         Self {
-            // Start with empty grid - cells created on-demand during placement
-            occupancy: DynamicGrid::new(),
+            occupied: HashSet::new(),
+            max_row: 0,
+            max_col: 0,
             items: Vec::new(),
             row_auto_count,
             column_auto_count,
@@ -94,23 +82,22 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
     /// Place an item at the specified position, expanding the grid if needed.
     ///
     /// This method:
-    /// 1. Marks the cell as occupied in the occupancy grid
-    /// 2. Adds the item to the items Vec
+    /// 1. Marks the cell as occupied in the HashSet
+    /// 2. Updates grid boundaries
+    /// 3. Adds the item to the items Vec
     pub(crate) fn place_item(&mut self, row: usize, column: usize, item: GridItem<'a, T>) {
-        // Mark cell as occupied (this triggers dynamic expansion if needed)
-        self.occupancy
-            .set(row, column, CellOccupancyState::Occupied);
+        // Mark cell as occupied
+        self.occupied.insert((row, column));
+        // Update boundaries
+        self.max_row = self.max_row.max(row + 1);
+        self.max_col = self.max_col.max(column + 1);
         // Store item in the Vec
         self.items.push(item);
     }
 
     /// Check if a cell is occupied.
-    #[allow(dead_code)]
     pub(crate) fn is_occupied(&self, row: usize, column: usize) -> bool {
-        self.occupancy
-            .get(row, column)
-            .map(|state| *state == CellOccupancyState::Occupied)
-            .unwrap_or(false)
+        self.occupied.contains(&(row, column))
     }
 
     /// Get an iterator over all placed items.
@@ -126,13 +113,13 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
     /// Returns the current number of rows (may exceed explicit grid).
     #[inline(always)]
     pub(crate) fn row_count(&self) -> usize {
-        self.occupancy.rows()
+        self.max_row
     }
 
     /// Returns the current number of columns (may exceed explicit grid).
     #[inline(always)]
     pub(crate) fn column_count(&self) -> usize {
-        self.occupancy.cols()
+        self.max_col
     }
 
     #[inline(always)]

@@ -18,9 +18,8 @@ float-pigment-layout/src/algo/grid/
 ├── track_size.rs   # 轨道尺寸计算 (fr, auto, fixed)
 ├── track.rs        # 轨道数据结构 (GridTrack, GridTracks)
 ├── placement.rs    # Grid 项目放置算法
-├── matrix.rs       # Grid 矩阵数据结构
-├── grid_item.rs    # Grid 项目结构定义
-└── dynamic_grid.rs # 动态二维网格数据结构
+├── matrix.rs       # Grid 矩阵数据结构 (使用 HashSet 跟踪占用)
+└── grid_item.rs    # Grid 项目结构定义
 ```
 
 ---
@@ -127,18 +126,17 @@ float-pigment-layout/src/algo/grid/
 4. 输出：`GridMatrix` (item placement mapping，尺寸为实际 grid 维度)
 
 
-##### Step 5: Track Sizing
+##### Step 5: Track Sizing (Initial Pass)
 
-计算每个 track 的 used track size，先 columns 后 rows：
+计算每个 track 的初始 used track size，先 columns 后 rows：
 
 1. **初始化 (§11.4)**：为每个 track 初始化 `base_size` 和 `growth_limit`
    - Fixed sizing function：`base_size` = 解析后的像素值
    - Flexible sizing function (`fr`)：`base_size` = 0，`growth_limit` = infinity
    - `auto` sizing function：`base_size` = 0，`growth_limit` = infinity
-2. **Flexible tracks (§11.7)**：
-   - 计算 free space：`free_space = available - fixed_tracks - gutters`
-   - 计算 hypothetical fr size：`fr_size = free_space / total_fr`
-   - Used track size：`track_size = fr_value × fr_size`
+2. **Flexible tracks (§11.7)** - 仅当没有 auto tracks 时在此步骤计算：
+   - 若无 auto tracks：`fr_size = (available - fixed_tracks) / total_fr`
+   - 若有 auto + fr 混用：延迟到 Step 7 计算（需先确定 auto 的 content size）
 3. **Iterative Re-resolution (§11.1 Step 3-4)**：
    - 当同时存在 auto 行和 auto 列时，检查是否需要重新计算
    - 如果 column track sizes 因 row sizes 而改变，重新运行 track sizing
@@ -155,17 +153,22 @@ float-pigment-layout/src/algo/grid/
 
 ##### Step 7: Finalize Tracks
 
-根据 item contribution 调整 auto track size：
+根据 item contribution 调整 track size 并完成 fr 计算：
 
 1. **§11.5 Resolve Intrinsic Track Sizes**：
    - 遍历所有 `auto` tracks
    - 取该 track 内所有 items 的最大 outer size (margin-box)
    - 更新 track `base_size`
-2. **§11.6 Maximize Tracks**：
+2. **§11.7 Expand Flexible Tracks** (迭代算法)：
+   - 计算 `hypothetical_fr_size = free_space / total_flex`
+   - 如果任何 fr track 的 size < 其 min-content，冻结该 track 在 min-content
+   - 重复迭代直到稳定
+   - 最终：`track_size = hypothetical_fr_size × fr_value`
+3. **§11.6 Maximize Tracks**：
    - 仅当 container 有 definite size 时执行
    - 计算 free space：`free_space = container_size - total_base_size - gutters`
    - 将 free space 平均分配给 `growth_limit` 为 infinity 的 tracks (auto tracks)
-3. 输出：最终的 `each_inline_size[]`、`each_block_size[]`
+4. 输出：最终的 `each_inline_size[]`、`each_block_size[]`
 
 ##### Step 8: Content Distribution
 
@@ -191,85 +194,42 @@ float-pigment-layout/src/algo/grid/
 
 ---
 
-## 支持的属性
+## W3C 规范对比
 
-### Grid Container 属性
+### 规范章节对照表
 
-| 属性 | 状态 | 说明 |
-|-----|------|-----|
-| `display: grid` | ✅ | block-level grid container |
-| `display: inline-grid` | ✅ | inline-level grid container |
-| `grid-template-columns` | ✅ | explicit column track sizing |
-| `grid-template-rows` | ✅ | explicit row track sizing |
-| `grid-auto-flow` | ✅ | auto-placement direction (row/column) |
-| `grid-auto-flow: dense` | ✅ | dense packing mode (row dense / column dense) |
-| `gap` / `row-gap` / `column-gap` | ✅ | gutters between tracks |
-| `align-items` | ✅ | default block-axis alignment for items |
-| `justify-items` | ✅ | default inline-axis alignment for items |
-| `align-content` | ✅ | content-distribution (block-axis) |
-| `justify-content` | ✅ | content-distribution (inline-axis) |
+| W3C 章节 | 规范内容 | 状态 | 说明 |
+|---------|---------|------|------|
+| §6 Grid Items | 网格项目定义 | ✅ | 正确过滤 `display: none`，支持 `position: absolute` |
+| §7.1 Explicit Grid | `grid-template-rows/columns` | ✅ | 支持 `<length>`, `<percentage>`, `auto`, `fr` |
+| §7.2 Implicit Grid | `grid-auto-rows/columns` | ⚠️ | 隐式轨道使用默认 `auto` 大小 |
+| §8.1-8.4 Line Placement | 基于线的放置 | ❌ | 未实现 `grid-column/row-start/end` |
+| §8.5 Auto-placement | 自动放置算法 | ✅ | 完整实现 sparse 和 dense 模式 |
+| §9 Absolute Positioning | 绝对定位 | ✅ | 正确处理 `position: absolute` 项目 |
+| §10.1 Gutters | `gap`, `row-gap`, `column-gap` | ✅ | 完整支持 |
+| §10.3 Row-axis Alignment | `justify-self` | ✅ | 完整支持所有值 |
+| §10.4 Column-axis Alignment | `align-self` | ✅ | 完整支持所有值 |
+| §10.5 Grid Alignment | `align-content`, `justify-content` | ✅ | 完整支持包括 `space-between` 等 |
+| §11.1 Grid Sizing Algorithm | 总体流程 | ✅ | 实现迭代重解析 (Step 3-4) |
+| §11.3 Track Sizing Algorithm | 轨道大小计算 | ✅ | 按规范顺序：列→行 |
+| §11.4 Initialize Track Sizes | 初始化 `base_size`/`growth_limit` | ✅ | 正确初始化 |
+| §11.5 Intrinsic Track Sizes | 解析内在轨道尺寸 | ✅ | 使用 min-content 和 max-content |
+| §11.6 Maximize Tracks | 分配剩余空间 | ✅ | 平均分配给 `growth_limit=∞` 的轨道 |
+| §11.7 Expand Flexible Tracks | fr 迭代算法 | ✅ | 完整实现迭代冻结算法 |
+| §11.8 Stretch auto Tracks | 拉伸 auto 轨道 | ✅ | 当 `align-content: normal/stretch` 时执行 |
 
-### Grid Item 属性
+### 未实现功能
 
-| 属性 | 状态 | 说明 |
-|-----|------|-----|
-| `align-self` | ✅ | self-alignment (block-axis) |
-| `justify-self` | ✅ | self-alignment (inline-axis) |
-| `grid-column-start` | ❌ | line-based placement 未实现 |
-| `grid-column-end` | ❌ | line-based placement 未实现 |
-| `grid-row-start` | ❌ | line-based placement 未实现 |
-| `grid-row-end` | ❌ | line-based placement 未实现 |
-
-### Track Sizing Functions
-
-| 值 | 状态 | 说明 |
-|---|------|-----|
-| `<length>` | ✅ | fixed track sizing function (如 `100px`) |
-| `<percentage>` | ✅ | percentage track sizing function (如 `50%`) |
-| `auto` | ✅ | intrinsic track sizing (content-based) |
-| `<flex>` (`fr`) | ✅ | flexible track sizing function |
-| `min-content` | ⚠️ | intrinsic sizing (部分支持) |
-| `max-content` | ⚠️ | intrinsic sizing (部分支持) |
-| `minmax()` | ❌ | 未实现 |
-| `repeat()` | ❌ | 未实现 |
-| `fit-content()` | ❌ | 未实现 |
-
----
-
-## TODO
-
-### 高优先级
-
-- [ ] **Line-based Placement** (W3C §8.3)
-  - `grid-column-start` / `grid-column-end`
-  - `grid-row-start` / `grid-row-end`
-  - `grid-column` / `grid-row` shorthand properties
-  - `grid-area` shorthand property
-  - `span` keyword 支持
-
-### 中优先级
-
-- [ ] **Track Sizing Functions** (W3C §7.2)
-  - `minmax(min, max)` sizing function
-  - `repeat(count, tracks)` notation
-  - `fit-content(limit)` sizing function
-  - `auto-fill` / `auto-fit` keywords
-
-- [ ] **Named Grid Areas** (W3C §7.3)
-  - `grid-template-areas` property
-  - Named area-based placement
-
-### 低优先级
-
-- [ ] **Intrinsic Sizing Keywords** (W3C §11.5 / CSS Sizing 3)
-  - 完整的 `min-content` / `max-content` sizing 支持
-
-- [ ] **Implicit Track Sizing** (W3C §7.6)
-  - `grid-auto-rows` property
-  - `grid-auto-columns` property
-
-- [ ] **Subgrid** (CSS Grid Level 2)
-  - `subgrid` keyword
+| 功能 | W3C 章节 | 优先级 | 说明 |
+|-----|---------|--------|------|
+| Line-based Placement | §8.1-8.4 | 高 | `grid-column/row-start/end`, `span` keyword |
+| `minmax()` | §7.2.3 | 中 | 轨道最小/最大尺寸约束 |
+| `repeat()` | §7.2.2 | 中 | 重复轨道定义 |
+| `fit-content()` | §7.2.4 | 低 | 内容适应尺寸 |
+| `auto-fill` / `auto-fit` | §7.2.2.1 | 中 | 自动填充轨道 |
+| Named Grid Areas | §7.3 | 中 | `grid-template-areas` |
+| `grid-auto-rows/columns` | §7.6 | 低 | 隐式轨道大小控制 |
+| Subgrid | CSS Grid Level 2 | 低 | 子网格 |
 
 ---
 

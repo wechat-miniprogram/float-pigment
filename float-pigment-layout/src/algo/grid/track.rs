@@ -354,14 +354,32 @@ impl<T: LayoutTreeNode> GridTracks<T> {
     /// - `sizes`: The computed base sizes for each track
     /// - `has_explicit`: Whether each track has an explicit (non-auto) size
     pub fn from_sizes(sizes: &[T::Length], has_explicit: &[bool]) -> Self {
+        Self::from_sizes_with_fr(sizes, has_explicit, &[])
+    }
+
+    /// Create GridTracks from computed sizes with fr track info.
+    ///
+    /// - `sizes`: The computed base sizes for each track
+    /// - `has_explicit`: Whether each track has an explicit (non-auto) size
+    /// - `fr_values`: The fr value for each track (0.0 if not an fr track)
+    pub fn from_sizes_with_fr(
+        sizes: &[T::Length],
+        has_explicit: &[bool],
+        fr_values: &[f32],
+    ) -> Self {
         let track_count = sizes.len();
         let mut tracks = Vec::with_capacity(track_count);
         let mut auto_count = 0;
+        let mut total_flex = 0.0;
 
         for (i, &size) in sizes.iter().enumerate() {
+            let fr_value = fr_values.get(i).copied().unwrap_or(0.0);
             let is_auto = !has_explicit.get(i).copied().unwrap_or(false);
 
-            let sizing_fn = if is_auto {
+            let sizing_fn = if fr_value > 0.0 {
+                total_flex += fr_value;
+                TrackSizingFunction::Flex(fr_value)
+            } else if is_auto {
                 auto_count += 1;
                 TrackSizingFunction::Auto
             } else {
@@ -370,15 +388,19 @@ impl<T: LayoutTreeNode> GridTracks<T> {
 
             let mut track = GridTrack::from_single(sizing_fn);
             track.base_size = size;
-            // Auto tracks have infinite growth limit, fixed tracks have finite
-            track.growth_limit = if is_auto { None } else { Some(size) };
+            // fr tracks and auto tracks have infinite growth limit
+            track.growth_limit = if fr_value > 0.0 || is_auto {
+                None
+            } else {
+                Some(size)
+            };
             tracks.push(track);
         }
 
         Self {
             tracks,
             auto_count,
-            total_flex: 0.0, // No fr tracks at this stage
+            total_flex,
         }
     }
 
@@ -389,29 +411,155 @@ impl<T: LayoutTreeNode> GridTracks<T> {
     ///
     /// If the free space is positive, distribute it equally to the base sizes
     /// of all tracks with infinite growth limits.
+    ///
+    /// ## Optimization
+    ///
+    /// Single-pass implementation: collect eligible track indices during counting,
+    /// then directly update those tracks without re-filtering.
     pub fn maximize(&mut self, free_space: T::Length) {
         if free_space <= T::Length::zero() {
             return;
         }
 
-        // Count tracks with infinite growth limit (non-flex)
-        let infinite_count = self
-            .tracks
-            .iter()
-            .filter(|track| track.has_infinite_growth_limit() && !track.is_flexible())
-            .count();
+        // Single pass: collect indices of tracks with infinite growth limit (non-flex)
+        let mut infinite_indices: Vec<usize> = Vec::with_capacity(self.tracks.len());
+        for (i, track) in self.tracks.iter().enumerate() {
+            if track.has_infinite_growth_limit() && !track.is_flexible() {
+                infinite_indices.push(i);
+            }
+        }
 
-        if infinite_count == 0 {
+        if infinite_indices.is_empty() {
             return;
         }
 
-        // Distribute free space equally among tracks with infinite growth limits
-        let space_per_track = free_space.div_f32(infinite_count as f32);
+        // Distribute free space equally among collected tracks
+        let space_per_track = free_space.div_f32(infinite_indices.len() as f32);
+
+        for i in infinite_indices {
+            self.tracks[i].base_size += space_per_track;
+        }
+    }
+
+    /// Expand flexible tracks (fr units) with iterative algorithm.
+    ///
+    /// CSS Grid §11.7: Expand Flexible Tracks
+    /// <https://www.w3.org/TR/css-grid-1/#algo-flex-tracks>
+    ///
+    /// The algorithm iteratively calculates fr track sizes:
+    /// 1. Find the hypothetical fr size = free_space / total_flex
+    /// 2. If any fr track's size < its base_size, treat it as inflexible
+    /// 3. Repeat until stable
+    ///
+    /// This ensures fr tracks respect their minimum sizes (base_size).
+    pub fn expand_flexible_tracks(&mut self, free_space: T::Length) {
+        if free_space <= T::Length::zero() || self.total_flex == 0.0 {
+            return;
+        }
+
+        // Track which fr tracks are still flexible (not clamped to base_size)
+        let mut is_flexible: Vec<bool> = self.tracks.iter().map(|t| t.is_flexible()).collect();
+
+        let mut remaining_space = free_space;
+        let mut iterations = 0;
+        const MAX_ITERATIONS: usize = 10; // Prevent infinite loops
+
+        loop {
+            iterations += 1;
+            if iterations > MAX_ITERATIONS {
+                break;
+            }
+
+            // Calculate total flex of still-flexible tracks
+            let active_flex: f32 = self
+                .tracks
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| is_flexible[*i])
+                .map(|(_, t)| t.flex_factor().unwrap_or(0.0))
+                .sum();
+
+            if active_flex <= 0.0 {
+                break;
+            }
+
+            // Calculate hypothetical fr size
+            let hypothetical_fr_size = remaining_space.div_f32(active_flex);
+
+            // Check if any track needs to be frozen (hypothetical size < base_size)
+            let mut any_frozen = false;
+
+            for (i, track) in self.tracks.iter().enumerate() {
+                if is_flexible[i] {
+                    if let Some(flex_factor) = track.flex_factor() {
+                        let hypothetical_size = hypothetical_fr_size.mul_f32(flex_factor);
+                        if hypothetical_size < track.base_size {
+                            // Freeze this track at its base_size
+                            is_flexible[i] = false;
+                            remaining_space -= track.base_size;
+                            any_frozen = true;
+                        }
+                    }
+                }
+            }
+
+            if !any_frozen {
+                // No tracks were frozen, we can apply the final sizes
+                for (i, track) in self.tracks.iter_mut().enumerate() {
+                    if is_flexible[i] {
+                        if let Some(flex_factor) = track.flex_factor() {
+                            track.base_size = hypothetical_fr_size.mul_f32(flex_factor);
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    /// Stretch auto tracks to fill remaining space.
+    ///
+    /// CSS Grid §11.8: Stretch auto Tracks
+    /// <https://www.w3.org/TR/css-grid-1/#algo-stretch>
+    ///
+    /// This step only applies when the content-distribution property
+    /// (align-content/justify-content) is `normal`.
+    ///
+    /// It distributes any remaining free space equally among auto tracks,
+    /// similar to maximize but specifically for the stretch behavior.
+    pub fn stretch_auto_tracks(&mut self, free_space: T::Length) {
+        if free_space <= T::Length::zero() {
+            return;
+        }
+
+        // Count auto tracks (tracks with infinite growth limit that aren't fr)
+        let auto_count = self
+            .tracks
+            .iter()
+            .filter(|track| track.is_auto() && track.has_infinite_growth_limit())
+            .count();
+
+        if auto_count == 0 {
+            return;
+        }
+
+        // Distribute free space equally among auto tracks
+        let space_per_track = free_space.div_f32(auto_count as f32);
 
         for track in &mut self.tracks {
-            if track.has_infinite_growth_limit() && !track.is_flexible() {
+            if track.is_auto() && track.has_infinite_growth_limit() {
                 track.base_size += space_per_track;
             }
         }
+    }
+
+    /// Get the total flex factor of all fr tracks.
+    pub fn total_flex_factor(&self) -> f32 {
+        self.total_flex
+    }
+
+    /// Check if there are any flexible tracks.
+    pub fn has_flexible_tracks(&self) -> bool {
+        self.total_flex > 0.0
     }
 }
