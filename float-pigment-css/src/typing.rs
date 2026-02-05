@@ -1880,3 +1880,12 @@ pub enum GridAutoFlow {
     RowDense,
     ColumnDense,
 }
+
+#[allow(missing_docs)]
+#[repr(C)]
+#[property_value_type(PropertyValueWithGlobal for GridAutoType)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ResolveFontSize)]
+#[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
+pub enum GridAuto {
+    List(Array<TrackSize>),
+}

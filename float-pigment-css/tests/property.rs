@@ -6506,6 +6506,80 @@ mod grid {
             GridAutoFlow::Row
         );
     }
+
+    // 0xa9 0xaa
+    #[test]
+    fn grid_auto_rows_columns() {
+        // grid-auto-rows: single track size
+        test_parse_property!(
+            grid_auto_rows,
+            "grid-auto-rows",
+            "100px",
+            GridAuto::List(vec![TrackSize::Length(Length::Px(100.))].into())
+        );
+        // grid-auto-rows: multiple track sizes
+        test_parse_property!(
+            grid_auto_rows,
+            "grid-auto-rows",
+            "100px 1fr",
+            GridAuto::List(vec![TrackSize::Length(Length::Px(100.)), TrackSize::Fr(1.)].into())
+        );
+        // grid-auto-rows: auto
+        test_parse_property!(
+            grid_auto_rows,
+            "grid-auto-rows",
+            "auto",
+            GridAuto::List(vec![TrackSize::Length(Length::Auto)].into())
+        );
+        // grid-auto-rows: multiple with auto
+        test_parse_property!(
+            grid_auto_rows,
+            "grid-auto-rows",
+            "auto 100px auto",
+            GridAuto::List(
+                vec![
+                    TrackSize::Length(Length::Auto),
+                    TrackSize::Length(Length::Px(100.)),
+                    TrackSize::Length(Length::Auto)
+                ]
+                .into()
+            )
+        );
+        // grid-auto-rows: min-content / max-content
+        test_parse_property!(
+            grid_auto_rows,
+            "grid-auto-rows",
+            "min-content",
+            GridAuto::List(vec![TrackSize::MinContent].into())
+        );
+        test_parse_property!(
+            grid_auto_rows,
+            "grid-auto-rows",
+            "max-content",
+            GridAuto::List(vec![TrackSize::MaxContent].into())
+        );
+        // grid-auto-columns: single track size
+        test_parse_property!(
+            grid_auto_columns,
+            "grid-auto-columns",
+            "200px",
+            GridAuto::List(vec![TrackSize::Length(Length::Px(200.))].into())
+        );
+        // grid-auto-columns: multiple track sizes
+        test_parse_property!(
+            grid_auto_columns,
+            "grid-auto-columns",
+            "1fr 2fr",
+            GridAuto::List(vec![TrackSize::Fr(1.), TrackSize::Fr(2.)].into())
+        );
+        // grid-auto-columns: percentage
+        test_parse_property!(
+            grid_auto_columns,
+            "grid-auto-columns",
+            "50%",
+            GridAuto::List(vec![TrackSize::Length(Length::Ratio(0.5))].into())
+        );
+    }
 }
 
 mod other {
