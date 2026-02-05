@@ -41,8 +41,12 @@ impl<L: LengthNum + Copy + Default> Default for TrackInfo<L> {
 
 /// Compute track sizes based on item content.
 ///
+/// CSS Grid §11: Track Sizing Algorithm
+/// <https://www.w3.org/TR/css-grid-1/#algo-track-sizing>
+///
 /// Phase 1: Collect base sizes for all tracks
 /// - For explicit tracks (fixed): use the specified size (at least min-content)
+/// - For implicit tracks: use grid-auto-rows/columns (§7.6)
 /// - For auto tracks: use the item's outer size (margin box)
 /// - For fr tracks: collect min-content as base_size
 ///
@@ -60,10 +64,17 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
     available_grid_space: OptionSize<T::Length>,
     column_total_fr: f32,
     row_total_fr: f32,
+    grid_auto_columns: &LayoutGridAuto<T::Length, T::LengthCustom>,
+    grid_auto_rows: &LayoutGridAuto<T::Length, T::LengthCustom>,
 ) -> (TrackSizingResult<T>, TrackSizingResult<T>) {
     let row_count = grid_layout_matrix.row_count();
     let column_count = grid_layout_matrix.column_count();
 
+    let explicit_column_count = column_track_list.len();
+    let explicit_row_count = row_track_list.len();
+
+    // Initialize column track info
+    // CSS Grid §7.6: Implicit tracks use grid-auto-columns
     let mut columns: Vec<TrackInfo<T::Length>> = (0..column_count)
         .map(|i| {
             let mut info = TrackInfo {
@@ -73,16 +84,29 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
                 fr_value: 0.0,
                 min_content: T::Length::zero(),
             };
+            // Check explicit grid first
             if let Some(LayoutTrackListItem::TrackSize(LayoutTrackSize::Fr(fr_value))) =
                 column_track_list.get(i)
             {
                 info.is_fr = true;
                 info.fr_value = *fr_value;
+            } else if i >= explicit_column_count {
+                // Implicit track - use grid-auto-columns (§7.6)
+                let implicit_index = i - explicit_column_count;
+                match grid_auto_columns.get(implicit_index) {
+                    LayoutTrackSize::Fr(fr_value) => {
+                        info.is_fr = true;
+                        info.fr_value = *fr_value;
+                    }
+                    _ => {}
+                }
             }
             info
         })
         .collect();
 
+    // Initialize row track info
+    // CSS Grid §7.6: Implicit tracks use grid-auto-rows
     let mut rows: Vec<TrackInfo<T::Length>> = (0..row_count)
         .map(|i| {
             let mut info = TrackInfo {
@@ -92,11 +116,22 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
                 fr_value: 0.0,
                 min_content: T::Length::zero(),
             };
+            // Check explicit grid first
             if let Some(LayoutTrackListItem::TrackSize(LayoutTrackSize::Fr(fr_value))) =
                 row_track_list.get(i)
             {
                 info.is_fr = true;
                 info.fr_value = *fr_value;
+            } else if i >= explicit_row_count {
+                // Implicit track - use grid-auto-rows (§7.6)
+                let implicit_index = i - explicit_row_count;
+                match grid_auto_rows.get(implicit_index) {
+                    LayoutTrackSize::Fr(fr_value) => {
+                        info.is_fr = true;
+                        info.fr_value = *fr_value;
+                    }
+                    _ => {}
+                }
             }
             info
         })
@@ -145,10 +180,26 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
 
         // Handle column sizing for non-fr tracks
         if !columns[column].is_fr {
-            if item.track_inline_size().is_some() {
+            // Determine track size source: explicit grid or grid-auto-columns
+            let track_size = if column < explicit_column_count {
+                // Explicit track
+                item.track_inline_size()
+            } else {
+                // Implicit track - use grid-auto-columns (§7.6)
+                let implicit_index = column - explicit_column_count;
+                match grid_auto_columns.get(implicit_index) {
+                    LayoutTrackSize::Length(def_len) => {
+                        def_len.resolve(available_grid_space.width, item.node)
+                    }
+                    LayoutTrackSize::MinContent | LayoutTrackSize::MaxContent => OptionNum::none(),
+                    LayoutTrackSize::Fr(_) => OptionNum::none(), // Handled above
+                }
+            };
+
+            if track_size.is_some() {
                 // Track has explicit size (fixed)
                 columns[column].has_explicit = true;
-                let track_width = item.track_inline_size().val().unwrap();
+                let track_width = track_size.val().unwrap();
                 let width = if !should_use_min_content_size {
                     track_width.max(min_content_width)
                 } else {
@@ -175,10 +226,26 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
 
         // Handle row sizing for non-fr tracks
         if !rows[row].is_fr {
-            if item.track_block_size().is_some() {
+            // Determine track size source: explicit grid or grid-auto-rows
+            let track_size = if row < explicit_row_count {
+                // Explicit track
+                item.track_block_size()
+            } else {
+                // Implicit track - use grid-auto-rows (§7.6)
+                let implicit_index = row - explicit_row_count;
+                match grid_auto_rows.get(implicit_index) {
+                    LayoutTrackSize::Length(def_len) => {
+                        def_len.resolve(available_grid_space.height, item.node)
+                    }
+                    LayoutTrackSize::MinContent | LayoutTrackSize::MaxContent => OptionNum::none(),
+                    LayoutTrackSize::Fr(_) => OptionNum::none(), // Handled above
+                }
+            };
+
+            if track_size.is_some() {
                 // Track has explicit size (fixed)
                 rows[row].has_explicit = true;
-                let track_height = item.track_block_size().val().unwrap();
+                let track_height = track_size.val().unwrap();
                 rows[row].size = Some(
                     rows[row]
                         .size

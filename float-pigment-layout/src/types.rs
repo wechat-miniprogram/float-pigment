@@ -1072,6 +1072,47 @@ pub enum LayoutTrackSize<L: LengthNum, T: PartialEq + Clone = i32> {
     Length(DefLength<L, T>),
 }
 
+/// CSS Grid §7.6: Implicit Track Sizing
+/// <https://www.w3.org/TR/css-grid-1/#auto-tracks>
+///
+/// The `grid-auto-rows` and `grid-auto-columns` properties specify the size
+/// of implicitly-created grid tracks.
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct LayoutGridAuto<L: LengthNum, T: PartialEq + Clone = i32>(pub Vec<LayoutTrackSize<L, T>>);
+
+impl<L: LengthNum, T: PartialEq + Clone> Default for LayoutGridAuto<L, T> {
+    fn default() -> Self {
+        // Default is a single `auto` track
+        Self(vec![LayoutTrackSize::Length(DefLength::Auto)])
+    }
+}
+
+impl<L: LengthNum, T: PartialEq + Clone> LayoutGridAuto<L, T> {
+    /// Get the track size for an implicit track at the given index.
+    /// Cycles through the list if index exceeds the list length.
+    pub fn get(&self, index: usize) -> &LayoutTrackSize<L, T> {
+        if self.0.is_empty() {
+            // Should not happen with default, but be safe
+            static AUTO: LayoutTrackSize<f32, i32> = LayoutTrackSize::Length(DefLength::Auto);
+            // SAFETY: We return a reference to a static with matching type layout
+            unsafe { &*(&AUTO as *const _ as *const LayoutTrackSize<L, T>) }
+        } else {
+            &self.0[index % self.0.len()]
+        }
+    }
+
+    /// Get the number of track sizes in the list.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Check if the list is empty.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
 #[cfg(test)]
 mod test {
 

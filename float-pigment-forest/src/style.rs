@@ -3,7 +3,7 @@ use std::cell::Cell;
 use float_pigment_css::{num_traits::Zero, typing::GridAutoFlow};
 // use float_pigment_forest_macro::{FieldCount, StyleManagerMutation};
 
-use crate::{LayoutGridTemplate, Len, Length};
+use crate::{LayoutGridAuto, LayoutGridTemplate, Len, Length};
 use float_pigment_css::typing::{
     AlignContent, AlignItems, AlignSelf, BoxSizing, Direction, Display, FlexDirection, FlexWrap,
     JustifyContent, JustifyItems, JustifySelf, Overflow, Position, TextAlign, WritingMode,
@@ -209,6 +209,8 @@ struct GridStyle {
     pub grid_template_rows: LayoutGridTemplate,
     pub grid_template_columns: LayoutGridTemplate,
     pub grid_auto_flow: GridAutoFlow,
+    pub grid_auto_rows: LayoutGridAuto,
+    pub grid_auto_columns: LayoutGridAuto,
 }
 
 impl Default for GridStyle {
@@ -217,6 +219,8 @@ impl Default for GridStyle {
             grid_template_rows: LayoutGridTemplate::None,
             grid_template_columns: LayoutGridTemplate::None,
             grid_auto_flow: GridAutoFlow::Row,
+            grid_auto_rows: LayoutGridAuto::default(),
+            grid_auto_columns: LayoutGridAuto::default(),
         }
     }
 }
@@ -1078,6 +1082,32 @@ impl StyleManager {
         }
         self.clone_style(StyleBit::Grid);
         self.grid_style().grid_auto_flow = value;
+        true
+    }
+
+    pub(crate) fn grid_auto_rows(&self) -> LayoutGridAuto {
+        self.grid_style().grid_auto_rows.clone()
+    }
+
+    pub(crate) fn set_grid_auto_rows(&self, value: LayoutGridAuto) -> bool {
+        if self.grid_style().grid_auto_rows == value {
+            return false;
+        }
+        self.clone_style(StyleBit::Grid);
+        self.grid_style().grid_auto_rows = value;
+        true
+    }
+
+    pub(crate) fn grid_auto_columns(&self) -> LayoutGridAuto {
+        self.grid_style().grid_auto_columns.clone()
+    }
+
+    pub(crate) fn set_grid_auto_columns(&self, value: LayoutGridAuto) -> bool {
+        if self.grid_style().grid_auto_columns == value {
+            return false;
+        }
+        self.clone_style(StyleBit::Grid);
+        self.grid_style().grid_auto_columns = value;
         true
     }
 }

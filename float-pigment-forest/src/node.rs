@@ -18,6 +18,7 @@ use std::{
 pub type Len = float_pigment_css::fixed::FixedI32<float_pigment_css::fixed::types::extra::U10>;
 pub type Length = DefLength<Len>;
 pub type LayoutGridTemplate = float_pigment_layout::LayoutGridTemplate<Len>;
+pub type LayoutGridAuto = float_pigment_layout::LayoutGridAuto<Len>;
 pub type NodeId = usize;
 pub type NodePtr = *mut Node;
 
@@ -652,6 +653,8 @@ pub trait StyleSetter {
     unsafe fn set_grid_template_rows(&self, value: LayoutGridTemplate);
     unsafe fn set_grid_template_columns(&self, value: LayoutGridTemplate);
     unsafe fn set_grid_auto_flow(&self, value: GridAutoFlow);
+    unsafe fn set_grid_auto_rows(&self, value: LayoutGridAuto);
+    unsafe fn set_grid_auto_columns(&self, value: LayoutGridAuto);
 }
 
 impl StyleSetter for Node {
@@ -923,6 +926,16 @@ impl StyleSetter for Node {
     }
     unsafe fn set_grid_auto_flow(&self, value: GridAutoFlow) {
         if self.style_manager_mut().set_grid_auto_flow(value) {
+            self.mark_dirty_propagate();
+        }
+    }
+    unsafe fn set_grid_auto_rows(&self, value: LayoutGridAuto) {
+        if self.style_manager_mut().set_grid_auto_rows(value) {
+            self.mark_dirty_propagate();
+        }
+    }
+    unsafe fn set_grid_auto_columns(&self, value: LayoutGridAuto) {
+        if self.style_manager_mut().set_grid_auto_columns(value) {
             self.mark_dirty_propagate();
         }
     }

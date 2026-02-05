@@ -13,7 +13,7 @@ use float_pigment_layout::{
     SizingMode, Vector,
 };
 
-use crate::{convert_node_ref_to_ptr, LayoutGridTemplate, Length};
+use crate::{convert_node_ref_to_ptr, LayoutGridAuto, LayoutGridTemplate, Length};
 use crate::{
     env::Env,
     node::{ChildOperation, Node},
@@ -695,6 +695,16 @@ impl LayoutStyle<Len> for Node {
     #[inline]
     fn grid_auto_flow(&self) -> GridAutoFlow {
         self.style_manager().grid_auto_flow()
+    }
+
+    #[inline]
+    fn grid_auto_rows(&self) -> LayoutGridAuto {
+        self.style_manager().grid_auto_rows()
+    }
+
+    #[inline]
+    fn grid_auto_columns(&self) -> LayoutGridAuto {
+        self.style_manager().grid_auto_columns()
     }
 
     #[inline]
