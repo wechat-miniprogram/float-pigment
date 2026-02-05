@@ -171,6 +171,8 @@ property_list! (PropertyValueWithGlobal, {
     0xa6 GridTemplateColumns: GridTemplateType as Initial default GridTemplate::None;
     0xa7 GridAutoFlow: GridAutoFlowType as Initial default GridAutoFlow::Row;
     0xa8 JustifySelf: JustifySelfType as Initial default JustifySelf::Auto;
+    0xa9 GridAutoRows: GridAutoType as Initial default GridAuto::List(Array::empty());
+    0xaa GridAutoColumns: GridAutoType as Initial default GridAuto::List(Array::empty());
 
 
     0xd0 ListStyleType: ListStyleTypeType as Inherit default ListStyleType::Disc;
@@ -1722,6 +1724,18 @@ property_value_format! (PropertyValueWithGlobal, {
     }};
 
     grid_auto_flow: {{ GridAutoFlow = <grid_auto_flow_repr> }};
+
+    grid_auto_rows: {{ GridAutoRows
+        = <track_size>+ -> |x: Vec<TrackSize>| {
+            GridAuto::List(x.into())
+        };
+    }};
+
+    grid_auto_columns: {{ GridAutoColumns
+        = <track_size>+ -> |x: Vec<TrackSize>| {
+            GridAuto::List(x.into())
+        };
+    }};
 
 });
 

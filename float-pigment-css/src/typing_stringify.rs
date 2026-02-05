@@ -2421,3 +2421,15 @@ impl fmt::Display for GridAutoFlow {
         }
     }
 }
+
+impl fmt::Display for GridAuto {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GridAuto::List(list) => {
+                let mut ret = vec![];
+                list.iter().for_each(|x| ret.push(x.to_string()));
+                write!(f, "{}", ret.join(" "))
+            }
+        }
+    }
+}
