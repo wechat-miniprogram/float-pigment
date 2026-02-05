@@ -205,7 +205,7 @@ float-pigment-layout/src/algo/grid/
 | §5 Grid Containers | `display: grid/inline-grid` | ✅ | 完整支持 |
 | §6 Grid Items | 网格项目定义 | ✅ | 正确过滤 `display: none`，支持 `position: absolute` |
 | §7.1 Explicit Grid | `grid-template-rows/columns` | ✅ | 支持 `<length>`, `<percentage>`, `auto`, `fr` |
-| §7.2 Implicit Grid | `grid-auto-rows/columns` | ⚠️ | 隐式轨道使用默认 `auto` 大小 |
+| §7.5-7.6 Implicit Grid | `grid-auto-rows/columns` | ✅ | 支持固定值、百分比、fr、多值循环 |
 | §8.1-8.4 Line Placement | 基于线的放置 | ❌ | 未实现 `grid-column/row-start/end` |
 | §8.5 Auto-placement | 自动放置算法 | ✅ | 完整实现 sparse 和 dense 模式 |
 | §9 Absolute Positioning | 绝对定位 | ✅ | 正确处理 `position: absolute` 项目 |
@@ -232,7 +232,6 @@ float-pigment-layout/src/algo/grid/
 | `auto-fill` / `auto-fit` | §7.2.2.1 | 中 | 自动填充轨道 |
 | Named Grid Areas | §7.3 | 中 | `grid-template-areas` |
 | `fit-content()` | §7.2.4 | 低 | 内容适应尺寸 |
-| `grid-auto-rows/columns` | §7.5-7.6 | 低 | 隐式轨道大小控制 |
 | Shorthand Properties | §7.4 | 低 | `grid-template`, `grid` 简写 |
 | Named Lines | §8.4 | 低 | `[line-name]` 命名网格线 |
 | Subgrid | CSS Grid Level 2 | 低 | 子网格 |

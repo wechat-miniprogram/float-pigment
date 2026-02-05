@@ -205,7 +205,7 @@ Apply self-alignment and calculate final item position:
 | §5 Grid Containers | `display: grid/inline-grid` | ✅ | Full support |
 | §6 Grid Items | Grid item definition | ✅ | Correctly filters `display: none`, supports `position: absolute` |
 | §7.1 Explicit Grid | `grid-template-rows/columns` | ✅ | Supports `<length>`, `<percentage>`, `auto`, `fr` |
-| §7.2 Implicit Grid | `grid-auto-rows/columns` | ⚠️ | Implicit tracks use default `auto` size |
+| §7.5-7.6 Implicit Grid | `grid-auto-rows/columns` | ✅ | Supports fixed, percentage, fr, multiple values cycling |
 | §8.1-8.4 Line Placement | Line-based placement | ❌ | `grid-column/row-start/end` not implemented |
 | §8.5 Auto-placement | Auto-placement algorithm | ✅ | Full sparse and dense mode support |
 | §9 Absolute Positioning | Absolute positioning | ✅ | Correctly handles `position: absolute` items |
@@ -232,7 +232,6 @@ Apply self-alignment and calculate final item position:
 | `auto-fill` / `auto-fit` | §7.2.2.1 | Medium | Auto-fill tracks |
 | Named Grid Areas | §7.3 | Medium | `grid-template-areas` |
 | `fit-content()` | §7.2.4 | Low | Content-fit sizing |
-| `grid-auto-rows/columns` | §7.5-7.6 | Low | Implicit track size control |
 | Shorthand Properties | §7.4 | Low | `grid-template`, `grid` shorthands |
 | Named Lines | §8.4 | Low | `[line-name]` named grid lines |
 | Subgrid | CSS Grid Level 2 | Low | Subgrid feature |

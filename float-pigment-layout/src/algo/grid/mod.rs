@@ -177,6 +177,12 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         let grid_template_rows = style.grid_template_rows();
         let grid_template_columns = style.grid_template_columns();
 
+        // CSS Grid §7.6: Implicit Track Sizing
+        // https://www.w3.org/TR/css-grid-1/#auto-tracks
+        // grid-auto-rows/columns specify sizes for implicitly-created tracks
+        let grid_auto_rows = style.grid_auto_rows();
+        let grid_auto_columns = style.grid_auto_columns();
+
         let InitializedTrackListInfo {
             list: row_track_list,
             auto_count: row_track_auto_count,
@@ -445,6 +451,8 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             available_grid_space,
             column_total_fr,
             row_total_fr,
+            &grid_auto_columns,
+            &grid_auto_rows,
         );
 
         // ═══════════════════════════════════════════════════════════════════════

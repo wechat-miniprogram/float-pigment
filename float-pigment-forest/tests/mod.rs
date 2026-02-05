@@ -8,11 +8,13 @@ use float_pigment_css::{
     parser::parse_inline_style,
     property::{NodeProperties, Property, PropertyValueWithGlobal},
     sheet::PropertyMeta,
-    typing::{AspectRatio, Display, Gap, GridTemplate, TrackListItem, TrackSize},
+    typing::{AspectRatio, Display, Gap, GridAuto, GridTemplate, TrackListItem, TrackSize},
 };
 pub use float_pigment_forest::Len;
 use float_pigment_forest::{layout::LayoutPosition, node::Length, *};
-use float_pigment_layout::{DefLength, LayoutGridTemplate, LayoutTrackListItem, LayoutTrackSize};
+use float_pigment_layout::{
+    DefLength, LayoutGridAuto, LayoutGridTemplate, LayoutTrackListItem, LayoutTrackSize,
+};
 use float_pigment_mlp::{
     context::{Context, Parse},
     node::{attribute::Attribute, NodeType},
@@ -597,6 +599,12 @@ impl TestCtx {
                 "grid-auto-flow" => {
                     node.set_grid_auto_flow(node_props.grid_auto_flow());
                 }
+                "grid-auto-rows" => {
+                    node.set_grid_auto_rows(convert_grid_auto(node_props.grid_auto_rows()));
+                }
+                "grid-auto-columns" => {
+                    node.set_grid_auto_columns(convert_grid_auto(node_props.grid_auto_columns()));
+                }
                 _ => {}
             }
         });
@@ -627,6 +635,21 @@ fn convert_grid_template(grid_template: GridTemplate) -> LayoutGridTemplate<Len>
                 })
                 .collect()
         }),
+    }
+}
+
+fn convert_grid_auto(grid_auto: GridAuto) -> LayoutGridAuto<Len> {
+    match grid_auto {
+        GridAuto::List(list) => LayoutGridAuto(
+            list.into_iter()
+                .map(|track_size| match track_size {
+                    TrackSize::MinContent => LayoutTrackSize::MinContent,
+                    TrackSize::MaxContent => LayoutTrackSize::MaxContent,
+                    TrackSize::Fr(x) => LayoutTrackSize::Fr(x),
+                    TrackSize::Length(x) => LayoutTrackSize::Length(def_length(x)),
+                })
+                .collect(),
+        ),
     }
 }
 

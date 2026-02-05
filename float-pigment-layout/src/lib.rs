@@ -277,6 +277,16 @@ pub trait LayoutStyle<L: LengthNum, T: PartialEq + Clone = i32> {
     fn grid_auto_flow(&self) -> GridAutoFlow {
         GridAutoFlow::Row
     }
+    /// CSS Grid §7.6: grid-auto-rows
+    /// <https://www.w3.org/TR/css-grid-1/#auto-tracks>
+    fn grid_auto_rows(&self) -> LayoutGridAuto<L, T> {
+        LayoutGridAuto::default()
+    }
+    /// CSS Grid §7.6: grid-auto-columns
+    /// <https://www.w3.org/TR/css-grid-1/#auto-tracks>
+    fn grid_auto_columns(&self) -> LayoutGridAuto<L, T> {
+        LayoutGridAuto::default()
+    }
     fn justify_items(&self) -> JustifyItems {
         JustifyItems::Stretch
     }
