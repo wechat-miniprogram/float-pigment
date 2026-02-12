@@ -56,6 +56,7 @@ impl<L: LengthNum + Copy + Default> Default for TrackInfo<L> {
 /// 3. Repeat until stable
 ///
 /// Returns (column_result, row_result).
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
     grid_layout_matrix: &mut GridLayoutMatrix<T>,
     should_use_min_content_size: bool,
