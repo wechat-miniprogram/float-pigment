@@ -1,5 +1,6 @@
 use core::{fmt::Display, ops::Deref};
 
+use alloc::{string::String, vec::Vec};
 use euclid::UnknownUnit;
 use float_pigment_css::typing::{Direction, WritingMode};
 

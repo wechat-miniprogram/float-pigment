@@ -4,6 +4,8 @@
 //!
 //! Utilities for parsing and initializing grid template track lists.
 
+use alloc::vec::Vec;
+
 use crate::{DefLength, LayoutGridTemplate, LayoutTrackListItem, LayoutTrackSize, LayoutTreeNode};
 
 /// Information about an initialized track list.

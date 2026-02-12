@@ -29,6 +29,7 @@
 //! - CSS Grid Layout Module Level 1: <https://www.w3.org/TR/css-grid-1/>
 //! - CSS Box Alignment Module Level 3: <https://www.w3.org/TR/css-align-3/>
 
+use alloc::vec::Vec;
 use euclid::Rect;
 use float_pigment_css::length_num::LengthNum;
 use float_pigment_css::num_traits::Zero;
