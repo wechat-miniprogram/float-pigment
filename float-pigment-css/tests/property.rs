@@ -249,7 +249,23 @@ mod base {
             )
         );
         let np = query(&ssg, "", "", ["g"], []);
-        assert_eq!(np.background_image(), BackgroundImage::List(vec![].into()));
+        assert_eq!(
+            np.background_image(),
+            BackgroundImage::List(
+                vec![
+                    BackgroundImageItem::Gradient(BackgroundImageGradientItem::LinearGradient(
+                        Angle::Deg(180.),
+                        vec![GradientColorItem::ColorHint(
+                            Color::Specified(255, 0, 0, 255),
+                            Length::Ratio(1.)
+                        ),]
+                        .into()
+                    ))
+                    .into()
+                ]
+                .into()
+            )
+        );
         let np = query(&ssg, "", "", ["h"], []);
         assert_eq!(np.background_image(), BackgroundImage::List(vec![].into()));
         let np = query(&ssg, "", "", ["i"], []);
@@ -1044,7 +1060,25 @@ mod base {
         let np = query(&ssg, "", "", ["j"], []);
         assert_eq!(np.background_image(), BackgroundImage::List(vec![].into()));
         let np = query(&ssg, "", "", ["k"], []);
-        assert_eq!(np.background_image(), BackgroundImage::List(vec![].into()));
+        assert_eq!(
+            np.background_image(),
+            BackgroundImage::List(
+                vec![
+                    BackgroundImageItem::Gradient(BackgroundImageGradientItem::RadialGradient(
+                        GradientShape::Ellipse,
+                        GradientSize::FarthestCorner,
+                        GradientPosition::Pos(Length::Ratio(0.5), Length::Ratio(0.5)),
+                        vec![GradientColorItem::ColorHint(
+                            Color::Specified(255, 0, 0, 255),
+                            Length::Ratio(1.)
+                        )]
+                        .into()
+                    ))
+                    .into()
+                ]
+                .into()
+            )
+        );
         let np = query(&ssg, "", "", ["l"], []);
         assert_eq!(
             np.background_image(),

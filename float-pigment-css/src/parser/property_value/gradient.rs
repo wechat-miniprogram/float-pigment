@@ -39,7 +39,7 @@ fn resolved_gradient_color_stops<'a, 't: 'a, 'i: 't>(
 
     // calc stops
     let color_len = colors.len();
-    if color_len < 2 {
+    if color_len < 1 {
         return Err(parser.new_custom_error(CustomError::Unsupported));
     }
     // normalize specified value of color stops
@@ -55,7 +55,7 @@ fn resolved_gradient_color_stops<'a, 't: 'a, 'i: 't>(
         };
         match hint {
             Length::Auto => {
-                if idx == 0 {
+                if idx == 0 && color_len > 1{
                     *hint = Length::Ratio(0.);
                 } else if idx == color_len - 1 {
                     *hint = Length::Ratio(1.);
