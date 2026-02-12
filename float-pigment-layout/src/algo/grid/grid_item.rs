@@ -6,7 +6,7 @@
 //! This module defines the data structures for grid items during the
 //! placement and layout phases.
 
-use std::fmt::Debug;
+use core::fmt::Debug;
 
 use crate::{
     algo::grid::track_size::TrackSize, DefLength, EdgeOption, LayoutTreeNode, OptionNum, Size,
@@ -126,7 +126,7 @@ pub(crate) struct GridItem<'a, T: LayoutTreeNode> {
 }
 
 impl<'a, T: LayoutTreeNode> Debug for GridItem<'a, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "GridItem {{ row: {}, column: {}, origin_index: {}, track_block_size: {:?}, track_inline_size: {:?} }}",

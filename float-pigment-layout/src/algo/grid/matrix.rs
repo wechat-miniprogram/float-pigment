@@ -13,9 +13,10 @@
 //! - O(N) space where N = number of items (not R × C)
 //! - Items stored in Vec for efficient iteration
 
-use std::collections::HashSet;
-use std::fmt::Debug;
+use hashbrown::HashSet;
+use core::fmt::Debug;
 
+use alloc::vec::Vec;
 use float_pigment_css::typing::GridAutoFlow;
 
 use crate::{
@@ -149,7 +150,7 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
 }
 
 impl<'a, T: LayoutTreeNode> Debug for GridMatrix<'a, T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "GridMatrix {{ row_count: {}, column_count: {}, explicit: {}x{}, items: {} }}",

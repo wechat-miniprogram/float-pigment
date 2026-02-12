@@ -37,7 +37,7 @@
 //! However, you are informed the inline layout parts so that you can implement a text layout engine to handle them.
 
 #![warn(missing_docs)]
-// #![no_std]
+#![no_std]
 
 #[macro_use]
 extern crate alloc;
@@ -91,7 +91,7 @@ pub trait LayoutTreeNode: Sized {
     /// A custom length type used in `DefLength::Custom`.
     ///
     /// If you do not need it, simply use `i32`.
-    type LengthCustom: PartialEq + std::fmt::Debug + Clone;
+    type LengthCustom: PartialEq + core::fmt::Debug + Clone;
 
     /// A helper type for tree traversal.
     ///

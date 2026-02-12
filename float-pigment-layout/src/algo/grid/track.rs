@@ -9,9 +9,10 @@
 #![allow(dead_code)]
 
 use crate::{DefLength, LayoutTreeNode, OptionNum};
+use alloc::vec::Vec;
 use float_pigment_css::length_num::LengthNum;
 use float_pigment_css::num_traits::Zero;
-use std::fmt::Debug;
+use core::fmt::Debug;
 
 /// A single grid track (row or column) with its sizing information.
 ///
@@ -58,7 +59,7 @@ pub(crate) struct GridTrack<T: LayoutTreeNode> {
 }
 
 impl<T: LayoutTreeNode> Debug for GridTrack<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "GridTrack {{ min: {:?}, max: {:?}, base_size: {:?}, growth_limit: {:?} }}",
@@ -188,7 +189,7 @@ pub(crate) enum TrackSizingFunction<T: LayoutTreeNode> {
 }
 
 impl<T: LayoutTreeNode> Debug for TrackSizingFunction<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Fixed(length) => write!(f, "Fixed({:?})", length),
             Self::Flex(fr) => write!(f, "Flex({}fr)", fr),
@@ -208,7 +209,7 @@ pub(crate) struct GridTracks<T: LayoutTreeNode> {
 }
 
 impl<T: LayoutTreeNode> Debug for GridTracks<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "GridTracks {{ count: {}, auto_count: {}, total_flex: {} }}",

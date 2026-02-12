@@ -8,7 +8,7 @@ use crate::{
     DefLength, LayoutTrackListItem, LayoutTrackSize, LayoutTreeNode, OptionNum,
 };
 use float_pigment_css::{length_num::LengthNum, num_traits::Zero};
-use std::fmt::Debug;
+use core::fmt::Debug;
 
 /// Represents the sizing state of a track during the sizing algorithm.
 ///
@@ -26,7 +26,7 @@ pub(crate) enum TrackSize<T: LayoutTreeNode> {
 }
 
 impl<T: LayoutTreeNode> Debug for TrackSize<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Original(length) => write!(f, "Original({:?})", length),
             Self::Fr(fr) => write!(f, "Fr({:?})", fr),
