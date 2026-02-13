@@ -829,8 +829,8 @@ property_value_format! (PropertyValueWithGlobal, {
           BorderBottomColor,
           BorderLeftColor,
       ) = [
-            [<line_width>{1, 4} -> split_edges ] || [<border_style_repr>{1, 4} -> split_edges] || [<color_repr>{1, 4} -> split_edges]
-          ] -> |x: (Option<(Length, Length, Length, Length)>, Option<(BorderStyle, BorderStyle, BorderStyle, BorderStyle)>, Option<(Color, Color, Color, Color)>)| {
+            <line_width> || <border_style_repr> || <color_repr>
+          ] -> |x: (Option<Length>, Option<BorderStyle>, Option<Color>)| {
               let width = x.0;
               let style = x.1;
               let color = x.2;
@@ -838,24 +838,14 @@ property_value_format! (PropertyValueWithGlobal, {
               let mut s = BorderStyle::None;
               let mut c = ColorType::Initial;
               // for border: 'none'
-              if style.is_some() {
-                  let style = style.clone().unwrap();
-                  if (style.0 == BorderStyle::None) && color.is_none() && width.is_none() {
-                      return (
-                          w.clone(), w.clone(), w.clone(), w,
-                          s.clone(), s.clone(), s.clone(), s,
-                          c.clone(), c.clone(), c.clone(), c,
-                      );
-                  }
+              if let Some(style) = style {
+                s = style;
               }
-              if let Some(_width) = width {
-                  w = _width.0.into();
+              if let Some(width) = width {
+                  w = width.into();
               }
-              if let Some(_style) = style {
-                  s = _style.0;
-              }
-              if let Some(_color) = color {
-                  c = _color.0.into();
+              if let Some(color) = color {
+                  c = color.into();
               }
               (
                   w.clone(), w.clone(), w.clone(), w,
