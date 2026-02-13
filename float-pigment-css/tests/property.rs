@@ -1721,7 +1721,7 @@ mod position {
         let np = query(&ssg, "", "", ["g"], []);
         assert_eq!(
             np.transform(),
-            Transform::Series(vec![TransformItem::Skew(Angle::Deg(10.), Angle::Deg(10.))].into())
+            Transform::Series(vec![TransformItem::Skew(Angle::Deg(10.), Angle::Deg(0.))].into())
         );
         let np = query(&ssg, "", "", ["h"], []);
         assert_eq!(
