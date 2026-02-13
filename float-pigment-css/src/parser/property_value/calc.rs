@@ -332,19 +332,21 @@ pub(crate) enum ExpectValueType {
 
 #[inline(never)]
 fn combine_calc_expr(operator: Operator, lhs: CalcExpr, rhs: CalcExpr) -> CalcExpr {
-    let mut final_lhs = Box::new(lhs.clone());
-    if let CalcExpr::Length(length_expr) = lhs {
-        if let Length::Expr(LengthExpr::Calc(length_expr)) = *length_expr {
-            final_lhs = length_expr
-        }
-    }
-    let mut final_rhs = Box::new(rhs.clone());
-    if let CalcExpr::Length(length_expr) = rhs {
-        if let Length::Expr(LengthExpr::Calc(length_expr)) = *length_expr {
-            final_rhs = length_expr
-        }
-    }
-
+    // Unwrap nested `Length::Expr(Calc(...))` to flatten the expression tree.
+    let final_lhs = match lhs {
+        CalcExpr::Length(length_expr) => match *length_expr {
+            Length::Expr(LengthExpr::Calc(calc_expr)) => calc_expr,
+            other => Box::new(CalcExpr::Length(Box::new(other))),
+        },
+        other => Box::new(other),
+    };
+    let final_rhs = match rhs {
+        CalcExpr::Length(length_expr) => match *length_expr {
+            Length::Expr(LengthExpr::Calc(calc_expr)) => calc_expr,
+            other => Box::new(CalcExpr::Length(Box::new(other))),
+        },
+        other => Box::new(other),
+    };
     match operator {
         Operator::Plus => CalcExpr::Plus(final_lhs, final_rhs),
         Operator::Sub => CalcExpr::Sub(final_lhs, final_rhs),
