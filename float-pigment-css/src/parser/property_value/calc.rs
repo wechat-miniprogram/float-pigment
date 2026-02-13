@@ -492,8 +492,9 @@ fn parse_calc_value<'a, 't: 'a, 'i: 't>(
         return Ok(CalcExpr::Number(Box::new(num)));
     }
     // match length
-    let length =
-        parser.try_parse::<_, Length, ParseError<'_, _>>(|parser| length(parser, properties, st));
+    let length = parser.try_parse::<_, Length, ParseError<'_, _>>(|parser| {
+        length_percentage_auto(parser, properties, st)
+    });
     if let Ok(length) = length {
         if expect_type == ExpectValueType::NumberAndLength
             || expect_type == ExpectValueType::AngleAndLength
