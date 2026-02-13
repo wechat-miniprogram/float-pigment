@@ -4526,6 +4526,9 @@ mod border {
             .e {
                 border: 1px none;
             }
+            .f {
+                border: 2px 2px 2px 2px black solid;
+            }
         "#,
         );
         ssg.append(ss);
@@ -4608,6 +4611,12 @@ mod border {
         assert_eq!(np.border_right_color_type(), ColorType::Initial);
         assert_eq!(np.border_top_color_type(), ColorType::Initial);
         assert_eq!(np.border_bottom_color_type(), ColorType::Initial);
+
+        let np = query(&ssg, "", "", ["f"], []);
+        assert_eq!(np.border_left_width(), Length::Px(3.));
+        assert_eq!(np.border_right_width(), Length::Px(3.));
+        assert_eq!(np.border_top_width(), Length::Px(3.));
+        assert_eq!(np.border_bottom_width(), Length::Px(3.));
     }
 
     #[test]
