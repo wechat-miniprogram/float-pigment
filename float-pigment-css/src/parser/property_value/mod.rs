@@ -135,68 +135,12 @@ pub(crate) fn color_repr<'a, 't: 'a, 'i: 't>(
 }
 
 #[inline(never)]
-pub(crate) fn length<'a, 't: 'a, 'i: 't>(
+pub(crate) fn length_percentage_auto<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
     properties: &mut Vec<PropertyMeta>,
     st: &mut ParseState,
 ) -> Result<Length, ParseError<'i, CustomError>> {
-    let next = parser.next()?;
-    match next {
-        Token::Number { value, .. } => {
-            if *value == 0. {
-                return Ok(Length::Px(0.));
-            }
-        }
-        Token::Percentage { unit_value, .. } => {
-            return Ok(Length::Ratio(*unit_value));
-        }
-        Token::Dimension { value, unit, .. } => {
-            let unit: &str = unit;
-            match unit {
-                "px" => return Ok(Length::Px(*value)),
-                "vw" => return Ok(Length::Vw(*value)),
-                "vh" => return Ok(Length::Vh(*value)),
-                "rem" => return Ok(Length::Rem(*value)),
-                "rpx" => return Ok(Length::Rpx(*value)),
-                "em" => return Ok(Length::Em(*value)),
-                "vmin" => return Ok(Length::Vmin(*value)),
-                "vmax" => return Ok(Length::Vmax(*value)),
-                _ => {}
-            }
-        }
-        Token::Ident(ident) => {
-            let ident: &str = ident;
-            if ident == "auto" {
-                return Ok(Length::Auto);
-            }
-        }
-        Token::Function(name) => match &**name {
-            "env" => {
-                let (name, default_value) = parser.parse_nested_block(|parser| {
-                    parse_env_inner(parser, st, |parser, st| {
-                        env_default_value(parser, properties, st)
-                    })
-                })?;
-                return Ok(Length::Expr(LengthExpr::Env(
-                    name.into(),
-                    Box::new(default_value.unwrap_or(Length::Undefined)),
-                )));
-            }
-            "calc" => {
-                return parse_calc_inner(parser, properties, st, ExpectValueType::NumberAndLength)
-                    .map(|ret| {
-                        if let Some(r) = ComputeCalcExpr::<Length>::try_compute(&ret) {
-                            return r;
-                        }
-                        Length::Expr(LengthExpr::Calc(Box::new(ret)))
-                    });
-            }
-            _ => {}
-        },
-        _ => {}
-    }
-    let next = next.clone();
-    Err(parser.new_unexpected_token_error(next))
+    parse_length_inner(parser, properties, st, true, true, true)
 }
 
 #[inline(never)]
@@ -207,7 +151,7 @@ pub(crate) fn env_default_value<'a, 't: 'a, 'i: 't>(
 ) -> Result<Length, ParseError<'i, CustomError>> {
     parser.skip_whitespace();
     let start = parser.current_source_location();
-    let len = length(parser, properties, st);
+    let len = length_percentage_auto(parser, properties, st);
     let end = parser.current_source_location();
     if len.is_err() {
         st.add_warning_with_message(
@@ -221,15 +165,17 @@ pub(crate) fn env_default_value<'a, 't: 'a, 'i: 't>(
     len
 }
 
-/// Internal: parse a length value with configurable options.
+/// Unified internal length parsing function.
 /// - `allow_percentage`: whether `<percentage>` is accepted
 /// - `allow_negative`: whether negative values are accepted
+/// - `allow_auto`: whether the `auto` keyword is accepted
 fn parse_length_inner<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
     properties: &mut Vec<PropertyMeta>,
     st: &mut ParseState,
     allow_percentage: bool,
     allow_negative: bool,
+    allow_auto: bool,
 ) -> Result<Length, ParseError<'i, CustomError>> {
     let next = parser.next()?.clone();
     match &next {
@@ -259,6 +205,12 @@ fn parse_length_inner<'a, 't: 'a, 'i: 't>(
                 "vmin" => return Ok(Length::Vmin(*value)),
                 "vmax" => return Ok(Length::Vmax(*value)),
                 _ => {}
+            }
+        }
+        Token::Ident(ident) if allow_auto => {
+            let ident: &str = ident;
+            if ident == "auto" {
+                return Ok(Length::Auto);
             }
         }
         Token::Function(name) => match &**name {
@@ -296,7 +248,7 @@ pub(crate) fn length_percentage<'a, 't: 'a, 'i: 't>(
     properties: &mut Vec<PropertyMeta>,
     st: &mut ParseState,
 ) -> Result<Length, ParseError<'i, CustomError>> {
-    parse_length_inner(parser, properties, st, true, true)
+    parse_length_inner(parser, properties, st, true, true, false)
 }
 
 /// Parse `<length>` only: NO `auto`, NO `<percentage>`.
@@ -306,7 +258,7 @@ pub(crate) fn length_only<'a, 't: 'a, 'i: 't>(
     properties: &mut Vec<PropertyMeta>,
     st: &mut ParseState,
 ) -> Result<Length, ParseError<'i, CustomError>> {
-    parse_length_inner(parser, properties, st, false, true)
+    parse_length_inner(parser, properties, st, false, true, false)
 }
 
 /// Parse non-negative `<length-percentage>`: NO `auto`.
@@ -316,7 +268,7 @@ pub(crate) fn non_negative_length_percentage<'a, 't: 'a, 'i: 't>(
     properties: &mut Vec<PropertyMeta>,
     st: &mut ParseState,
 ) -> Result<Length, ParseError<'i, CustomError>> {
-    parse_length_inner(parser, properties, st, true, false)
+    parse_length_inner(parser, properties, st, true, false, false)
 }
 
 /// Parse non-negative `<length>` only: NO `auto`, NO `<percentage>`.
@@ -326,7 +278,7 @@ pub(crate) fn non_negative_length_only<'a, 't: 'a, 'i: 't>(
     properties: &mut Vec<PropertyMeta>,
     st: &mut ParseState,
 ) -> Result<Length, ParseError<'i, CustomError>> {
-    parse_length_inner(parser, properties, st, false, false)
+    parse_length_inner(parser, properties, st, false, false, false)
 }
 
 #[inline(never)]
@@ -345,6 +297,7 @@ pub(crate) fn is_non_negative_length(length: &Length) -> bool {
     }
 }
 
+/// Parse non-negative `<length-percentage>` with `auto`: `<length> | <percentage> | auto`.
 #[allow(dead_code)]
 #[inline(never)]
 pub(crate) fn non_negative_length<'a, 't: 'a, 'i: 't>(
@@ -352,69 +305,7 @@ pub(crate) fn non_negative_length<'a, 't: 'a, 'i: 't>(
     properties: &mut Vec<PropertyMeta>,
     st: &mut ParseState,
 ) -> Result<Length, ParseError<'i, CustomError>> {
-    let next = parser.next()?.clone();
-    match &next {
-        Token::Number { value, .. } => {
-            if *value == 0. {
-                return Ok(Length::Px(0.));
-            }
-        }
-        Token::Percentage { unit_value, .. } => {
-            if *unit_value < 0. {
-                return Err(parser.new_unexpected_token_error(next));
-            }
-            return Ok(Length::Ratio(*unit_value));
-        }
-        Token::Dimension { value, unit, .. } => {
-            if *value < 0. {
-                return Err(parser.new_unexpected_token_error(next));
-            }
-            let unit: &str = unit;
-            match unit {
-                "px" => return Ok(Length::Px(*value)),
-                "vw" => return Ok(Length::Vw(*value)),
-                "vh" => return Ok(Length::Vh(*value)),
-                "rem" => return Ok(Length::Rem(*value)),
-                "rpx" => return Ok(Length::Rpx(*value)),
-                "em" => return Ok(Length::Em(*value)),
-                "vmin" => return Ok(Length::Vmin(*value)),
-                "vmax" => return Ok(Length::Vmax(*value)),
-                _ => {}
-            }
-        }
-        Token::Ident(ident) => {
-            let ident: &str = ident;
-            if ident == "auto" {
-                return Ok(Length::Auto);
-            }
-        }
-        Token::Function(name) => match &**name {
-            "env" => {
-                let (name, default_value) = parser.parse_nested_block(|parser| {
-                    parse_env_inner(parser, st, |parser, st| {
-                        env_default_value(parser, properties, st)
-                    })
-                })?;
-                return Ok(Length::Expr(LengthExpr::Env(
-                    name.into(),
-                    Box::new(default_value.unwrap_or(Length::Undefined)),
-                )));
-            }
-            "calc" => {
-                return parse_calc_inner(parser, properties, st, ExpectValueType::NumberAndLength)
-                    .map(|ret| {
-                        if let Some(r) = ComputeCalcExpr::<Length>::try_compute(&ret) {
-                            return r;
-                        }
-                        Length::Expr(LengthExpr::Calc(Box::new(ret)))
-                    });
-            }
-            _ => {}
-        },
-        _ => {}
-    }
-    let next = next.clone();
-    Err(parser.new_unexpected_token_error(next))
+    parse_length_inner(parser, properties, st, true, false, true)
 }
 
 #[inline(never)]
@@ -911,23 +802,6 @@ pub(crate) fn element_func_repr<'a, 't: 'a, 'i: 't>(
         }
     })
 }
-
-// pub(crate) fn custom_ident_repr<'a, 't: 'a, 'i: 't>(
-//     parser: &'a mut Parser<'i, 't>,
-//     _properties: &mut Vec<PropertyMeta>,
-//     _st: &mut ParseState,
-// ) -> Result<String, ParseError<'i, CustomError>> {
-//     let next = parser.next()?.clone();
-//     match &next {
-//         Token::Ident(name) => {
-//             return Ok(name.to_string());
-//         }
-//         Token::QuotedString(name) => {
-//             return Ok(name.to_string());
-//         }
-//         _ => return Err(parser.new_unexpected_token_error::<CustomError>(next.clone())),
-//     }
-// }
 
 #[inline(never)]
 pub(crate) fn image_func_repr<'a, 't: 'a, 'i: 't>(

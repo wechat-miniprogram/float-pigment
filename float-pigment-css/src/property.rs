@@ -348,12 +348,12 @@ property_value_format! (PropertyValueWithGlobal, {
     }};
     flex_grow: {{ FlexGrow = <number> }};
     flex_shrink: {{ FlexShrink = <number> }};
-    flex_basis: {{ FlexBasis = <length> }};
+    flex_basis: {{ FlexBasis = <length_percentage_auto> }};
     flex_flow: <flex_direction> || <flex_wrap>;
     flex: {{ (FlexGrow, FlexShrink, FlexBasis)
         = "auto" -> |_| (Number::F32(1.), Number::F32(1.), Length::Auto);
         | "none" -> |_| (Number::F32(0.), Number::F32(0.), Length::Auto);
-        | [ <number> <number>? || <length> ] -> |(gs, b): (Option<(Number, Option<Number>)>, Option<Length>)| -> _ {
+        | [ <number> <number>? || <length_percentage_auto> ] -> |(gs, b): (Option<(Number, Option<Number>)>, Option<Length>)| -> _ {
             let (g, s) = gs.unwrap_or((Number::F32(0.), None));
             let s = s.unwrap_or(Number::F32(1.));
             let b = b.unwrap_or(Length::Ratio(0.));
@@ -485,7 +485,7 @@ property_value_format! (PropertyValueWithGlobal, {
     <background_size_single: BackgroundSizeItem>:
         "cover" => BackgroundSizeItem::Cover
         | "contain" => BackgroundSizeItem::Contain
-        | [ <length> ]{1, 2} -> |v: Vec<_>| {
+        | [ <length_percentage_auto> ]{1, 2} -> |v: Vec<_>| {
             let len = v.len();
             let mut v = v.into_iter();
             let a = v.next().unwrap_or(Length::Auto);
@@ -750,16 +750,16 @@ property_value_format! (PropertyValueWithGlobal, {
         | "padding-box" => BoxSizingType::PaddingBox
         | "content-box" => BoxSizingType::ContentBox
     }};
-    width: {{ Width = <length> }};
-    height: {{ Height = <length> }};
-    min_width: {{ MinWidth = <length> }};
-    min_height: {{ MinHeight = <length> }};
-    max_width: {{ MaxWidth = <length> }};
-    max_height: {{ MaxHeight = <length> }};
-    left: {{ Left = <length> }};
-    right: {{ Right = <length> }};
-    top: {{ Top = <length> }};
-    bottom: {{ Bottom = <length> }};
+    width: {{ Width = <length_percentage_auto> }};
+    height: {{ Height = <length_percentage_auto> }};
+    min_width: {{ MinWidth = <length_percentage_auto> }};
+    min_height: {{ MinHeight = <length_percentage_auto> }};
+    max_width: {{ MaxWidth = <length_percentage_auto> }};
+    max_height: {{ MaxHeight = <length_percentage_auto> }};
+    left: {{ Left = <length_percentage_auto> }};
+    right: {{ Right = <length_percentage_auto> }};
+    top: {{ Top = <length_percentage_auto> }};
+    bottom: {{ Bottom = <length_percentage_auto> }};
 
     padding_left: {{ PaddingLeft = <length_percentage> }};
     padding_right: {{ PaddingRight = <length_percentage> }};
@@ -769,12 +769,12 @@ property_value_format! (PropertyValueWithGlobal, {
         = <length_percentage>{1, 4} -> split_edges
     }};
 
-    margin_left: {{ MarginLeft = <length> }};
-    margin_right: {{ MarginRight = <length> }};
-    margin_top: {{ MarginTop = <length> }};
-    margin_bottom: {{ MarginBottom = <length> }};
+    margin_left: {{ MarginLeft = <length_percentage_auto> }};
+    margin_right: {{ MarginRight = <length_percentage_auto> }};
+    margin_top: {{ MarginTop = <length_percentage_auto> }};
+    margin_bottom: {{ MarginBottom = <length_percentage_auto> }};
     margin:{{ (MarginTop, MarginRight, MarginBottom, MarginLeft)
-        = <length>{1, 4} -> split_edges
+        = <length_percentage_auto>{1, 4} -> split_edges
     }};
 
     <border_style_repr: BorderStyle>:
@@ -1445,7 +1445,7 @@ property_value_format! (PropertyValueWithGlobal, {
     text_decoration_color: {{ TextDecorationColor = <color_repr> }};
     text_decoration_thickness: {{ TextDecorationThickness
         = "from-font" => TextDecorationThicknessType::FromFont
-        | <length> -> |x: Length| { TextDecorationThicknessType::Length(x)};
+        | <length_percentage_auto> -> |x: Length| { TextDecorationThicknessType::Length(x)};
     }};
     text_decoration: <text_decoration_style> || <text_decoration_color> || <text_decoration_thickness> || <text_decoration_line>;
     font_feature_settings: {{ FontFeatureSettings
