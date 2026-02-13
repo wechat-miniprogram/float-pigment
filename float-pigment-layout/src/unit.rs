@@ -88,6 +88,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
             parent_is_block: node.style().display() == Display::Block
                 || node.style().display() == Display::InlineBlock
                 || node.style().display() == Display::Inline,
+            sizing_mode: SizingMode::Normal,
         };
         let result = self.compute_internal(env, node, req);
         self.result = Rect::new(
@@ -111,6 +112,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
             max_content: size,
             kind: ComputeRequestKind::Position,
             parent_is_block: false,
+            sizing_mode: SizingMode::Normal,
         };
         let result = self.compute_internal(env, node, req);
         self.result = Rect::new(Point::zero(), result.size.0);
@@ -167,12 +169,13 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                         self.clear_display_none_result(node);
                         ComputeResult {
                             size: Normalized(Size::zero()),
+                            min_content_size: Normalized(Size::zero()),
                             first_baseline_ascent: Vector::zero(),
                             last_baseline_ascent: Vector::zero(),
                             collapsed_margin: CollapsedBlockMargin::zero(),
                         }
                     }
-                    Display::Block | Display::InlineBlock | Display::Inline | Display::Grid => {
+                    Display::Block | Display::InlineBlock | Display::Inline => {
                         algo::flow::Flow::compute(
                             self,
                             env,
@@ -184,6 +187,15 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                         )
                     }
                     Display::Flex | Display::InlineFlex => algo::flex_box::FlexBox::compute(
+                        self,
+                        env,
+                        node,
+                        request.clone(),
+                        margin,
+                        border,
+                        padding_border,
+                    ),
+                    Display::Grid | Display::InlineGrid => algo::grid::GridContainer::compute(
                         self,
                         env,
                         node,
@@ -286,6 +298,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                         let size = Size::new(width, height);
                         return Some(ComputeResult {
                             size: Normalized(size),
+                            min_content_size: Normalized(size),
                             first_baseline_ascent: size.to_vector(),
                             last_baseline_ascent: size.to_vector(),
                             collapsed_margin,
@@ -298,6 +311,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                     let size = Size::new(width, T::Length::zero());
                     return Some(ComputeResult {
                         size: Normalized(size),
+                        min_content_size: Normalized(size),
                         first_baseline_ascent: size.to_vector(),
                         last_baseline_ascent: size.to_vector(),
                         collapsed_margin,
@@ -309,6 +323,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                     let size = Size::new(T::Length::zero(), height);
                     return Some(ComputeResult {
                         size: Normalized(size),
+                        min_content_size: Normalized(size),
                         first_baseline_ascent: size.to_vector(),
                         last_baseline_ascent: size.to_vector(),
                         collapsed_margin,
@@ -537,7 +552,14 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
     ) -> Option<ComputeResult<T::Length>> {
         // if the node has measure, accept the measure result
         if node.should_measure(env) {
-            let req_size = request.size;
+            let req_size = match request.sizing_mode {
+                SizingMode::Normal => OptionSize::new(
+                    request.size.width - padding_border.horizontal(),
+                    request.size.height - padding_border.vertical(),
+                ),
+                SizingMode::MinContent => OptionSize::new(OptionNum::zero(), OptionNum::none()),
+                SizingMode::MaxContent => OptionSize::new(OptionNum::none(), OptionNum::none()),
+            };
             let max_content = request.max_content;
             let min_max_limit = self.normalized_min_max_limit(
                 node,
@@ -547,10 +569,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
             );
             let r = node.measure_block_size(
                 env,
-                OptionSize::new(
-                    req_size.width - padding_border.horizontal(),
-                    req_size.height - padding_border.vertical(),
-                ),
+                req_size,
                 Size::new(
                     min_max_limit.min_width - padding_border.horizontal(),
                     min_max_limit.min_height - padding_border.vertical(),
@@ -566,11 +585,17 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                     max_content.height - padding_border.vertical(),
                 ),
                 request.kind == ComputeRequestKind::Position,
+                request.sizing_mode,
             );
-            let size = Normalized(Size::new(
-                r.size.width + padding_border.horizontal(),
-                r.size.height + padding_border.vertical(),
-            )); // original r.size is normalized
+            let size = match request.sizing_mode {
+                SizingMode::Normal => Normalized(Size::new(
+                    r.size.width + padding_border.horizontal(),
+                    r.size.height + padding_border.vertical(),
+                )), // original r.size is normalized
+                SizingMode::MinContent | SizingMode::MaxContent => {
+                    Normalized(Size::new(r.size.width, r.size.height))
+                }
+            };
             let first_baseline_ascent =
                 r.first_baseline_ascent + Vector::new(padding_border.left, padding_border.top);
             let last_baseline_ascent =
@@ -578,6 +603,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
             let axis_info = AxisInfo::from_writing_mode(node.style().writing_mode());
             let ret = ComputeResult {
                 size,
+                min_content_size: size,
                 first_baseline_ascent,
                 last_baseline_ascent,
                 collapsed_margin: CollapsedBlockMargin::from_margin(
@@ -610,19 +636,25 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
         max_content: OptionSize<T::Length>,
         border: Edge<T::Length>,
         padding_border: Edge<T::Length>,
+        sizing_mode: SizingMode,
     ) -> Option<T::InlineUnit> {
         // if the node has measure, accept the measure result
         if node.should_measure(env) {
-            let req_size =
+            let css_box_size =
                 self.css_border_box_size(node, parent_inner_size, border, padding_border);
+            let req_size = match sizing_mode {
+                SizingMode::Normal => OptionSize::new(
+                    css_box_size.width - padding_border.horizontal(),
+                    css_box_size.height - padding_border.vertical(),
+                ),
+                SizingMode::MinContent => OptionSize::new(OptionNum::zero(), OptionNum::none()),
+                SizingMode::MaxContent => OptionSize::new(OptionNum::none(), OptionNum::none()),
+            };
             let min_max_limit =
                 self.normalized_min_max_limit(node, parent_inner_size, border, padding_border);
             let r = node.measure_inline_unit(
                 env,
-                OptionSize::new(
-                    req_size.width - padding_border.horizontal(),
-                    req_size.height - padding_border.vertical(),
-                ),
+                req_size,
                 Size::new(
                     min_max_limit.min_width - padding_border.horizontal(),
                     min_max_limit.min_height - padding_border.vertical(),
@@ -637,11 +669,18 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                     max_content.width - padding_border.horizontal(),
                     max_content.height - padding_border.vertical(),
                 ),
+                sizing_mode,
             );
-            let size = Size::new(
-                r.size.width + padding_border.horizontal(),
-                r.size.height + padding_border.vertical(),
-            );
+
+            let size = match sizing_mode {
+                SizingMode::Normal => Size::new(
+                    r.size.width + padding_border.horizontal(),
+                    r.size.height + padding_border.vertical(),
+                ), // original r.size is normalized
+                SizingMode::MinContent | SizingMode::MaxContent => {
+                    Size::new(r.size.width, r.size.height)
+                }
+            };
             let first_baseline_ascent =
                 r.first_baseline_ascent + Vector::new(padding_border.left, padding_border.top);
             let last_baseline_ascent =
@@ -698,6 +737,15 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
     }
 }
 
+#[allow(missing_docs)]
+/// SizingMode is used to determine the sizing mode of the node.
+#[derive(Clone, PartialEq, Copy, Hash, Eq, Debug)]
+pub enum SizingMode {
+    Normal,
+    MinContent,
+    MaxContent,
+}
+
 #[derive(Clone, PartialEq)]
 pub(crate) struct ComputeRequest<L: LengthNum> {
     pub(crate) size: Normalized<OptionSize<L>>, // the expected size, margin excluded, but css width, height, and min max size considered
@@ -705,14 +753,16 @@ pub(crate) struct ComputeRequest<L: LengthNum> {
     pub(crate) max_content: Normalized<OptionSize<L>>, // the max-content constraint, an extra max-size limit for text content, with self padding and border added
     pub(crate) kind: ComputeRequestKind,
     pub(crate) parent_is_block: bool,
+    pub(crate) sizing_mode: SizingMode,
 }
 
 impl<L: LengthNum> fmt::Debug for ComputeRequest<L> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "ComputeRequest<{:?}>({:?}x{:?}, parent {:?}x{:?}, max {:?}x{:?}, parent_is_block {:?})",
+            "ComputeRequest<{:?},{:?}>({:?}x{:?}, parent {:?}x{:?}, max {:?}x{:?}, parent_is_block {:?})",
             self.kind,
+            self.sizing_mode,
             self.size.width,
             self.size.height,
             self.parent_inner_size.width,
@@ -727,8 +777,9 @@ impl<L: LengthNum> fmt::Debug for ComputeRequest<L> {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct ComputeResult<L: LengthNum> {
     pub(crate) size: Normalized<Size<L>>, // only valid on corresponding size which the request includes
-    pub(crate) first_baseline_ascent: Vector<L>, // only valid on position request
-    pub(crate) last_baseline_ascent: Vector<L>, // only valid on position request
+    pub(crate) min_content_size: Normalized<Size<L>>, // only valid on corresponding size which the request includes
+    pub(crate) first_baseline_ascent: Vector<L>,      // only valid on position request
+    pub(crate) last_baseline_ascent: Vector<L>,       // only valid on position request
     pub(crate) collapsed_margin: CollapsedBlockMargin<L>, // only valid on corresponding size which the request includes and collapsed_margin set
 }
 

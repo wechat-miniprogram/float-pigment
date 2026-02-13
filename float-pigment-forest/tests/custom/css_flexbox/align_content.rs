@@ -1,5 +1,18 @@
+// Tests for `align-content` property in CSS Flexbox
+// Based on CSS Flexible Box Layout Module Level 1:
+// - align-content aligns flex lines within the flex container
+// - Only applies when flex-wrap is enabled and there are multiple lines
+// - Values: flex-start, flex-end, center, space-between, space-around, space-evenly, start, end
+
 use crate::*;
 
+// Case: align-content: flex-start
+// Spec points:
+// - Lines packed to start of cross axis
+// In this test:
+// - Container: width=50px, height=600px, flex-wrap=wrap
+// - Three items of 50x50px (single item per line due to width)
+// - Lines at top: 0, 50, 100
 #[test]
 fn flex_start() {
     assert_xml!(
@@ -13,6 +26,11 @@ fn flex_start() {
     )
 }
 
+// Case: align-content: start
+// Spec points:
+// - Same as flex-start for LTR writing mode
+// In this test:
+// - Same as flex-start test
 #[test]
 fn start() {
     assert_xml!(
@@ -26,6 +44,12 @@ fn start() {
     )
 }
 
+// Case: align-content: flex-end
+// Spec points:
+// - Lines packed to end of cross axis
+// In this test:
+// - Container: height=600px, 3 items of 50px each = 150px total
+// - Lines at bottom: 600-150=450, 500, 550
 #[test]
 fn flex_end() {
     assert_xml!(
@@ -39,6 +63,11 @@ fn flex_end() {
     )
 }
 
+// Case: align-content: end
+// Spec points:
+// - Same as flex-end for LTR writing mode
+// In this test:
+// - Same as flex-end test
 #[test]
 fn end() {
     assert_xml!(
@@ -52,6 +81,13 @@ fn end() {
     )
 }
 
+// Case: align-content: center
+// Spec points:
+// - Lines centered in cross axis
+// In this test:
+// - Container: height=500px, 3 items of 100px = 300px total
+// - Centering offset: (500-300)/2 = 100px
+// - Lines at: 100, 200, 300
 #[test]
 fn center() {
     assert_xml!(
@@ -65,6 +101,12 @@ fn center() {
     )
 }
 
+// Case: align-content: space-between
+// Spec points:
+// - First line at start, last line at end, space distributed between
+// In this test:
+// - Container: height=500px, 2 items of 100px
+// - First at 0, last at 400
 #[test]
 fn space_between() {
     assert_xml!(
@@ -77,6 +119,13 @@ fn space_between() {
     )
 }
 
+// Case: align-content: space-around
+// Spec points:
+// - Equal space around each line (half space at edges)
+// In this test:
+// - Container: height=600px, 2 items of 100px = 200px content
+// - Remaining: 400px, space per item = 200px, half at edges = 100px
+// - First at 100, second at 400
 #[test]
 fn space_around() {
     assert_xml!(
@@ -89,6 +138,13 @@ fn space_around() {
     )
 }
 
+// Case: align-content: space-evenly
+// Spec points:
+// - Equal space between and around lines
+// In this test:
+// - Container: height=500px, 2 items of 100px = 200px content
+// - Remaining: 300px, 3 gaps = 100px each
+// - First at 100, second at 300
 #[test]
 fn space_evenly() {
     assert_xml!(
@@ -101,6 +157,14 @@ fn space_evenly() {
     )
 }
 
+// Case: align-content: flex-end with flex-wrap in column direction
+// Spec points:
+// - In column wrap mode, cross axis is horizontal
+// - flex-end aligns columns to the right
+// In this test:
+// - Container: width=100px, height=100px, flex-direction=column, wrap
+// - 5 items that fit in single column
+// - All items at left=50 (right half of container)
 #[test]
 fn flex_end_with_wrap() {
     assert_xml!(

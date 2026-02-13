@@ -1,7 +1,8 @@
 use core::{fmt::Display, ops::Deref};
 
+use alloc::{string::String, vec::Vec};
 use euclid::UnknownUnit;
-use float_pigment_css::typing::WritingMode;
+use float_pigment_css::typing::{Direction, WritingMode};
 
 use crate::LayoutTreeNode;
 pub(crate) use float_pigment_css::length_num::{length_sum, LengthNum};
@@ -174,7 +175,7 @@ impl<L: LengthNum> VectorProxy<L> for Vector<L> {
 
 /// A length type that can be undefined or auto.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum DefLength<L: LengthNum, T: PartialEq = i32> {
+pub enum DefLength<L: LengthNum, T: PartialEq + Clone = i32> {
     /// The length is undetermined.
     Undefined,
 
@@ -193,7 +194,7 @@ pub enum DefLength<L: LengthNum, T: PartialEq = i32> {
     Custom(T),
 }
 
-impl<L: LengthNum, T: PartialEq + Display> Display for DefLength<L, T> {
+impl<L: LengthNum, T: PartialEq + Display + Clone> Display for DefLength<L, T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Undefined => write!(f, "Undefined"),
@@ -205,13 +206,13 @@ impl<L: LengthNum, T: PartialEq + Display> Display for DefLength<L, T> {
     }
 }
 
-impl<L: LengthNum, T: PartialEq> Default for DefLength<L, T> {
+impl<L: LengthNum, T: PartialEq + Clone> Default for DefLength<L, T> {
     fn default() -> Self {
         Self::Undefined
     }
 }
 
-impl<L: LengthNum, T: PartialEq> DefLength<L, T> {
+impl<L: LengthNum, T: PartialEq + Clone> DefLength<L, T> {
     pub(crate) fn resolve<N: LayoutTreeNode<Length = L, LengthCustom = T>>(
         &self,
         parent: OptionNum<L>,
@@ -330,6 +331,12 @@ impl<L: LengthNum> OptionNum<L> {
     #[inline]
     pub fn map(self, f: impl FnOnce(L) -> L) -> Self {
         Self(self.0.map(f))
+    }
+}
+
+impl<L: LengthNum> From<Option<L>> for OptionNum<L> {
+    fn from(value: Option<L>) -> Self {
+        Self(value)
     }
 }
 
@@ -816,6 +823,55 @@ impl AxisInfo {
             cross_dir_rev,
         }
     }
+
+    /// Create AxisInfo considering both writing-mode and direction.
+    ///
+    /// CSS `direction` property (ltr/rtl) affects the inline axis direction:
+    /// - `direction: rtl` reverses the inline (cross) axis in horizontal-tb
+    /// - `direction: rtl` reverses the block (main) axis in vertical-* modes
+    pub(crate) fn from_writing_mode_and_direction(
+        writing_mode: WritingMode,
+        direction: Direction,
+    ) -> Self {
+        let (dir, main_dir_rev, cross_dir_rev) = match writing_mode {
+            WritingMode::HorizontalTb => (
+                AxisDirection::Vertical,
+                AxisReverse::NotReversed,
+                // direction: rtl reverses inline axis (horizontal in horizontal-tb)
+                if matches!(direction, Direction::RTL) {
+                    AxisReverse::Reversed
+                } else {
+                    AxisReverse::NotReversed
+                },
+            ),
+            WritingMode::VerticalLr => (
+                AxisDirection::Horizontal,
+                // direction: rtl reverses inline axis (vertical in vertical-lr)
+                if matches!(direction, Direction::RTL) {
+                    AxisReverse::Reversed
+                } else {
+                    AxisReverse::NotReversed
+                },
+                AxisReverse::NotReversed,
+            ),
+            WritingMode::VerticalRl => (
+                AxisDirection::Horizontal,
+                // direction: rtl reverses inline axis (vertical in vertical-rl)
+                // Note: vertical-rl already has reversed main axis
+                if matches!(direction, Direction::RTL) {
+                    AxisReverse::NotReversed // RTL cancels the reversal
+                } else {
+                    AxisReverse::Reversed
+                },
+                AxisReverse::NotReversed,
+            ),
+        };
+        Self {
+            dir,
+            main_dir_rev,
+            cross_dir_rev,
+        }
+    }
 }
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct MinMaxSize<L: LengthNum> {
@@ -986,6 +1042,76 @@ impl<T> Deref for Normalized<T> {
 #[inline(always)]
 pub(crate) fn size_to_option<L: LengthNum>(size: Size<L>) -> OptionSize<L> {
     OptionSize::new(OptionNum::some(size.width), OptionNum::some(size.height))
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum LayoutGridTemplate<L: LengthNum, T: PartialEq + Clone = i32> {
+    None,
+    TrackList(Vec<LayoutTrackListItem<L, T>>),
+}
+
+impl<L: LengthNum, T: PartialEq + Clone> Default for LayoutGridTemplate<L, T> {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum LayoutTrackListItem<L: LengthNum, T: PartialEq + Clone = i32> {
+    LineNames(Vec<String>),
+    TrackSize(LayoutTrackSize<L, T>),
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum LayoutTrackSize<L: LengthNum, T: PartialEq + Clone = i32> {
+    MinContent,
+    MaxContent,
+    Fr(f32),
+    Length(DefLength<L, T>),
+}
+
+/// CSS Grid §7.6: Implicit Track Sizing
+/// <https://www.w3.org/TR/css-grid-1/#auto-tracks>
+///
+/// The `grid-auto-rows` and `grid-auto-columns` properties specify the size
+/// of implicitly-created grid tracks.
+#[allow(missing_docs)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct LayoutGridAuto<L: LengthNum, T: PartialEq + Clone = i32>(pub Vec<LayoutTrackSize<L, T>>);
+
+impl<L: LengthNum, T: PartialEq + Clone> Default for LayoutGridAuto<L, T> {
+    fn default() -> Self {
+        // Default is a single `auto` track
+        Self(vec![LayoutTrackSize::Length(DefLength::Auto)])
+    }
+}
+
+impl<L: LengthNum, T: PartialEq + Clone> LayoutGridAuto<L, T> {
+    /// Get the track size for an implicit track at the given index.
+    /// Cycles through the list if index exceeds the list length.
+    pub fn get(&self, index: usize) -> &LayoutTrackSize<L, T> {
+        if self.0.is_empty() {
+            // Should not happen with default, but be safe
+            static AUTO: LayoutTrackSize<f32, i32> = LayoutTrackSize::Length(DefLength::Auto);
+            // SAFETY: We return a reference to a static with matching type layout
+            unsafe { &*(&AUTO as *const _ as *const LayoutTrackSize<L, T>) }
+        } else {
+            &self.0[index % self.0.len()]
+        }
+    }
+
+    /// Get the number of track sizes in the list.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Check if the list is empty.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 #[cfg(test)]

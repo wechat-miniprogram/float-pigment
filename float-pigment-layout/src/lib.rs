@@ -54,8 +54,10 @@ use core::{
 
 use float_pigment_css::typing::{
     AlignContent, AlignItems, AlignSelf, BoxSizing, Direction, Display, FlexDirection, FlexWrap,
-    JustifyContent, Position, TextAlign, WritingMode,
+    GridAutoFlow, JustifyContent, JustifyItems, JustifySelf, Position, TextAlign, WritingMode,
 };
+
+pub use unit::SizingMode;
 
 mod algo;
 mod cache;
@@ -86,10 +88,10 @@ pub trait LayoutTreeNode: Sized {
     /// Sometimes float-point is not accurate enough. You can use the fixed-point types provided by the `fixed` crate.
     type Length: LengthNum;
 
-    /// A custem length type used in `DefLength::Custom`.
+    /// A custom length type used in `DefLength::Custom`.
     ///
     /// If you do not need it, simply use `i32`.
-    type LengthCustom: PartialEq;
+    type LengthCustom: PartialEq + core::fmt::Debug + Clone;
 
     /// A helper type for tree traversal.
     ///
@@ -154,6 +156,7 @@ pub trait LayoutTreeNode: Sized {
         max: Size<Self::Length>,
         max_content: OptionSize<Self::Length>,
         update_position: bool,
+        sizing_mode: SizingMode,
     ) -> MeasureResult<Self::Length>;
 
     /// Convert the current node to a `Self::InlineUnit`.
@@ -168,6 +171,7 @@ pub trait LayoutTreeNode: Sized {
         min: Size<Self::Length>,
         max: Size<Self::Length>,
         max_content: OptionSize<Self::Length>,
+        sizing_mode: SizingMode,
     ) -> MeasureResult<Self::Length>;
 
     /// A notifier that the layout size of itself (or any node in the subtree) has been re-evaluated.
@@ -205,13 +209,18 @@ pub trait LayoutTreeVisitor<T: LayoutTreeNode> {
     /// When `LayoutNode::mark_dirty` is called, some related nodes (e.g. the ancestors) are also marked dirty automatically.
     /// These calls tells which nodes are marked dirty.
     fn dirty_marked(&self) {}
+
+    ///  Get children iterator.
+    fn children_iter<'a, 'b: 'a>(&'b self) -> impl Iterator<Item = &'a T>
+    where
+        T: 'a;
 }
 
 /// The styles of a tree node.
 ///
 /// The values are similar to corresponding CSS properties.
 #[allow(missing_docs)]
-pub trait LayoutStyle<L: LengthNum, T: PartialEq = i32> {
+pub trait LayoutStyle<L: LengthNum, T: PartialEq + Clone = i32> {
     fn display(&self) -> Display;
     fn position(&self) -> Position;
     fn direction(&self) -> Direction;
@@ -258,6 +267,31 @@ pub trait LayoutStyle<L: LengthNum, T: PartialEq = i32> {
     }
     fn row_gap(&self) -> DefLength<L, T> {
         DefLength::Undefined
+    }
+    fn grid_template_rows(&self) -> LayoutGridTemplate<L, T> {
+        LayoutGridTemplate::None
+    }
+    fn grid_template_columns(&self) -> LayoutGridTemplate<L, T> {
+        LayoutGridTemplate::None
+    }
+    fn grid_auto_flow(&self) -> GridAutoFlow {
+        GridAutoFlow::Row
+    }
+    /// CSS Grid §7.6: grid-auto-rows
+    /// <https://www.w3.org/TR/css-grid-1/#auto-tracks>
+    fn grid_auto_rows(&self) -> LayoutGridAuto<L, T> {
+        LayoutGridAuto::default()
+    }
+    /// CSS Grid §7.6: grid-auto-columns
+    /// <https://www.w3.org/TR/css-grid-1/#auto-tracks>
+    fn grid_auto_columns(&self) -> LayoutGridAuto<L, T> {
+        LayoutGridAuto::default()
+    }
+    fn justify_items(&self) -> JustifyItems {
+        JustifyItems::Stretch
+    }
+    fn justify_self(&self) -> JustifySelf {
+        JustifySelf::Auto
     }
 }
 
@@ -384,6 +418,7 @@ pub trait InlineMeasure<T: LayoutTreeNode> {
         req_size: OptionSize<T::Length>,
         max_content_with_max_size: OptionSize<T::Length>,
         update_position: bool,
+        sizing_mode: SizingMode,
     ) -> (
         Size<T::Length>,
         Vec<(Point<T::Length>, MeasureResult<T::Length>)>,

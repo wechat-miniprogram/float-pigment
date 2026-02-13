@@ -101,7 +101,7 @@ fn for_each_block_or_inline_series<T: LayoutTreeNode>(
                 return;
             }
             match child_style.display() {
-                Display::Inline | Display::Grid => {
+                Display::Inline => {
                     if child_node.should_measure(env) {
                         end_nodes.push(child_node);
                     } else {
@@ -109,10 +109,10 @@ fn for_each_block_or_inline_series<T: LayoutTreeNode>(
                         middle_nodes.push(child_node);
                     }
                 }
-                Display::InlineBlock | Display::InlineFlex => {
+                Display::InlineBlock | Display::InlineFlex | Display::InlineGrid => {
                     end_nodes.push(child_node);
                 }
-                Display::Block | Display::Flex => {
+                Display::Block | Display::Flex | Display::Grid => {
                     if !end_nodes.is_empty() {
                         f(
                             env,
@@ -246,6 +246,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
             + compute_res.size.main_size(axis_info.dir);
 
         total_main_size += padding_border.main_axis_end(axis_info.dir, axis_info.main_dir_rev);
+
         let size = Size::new_with_dir(
             axis_info.dir,
             node_size
@@ -285,6 +286,12 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
 
         let ret = ComputeResult {
             size,
+            min_content_size: Normalized(Size::new_with_dir(
+                axis_info.dir,
+                total_main_size,
+                compute_res.size.cross_size(axis_info.dir)
+                    + padding_border.cross_axis_sum(axis_info.dir),
+            )),
             first_baseline_ascent,
             last_baseline_ascent,
             collapsed_margin: compute_res.collapsed_margin,
@@ -463,6 +470,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                             max_content,
                             kind: request.kind.shift_to_all_size(),
                             parent_is_block: true,
+                            sizing_mode: request.sizing_mode,
                         },
                     );
                     let mut main_offset = padding_border
@@ -543,7 +551,6 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                             total_main_size += current_collapsed_margin.solve();
                         }
                     }
-
                     total_main_size += child_res.size.main_size(axis_info.dir);
                     max_cross_size = max_cross_size.max(
                         child_res.size.cross_size(axis_info.dir)
@@ -606,6 +613,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                         *request.max_content,
                                         child_border,
                                         child_padding_border,
+                                        request.sizing_mode,
                                     ) {
                                     // for measure-able node, use the measure result
                                     unit
@@ -643,6 +651,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                             max_content,
                                             kind: request.kind.shift_to_all_size(),
                                             parent_is_block: true,
+                                            sizing_mode: request.sizing_mode,
                                         },
                                     );
                                     T::InlineUnit::new(
@@ -672,6 +681,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                             ),
                             *request.max_content,
                             request.kind == ComputeRequestKind::Position,
+                            request.sizing_mode,
                         );
 
                         if block_size.main_size(axis_info.dir) > T::Length::zero() {
@@ -751,6 +761,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                 middle_node,
                                 &ComputeResult {
                                     size: Normalized(merged_rect.size),
+                                    min_content_size: Normalized(merged_rect.size),
                                     collapsed_margin: CollapsedBlockMargin::zero(),
                                     first_baseline_ascent: first_baseline_ascent_option
                                         .unwrap_or_else(|| merged_rect.size.to_vector()),

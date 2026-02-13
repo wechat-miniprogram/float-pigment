@@ -134,7 +134,7 @@ pub enum Color {
     Specified(u8, u8, u8, u8),
 }
 
-/// A length value or an expression that evaluates to a langth value.
+/// A length value or an expression that evaluates to a length value.
 #[allow(missing_docs)]
 #[repr(C)]
 #[property_value_type(PropertyValueWithGlobal for LengthType)]
@@ -445,6 +445,7 @@ pub enum Display {
     Grid,
     FlowRoot,
     InlineFlex,
+    InlineGrid,
 }
 
 #[allow(missing_docs)]
@@ -644,6 +645,27 @@ pub enum JustifyContent {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ResolveFontSize)]
 #[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
 pub enum JustifyItems {
+    Stretch,
+    Center,
+    Start,
+    End,
+    FlexStart,
+    FlexEnd,
+    SelfStart,
+    SelfEnd,
+    Left,
+    Right,
+    Normal,
+}
+
+#[allow(missing_docs)]
+#[repr(C)]
+#[property_value_type(PropertyValueWithGlobal for JustifySelfType)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ResolveFontSize)]
+#[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
+pub enum JustifySelf {
+    Auto,
+    Normal,
     Stretch,
     Center,
     Start,
@@ -1812,4 +1834,58 @@ pub enum Gap {
     Normal,
     #[resolve_font_size(Length::resolve_em)]
     Length(Length),
+}
+
+/// The `grid-template-rows` property defines the line names and track sizing functions of the grid rows.
+#[allow(missing_docs)]
+#[repr(C)]
+#[property_value_type(PropertyValueWithGlobal for GridTemplateType)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ResolveFontSize)]
+#[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
+pub enum GridTemplate {
+    /// A keyword meaning that there is no explicit grid
+    None,
+    TrackList(Array<TrackListItem>),
+}
+
+#[allow(missing_docs)]
+#[repr(C)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ResolveFontSize)]
+#[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
+pub enum TrackListItem {
+    LineNames(Array<StrRef>),
+    TrackSize(TrackSize),
+}
+
+#[allow(missing_docs)]
+#[repr(C)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ResolveFontSize)]
+#[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
+pub enum TrackSize {
+    MinContent,
+    MaxContent,
+    Fr(f32),
+    #[resolve_font_size(Length::resolve_em)]
+    Length(Length),
+}
+
+#[allow(missing_docs)]
+#[repr(C)]
+#[property_value_type(PropertyValueWithGlobal for GridAutoFlowType)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ResolveFontSize)]
+#[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
+pub enum GridAutoFlow {
+    Row,
+    Column,
+    RowDense,
+    ColumnDense,
+}
+
+#[allow(missing_docs)]
+#[repr(C)]
+#[property_value_type(PropertyValueWithGlobal for GridAutoType)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ResolveFontSize)]
+#[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
+pub enum GridAuto {
+    List(Array<TrackSize>),
 }

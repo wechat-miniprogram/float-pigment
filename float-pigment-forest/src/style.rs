@@ -1,12 +1,12 @@
 use std::cell::Cell;
 
-use float_pigment_css::num_traits::Zero;
+use float_pigment_css::{num_traits::Zero, typing::GridAutoFlow};
 // use float_pigment_forest_macro::{FieldCount, StyleManagerMutation};
 
-use crate::{Len, Length};
+use crate::{LayoutGridAuto, LayoutGridTemplate, Len, Length};
 use float_pigment_css::typing::{
     AlignContent, AlignItems, AlignSelf, BoxSizing, Direction, Display, FlexDirection, FlexWrap,
-    JustifyContent, Overflow, Position, TextAlign, WritingMode,
+    JustifyContent, JustifyItems, JustifySelf, Overflow, Position, TextAlign, WritingMode,
 };
 use lazy_static::lazy_static;
 
@@ -20,6 +20,7 @@ lazy_static! {
     static ref GLOBAL_PADDING_STYLE: Box<PaddingStyle> = Box::<PaddingStyle>::default();
     static ref GLOBAL_BORDER_STYLE: Box<BorderStyle> = Box::<BorderStyle>::default();
     static ref GLOBAL_FLEX_STYLE: Box<FlexStyle> = Box::<FlexStyle>::default();
+    static ref GLOBAL_GRID_STYLE: Box<GridStyle> = Box::<GridStyle>::default();
 }
 
 #[derive(Debug)]
@@ -180,6 +181,8 @@ struct FlexStyle {
     pub align_content: AlignContent,
     pub align_items: AlignItems,
     pub align_self: AlignSelf,
+    pub justify_items: JustifyItems,
+    pub justify_self: JustifySelf,
     pub flex_basis: Length,
 }
 impl Default for FlexStyle {
@@ -194,7 +197,30 @@ impl Default for FlexStyle {
             align_content: AlignContent::Stretch,
             align_items: AlignItems::Stretch,
             align_self: AlignSelf::Auto,
+            justify_items: JustifyItems::Stretch,
+            justify_self: JustifySelf::Auto,
             flex_basis: Length::Auto,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct GridStyle {
+    pub grid_template_rows: LayoutGridTemplate,
+    pub grid_template_columns: LayoutGridTemplate,
+    pub grid_auto_flow: GridAutoFlow,
+    pub grid_auto_rows: LayoutGridAuto,
+    pub grid_auto_columns: LayoutGridAuto,
+}
+
+impl Default for GridStyle {
+    fn default() -> Self {
+        Self {
+            grid_template_rows: LayoutGridTemplate::None,
+            grid_template_columns: LayoutGridTemplate::None,
+            grid_auto_flow: GridAutoFlow::Row,
+            grid_auto_rows: LayoutGridAuto::default(),
+            grid_auto_columns: LayoutGridAuto::default(),
         }
     }
 }
@@ -211,11 +237,12 @@ pub(crate) struct StyleManager {
     size_style: Cell<StylePtr<SizeStyle>>,            // 1
     size_limit_style: Cell<StylePtr<SizeLimitStyle>>, // 2
     flex_style: Cell<StylePtr<FlexStyle>>,            // 3
-    position_style: Cell<StylePtr<PositionStyle>>,    // 4
-    margin_style: Cell<StylePtr<MarginStyle>>,        // 5
-    border_style: Cell<StylePtr<BorderStyle>>,        // 6
-    padding_style: Cell<StylePtr<PaddingStyle>>,      // 7
-    other_style: Cell<StylePtr<OtherStyle>>,          // 8
+    grid_style: Cell<StylePtr<GridStyle>>,            // 4
+    position_style: Cell<StylePtr<PositionStyle>>,    // 5
+    margin_style: Cell<StylePtr<MarginStyle>>,        // 6
+    border_style: Cell<StylePtr<BorderStyle>>,        // 7
+    padding_style: Cell<StylePtr<PaddingStyle>>,      // 8
+    other_style: Cell<StylePtr<OtherStyle>>,          // 9
     is_cloned: Cell<u16>,
 }
 #[derive(Clone, Copy)]
@@ -224,11 +251,12 @@ enum StyleBit {
     Size = 1 << 1,
     SizeLimit = 1 << 2,
     Flex = 1 << 3,
-    Position = 1 << 4,
-    Margin = 1 << 5,
-    Border = 1 << 6,
-    Padding = 1 << 7,
-    Other = 1 << 8,
+    Grid = 1 << 4,
+    Position = 1 << 5,
+    Margin = 1 << 6,
+    Border = 1 << 7,
+    Padding = 1 << 8,
+    Other = 1 << 9,
 }
 
 impl Drop for StyleManager {
@@ -246,6 +274,9 @@ impl Drop for StyleManager {
             }
             if self.style_is_cloned(StyleBit::Flex) {
                 drop(Box::from_raw(self.flex_style.get()))
+            }
+            if self.style_is_cloned(StyleBit::Grid) {
+                drop(Box::from_raw(self.grid_style.get()))
             }
             if self.style_is_cloned(StyleBit::Position) {
                 drop(Box::from_raw(self.position_style.get()))
@@ -273,6 +304,7 @@ impl StyleManager {
             size_style: Cell::new(global_style_ptr(GLOBAL_SIZE_STYLE.as_ref())),
             size_limit_style: Cell::new(global_style_ptr(GLOBAL_SIZE_LIMIT_STYLE.as_ref())),
             flex_style: Cell::new(global_style_ptr(GLOBAL_FLEX_STYLE.as_ref())),
+            grid_style: Cell::new(global_style_ptr(GLOBAL_GRID_STYLE.as_ref())),
             position_style: Cell::new(global_style_ptr(GLOBAL_POSITION_STYLE.as_ref())),
             margin_style: Cell::new(global_style_ptr(GLOBAL_MARGIN_STYLE.as_ref())),
             border_style: Cell::new(global_style_ptr(GLOBAL_BORDER_STYLE.as_ref())),
@@ -284,11 +316,12 @@ impl StyleManager {
 
     pub(crate) fn style_to_string(&self) -> String {
         format!(
-            "{:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?}",
+            "{:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?} {:?}",
             self.box_style(),
             self.size_style(),
             self.size_limit_style(),
             self.flex_style(),
+            self.grid_style(),
             self.position_style(),
             self.margin_style(),
             self.padding_style(),
@@ -310,6 +343,9 @@ impl StyleManager {
         }
         if self.style_is_cloned(StyleBit::Flex) {
             s.push_str(&format!("{:?}", self.flex_style()));
+        }
+        if self.style_is_cloned(StyleBit::Grid) {
+            s.push_str(&format!("{:?}", self.grid_style()));
         }
         if self.style_is_cloned(StyleBit::Position) {
             s.push_str(&format!("{:?}", self.position_style()));
@@ -348,6 +384,9 @@ impl StyleManager {
                 StyleBit::Flex => {
                     self.flex_style.replace(Box::into_raw(Box::default()));
                 }
+                StyleBit::Grid => {
+                    self.grid_style.replace(Box::into_raw(Box::default()));
+                }
                 StyleBit::Margin => {
                     self.margin_style.replace(Box::into_raw(Box::default()));
                 }
@@ -381,6 +420,11 @@ impl StyleManager {
     #[allow(clippy::mut_from_ref)]
     fn flex_style(&self) -> &mut FlexStyle {
         unsafe { &mut *self.flex_style.get() }
+    }
+
+    #[allow(clippy::mut_from_ref)]
+    fn grid_style(&self) -> &mut GridStyle {
+        unsafe { &mut *self.grid_style.get() }
     }
 
     #[allow(clippy::mut_from_ref)]
@@ -937,6 +981,32 @@ impl StyleManager {
         true
     }
 
+    pub(crate) fn justify_items(&self) -> JustifyItems {
+        self.flex_style().justify_items.clone()
+    }
+
+    pub(crate) fn set_justify_items(&self, value: JustifyItems) -> bool {
+        if self.flex_style().justify_items == value {
+            return false;
+        }
+        self.clone_style(StyleBit::Flex);
+        self.flex_style().justify_items = value;
+        true
+    }
+
+    pub(crate) fn justify_self(&self) -> JustifySelf {
+        self.flex_style().justify_self.clone()
+    }
+
+    pub(crate) fn set_justify_self(&self, value: JustifySelf) -> bool {
+        if self.flex_style().justify_self == value {
+            return false;
+        }
+        self.clone_style(StyleBit::Flex);
+        self.flex_style().justify_self = value;
+        true
+    }
+
     pub(crate) fn flex_basis(&self) -> Length {
         self.flex_style().flex_basis
     }
@@ -973,6 +1043,71 @@ impl StyleManager {
         }
         self.clone_style(StyleBit::Other);
         self.other_style().column_gap = value;
+        true
+    }
+
+    pub(crate) fn grid_template_rows(&self) -> LayoutGridTemplate {
+        self.grid_style().grid_template_rows.clone()
+    }
+
+    pub(crate) fn set_grid_template_rows(&self, value: LayoutGridTemplate) -> bool {
+        if self.grid_style().grid_template_rows == value {
+            return false;
+        }
+        self.clone_style(StyleBit::Grid);
+        self.grid_style().grid_template_rows = value;
+        true
+    }
+
+    pub(crate) fn grid_template_columns(&self) -> LayoutGridTemplate {
+        self.grid_style().grid_template_columns.clone()
+    }
+
+    pub(crate) fn set_grid_template_columns(&self, value: LayoutGridTemplate) -> bool {
+        if self.grid_style().grid_template_columns == value {
+            return false;
+        }
+        self.clone_style(StyleBit::Grid);
+        self.grid_style().grid_template_columns = value;
+        true
+    }
+
+    pub(crate) fn grid_auto_flow(&self) -> GridAutoFlow {
+        self.grid_style().grid_auto_flow.clone()
+    }
+
+    pub(crate) fn set_grid_auto_flow(&self, value: GridAutoFlow) -> bool {
+        if self.grid_style().grid_auto_flow == value {
+            return false;
+        }
+        self.clone_style(StyleBit::Grid);
+        self.grid_style().grid_auto_flow = value;
+        true
+    }
+
+    pub(crate) fn grid_auto_rows(&self) -> LayoutGridAuto {
+        self.grid_style().grid_auto_rows.clone()
+    }
+
+    pub(crate) fn set_grid_auto_rows(&self, value: LayoutGridAuto) -> bool {
+        if self.grid_style().grid_auto_rows == value {
+            return false;
+        }
+        self.clone_style(StyleBit::Grid);
+        self.grid_style().grid_auto_rows = value;
+        true
+    }
+
+    pub(crate) fn grid_auto_columns(&self) -> LayoutGridAuto {
+        self.grid_style().grid_auto_columns.clone()
+    }
+
+    pub(crate) fn set_grid_auto_columns(&self, value: LayoutGridAuto) -> bool {
+        if self.grid_style().grid_auto_columns == value {
+            return false;
+        }
+        self.clone_style(StyleBit::Grid);
+        self.grid_style().grid_auto_columns = value;
         true
     }
 }
