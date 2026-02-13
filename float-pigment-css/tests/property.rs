@@ -249,7 +249,23 @@ mod base {
             )
         );
         let np = query(&ssg, "", "", ["g"], []);
-        assert_eq!(np.background_image(), BackgroundImage::List(vec![].into()));
+        assert_eq!(
+            np.background_image(),
+            BackgroundImage::List(
+                vec![
+                    BackgroundImageItem::Gradient(BackgroundImageGradientItem::LinearGradient(
+                        Angle::Deg(180.),
+                        vec![GradientColorItem::ColorHint(
+                            Color::Specified(255, 0, 0, 255),
+                            Length::Ratio(1.)
+                        ),]
+                        .into()
+                    ))
+                    .into()
+                ]
+                .into()
+            )
+        );
         let np = query(&ssg, "", "", ["h"], []);
         assert_eq!(np.background_image(), BackgroundImage::List(vec![].into()));
         let np = query(&ssg, "", "", ["i"], []);
@@ -1044,7 +1060,25 @@ mod base {
         let np = query(&ssg, "", "", ["j"], []);
         assert_eq!(np.background_image(), BackgroundImage::List(vec![].into()));
         let np = query(&ssg, "", "", ["k"], []);
-        assert_eq!(np.background_image(), BackgroundImage::List(vec![].into()));
+        assert_eq!(
+            np.background_image(),
+            BackgroundImage::List(
+                vec![
+                    BackgroundImageItem::Gradient(BackgroundImageGradientItem::RadialGradient(
+                        GradientShape::Ellipse,
+                        GradientSize::FarthestCorner,
+                        GradientPosition::Pos(Length::Ratio(0.5), Length::Ratio(0.5)),
+                        vec![GradientColorItem::ColorHint(
+                            Color::Specified(255, 0, 0, 255),
+                            Length::Ratio(1.)
+                        )]
+                        .into()
+                    ))
+                    .into()
+                ]
+                .into()
+            )
+        );
         let np = query(&ssg, "", "", ["l"], []);
         assert_eq!(
             np.background_image(),
@@ -4492,6 +4526,9 @@ mod border {
             .e {
                 border: 1px none;
             }
+            .f {
+                border: 2px 2px 2px 2px black solid;
+            }
         "#,
         );
         ssg.append(ss);
@@ -4574,6 +4611,12 @@ mod border {
         assert_eq!(np.border_right_color_type(), ColorType::Initial);
         assert_eq!(np.border_top_color_type(), ColorType::Initial);
         assert_eq!(np.border_bottom_color_type(), ColorType::Initial);
+
+        let np = query(&ssg, "", "", ["f"], []);
+        assert_eq!(np.border_left_width(), Length::Px(3.));
+        assert_eq!(np.border_right_width(), Length::Px(3.));
+        assert_eq!(np.border_top_width(), Length::Px(3.));
+        assert_eq!(np.border_bottom_width(), Length::Px(3.));
     }
 
     #[test]
