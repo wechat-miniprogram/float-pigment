@@ -104,28 +104,28 @@ pub(crate) fn color_repr<'a, 't: 'a, 'i: 't>(
         }
         cssparser_color::Color::Hsl(hsl) => {
             let (red, green, blue) = cssparser_color::hsl_to_rgb(
-                hsl.hue.unwrap_or(0.),
+                hsl.hue.map(|x| x / 360.).unwrap_or(0.),
                 hsl.saturation.unwrap_or(0.),
                 hsl.lightness.unwrap_or(0.),
             );
             Color::Specified(
-                red as u8,
-                green as u8,
-                blue as u8,
-                hsl.alpha.unwrap_or(0.) as u8,
+                (red * 256.) as u8,
+                (green * 256.) as u8,
+                (blue * 256.) as u8,
+                (hsl.alpha.unwrap_or(1.) * 256.) as u8,
             )
         }
         cssparser_color::Color::Hwb(hwb) => {
             let (red, green, blue) = cssparser_color::hwb_to_rgb(
-                hwb.hue.unwrap_or(0.),
+                hwb.hue.map(|x| x / 360.).unwrap_or(0.),
                 hwb.whiteness.unwrap_or(0.),
                 hwb.blackness.unwrap_or(0.),
             );
             Color::Specified(
-                red as u8,
-                green as u8,
-                blue as u8,
-                hwb.alpha.unwrap_or(0.) as u8,
+                (red * 256.) as u8,
+                (green * 256.) as u8,
+                (blue * 256.) as u8,
+                (hwb.alpha.unwrap_or(1.) * 256.) as u8,
             )
         }
         _ => {
@@ -777,7 +777,7 @@ pub(crate) fn transform_repr<'a, 't: 'a, 'i: 't>(
                         "skew" => {
                             let x = angle(parser, properties, st)?;
                             if parser.is_exhausted() {
-                                trans_item = TransformItem::Skew(x.clone(), x);
+                                trans_item = TransformItem::Skew(x, Angle::Deg(0.));
                             } else {
                                 let comma = parser.expect_comma();
                                 if comma.is_err() {

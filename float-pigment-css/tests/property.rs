@@ -1863,6 +1863,19 @@ mod visibility_color {
     // 0x11 Color
     #[test]
     fn color() {
+        test_parse_property!(
+            color,
+            "color",
+            "hsl(100deg 80% 40%)",
+            Color::Specified(75, 184, 20, 255)
+        );
+
+        test_parse_property!(
+            color,
+            "color",
+            "hwb(100 20% 20%)",
+            Color::Specified(102, 204, 51, 255)
+        );
         let mut ssg = StyleSheetGroup::new();
         let ss = StyleSheet::from_str(
             "
