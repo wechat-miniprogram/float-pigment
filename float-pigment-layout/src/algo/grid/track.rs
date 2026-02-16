@@ -10,9 +10,9 @@
 
 use crate::{DefLength, LayoutTreeNode, OptionNum};
 use alloc::vec::Vec;
+use core::fmt::Debug;
 use float_pigment_css::length_num::LengthNum;
 use float_pigment_css::num_traits::Zero;
-use core::fmt::Debug;
 
 /// A single grid track (row or column) with its sizing information.
 ///
@@ -442,82 +442,6 @@ impl<T: LayoutTreeNode> GridTracks<T> {
         }
     }
 
-    /// Expand flexible tracks (fr units) with iterative algorithm.
-    ///
-    /// CSS Grid §11.7: Expand Flexible Tracks
-    /// <https://www.w3.org/TR/css-grid-1/#algo-flex-tracks>
-    ///
-    /// The algorithm iteratively calculates fr track sizes:
-    /// 1. Find the hypothetical fr size = free_space / total_flex
-    /// 2. If any fr track's size < its base_size, treat it as inflexible
-    /// 3. Repeat until stable
-    ///
-    /// This ensures fr tracks respect their minimum sizes (base_size).
-    pub fn expand_flexible_tracks(&mut self, free_space: T::Length) {
-        if free_space <= T::Length::zero() || self.total_flex == 0.0 {
-            return;
-        }
-
-        // Track which fr tracks are still flexible (not clamped to base_size)
-        let mut is_flexible: Vec<bool> = self.tracks.iter().map(|t| t.is_flexible()).collect();
-
-        let mut remaining_space = free_space;
-        let mut iterations = 0;
-        const MAX_ITERATIONS: usize = 10; // Prevent infinite loops
-
-        loop {
-            iterations += 1;
-            if iterations > MAX_ITERATIONS {
-                break;
-            }
-
-            // Calculate total flex of still-flexible tracks
-            let active_flex: f32 = self
-                .tracks
-                .iter()
-                .enumerate()
-                .filter(|(i, _)| is_flexible[*i])
-                .map(|(_, t)| t.flex_factor().unwrap_or(0.0))
-                .sum();
-
-            if active_flex <= 0.0 {
-                break;
-            }
-
-            // Calculate hypothetical fr size
-            let hypothetical_fr_size = remaining_space.div_f32(active_flex);
-
-            // Check if any track needs to be frozen (hypothetical size < base_size)
-            let mut any_frozen = false;
-
-            for (i, track) in self.tracks.iter().enumerate() {
-                if is_flexible[i] {
-                    if let Some(flex_factor) = track.flex_factor() {
-                        let hypothetical_size = hypothetical_fr_size.mul_f32(flex_factor);
-                        if hypothetical_size < track.base_size {
-                            // Freeze this track at its base_size
-                            is_flexible[i] = false;
-                            remaining_space -= track.base_size;
-                            any_frozen = true;
-                        }
-                    }
-                }
-            }
-
-            if !any_frozen {
-                // No tracks were frozen, we can apply the final sizes
-                for (i, track) in self.tracks.iter_mut().enumerate() {
-                    if is_flexible[i] {
-                        if let Some(flex_factor) = track.flex_factor() {
-                            track.base_size = hypothetical_fr_size.mul_f32(flex_factor);
-                        }
-                    }
-                }
-                break;
-            }
-        }
-    }
-
     /// Stretch auto tracks to fill remaining space.
     ///
     /// CSS Grid §11.8: Stretch auto Tracks
@@ -552,11 +476,6 @@ impl<T: LayoutTreeNode> GridTracks<T> {
                 track.base_size += space_per_track;
             }
         }
-    }
-
-    /// Get the total flex factor of all fr tracks.
-    pub fn total_flex_factor(&self) -> f32 {
-        self.total_flex
     }
 
     /// Check if there are any flexible tracks.
