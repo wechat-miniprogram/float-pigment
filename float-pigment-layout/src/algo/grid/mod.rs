@@ -57,9 +57,10 @@ use crate::{
         track_size::apply_track_size,
         track_sizing::compute_track_sizes,
     },
-    compute_special_position_children, AxisInfo, AxisReverse, CollapsedBlockMargin, ComputeRequest,
-    ComputeRequestKind, ComputeResult, DefLength, Edge, EdgeOption, LayoutStyle, LayoutTreeNode,
-    LayoutUnit, Normalized, OptionNum, OptionSize, Point, Size, SizingMode, Vector,
+    compute_special_position_children, is_display_none, is_independent_positioning, AxisInfo,
+    AxisReverse, CollapsedBlockMargin, ComputeRequest, ComputeRequestKind, ComputeResult,
+    DefLength, Edge, EdgeOption, LayoutStyle, LayoutTreeNode, LayoutTreeVisitor, LayoutUnit,
+    Normalized, OptionNum, OptionSize, Point, Size, SizingMode, Vector,
 };
 
 #[derive(Clone, PartialEq)]
@@ -204,16 +205,30 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         // the explicit grid boundaries.
         // ═══════════════════════════════════════════════════════════════════════
 
+        // Filter out absolutely positioned and display:none children
+        // CSS Grid §9: Absolutely positioned items are not grid items for placement
+        // https://www.w3.org/TR/css-grid-1/#abspos
+        let children = node
+            .tree_visitor()
+            .children_iter()
+            .enumerate()
+            .filter(|(_, child)| {
+                !is_independent_positioning(*child) && !is_display_none::<T>(child.style())
+            })
+            .collect::<Vec<_>>();
+        let children_count = children.len();
+
         let mut grid_matrix = GridMatrix::new(
             row_track_list.len(),    // Explicit row count
             column_track_list.len(), // Explicit column count
             row_track_auto_count,
             column_track_auto_count,
             style.grid_auto_flow(),
+            children_count,
         );
 
         // Single-pass placement with automatic grid expansion
-        place_grid_items(&mut grid_matrix, node);
+        place_grid_items(&mut grid_matrix, children.into_iter());
 
         // After placement, get the actual grid dimensions (may include implicit tracks)
         let actual_row_count = grid_matrix.row_count();
@@ -336,8 +351,11 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         // Reference: https://www.w3.org/TR/css-grid-1/#min-size-contribution
         // ═══════════════════════════════════════════════════════════════════════
 
-        let mut grid_layout_matrix =
-            GridLayoutMatrix::new(grid_matrix.row_count(), grid_matrix.column_count());
+        let mut grid_layout_matrix = GridLayoutMatrix::new(
+            grid_matrix.row_count(),
+            grid_matrix.column_count(),
+            children_count,
+        );
 
         let mut each_min_content_size: Vec<Option<Size<T::Length>>> =
             vec![None; grid_matrix.column_count()];

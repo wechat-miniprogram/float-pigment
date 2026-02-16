@@ -7,7 +7,7 @@ use float_pigment_css::typing::GridAutoFlow;
 
 use crate::{
     algo::grid::{grid_item::GridItem, GridMatrix},
-    is_display_none, is_independent_positioning, LayoutTreeNode, LayoutTreeVisitor,
+    LayoutTreeNode,
 };
 
 /// Place grid items into the grid using the auto-placement algorithm.
@@ -45,7 +45,7 @@ use crate::{
 /// - Reduces O(N × R × C) to approximately O(N + R × C) in typical cases
 pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
     grid_matrix: &mut GridMatrix<'a, T>,
-    node: &'a T,
+    children_iter: impl Iterator<Item = (usize, &'a T)>,
 ) {
     // Get dimensions from explicit grid template
     let explicit_row_count = grid_matrix.explicit_row_count();
@@ -60,17 +60,6 @@ pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
     // This avoids re-scanning rows/columns that are known to be full
     let mut dense_hint_row = 0;
     let mut dense_hint_col = 0;
-
-    // Filter out absolutely positioned and display:none items
-    // CSS Grid §9: Absolutely positioned items are not grid items for placement
-    // https://www.w3.org/TR/css-grid-1/#abspos
-    let children_iter = node
-        .tree_visitor()
-        .children_iter()
-        .enumerate()
-        .filter(|(_, node)| {
-            !is_independent_positioning(*node) && !is_display_none::<T>(node.style())
-        });
 
     // Process each grid item according to grid-auto-flow
     // CSS Grid §8.5: Auto-placement algorithm

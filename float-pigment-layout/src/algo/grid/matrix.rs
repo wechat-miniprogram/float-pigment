@@ -13,8 +13,8 @@
 //! - O(N) space where N = number of items (not R × C)
 //! - Items stored in Vec for efficient iteration
 
-use hashbrown::HashSet;
 use core::fmt::Debug;
+use hashbrown::HashSet;
 
 use alloc::vec::Vec;
 use float_pigment_css::typing::GridAutoFlow;
@@ -66,12 +66,13 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
         row_auto_count: usize,
         column_auto_count: usize,
         flow: GridAutoFlow,
+        capacity: usize,
     ) -> Self {
         Self {
-            occupied: HashSet::new(),
+            occupied: HashSet::with_capacity(capacity),
             max_row: 0,
             max_col: 0,
-            items: Vec::new(),
+            items: Vec::with_capacity(capacity),
             row_auto_count,
             column_auto_count,
             explicit_row_count,
@@ -185,11 +186,11 @@ pub(crate) struct GridLayoutMatrix<'a, T: LayoutTreeNode> {
 
 impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
     /// Create a new layout matrix with the given dimensions.
-    pub(crate) fn new(row_count: usize, column_count: usize) -> Self {
+    pub(crate) fn new(row_count: usize, column_count: usize, capacity: usize) -> Self {
         Self {
             row_offsets: vec![T::Length::zero(); row_count + 1],
             column_offsets: vec![T::Length::zero(); column_count + 1],
-            items: Vec::new(),
+            items: Vec::with_capacity(capacity),
             row_count,
             column_count,
         }
