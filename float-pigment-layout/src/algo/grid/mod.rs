@@ -672,10 +672,13 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                 },
             );
 
-            let track_size = Size::new(
-                track_width,
-                grid_layout_item.track_size.height.val().unwrap(),
-            );
+            let track_height = grid_layout_item
+                .track_size
+                .height
+                .val()
+                .unwrap_or(T::Length::zero());
+
+            let track_size = Size::new(track_width, track_height);
 
             // Calculate alignment for the grid item within its cell
             let child_style = grid_layout_item.node.style();
