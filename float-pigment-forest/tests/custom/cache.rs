@@ -1,3 +1,11 @@
+// Tests for layout cache invalidation
+// These tests ensure the layout engine correctly invalidates and recalculates
+// positions when style properties change. Key scenarios:
+// - order property changes in flex container
+// - flex-direction changes
+// - display property changes
+// - Style mutations requiring position recalculation
+
 use crate::*;
 use float_pigment_css::typing::*;
 
@@ -5,6 +13,14 @@ unsafe fn as_ref<'a>(node: *mut Node) -> &'a Node {
     &*node
 }
 
+// Case: Position cache invalidation when order changes
+// Spec points:
+// - Changing order property reorders flex items visually
+// - Positions must be recalculated after order change
+// In this test:
+// - Initial: items 1,2,3,4 with widths 1,2,3,4 and order 1,2,3,4
+// - After: order becomes 4,3,2,1 (reversed)
+// - Items should be repositioned in reverse order
 #[test]
 pub fn position_cache_if_order_changed() {
     unsafe {
@@ -76,6 +92,13 @@ pub fn position_cache_if_order_changed() {
     }
 }
 
+// Case: Position cache with equal-width items and order change
+// Spec points:
+// - Order change with equal-width items still requires recalculation
+// In this test:
+// - Four items of width=1px each
+// - Initial positions: 0, 1, 2, 3
+// - After order reversal: 3, 2, 1, 0
 #[test]
 pub fn position_cache_if_order_changed_2() {
     unsafe {
@@ -147,6 +170,13 @@ pub fn position_cache_if_order_changed_2() {
     }
 }
 
+// Case: Position cache invalidation when flex-direction changes
+// Spec points:
+// - Changing flex-direction from row to row-reverse
+// - Items repositioned from left-to-right to right-to-left
+// In this test:
+// - Initial: row direction, items at 0, 1, 3, 6
+// - After: row-reverse, items positioned from right edge
 #[test]
 pub fn position_cache_if_flex_direction_changed() {
     unsafe {
@@ -212,6 +242,13 @@ pub fn position_cache_if_flex_direction_changed() {
     }
 }
 
+// Case: Position cache with equal-width items and flex-direction change
+// Spec points:
+// - Direction change with equal-width items
+// In this test:
+// - Four items of width=1px
+// - Initial: 0, 1, 2, 3
+// - After row-reverse: 299, 298, 297, 296
 #[test]
 pub fn position_cache_if_flex_direction_changed_2() {
     unsafe {
@@ -277,6 +314,13 @@ pub fn position_cache_if_flex_direction_changed_2() {
     }
 }
 
+// Case: Position cache with absolute child and mark_dirty_propagate
+// Spec points:
+// - Absolute positioned children need recalculation on dirty
+// - Sibling positions should remain stable
+// In this test:
+// - Nested absolute container with two children
+// - After mark_dirty_propagate, positions should remain correct
 #[test]
 pub fn layout() {
     unsafe {
@@ -327,6 +371,14 @@ pub fn layout() {
     }
 }
 
+// Case: Clear position cache when parent display changes
+// Spec points:
+// - display: none removes element from layout (zero size)
+// - Restoring display: flex restores original layout
+// In this test:
+// - Initial: flex container with absolute child at left=10
+// - After display=none: child position becomes 0x0x0
+// - After display=flex restored: child position restored
 #[test]
 pub fn clear_position_cache_if_parent_display_changed() {
     unsafe {
@@ -380,6 +432,13 @@ pub fn clear_position_cache_if_parent_display_changed() {
     }
 }
 
+// Case: Complex nested layout with inline elements
+// Spec points:
+// - Inline elements within flex items require careful cache management
+// - Changing child height should trigger proper relayout
+// In this test:
+// - Nested structure with flex, block, and inline elements
+// - After changing first child height, inline position should update correctly
 #[test]
 pub fn test() {
     unsafe {

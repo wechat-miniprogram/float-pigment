@@ -60,6 +60,7 @@ impl fmt::Display for Display {
                 Self::Grid => "grid",
                 Self::FlowRoot => "flow-root",
                 Self::InlineFlex => "inline-flex",
+                Self::InlineGrid => "inline-grid",
             }
         )
     }
@@ -550,6 +551,29 @@ impl fmt::Display for JustifyItems {
                 JustifyItems::SelfEnd => "self-end",
                 JustifyItems::Left => "left",
                 JustifyItems::Right => "right",
+                JustifyItems::Normal => "normal",
+            }
+        )
+    }
+}
+impl fmt::Display for JustifySelf {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                JustifySelf::Auto => "auto",
+                JustifySelf::Normal => "normal",
+                JustifySelf::Stretch => "stretch",
+                JustifySelf::Center => "center",
+                JustifySelf::Start => "start",
+                JustifySelf::End => "end",
+                JustifySelf::FlexStart => "flex-start",
+                JustifySelf::FlexEnd => "flex-end",
+                JustifySelf::SelfStart => "self-start",
+                JustifySelf::SelfEnd => "self-end",
+                JustifySelf::Left => "left",
+                JustifySelf::Right => "right",
             }
         )
     }
@@ -2350,6 +2374,62 @@ impl fmt::Display for Gap {
         match self {
             Gap::Normal => write!(f, "normal"),
             Gap::Length(length) => write!(f, "{length}"),
+        }
+    }
+}
+
+impl fmt::Display for TrackSize {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TrackSize::Length(length) => write!(f, "{length}"),
+            TrackSize::MinContent => write!(f, "min-content"),
+            TrackSize::MaxContent => write!(f, "max-content"),
+            TrackSize::Fr(x) => write!(f, "{x}fr"),
+        }
+    }
+}
+
+impl fmt::Display for GridTemplate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GridTemplate::None => write!(f, "none"),
+            GridTemplate::TrackList(list) => {
+                let mut ret = vec![];
+                list.iter().for_each(|x| match x {
+                    TrackListItem::LineNames(line_names) => ret.push(
+                        line_names
+                            .iter()
+                            .map(|x| x.to_string())
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                    ),
+                    TrackListItem::TrackSize(track_size) => ret.push(track_size.to_string()),
+                });
+                write!(f, "{}", ret.join(" "))
+            }
+        }
+    }
+}
+
+impl fmt::Display for GridAutoFlow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GridAutoFlow::Row => write!(f, "row"),
+            GridAutoFlow::Column => write!(f, "column"),
+            GridAutoFlow::RowDense => write!(f, "row dense"),
+            GridAutoFlow::ColumnDense => write!(f, "column dense"),
+        }
+    }
+}
+
+impl fmt::Display for GridAuto {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GridAuto::List(list) => {
+                let mut ret = vec![];
+                list.iter().for_each(|x| ret.push(x.to_string()));
+                write!(f, "{}", ret.join(" "))
+            }
         }
     }
 }

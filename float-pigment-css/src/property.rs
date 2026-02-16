@@ -16,7 +16,7 @@ use cssparser::{ParseError, Parser, SourcePosition};
 use super::parser::{property_value::*, CustomError, ParseState};
 use super::resolve_font_size::ResolveFontSize;
 use super::sheet::borrow::Array;
-pub use super::sheet::PropertyMeta;
+pub use super::sheet::{str_store::StrRef, PropertyMeta};
 use super::typing::*;
 use float_pigment_css_macro::*;
 
@@ -166,6 +166,15 @@ property_list! (PropertyValueWithGlobal, {
     0xa3 TextDecorationThickness: TextDecorationThicknessType as Initial default TextDecorationThickness::Auto;
     0xa4 FontFeatureSettings: FontFeatureSettingsType as Inherit default FontFeatureSettings::Normal;
 
+    // grid
+    0xa5 GridTemplateRows: GridTemplateType as Initial default GridTemplate::None;
+    0xa6 GridTemplateColumns: GridTemplateType as Initial default GridTemplate::None;
+    0xa7 GridAutoFlow: GridAutoFlowType as Initial default GridAutoFlow::Row;
+    0xa8 JustifySelf: JustifySelfType as Initial default JustifySelf::Auto;
+    0xa9 GridAutoRows: GridAutoType as Initial default GridAuto::List(Array::empty());
+    0xaa GridAutoColumns: GridAutoType as Initial default GridAuto::List(Array::empty());
+
+
     0xd0 ListStyleType: ListStyleTypeType as Inherit default ListStyleType::Disc;
     0xd1 ListStyleImage: ListStyleImageType as Inherit default ListStyleImage::None;
     0xd2 ListStylePosition: ListStylePositionType as Inherit default ListStylePosition::Outside;
@@ -198,6 +207,7 @@ property_value_format! (PropertyValueWithGlobal, {
         | "grid" => DisplayType::Grid
         | "flow-root" => DisplayType::FlowRoot
         | "inline-flex" => DisplayType::InlineFlex
+        | "inline-grid" => DisplayType::InlineGrid
     }};
     position: {{ Position
         = "static" => PositionType::Static
@@ -330,6 +340,21 @@ property_value_format! (PropertyValueWithGlobal, {
         | "self-end" => JustifyItems::SelfEnd
         | "left" => JustifyItems::Left
         | "right" => JustifyItems::Right
+        | "normal" => JustifyItems::Normal
+    }};
+    justify_self: {{JustifySelf
+        = "auto" => JustifySelf::Auto
+        | "normal" => JustifySelf::Normal
+        | "stretch" => JustifySelf::Stretch
+        | "center" => JustifySelf::Center
+        | "flex-start" => JustifySelf::FlexStart
+        | "flex-end" => JustifySelf::FlexEnd
+        | "start" => JustifySelf::Start
+        | "end" => JustifySelf::End
+        | "self-start" => JustifySelf::SelfStart
+        | "self-end" => JustifySelf::SelfEnd
+        | "left" => JustifySelf::Left
+        | "right" => JustifySelf::Right
     }};
     order: {{ Order = <number> -> |x: Number| Number::I32(x.to_i32()); }};
     <gap_repr: Gap>:
@@ -1647,6 +1672,62 @@ property_value_format! (PropertyValueWithGlobal, {
                 )
         };
     }};
+
+    <track_breadth: TrackSize>:
+        "auto" -> |_| TrackSize::Length(Length::Auto);
+        | <non_negative_length_percentage> -> |x: Length| TrackSize::Length(x);
+        | "min-content" -> |_| TrackSize::MinContent;
+        | "max-content" -> |_| TrackSize::MaxContent;
+        | <fr_repr> -> |x: f32| TrackSize::Fr(x);
+    ;
+
+    <track_size: TrackSize>:
+        <track_breadth> -> |x: TrackSize| x;
+    ;
+
+    <track_list: Vec<TrackListItem>>:
+        [ [ <line_names>? [ <track_size> ] ]+ <line_names>? ] -> |x: (Vec<(Option<Vec<String>>, TrackSize)>, Option<Vec<String>>)| {
+            let mut ret = vec![];
+            for item in x.0.into_iter() {
+                if let Some(line_names) = item.0 {
+                    ret.push(TrackListItem::LineNames(line_names.iter().map(|x| x.into()).collect::<Vec<StrRef>>().into()));
+                }
+                ret.push(TrackListItem::TrackSize(item.1));
+            }
+            if let Some(line_names) = x.1 {
+                ret.push(TrackListItem::LineNames(line_names.iter().map(|x| x.into()).collect::<Vec<StrRef>>().into()));
+            }
+            ret
+        };
+    ;
+    grid_template_rows: {{ GridTemplateRows
+        = "none" => GridTemplate::None
+        | <track_list> -> |x: Vec<TrackListItem>| {
+            GridTemplate::TrackList(x.into())
+        };
+    }};
+
+    grid_template_columns: {{ GridTemplateColumns
+        = "none" => GridTemplate::None
+        | <track_list> -> |x: Vec<TrackListItem>| {
+            GridTemplate::TrackList(x.into())
+        };
+    }};
+
+    grid_auto_flow: {{ GridAutoFlow = <grid_auto_flow_repr> }};
+
+    grid_auto_rows: {{ GridAutoRows
+        = <track_size>+ -> |x: Vec<TrackSize>| {
+            GridAuto::List(x.into())
+        };
+    }};
+
+    grid_auto_columns: {{ GridAutoColumns
+        = <track_size>+ -> |x: Vec<TrackSize>| {
+            GridAuto::List(x.into())
+        };
+    }};
+
 });
 
 pub(crate) fn split_hv<T: Clone>(x: Vec<T>) -> (T, T) {

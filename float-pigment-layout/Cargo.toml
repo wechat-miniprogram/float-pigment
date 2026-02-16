@@ -24,6 +24,7 @@ log = "0.4"
 euclid = { version = "0.22", default-features = false, features = ["libm"] }
 lru = "0.7.8"
 float-pigment-css = { workspace = true }
+hashbrown = { version = "0.14" }
 
 [lints]
 workspace = true
