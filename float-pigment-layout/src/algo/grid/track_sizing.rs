@@ -12,6 +12,74 @@ use float_pigment_css::num_traits::Zero;
 
 use super::matrix::GridLayoutMatrix;
 
+/// Resolve fr track sizes using the iterative algorithm from CSS Grid §11.7.
+///
+/// 1. hypothetical_fr_size = remaining_space / active_flex
+/// 2. If any fr track's size < its min-content, freeze it at min-content
+/// 3. Repeat until stable
+fn resolve_fr_track_sizes<L: LengthNum + Copy>(
+    tracks: &mut [TrackInfo<L>],
+    total_fr: f32,
+    available_space: OptionNum<L>,
+) {
+    if total_fr <= 0.0 {
+        return;
+    }
+    let available = match available_space.val() {
+        Some(v) => v,
+        None => return,
+    };
+
+    let total_non_fr_size: L = tracks
+        .iter()
+        .filter(|t| !t.is_fr)
+        .fold(L::zero(), |acc, t| acc + t.size.unwrap_or(L::zero()));
+
+    let initial_remaining = if available > total_non_fr_size {
+        available - total_non_fr_size
+    } else {
+        L::zero()
+    };
+
+    let mut remaining_space = initial_remaining;
+    let mut active_flex = total_fr;
+    let mut flexible_indices: Vec<usize> = (0..tracks.len()).filter(|&i| tracks[i].is_fr).collect();
+    if flexible_indices.is_empty() {
+        return;
+    }
+    loop {
+        if active_flex <= 0.0 {
+            break;
+        }
+        let hypothetical_fr_size = remaining_space.div_f32(active_flex);
+
+        let mut any_frozen = false;
+        flexible_indices.retain(|&i| {
+            let hypothetical_size = hypothetical_fr_size.mul_f32(tracks[i].fr_value);
+            if hypothetical_size < tracks[i].min_content {
+                tracks[i].size = Some(tracks[i].min_content);
+                tracks[i].has_explicit = true;
+                remaining_space -= tracks[i].min_content;
+                active_flex -= tracks[i].fr_value;
+                any_frozen = true;
+                false
+            } else {
+                true
+            }
+        });
+
+        if !any_frozen {
+            // All tracks are stable, apply final sizes
+            for &i in &flexible_indices {
+                let fr_size = hypothetical_fr_size.mul_f32(tracks[i].fr_value);
+                tracks[i].size = Some(fr_size);
+                tracks[i].has_explicit = true;
+            }
+            break;
+        }
+    }
+}
+
 /// Track sizing result containing sizes, explicit flags, and fr values.
 pub(crate) struct TrackSizingResult<T: LayoutTreeNode> {
     pub sizes: Vec<T::Length>,
@@ -277,144 +345,8 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
     // 3. Repeat until stable
     // ═══════════════════════════════════════════════════════════════════════
 
-    // Calculate total non-fr column size
-    let total_non_fr_column_size: T::Length = columns
-        .iter()
-        .filter(|c| !c.is_fr)
-        .fold(T::Length::zero(), |acc, c| {
-            acc + c.size.unwrap_or(T::Length::zero())
-        });
-
-    // Calculate fr column sizes with iterative algorithm
-    // Optimization: Use incremental active_flex updates instead of recalculating each iteration
-    if column_total_fr > 0.0 {
-        if let Some(available_width) = available_grid_space.width.val() {
-            let initial_remaining = if available_width > total_non_fr_column_size {
-                available_width - total_non_fr_column_size
-            } else {
-                T::Length::zero()
-            };
-
-            // Track which fr tracks are still flexible (not frozen)
-            let mut is_flexible: Vec<bool> = columns.iter().map(|c| c.is_fr).collect();
-            let mut remaining_space = initial_remaining;
-            // Initialize active_flex once, then update incrementally
-            let mut active_flex = column_total_fr;
-            let mut iterations = 0;
-            const MAX_ITERATIONS: usize = 10;
-
-            loop {
-                iterations += 1;
-                if iterations > MAX_ITERATIONS || active_flex <= 0.0 {
-                    break;
-                }
-
-                // Calculate hypothetical fr size
-                let hypothetical_fr_size = remaining_space.div_f32(active_flex);
-
-                // Check if any track needs to be frozen
-                let mut any_frozen = false;
-                for i in 0..column_count {
-                    if is_flexible[i] {
-                        let hypothetical_size = hypothetical_fr_size.mul_f32(columns[i].fr_value);
-                        let min_content = columns[i].min_content;
-
-                        if hypothetical_size < min_content {
-                            // Freeze this track at its min-content
-                            is_flexible[i] = false;
-                            columns[i].size = Some(min_content);
-                            columns[i].has_explicit = true;
-                            remaining_space -= min_content;
-                            // Incremental update: subtract frozen track's fr value
-                            active_flex -= columns[i].fr_value;
-                            any_frozen = true;
-                        }
-                    }
-                }
-
-                if !any_frozen {
-                    // No tracks were frozen, apply final sizes
-                    for i in 0..column_count {
-                        if is_flexible[i] {
-                            let fr_size = hypothetical_fr_size.mul_f32(columns[i].fr_value);
-                            columns[i].size = Some(fr_size);
-                            columns[i].has_explicit = true;
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-    }
-
-    // Calculate total non-fr row size
-    let total_non_fr_row_size: T::Length = rows
-        .iter()
-        .filter(|r| !r.is_fr)
-        .fold(T::Length::zero(), |acc, r| {
-            acc + r.size.unwrap_or(T::Length::zero())
-        });
-
-    // Calculate fr row sizes with iterative algorithm
-    if row_total_fr > 0.0 {
-        if let Some(available_height) = available_grid_space.height.val() {
-            let initial_remaining = if available_height > total_non_fr_row_size {
-                available_height - total_non_fr_row_size
-            } else {
-                T::Length::zero()
-            };
-
-            // Track which fr tracks are still flexible (not frozen)
-            let mut is_flexible: Vec<bool> = rows.iter().map(|r| r.is_fr).collect();
-            let mut remaining_space = initial_remaining;
-            // Initialize active_flex once, then update incrementally
-            let mut active_flex = row_total_fr;
-            let mut iterations = 0;
-            const MAX_ITERATIONS: usize = 10;
-
-            loop {
-                iterations += 1;
-                if iterations > MAX_ITERATIONS || active_flex <= 0.0 {
-                    break;
-                }
-
-                // Calculate hypothetical fr size
-                let hypothetical_fr_size = remaining_space.div_f32(active_flex);
-
-                // Check if any track needs to be frozen
-                let mut any_frozen = false;
-                for i in 0..row_count {
-                    if is_flexible[i] {
-                        let hypothetical_size = hypothetical_fr_size.mul_f32(rows[i].fr_value);
-                        let min_content = rows[i].min_content;
-
-                        if hypothetical_size < min_content {
-                            // Freeze this track at its min-content
-                            is_flexible[i] = false;
-                            rows[i].size = Some(min_content);
-                            rows[i].has_explicit = true;
-                            remaining_space -= min_content;
-                            // Incremental update: subtract frozen track's fr value
-                            active_flex -= rows[i].fr_value;
-                            any_frozen = true;
-                        }
-                    }
-                }
-
-                if !any_frozen {
-                    // No tracks were frozen, apply final sizes
-                    for i in 0..row_count {
-                        if is_flexible[i] {
-                            let fr_size = hypothetical_fr_size.mul_f32(rows[i].fr_value);
-                            rows[i].size = Some(fr_size);
-                            rows[i].has_explicit = true;
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-    }
+    resolve_fr_track_sizes(&mut columns, column_total_fr, available_grid_space.width);
+    resolve_fr_track_sizes(&mut rows, row_total_fr, available_grid_space.height);
 
     // Extract final sizes, defaulting to zero
     let column_sizes: Vec<T::Length> = columns

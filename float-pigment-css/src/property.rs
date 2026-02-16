@@ -1674,7 +1674,8 @@ property_value_format! (PropertyValueWithGlobal, {
     }};
 
     <track_breadth: TrackSize>:
-        <length> -> |x: Length| TrackSize::Length(x);
+        "auto" -> |_| TrackSize::Length(Length::Auto);
+        | <non_negative_length_percentage> -> |x: Length| TrackSize::Length(x);
         | "min-content" -> |_| TrackSize::MinContent;
         | "max-content" -> |_| TrackSize::MaxContent;
         | <fr_repr> -> |x: f32| TrackSize::Fr(x);
