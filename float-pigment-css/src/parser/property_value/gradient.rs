@@ -24,14 +24,14 @@ fn resolved_gradient_color_stops<'a, 't: 'a, 'i: 't>(
             colors.push(GradientColorItem::ColorHint(color, Length::Auto));
             return Ok(());
         }
-        let hint = length(parser, properties, st)?;
+        let hint = length_percentage(parser, properties, st)?;
         match &hint {
             Length::Ratio(_) => has_percent = true,
             _ => has_dimension = true,
         }
         colors.push(GradientColorItem::ColorHint(color.clone(), hint));
         if !parser.is_exhausted() {
-            let hint = length(parser, properties, st)?;
+            let hint = length_percentage(parser, properties, st)?;
             colors.push(GradientColorItem::ColorHint(color, hint));
         }
         Ok(())
@@ -166,7 +166,7 @@ fn parse_gradient_color_hint<'a, 't: 'a, 'i: 't>(
 ) -> Result<ColorHint, ParseError<'i, CustomError>> {
     match accept_unit {
         ColorHintUnit::Length => {
-            let length = length(parser, properties, st)?;
+            let length = length_percentage(parser, properties, st)?;
             Ok(ColorHint::Length(length))
         }
         ColorHintUnit::AngleOrPercentage => {
@@ -588,7 +588,7 @@ fn gradient_position_repr<'a, 't: 'a, 'i: 't>(
 
     let mut try_parse_length = |parser: &mut Parser<'i, 't>| {
         parser
-            .try_parse::<_, _, ParseError<'i, CustomError>>(|parser| length(parser, properties, st))
+            .try_parse::<_, _, ParseError<'i, CustomError>>(|parser| length_percentage(parser, properties, st))
     };
 
     // <position-four>
