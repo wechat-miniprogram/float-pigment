@@ -38,7 +38,7 @@ pub(crate) fn filter_repr<'a, 't: 'a, 'i: 't>(
                             ret.push(FilterFunc::Blur(Length::Px(0.)));
                             return Ok(());
                         }
-                        let len = length_without_percentage(parser, properties, st)?;
+                        let len = length_only(parser, properties, st)?;
                         ret.push(FilterFunc::Blur(len));
                         Ok(())
                     }),

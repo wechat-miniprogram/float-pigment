@@ -107,28 +107,28 @@ pub(crate) fn color_repr<'a, 't: 'a, 'i: 't>(
         }
         cssparser_color::Color::Hsl(hsl) => {
             let (red, green, blue) = cssparser_color::hsl_to_rgb(
-                hsl.hue.unwrap_or(0.),
+                hsl.hue.map(|x| x / 360.).unwrap_or(0.),
                 hsl.saturation.unwrap_or(0.),
                 hsl.lightness.unwrap_or(0.),
             );
             Color::Specified(
-                red as u8,
-                green as u8,
-                blue as u8,
-                hsl.alpha.unwrap_or(0.) as u8,
+                (red * 256.) as u8,
+                (green * 256.) as u8,
+                (blue * 256.) as u8,
+                (hsl.alpha.unwrap_or(1.) * 256.) as u8,
             )
         }
         cssparser_color::Color::Hwb(hwb) => {
             let (red, green, blue) = cssparser_color::hwb_to_rgb(
-                hwb.hue.unwrap_or(0.),
+                hwb.hue.map(|x| x / 360.).unwrap_or(0.),
                 hwb.whiteness.unwrap_or(0.),
                 hwb.blackness.unwrap_or(0.),
             );
             Color::Specified(
-                red as u8,
-                green as u8,
-                blue as u8,
-                hwb.alpha.unwrap_or(0.) as u8,
+                (red * 256.) as u8,
+                (green * 256.) as u8,
+                (blue * 256.) as u8,
+                (hwb.alpha.unwrap_or(1.) * 256.) as u8,
             )
         }
         _ => {
@@ -138,68 +138,12 @@ pub(crate) fn color_repr<'a, 't: 'a, 'i: 't>(
 }
 
 #[inline(never)]
-pub(crate) fn length<'a, 't: 'a, 'i: 't>(
+pub(crate) fn length_percentage_auto<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
     properties: &mut Vec<PropertyMeta>,
     st: &mut ParseState,
 ) -> Result<Length, ParseError<'i, CustomError>> {
-    let next = parser.next()?;
-    match next {
-        Token::Number { value, .. } => {
-            if *value == 0. {
-                return Ok(Length::Px(0.));
-            }
-        }
-        Token::Percentage { unit_value, .. } => {
-            return Ok(Length::Ratio(*unit_value));
-        }
-        Token::Dimension { value, unit, .. } => {
-            let unit: &str = unit;
-            match unit {
-                "px" => return Ok(Length::Px(*value)),
-                "vw" => return Ok(Length::Vw(*value)),
-                "vh" => return Ok(Length::Vh(*value)),
-                "rem" => return Ok(Length::Rem(*value)),
-                "rpx" => return Ok(Length::Rpx(*value)),
-                "em" => return Ok(Length::Em(*value)),
-                "vmin" => return Ok(Length::Vmin(*value)),
-                "vmax" => return Ok(Length::Vmax(*value)),
-                _ => {}
-            }
-        }
-        Token::Ident(ident) => {
-            let ident: &str = ident;
-            if ident == "auto" {
-                return Ok(Length::Auto);
-            }
-        }
-        Token::Function(name) => match &**name {
-            "env" => {
-                let (name, default_value) = parser.parse_nested_block(|parser| {
-                    parse_env_inner(parser, st, |parser, st| {
-                        env_default_value(parser, properties, st)
-                    })
-                })?;
-                return Ok(Length::Expr(LengthExpr::Env(
-                    name.into(),
-                    Box::new(default_value.unwrap_or(Length::Undefined)),
-                )));
-            }
-            "calc" => {
-                return parse_calc_inner(parser, properties, st, ExpectValueType::NumberAndLength)
-                    .map(|ret| {
-                        if let Some(r) = ComputeCalcExpr::<Length>::try_compute(&ret) {
-                            return r;
-                        }
-                        Length::Expr(LengthExpr::Calc(Box::new(ret)))
-                    });
-            }
-            _ => {}
-        },
-        _ => {}
-    }
-    let next = next.clone();
-    Err(parser.new_unexpected_token_error(next))
+    parse_length_inner(parser, properties, st, true, true, true)
 }
 
 #[inline(never)]
@@ -210,7 +154,7 @@ pub(crate) fn env_default_value<'a, 't: 'a, 'i: 't>(
 ) -> Result<Length, ParseError<'i, CustomError>> {
     parser.skip_whitespace();
     let start = parser.current_source_location();
-    let len = length(parser, properties, st);
+    let len = length_percentage_auto(parser, properties, st);
     let end = parser.current_source_location();
     if len.is_err() {
         st.add_warning_with_message(
@@ -224,20 +168,35 @@ pub(crate) fn env_default_value<'a, 't: 'a, 'i: 't>(
     len
 }
 
-#[inline(never)]
-pub(crate) fn length_without_percentage<'a, 't: 'a, 'i: 't>(
+/// Unified internal length parsing function.
+/// - `allow_percentage`: whether `<percentage>` is accepted
+/// - `allow_negative`: whether negative values are accepted
+/// - `allow_auto`: whether the `auto` keyword is accepted
+fn parse_length_inner<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
     properties: &mut Vec<PropertyMeta>,
     st: &mut ParseState,
+    allow_percentage: bool,
+    allow_negative: bool,
+    allow_auto: bool,
 ) -> Result<Length, ParseError<'i, CustomError>> {
-    let next = parser.next()?;
-    match next {
+    let next = parser.next()?.clone();
+    match &next {
         Token::Number { value, .. } => {
             if *value == 0. {
                 return Ok(Length::Px(0.));
             }
         }
+        Token::Percentage { unit_value, .. } if allow_percentage => {
+            if !allow_negative && *unit_value < 0. {
+                return Err(parser.new_unexpected_token_error(next));
+            }
+            return Ok(Length::Ratio(*unit_value));
+        }
         Token::Dimension { value, unit, .. } => {
+            if !allow_negative && *value < 0. {
+                return Err(parser.new_unexpected_token_error(next));
+            }
             let unit: &str = unit;
             match unit {
                 "px" => return Ok(Length::Px(*value)),
@@ -251,7 +210,7 @@ pub(crate) fn length_without_percentage<'a, 't: 'a, 'i: 't>(
                 _ => {}
             }
         }
-        Token::Ident(ident) => {
+        Token::Ident(ident) if allow_auto => {
             let ident: &str = ident;
             if ident == "auto" {
                 return Ok(Length::Auto);
@@ -282,8 +241,47 @@ pub(crate) fn length_without_percentage<'a, 't: 'a, 'i: 't>(
         },
         _ => {}
     }
-    let next = next.clone();
     Err(parser.new_unexpected_token_error(next))
+}
+
+/// Parse `<length-percentage>`: `<length> | <percentage>`, NO `auto`.
+#[inline(always)]
+pub(crate) fn length_percentage<'a, 't: 'a, 'i: 't>(
+    parser: &'a mut Parser<'i, 't>,
+    properties: &mut Vec<PropertyMeta>,
+    st: &mut ParseState,
+) -> Result<Length, ParseError<'i, CustomError>> {
+    parse_length_inner(parser, properties, st, true, true, false)
+}
+
+/// Parse `<length>` only: NO `auto`, NO `<percentage>`.
+#[inline(always)]
+pub(crate) fn length_only<'a, 't: 'a, 'i: 't>(
+    parser: &'a mut Parser<'i, 't>,
+    properties: &mut Vec<PropertyMeta>,
+    st: &mut ParseState,
+) -> Result<Length, ParseError<'i, CustomError>> {
+    parse_length_inner(parser, properties, st, false, true, false)
+}
+
+/// Parse non-negative `<length-percentage>`: NO `auto`.
+#[inline(always)]
+pub(crate) fn non_negative_length_percentage<'a, 't: 'a, 'i: 't>(
+    parser: &'a mut Parser<'i, 't>,
+    properties: &mut Vec<PropertyMeta>,
+    st: &mut ParseState,
+) -> Result<Length, ParseError<'i, CustomError>> {
+    parse_length_inner(parser, properties, st, true, false, false)
+}
+
+/// Parse non-negative `<length>` only: NO `auto`, NO `<percentage>`.
+#[inline(always)]
+pub(crate) fn non_negative_length_only<'a, 't: 'a, 'i: 't>(
+    parser: &'a mut Parser<'i, 't>,
+    properties: &mut Vec<PropertyMeta>,
+    st: &mut ParseState,
+) -> Result<Length, ParseError<'i, CustomError>> {
+    parse_length_inner(parser, properties, st, false, false, false)
 }
 
 #[inline(never)]
@@ -302,6 +300,7 @@ pub(crate) fn is_non_negative_length(length: &Length) -> bool {
     }
 }
 
+/// Parse non-negative `<length-percentage>` with `auto`: `<length> | <percentage> | auto`.
 #[allow(dead_code)]
 #[inline(never)]
 pub(crate) fn non_negative_length<'a, 't: 'a, 'i: 't>(
@@ -309,69 +308,7 @@ pub(crate) fn non_negative_length<'a, 't: 'a, 'i: 't>(
     properties: &mut Vec<PropertyMeta>,
     st: &mut ParseState,
 ) -> Result<Length, ParseError<'i, CustomError>> {
-    let next = parser.next()?.clone();
-    match &next {
-        Token::Number { value, .. } => {
-            if *value == 0. {
-                return Ok(Length::Px(0.));
-            }
-        }
-        Token::Percentage { unit_value, .. } => {
-            if *unit_value < 0. {
-                return Err(parser.new_unexpected_token_error(next));
-            }
-            return Ok(Length::Ratio(*unit_value));
-        }
-        Token::Dimension { value, unit, .. } => {
-            if *value < 0. {
-                return Err(parser.new_unexpected_token_error(next));
-            }
-            let unit: &str = unit;
-            match unit {
-                "px" => return Ok(Length::Px(*value)),
-                "vw" => return Ok(Length::Vw(*value)),
-                "vh" => return Ok(Length::Vh(*value)),
-                "rem" => return Ok(Length::Rem(*value)),
-                "rpx" => return Ok(Length::Rpx(*value)),
-                "em" => return Ok(Length::Em(*value)),
-                "vmin" => return Ok(Length::Vmin(*value)),
-                "vmax" => return Ok(Length::Vmax(*value)),
-                _ => {}
-            }
-        }
-        Token::Ident(ident) => {
-            let ident: &str = ident;
-            if ident == "auto" {
-                return Ok(Length::Auto);
-            }
-        }
-        Token::Function(name) => match &**name {
-            "env" => {
-                let (name, default_value) = parser.parse_nested_block(|parser| {
-                    parse_env_inner(parser, st, |parser, st| {
-                        env_default_value(parser, properties, st)
-                    })
-                })?;
-                return Ok(Length::Expr(LengthExpr::Env(
-                    name.into(),
-                    Box::new(default_value.unwrap_or(Length::Undefined)),
-                )));
-            }
-            "calc" => {
-                return parse_calc_inner(parser, properties, st, ExpectValueType::NumberAndLength)
-                    .map(|ret| {
-                        if let Some(r) = ComputeCalcExpr::<Length>::try_compute(&ret) {
-                            return r;
-                        }
-                        Length::Expr(LengthExpr::Calc(Box::new(ret)))
-                    });
-            }
-            _ => {}
-        },
-        _ => {}
-    }
-    let next = next.clone();
-    Err(parser.new_unexpected_token_error(next))
+    parse_length_inner(parser, properties, st, true, false, true)
 }
 
 #[inline(never)]
@@ -678,7 +615,7 @@ pub(crate) fn transform_repr<'a, 't: 'a, 'i: 't>(
                                 TransformItem::Matrix3D(v.try_into().unwrap_or([0f32; 16]));
                         }
                         "translate" => {
-                            let x = length(parser, properties, st)?;
+                            let x = length_percentage(parser, properties, st)?;
                             if parser.is_exhausted() {
                                 trans_item = TransformItem::Translate2D(x, Length::Px(0.));
                             } else {
@@ -686,7 +623,7 @@ pub(crate) fn transform_repr<'a, 't: 'a, 'i: 't>(
                                 if comma.is_err() {
                                     return Err(parser.new_unexpected_token_error(next.clone()));
                                 }
-                                let y = length(parser, properties, st);
+                                let y = length_percentage(parser, properties, st);
                                 match y {
                                     Ok(y) => trans_item = TransformItem::Translate2D(x, y),
                                     Err(_) => {
@@ -696,24 +633,24 @@ pub(crate) fn transform_repr<'a, 't: 'a, 'i: 't>(
                             }
                         }
                         "translatex" => {
-                            let x = length(parser, properties, st)?;
+                            let x = length_percentage(parser, properties, st)?;
                             trans_item = TransformItem::Translate2D(x, Length::Px(0.));
                         }
                         "translatey" => {
-                            let y = length(parser, properties, st)?;
+                            let y = length_percentage(parser, properties, st)?;
                             trans_item = TransformItem::Translate2D(Length::Px(0.), y);
                         }
                         "translatez" => {
-                            let z = length(parser, properties, st)?;
+                            let z = length_only(parser, properties, st)?;
                             trans_item =
                                 TransformItem::Translate3D(Length::Px(0.), Length::Px(0.), z);
                         }
                         "translate3d" => {
-                            let x = length(parser, properties, st)?;
+                            let x = length_percentage(parser, properties, st)?;
                             parser.expect_comma()?;
-                            let y = length(parser, properties, st)?;
+                            let y = length_percentage(parser, properties, st)?;
                             parser.expect_comma()?;
-                            let z = length(parser, properties, st)?;
+                            let z = length_only(parser, properties, st)?;
                             trans_item = TransformItem::Translate3D(x, y, z);
                         }
                         "scale" => {
@@ -780,7 +717,7 @@ pub(crate) fn transform_repr<'a, 't: 'a, 'i: 't>(
                         "skew" => {
                             let x = angle(parser, properties, st)?;
                             if parser.is_exhausted() {
-                                trans_item = TransformItem::Skew(x.clone(), x);
+                                trans_item = TransformItem::Skew(x, Angle::Deg(0.));
                             } else {
                                 let comma = parser.expect_comma();
                                 if comma.is_err() {
@@ -804,7 +741,7 @@ pub(crate) fn transform_repr<'a, 't: 'a, 'i: 't>(
                             trans_item = TransformItem::Skew(Angle::Deg(0.), y)
                         }
                         "perspective" => {
-                            let v = length(parser, properties, st)?;
+                            let v = non_negative_length_only(parser, properties, st)?;
                             trans_item = TransformItem::Perspective(v);
                         }
                         _ => return Err(parser.new_unexpected_token_error(next.clone())),

@@ -63,7 +63,7 @@ fn try_parse_length<'a, 't: 'a, 'i: 't>(
     properties: &mut Vec<PropertyMeta>,
     st: &mut ParseState,
 ) -> Result<Length, ParseError<'i, CustomError>> {
-    parser.try_parse(|parser| length(parser, properties, st))
+    parser.try_parse(|parser| length_percentage(parser, properties, st))
 }
 
 fn bg_pos_is_end<'a, 't: 'a, 'i: 't>(parser: &'a mut Parser<'i, 't>) -> bool {
@@ -524,9 +524,9 @@ pub(crate) fn bg_pos_four_value<'a, 't: 'a, 'i: 't>(
 ) -> Result<BackgroundPositionItem, ParseError<'i, CustomError>> {
     parser.try_parse(|parser| {
         let mut f_k = try_parse_pos_keyword(parser)?;
-        let mut f_v = length(parser, properties, st)?;
+        let mut f_v = length_percentage(parser, properties, st)?;
         let mut s_k = try_parse_pos_keyword(parser)?;
-        let mut s_v = length(parser, properties, st)?;
+        let mut s_v = length_percentage(parser, properties, st)?;
         if f_k == Pos::Center
             || s_k == Pos::Center
             || f_k == s_k

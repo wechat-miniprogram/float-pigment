@@ -359,7 +359,7 @@ property_value_format! (PropertyValueWithGlobal, {
     order: {{ Order = <number> -> |x: Number| Number::I32(x.to_i32()); }};
     <gap_repr: Gap>:
         "normal" => Gap::Normal
-        | <non_negative_length> -> |length| Gap::Length(length);
+        | <non_negative_length_percentage> -> |length| Gap::Length(length);
     ;
     column_gap: {{ ColumnGap = <gap_repr> }};
     row_gap: {{ RowGap = <gap_repr> }};
@@ -373,12 +373,12 @@ property_value_format! (PropertyValueWithGlobal, {
     }};
     flex_grow: {{ FlexGrow = <number> }};
     flex_shrink: {{ FlexShrink = <number> }};
-    flex_basis: {{ FlexBasis = <length> }};
+    flex_basis: {{ FlexBasis = <length_percentage_auto> }};
     flex_flow: <flex_direction> || <flex_wrap>;
     flex: {{ (FlexGrow, FlexShrink, FlexBasis)
         = "auto" -> |_| (Number::F32(1.), Number::F32(1.), Length::Auto);
         | "none" -> |_| (Number::F32(0.), Number::F32(0.), Length::Auto);
-        | [ <number> <number>? || <length> ] -> |(gs, b): (Option<(Number, Option<Number>)>, Option<Length>)| -> _ {
+        | [ <number> <number>? || <length_percentage_auto> ] -> |(gs, b): (Option<(Number, Option<Number>)>, Option<Length>)| -> _ {
             let (g, s) = gs.unwrap_or((Number::F32(0.), None));
             let s = s.unwrap_or(Number::F32(1.));
             let b = b.unwrap_or(Length::Ratio(0.));
@@ -404,11 +404,11 @@ property_value_format! (PropertyValueWithGlobal, {
         | <number> -> |x: Number| ZIndexType::Num(Number::I32(x.to_i32()));
     }};
     _wx_partial_z_index: {{ WxPartialZIndex = <number> }};
-    font_size: {{ FontSize = <non_negative_length> }};
+    font_size: {{ FontSize = <non_negative_length_percentage> }};
     <line_height_repr: LineHeightType>:
         "normal" => LineHeightType::Normal
         | <non_negative_number> -> |x: Number| LineHeightType::Num(x);
-        | <non_negative_length> -> |x: Length| LineHeightType::Length(x);
+        | <non_negative_length_percentage> -> |x: Length| LineHeightType::Length(x);
     ;
     line_height: {{ LineHeight = <line_height_repr> }};
     text_align: {{ TextAlign
@@ -447,7 +447,7 @@ property_value_format! (PropertyValueWithGlobal, {
         = "clip" => TextOverflowType::Clip
         | "ellipsis" => TextOverflowType::Ellipsis
     }};
-    text_indent: {{ TextIndent = <length> }};
+    text_indent: {{ TextIndent = <length_percentage> }};
     vertical_align: {{ VerticalAlign
         = "baseline" => VerticalAlignType::Baseline
         | "top" => VerticalAlignType::Top
@@ -458,11 +458,11 @@ property_value_format! (PropertyValueWithGlobal, {
     }};
     letter_spacing: {{ LetterSpacing =
         "normal" => LetterSpacingType::Normal
-        | <length> -> |x: Length| LetterSpacingType::Length(x);
+        | <length_only> -> |x: Length| LetterSpacingType::Length(x);
     }};
     word_spacing: {{ WordSpacing =
         "normal" => WordSpacingType::Normal
-        | <length> -> |x: Length| WordSpacingType::Length(x);
+        | <length_only> -> |x: Length| WordSpacingType::Length(x);
     }};
     font_family: {{ FontFamily = <font::font_family_repr> }};
     <font_style_repr: FontStyleType>:
@@ -510,7 +510,7 @@ property_value_format! (PropertyValueWithGlobal, {
     <background_size_single: BackgroundSizeItem>:
         "cover" => BackgroundSizeItem::Cover
         | "contain" => BackgroundSizeItem::Contain
-        | [ <length> ]{1, 2} -> |v: Vec<_>| {
+        | [ <length_percentage_auto> ]{1, 2} -> |v: Vec<_>| {
             let len = v.len();
             let mut v = v.into_iter();
             let a = v.next().unwrap_or(Length::Auto);
@@ -547,7 +547,7 @@ property_value_format! (PropertyValueWithGlobal, {
     ;
     font: {{ (FontSize, FontFamily, FontStyle, FontWeight, LineHeight)
         = [
-            [ <font_style_repr> || <font_weight_repr> ]? <non_negative_length> [ '/' <line_height_repr> ]? <font::font_family_repr>
+            [ <font_style_repr> || <font_weight_repr> ]? <non_negative_length_percentage> [ '/' <line_height_repr> ]? <font::font_family_repr>
         ] -> |x: (Option<(Option<FontStyleType>, Option<FontWeightType>)>, Length, Option<((), LineHeightType)>, FontFamilyType)| {
             let mut font_style = FontStyleType::Normal;
             let mut font_weight = FontWeightType::Normal;
@@ -775,31 +775,31 @@ property_value_format! (PropertyValueWithGlobal, {
         | "padding-box" => BoxSizingType::PaddingBox
         | "content-box" => BoxSizingType::ContentBox
     }};
-    width: {{ Width = <length> }};
-    height: {{ Height = <length> }};
-    min_width: {{ MinWidth = <length> }};
-    min_height: {{ MinHeight = <length> }};
-    max_width: {{ MaxWidth = <length> }};
-    max_height: {{ MaxHeight = <length> }};
-    left: {{ Left = <length> }};
-    right: {{ Right = <length> }};
-    top: {{ Top = <length> }};
-    bottom: {{ Bottom = <length> }};
+    width: {{ Width = <length_percentage_auto> }};
+    height: {{ Height = <length_percentage_auto> }};
+    min_width: {{ MinWidth = <length_percentage_auto> }};
+    min_height: {{ MinHeight = <length_percentage_auto> }};
+    max_width: {{ MaxWidth = <length_percentage_auto> }};
+    max_height: {{ MaxHeight = <length_percentage_auto> }};
+    left: {{ Left = <length_percentage_auto> }};
+    right: {{ Right = <length_percentage_auto> }};
+    top: {{ Top = <length_percentage_auto> }};
+    bottom: {{ Bottom = <length_percentage_auto> }};
 
-    padding_left: {{ PaddingLeft = <length> }};
-    padding_right: {{ PaddingRight = <length> }};
-    padding_top: {{ PaddingTop = <length> }};
-    padding_bottom: {{ PaddingBottom = <length> }};
+    padding_left: {{ PaddingLeft = <length_percentage> }};
+    padding_right: {{ PaddingRight = <length_percentage> }};
+    padding_top: {{ PaddingTop = <length_percentage> }};
+    padding_bottom: {{ PaddingBottom = <length_percentage> }};
     padding: {{ (PaddingTop, PaddingRight, PaddingBottom, PaddingLeft)
-        = <length>{1, 4} -> split_edges
+        = <length_percentage>{1, 4} -> split_edges
     }};
 
-    margin_left: {{ MarginLeft = <length> }};
-    margin_right: {{ MarginRight = <length> }};
-    margin_top: {{ MarginTop = <length> }};
-    margin_bottom: {{ MarginBottom = <length> }};
+    margin_left: {{ MarginLeft = <length_percentage_auto> }};
+    margin_right: {{ MarginRight = <length_percentage_auto> }};
+    margin_top: {{ MarginTop = <length_percentage_auto> }};
+    margin_bottom: {{ MarginBottom = <length_percentage_auto> }};
     margin:{{ (MarginTop, MarginRight, MarginBottom, MarginLeft)
-        = <length>{1, 4} -> split_edges
+        = <length_percentage_auto>{1, 4} -> split_edges
     }};
 
     <border_style_repr: BorderStyle>:
@@ -880,27 +880,27 @@ property_value_format! (PropertyValueWithGlobal, {
           };
     }};
     border_top_left_radius: {{ BorderTopLeftRadius =
-        <length>{1, 2} -> split_hv -> |(a, b)| {
+        <length_percentage>{1, 2} -> split_hv -> |(a, b)| {
             BorderRadius::Pos(a, b)
         };
     }};
     border_top_right_radius: {{ BorderTopRightRadius =
-        <length>{1, 2} -> split_hv -> |(a, b)| {
+        <length_percentage>{1, 2} -> split_hv -> |(a, b)| {
             BorderRadius::Pos(a, b)
         };
     }};
     border_bottom_right_radius: {{ BorderBottomRightRadius =
-        <length>{1, 2} -> split_hv -> |(a, b)| {
+        <length_percentage>{1, 2} -> split_hv -> |(a, b)| {
             BorderRadius::Pos(a, b)
         };
     }};
     border_bottom_left_radius: {{ BorderBottomLeftRadius =
-        <length>{1, 2} -> split_hv -> |(a, b)| {
+        <length_percentage>{1, 2} -> split_hv -> |(a, b)| {
             BorderRadius::Pos(a, b)
         };
     }};
     border_radius:{{ (BorderTopLeftRadius, BorderTopRightRadius, BorderBottomRightRadius, BorderBottomLeftRadius)
-        = [<length>{1, 4} ['/' <length>{1, 4}]?] -> |(a, b): (Vec<_>, Option<(_, Vec<_>)>)| {
+        = [<length_percentage>{1, 4} ['/' <length_percentage>{1, 4}]?] -> |(a, b): (Vec<_>, Option<(_, Vec<_>)>)| {
             let horizontal = split_edges(a);
             let mut vertical =horizontal.clone();
             if let Some(v) = b {
@@ -917,7 +917,7 @@ property_value_format! (PropertyValueWithGlobal, {
     box_shadow: {{ BoxShadow =
         "none" => BoxShadow::None
         | [
-            "inset"? && <length>{2, 4} && <color_repr>?
+            "inset"? && <length_only>{2, 4} && <color_repr>?
         ]# -> ResultClosure |x: Vec<(Option<Option<_>>, Option<Vec<Length>>, Option<Option<Color>>)>, parser: &mut Parser<'i, 't> | -> Result<BoxShadow, ParseError<'i, CustomError>> {
             let mut ret = Vec::with_capacity(x.len());
             let mut error = false;
@@ -982,13 +982,13 @@ property_value_format! (PropertyValueWithGlobal, {
                 "center" => TransformOrigin::Center
                 | "left" => TransformOrigin::Left
                 | "right" => TransformOrigin::Right
-                | <length> -> |x: Length| { TransformOrigin::Length(x) };
+                | <length_percentage> -> |x: Length| { TransformOrigin::Length(x) };
             ] && [
                 "top" => TransformOrigin::Top
                 | "center" => TransformOrigin::Center
                 | "bottom" => TransformOrigin::Bottom
-                | <length> -> |y: Length| { TransformOrigin::Length(y) };
-            ] && [<length>?]
+                | <length_percentage> -> |y: Length| { TransformOrigin::Length(y) };
+            ] && [<length_only>?]
         ] -> |item: (Option<TransformOrigin>, Option<TransformOrigin>, Option<Option<_>>)| {
             let x = item.0;
             let y = item.1;
@@ -1019,7 +1019,7 @@ property_value_format! (PropertyValueWithGlobal, {
             | "right" -> |_| { TransformOrigin::LengthTuple(Length::Ratio(1.), Length::Ratio(0.5), Length::Px(0.)) };
             | "top" -> |_| { TransformOrigin::LengthTuple(Length::Ratio(0.5), Length::Ratio(0.), Length::Px(0.)) };
             | "bottom" -> |_| { TransformOrigin::LengthTuple(Length::Ratio(0.5), Length::Ratio(1.), Length::Px(0.)) };
-            | <length> -> |x: Length| { TransformOrigin::LengthTuple(x, Length::Ratio(0.5), Length::Px(0.)) };
+            | <length_percentage> -> |x: Length| { TransformOrigin::LengthTuple(x, Length::Ratio(0.5), Length::Px(0.)) };
         ]
     }};
     <transition_property_single: TransitionPropertyItem>:
@@ -1409,7 +1409,7 @@ property_value_format! (PropertyValueWithGlobal, {
     text_shadow: {{ TextShadow
         = "none" => TextShadowType::None
         | [
-            [ <length>{2, 3} && <color_repr>? ]
+            [ <length_only>{2, 3} && <color_repr>? ]
         ]# -> |x: Vec<(Option<Vec<Length>>, Option<Option<Color>>)>| {
             let mut t = Vec::with_capacity(x.len());
             for item in x.into_iter() {
@@ -1470,7 +1470,7 @@ property_value_format! (PropertyValueWithGlobal, {
     text_decoration_color: {{ TextDecorationColor = <color_repr> }};
     text_decoration_thickness: {{ TextDecorationThickness
         = "from-font" => TextDecorationThicknessType::FromFont
-        | <length> -> |x: Length| { TextDecorationThicknessType::Length(x)};
+        | <length_percentage_auto> -> |x: Length| { TextDecorationThicknessType::Length(x)};
     }};
     text_decoration: <text_decoration_style> || <text_decoration_color> || <text_decoration_thickness> || <text_decoration_line>;
     font_feature_settings: {{ FontFeatureSettings
