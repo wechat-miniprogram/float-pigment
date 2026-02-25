@@ -151,8 +151,11 @@ Recursively calculate size contribution of each grid item:
 
 1. Iterate through each item in grid matrix
 2. Determine item's available space (grid area it spans)
-3. Recursively invoke layout algorithm to compute item size
-4. Output: Each item's `width`, `height`
+3. Calculate min-content contribution (§11.5, §6.6):
+   - **Shortcut**: When item has both definite CSS `width` and `height` (non-`auto`), use CSS size directly as `min_content_size` without performing an extra `MinContent` layout pass
+   - Otherwise: Perform a full `MinContent` layout pass via `compute_internal`
+4. Recursively invoke layout algorithm to compute item size
+5. Output: Each item's `width`, `height`, `min_content_size`
 
 ##### Step 7: Finalize Tracks
 
