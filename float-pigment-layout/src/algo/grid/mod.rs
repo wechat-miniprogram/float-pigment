@@ -387,18 +387,38 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                 min_max_limit_css_size.0.width.or(track_size.width),
                 min_max_limit_css_size.0.height.or(track_size.height),
             ));
-            let min_content_res = child_layout_node.compute_internal(
-                env,
-                child_node,
-                ComputeRequest {
-                    size: Normalized(track_size),
-                    parent_inner_size: Normalized(track_size),
-                    max_content: Normalized(track_size),
-                    kind: ComputeRequestKind::AllSize,
-                    parent_is_block: false,
-                    sizing_mode: SizingMode::MinContent,
-                },
-            );
+
+            // Shortcut: When item has both explicit CSS width and height (non-auto),
+            // the min-content contribution equals its CSS size (§11.5, §6.6).
+            // Skip the expensive MinContent layout pass in this case.
+            let has_definite_css_width = css_size.width.is_some();
+            let has_definite_css_height = css_size.height.is_some();
+            let min_content_res = if has_definite_css_width && has_definite_css_height {
+                let definite_size = Size::new(
+                    css_size.width.val().unwrap(),
+                    css_size.height.val().unwrap(),
+                );
+                ComputeResult {
+                    size: Normalized(definite_size),
+                    min_content_size: Normalized(definite_size),
+                    first_baseline_ascent: Vector::zero(),
+                    last_baseline_ascent: Vector::zero(),
+                    collapsed_margin: CollapsedBlockMargin::zero(),
+                }
+            } else {
+                child_layout_node.compute_internal(
+                    env,
+                    child_node,
+                    ComputeRequest {
+                        size: Normalized(track_size),
+                        parent_inner_size: Normalized(track_size),
+                        max_content: Normalized(track_size),
+                        kind: ComputeRequestKind::AllSize,
+                        parent_is_block: false,
+                        sizing_mode: SizingMode::MinContent,
+                    },
+                )
+            };
 
             let res = child_layout_node.compute_internal(
                 env,
