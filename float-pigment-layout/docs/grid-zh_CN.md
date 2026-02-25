@@ -122,10 +122,11 @@ float-pigment-layout/src/algo/grid/
 3. 使用 auto-placement algorithm 放置每个 item：
    - `row` (default): row-major order，cursor 只向前移动 (sparse)
    - `column`: column-major order，cursor 只向前移动 (sparse)
-   - `row dense`: row-major order，从头搜索空洞 (dense)
-   - `column dense`: column-major order，从头搜索空洞 (dense)
+   - `row dense`: row-major order，从头搜索空洞 (dense，仅单格)
+   - `column dense`: column-major order，从头搜索空洞 (dense，仅单格)
+   - Dense 模式维护 line hint，用于跳过已满的行/列，减少重复扫描
    - **Implicit track creation**：超出 explicit grid 边界时，自动创建 implicit tracks
-4. 输出：`GridMatrix` (item placement mapping，尺寸为实际 grid 维度)
+4. 输出：`GridMatrix` (item placement mapping，尺寸为实际 grid 维度；dense 不考虑 span 或 line placement)
 
 
 ##### Step 5: Track Sizing (Initial Pass)
@@ -200,41 +201,41 @@ float-pigment-layout/src/algo/grid/
 
 ### 规范章节对照表
 
-| W3C 章节 | 规范内容 | 状态 | 说明 |
-|---------|---------|------|------|
-| §5 Grid Containers | `display: grid/inline-grid` | ✅ | 完整支持 |
-| §6 Grid Items | 网格项目定义 | ✅ | 正确过滤 `display: none`，支持 `position: absolute` |
-| §7.1 Explicit Grid | `grid-template-rows/columns` | ✅ | 支持 `<length>`, `<percentage>`, `auto`, `fr` |
-| §7.5-7.6 Implicit Grid | `grid-auto-rows/columns` | ✅ | 支持固定值、百分比、fr、多值循环 |
-| §8.1-8.4 Line Placement | 基于线的放置 | ❌ | 未实现 `grid-column/row-start/end` |
-| §8.5 Auto-placement | 自动放置算法 | ✅ | 完整实现 sparse 和 dense 模式 |
-| §9 Absolute Positioning | 绝对定位 | ✅ | 正确处理 `position: absolute` 项目 |
-| §10.1 Gutters | `gap`, `row-gap`, `column-gap` | ✅ | 完整支持 |
-| §10.3 Row-axis Alignment | `justify-self` | ✅ | 完整支持所有值 |
-| §10.4 Column-axis Alignment | `align-self` | ✅ | 完整支持所有值 |
-| §10.5 Grid Alignment | `align-content`, `justify-content` | ✅ | 完整支持包括 `space-between` 等 |
-| §11.1 Grid Sizing Algorithm | 总体流程 | ✅ | 实现迭代重解析 (Step 3-4) |
-| §11.3 Track Sizing Algorithm | 轨道大小计算 | ✅ | 按规范顺序：列→行 |
-| §11.4 Initialize Track Sizes | 初始化 `base_size`/`growth_limit` | ✅ | 正确初始化 |
-| §11.5 Intrinsic Track Sizes | 解析内在轨道尺寸 | ✅ | 使用 min-content 和 max-content |
-| §11.6 Maximize Tracks | 分配剩余空间 | ✅ | 平均分配给 `growth_limit=∞` 的轨道 |
-| §11.7 Expand Flexible Tracks | fr 迭代算法 | ✅ | 完整实现迭代冻结算法 |
-| §11.8 Stretch auto Tracks | 拉伸 auto 轨道 | ✅ | 当 `align-content: normal/stretch` 时执行 |
-| CSS Writing Modes §2.1 | `direction: ltr/rtl` | ✅ | 完整支持 RTL 布局，区分逻辑/物理关键字 |
+| W3C 章节                     | 规范内容                           | 状态 | 说明                                                |
+| ---------------------------- | ---------------------------------- | ---- | --------------------------------------------------- |
+| §5 Grid Containers           | `display: grid/inline-grid`        | ✅    | 完整支持                                            |
+| §6 Grid Items                | 网格项目定义                       | ✅    | 正确过滤 `display: none`，支持 `position: absolute` |
+| §7.1 Explicit Grid           | `grid-template-rows/columns`       | ✅    | 支持 `<length>`, `<percentage>`, `auto`, `fr`       |
+| §7.5-7.6 Implicit Grid       | `grid-auto-rows/columns`           | ✅    | 支持固定值、百分比、fr、多值循环                    |
+| §8.1-8.4 Line Placement      | 基于线的放置                       | ❌    | 未实现 `grid-column/row-start/end`                  |
+| §8.5 Auto-placement          | 自动放置算法                       | ✅    | 完整实现 sparse 和 dense 模式                       |
+| §9 Absolute Positioning      | 绝对定位                           | ✅    | 正确处理 `position: absolute` 项目                  |
+| §10.1 Gutters                | `gap`, `row-gap`, `column-gap`     | ✅    | 完整支持                                            |
+| §10.3 Row-axis Alignment     | `justify-self`                     | ✅    | 完整支持所有值                                      |
+| §10.4 Column-axis Alignment  | `align-self`                       | ✅    | 完整支持所有值                                      |
+| §10.5 Grid Alignment         | `align-content`, `justify-content` | ✅    | 完整支持包括 `space-between` 等                     |
+| §11.1 Grid Sizing Algorithm  | 总体流程                           | ✅    | 实现迭代重解析 (Step 3-4)                           |
+| §11.3 Track Sizing Algorithm | 轨道大小计算                       | ✅    | 按规范顺序：列→行                                   |
+| §11.4 Initialize Track Sizes | 初始化 `base_size`/`growth_limit`  | ✅    | 正确初始化                                          |
+| §11.5 Intrinsic Track Sizes  | 解析内在轨道尺寸                   | ✅    | 使用 min-content 和 max-content                     |
+| §11.6 Maximize Tracks        | 分配剩余空间                       | ✅    | 平均分配给 `growth_limit=∞` 的轨道                  |
+| §11.7 Expand Flexible Tracks | fr 迭代算法                        | ✅    | 完整实现迭代冻结算法                                |
+| §11.8 Stretch auto Tracks    | 拉伸 auto 轨道                     | ✅    | 当 `align-content: normal/stretch` 时执行           |
+| CSS Writing Modes §2.1       | `direction: ltr/rtl`               | ✅    | 完整支持 RTL 布局，区分逻辑/物理关键字              |
 
 ### 未实现功能
 
-| 功能 | W3C 章节 | 优先级 | 说明 |
-|-----|---------|--------|------|
-| Line-based Placement | §8.1-8.4 | 高 | `grid-column/row-start/end`, `span` keyword |
-| `repeat()` | §7.2.2 | 中 | 重复轨道定义 |
-| `minmax()` | §7.2.3 | 中 | 轨道最小/最大尺寸约束 |
-| `auto-fill` / `auto-fit` | §7.2.2.1 | 中 | 自动填充轨道 |
-| Named Grid Areas | §7.3 | 中 | `grid-template-areas` |
-| `fit-content()` | §7.2.4 | 低 | 内容适应尺寸 |
-| Shorthand Properties | §7.4 | 低 | `grid-template`, `grid` 简写 |
-| Named Lines | §8.4 | 低 | `[line-name]` 命名网格线 |
-| Subgrid | CSS Grid Level 2 | 低 | 子网格 |
+| 功能                     | W3C 章节         | 优先级 | 说明                                        |
+| ------------------------ | ---------------- | ------ | ------------------------------------------- |
+| Line-based Placement     | §8.1-8.4         | 高     | `grid-column/row-start/end`, `span` keyword |
+| `repeat()`               | §7.2.2           | 中     | 重复轨道定义                                |
+| `minmax()`               | §7.2.3           | 中     | 轨道最小/最大尺寸约束                       |
+| `auto-fill` / `auto-fit` | §7.2.2.1         | 中     | 自动填充轨道                                |
+| Named Grid Areas         | §7.3             | 中     | `grid-template-areas`                       |
+| `fit-content()`          | §7.2.4           | 低     | 内容适应尺寸                                |
+| Shorthand Properties     | §7.4             | 低     | `grid-template`, `grid` 简写                |
+| Named Lines              | §8.4             | 低     | `[line-name]` 命名网格线                    |
+| Subgrid                  | CSS Grid Level 2 | 低     | 子网格                                      |
 
 ---
 
@@ -242,42 +243,42 @@ float-pigment-layout/src/algo/grid/
 
 ### 符号定义
 
-| 符号 | 含义 |
-|-----|------|
-| R | 行数 (rows) |
-| C | 列数 (columns) |
-| N | Grid 项目数 (items) |
+| 符号 | 含义                |
+| ---- | ------------------- |
+| R    | 行数 (rows)         |
+| C    | 列数 (columns)      |
+| N    | Grid 项目数 (items) |
 
 ### 时间复杂度
 
-| 步骤 | 操作 | 复杂度 | 说明 |
-|-----|------|--------|------|
-| 1 | Available Space | O(1) | constant-time calculation |
-| 2 | Gutters | O(1) | constant-time calculation |
-| 3 | Explicit Grid | O(R + C) | 遍历 track definition list |
-| 4 | Placement | O(N) | auto-place all grid items |
-| 5 | Track Sizing | O(N) | 遍历 items 应用 track sizing |
-| 6 | Item Sizing | O(N) | 遍历 items 计算 item sizing |
-| 7 | Finalize Tracks | O(N + R + C) | finalize track base sizes |
-| 8 | Content-distribution | O(R + C) | 计算 track distribution offsets |
-| 9 | Item Positioning | O(N) | 遍历 items 应用 self-alignment |
+| 步骤 | 操作                 | 复杂度       | 说明                                   |
+| ---- | -------------------- | ------------ | -------------------------------------- |
+| 1    | Available Space      | O(1)         | constant-time calculation              |
+| 2    | Gutters              | O(1)         | constant-time calculation              |
+| 3    | Explicit Grid        | O(R + C)     | 遍历 track definition list             |
+| 4    | Placement            | O(N + R × C) | Dense 搜索可能扫描空洞；sparse 为 O(N) |
+| 5    | Track Sizing         | O(N)         | 遍历 items 应用 track sizing           |
+| 6    | Item Sizing          | O(N)         | 遍历 items 计算 item sizing            |
+| 7    | Finalize Tracks      | O(N + R + C) | finalize track base sizes              |
+| 8    | Content-distribution | O(R + C)     | 计算 track distribution offsets        |
+| 9    | Item Positioning     | O(N)         | 遍历 items 应用 self-alignment         |
 
-**总时间复杂度**: **O(N + R + C)**
+**总时间复杂度**: **O(N + R × C)**
 
 - 对于 dense grid（N ≈ R × C），复杂度为 O(R × C)
-- 对于 sparse grid（N << R × C），复杂度接近 O(N)，达到理论最优
+- 对于 sparse grid（N << R × C），复杂度接近 O(N + R + C)
 
 ### 空间复杂度
 
-| 数据结构 | 复杂度 | 说明 |
-|---------|--------|------|
-| GridMatrix.occupancy | O(R × C) | occupancy 状态 (1 byte per cell) |
-| GridMatrix.items | O(N) | grid items 列表 |
-| GridLayoutMatrix.items | O(N) | layout items 列表 |
-| GridLayoutMatrix.offsets | O(R + C) | 预计算的行/列偏移 |
-| Track Lists | O(R + C) | 行/列轨道定义列表 |
-| each_inline_size | O(C) | 列尺寸临时向量 |
-| each_block_size | O(R) | 行尺寸临时向量 |
+| 数据结构                 | 复杂度   | 说明                             |
+| ------------------------ | -------- | -------------------------------- |
+| GridMatrix.occupancy     | O(R × C) | occupancy 状态 (1 byte per cell) |
+| GridMatrix.items         | O(N)     | grid items 列表                  |
+| GridLayoutMatrix.items   | O(N)     | layout items 列表                |
+| GridLayoutMatrix.offsets | O(R + C) | 预计算的行/列偏移                |
+| Track Lists              | O(R + C) | 行/列轨道定义列表                |
+| each_inline_size         | O(C)     | 列尺寸临时向量                   |
+| each_block_size          | O(R)     | 行尺寸临时向量                   |
 
 **总空间复杂度**: **O(R × C + N)**
 
@@ -290,15 +291,15 @@ float-pigment-layout/src/algo/grid/
 
 当前共有 **~160 个** Grid 测试用例，覆盖：
 
-| 类别 | 测试数 | 文件 |
-|-----|-------|-----|
-| Explicit Track Sizing | 14 | `grid_template.rs` |
-| Auto-placement (含 dense) | 24 | `grid_auto_flow.rs` |
-| Gutters | 15 | `gap.rs` |
-| Flexible Length (`fr`) | 11 | `fr_unit.rs` |
-| Basic Layout | 18 | `grid_basics.rs` |
-| Box Alignment | 38 | `alignment.rs` |
-| Maximize Tracks | 14 | `maximize_tracks.rs` |
-| Other | 27 | - |
+| 类别                      | 测试数 | 文件                 |
+| ------------------------- | ------ | -------------------- |
+| Explicit Track Sizing     | 14     | `grid_template.rs`   |
+| Auto-placement (含 dense) | 24     | `grid_auto_flow.rs`  |
+| Gutters                   | 15     | `gap.rs`             |
+| Flexible Length (`fr`)    | 11     | `fr_unit.rs`         |
+| Basic Layout              | 18     | `grid_basics.rs`     |
+| Box Alignment             | 38     | `alignment.rs`       |
+| Maximize Tracks           | 14     | `maximize_tracks.rs` |
+| Other                     | 27     | -                    |
 
 所有测试断言值均根据 W3C 规范推算，确保符合规范定义的计算逻辑。

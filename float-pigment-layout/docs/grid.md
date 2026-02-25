@@ -122,10 +122,11 @@ Auto-place items into grid matrix according to `grid-auto-flow`:
 3. Place each item using auto-placement algorithm:
    - `row` (default): row-major order, cursor only moves forward (sparse)
    - `column`: column-major order, cursor only moves forward (sparse)
-   - `row dense`: row-major order, search from start for holes (dense)
-   - `column dense`: column-major order, search from start for holes (dense)
+   - `row dense`: row-major order, search from start for holes (dense, single-cell only)
+   - `column dense`: column-major order, search from start for holes (dense, single-cell only)
+   - Dense mode keeps a line hint to skip fully occupied rows/columns and reduce re-scanning
    - **Implicit track creation**: Automatically creates implicit tracks when exceeding explicit grid
-4. Output: `GridMatrix` (item placement mapping, sized to actual grid dimensions)
+4. Output: `GridMatrix` (item placement mapping, sized to actual grid dimensions; dense mode does not consider spans or line-based placement)
 
 
 ##### Step 5: Track Sizing (Initial Pass)
@@ -200,41 +201,41 @@ Apply self-alignment and calculate final item position:
 
 ### Specification Section Mapping
 
-| W3C Section | Content | Status | Notes |
-|------------|---------|--------|-------|
-| §5 Grid Containers | `display: grid/inline-grid` | ✅ | Full support |
-| §6 Grid Items | Grid item definition | ✅ | Correctly filters `display: none`, supports `position: absolute` |
-| §7.1 Explicit Grid | `grid-template-rows/columns` | ✅ | Supports `<length>`, `<percentage>`, `auto`, `fr` |
-| §7.5-7.6 Implicit Grid | `grid-auto-rows/columns` | ✅ | Supports fixed, percentage, fr, multiple values cycling |
-| §8.1-8.4 Line Placement | Line-based placement | ❌ | `grid-column/row-start/end` not implemented |
-| §8.5 Auto-placement | Auto-placement algorithm | ✅ | Full sparse and dense mode support |
-| §9 Absolute Positioning | Absolute positioning | ✅ | Correctly handles `position: absolute` items |
-| §10.1 Gutters | `gap`, `row-gap`, `column-gap` | ✅ | Full support |
-| §10.3 Row-axis Alignment | `justify-self` | ✅ | All values supported |
-| §10.4 Column-axis Alignment | `align-self` | ✅ | All values supported |
-| §10.5 Grid Alignment | `align-content`, `justify-content` | ✅ | Full support including `space-between` etc. |
-| §11.1 Grid Sizing Algorithm | Overall flow | ✅ | Implements iterative re-resolution (Step 3-4) |
-| §11.3 Track Sizing Algorithm | Track size calculation | ✅ | Follows spec order: columns→rows |
-| §11.4 Initialize Track Sizes | Initialize `base_size`/`growth_limit` | ✅ | Correct initialization |
-| §11.5 Intrinsic Track Sizes | Resolve intrinsic track sizes | ✅ | Uses min-content and max-content |
-| §11.6 Maximize Tracks | Distribute free space | ✅ | Equal distribution to `growth_limit=∞` tracks |
-| §11.7 Expand Flexible Tracks | fr iterative algorithm | ✅ | Full iterative freezing algorithm |
-| §11.8 Stretch auto Tracks | Stretch auto tracks | ✅ | When `align-content: normal/stretch` |
-| CSS Writing Modes §2.1 | `direction: ltr/rtl` | ✅ | Full RTL support, distinguishes logical/physical keywords |
+| W3C Section                  | Content                               | Status | Notes                                                            |
+| ---------------------------- | ------------------------------------- | ------ | ---------------------------------------------------------------- |
+| §5 Grid Containers           | `display: grid/inline-grid`           | ✅      | Full support                                                     |
+| §6 Grid Items                | Grid item definition                  | ✅      | Correctly filters `display: none`, supports `position: absolute` |
+| §7.1 Explicit Grid           | `grid-template-rows/columns`          | ✅      | Supports `<length>`, `<percentage>`, `auto`, `fr`                |
+| §7.5-7.6 Implicit Grid       | `grid-auto-rows/columns`              | ✅      | Supports fixed, percentage, fr, multiple values cycling          |
+| §8.1-8.4 Line Placement      | Line-based placement                  | ❌      | `grid-column/row-start/end` not implemented                      |
+| §8.5 Auto-placement          | Auto-placement algorithm              | ✅      | Full sparse and dense mode support                               |
+| §9 Absolute Positioning      | Absolute positioning                  | ✅      | Correctly handles `position: absolute` items                     |
+| §10.1 Gutters                | `gap`, `row-gap`, `column-gap`        | ✅      | Full support                                                     |
+| §10.3 Row-axis Alignment     | `justify-self`                        | ✅      | All values supported                                             |
+| §10.4 Column-axis Alignment  | `align-self`                          | ✅      | All values supported                                             |
+| §10.5 Grid Alignment         | `align-content`, `justify-content`    | ✅      | Full support including `space-between` etc.                      |
+| §11.1 Grid Sizing Algorithm  | Overall flow                          | ✅      | Implements iterative re-resolution (Step 3-4)                    |
+| §11.3 Track Sizing Algorithm | Track size calculation                | ✅      | Follows spec order: columns→rows                                 |
+| §11.4 Initialize Track Sizes | Initialize `base_size`/`growth_limit` | ✅      | Correct initialization                                           |
+| §11.5 Intrinsic Track Sizes  | Resolve intrinsic track sizes         | ✅      | Uses min-content and max-content                                 |
+| §11.6 Maximize Tracks        | Distribute free space                 | ✅      | Equal distribution to `growth_limit=∞` tracks                    |
+| §11.7 Expand Flexible Tracks | fr iterative algorithm                | ✅      | Full iterative freezing algorithm                                |
+| §11.8 Stretch auto Tracks    | Stretch auto tracks                   | ✅      | When `align-content: normal/stretch`                             |
+| CSS Writing Modes §2.1       | `direction: ltr/rtl`                  | ✅      | Full RTL support, distinguishes logical/physical keywords        |
 
 ### Unimplemented Features
 
-| Feature | W3C Section | Priority | Notes |
-|---------|-------------|----------|-------|
-| Line-based Placement | §8.1-8.4 | High | `grid-column/row-start/end`, `span` keyword |
-| `repeat()` | §7.2.2 | Medium | Repeat track definitions |
-| `minmax()` | §7.2.3 | Medium | Track min/max size constraints |
-| `auto-fill` / `auto-fit` | §7.2.2.1 | Medium | Auto-fill tracks |
-| Named Grid Areas | §7.3 | Medium | `grid-template-areas` |
-| `fit-content()` | §7.2.4 | Low | Content-fit sizing |
-| Shorthand Properties | §7.4 | Low | `grid-template`, `grid` shorthands |
-| Named Lines | §8.4 | Low | `[line-name]` named grid lines |
-| Subgrid | CSS Grid Level 2 | Low | Subgrid feature |
+| Feature                  | W3C Section      | Priority | Notes                                       |
+| ------------------------ | ---------------- | -------- | ------------------------------------------- |
+| Line-based Placement     | §8.1-8.4         | High     | `grid-column/row-start/end`, `span` keyword |
+| `repeat()`               | §7.2.2           | Medium   | Repeat track definitions                    |
+| `minmax()`               | §7.2.3           | Medium   | Track min/max size constraints              |
+| `auto-fill` / `auto-fit` | §7.2.2.1         | Medium   | Auto-fill tracks                            |
+| Named Grid Areas         | §7.3             | Medium   | `grid-template-areas`                       |
+| `fit-content()`          | §7.2.4           | Low      | Content-fit sizing                          |
+| Shorthand Properties     | §7.4             | Low      | `grid-template`, `grid` shorthands          |
+| Named Lines              | §8.4             | Low      | `[line-name]` named grid lines              |
+| Subgrid                  | CSS Grid Level 2 | Low      | Subgrid feature                             |
 
 ---
 
@@ -242,42 +243,42 @@ Apply self-alignment and calculate final item position:
 
 ### Symbol Definitions
 
-| Symbol | Meaning |
-|--------|---------|
-| R | Number of rows |
-| C | Number of columns |
-| N | Number of grid items |
+| Symbol | Meaning              |
+| ------ | -------------------- |
+| R      | Number of rows       |
+| C      | Number of columns    |
+| N      | Number of grid items |
 
 ### Time Complexity
 
-| Step | Operation | Complexity | Description |
-|------|-----------|------------|-------------|
-| 1 | Available Space | O(1) | Constant-time calculation |
-| 2 | Gutters | O(1) | Constant-time calculation |
-| 3 | Explicit Grid | O(R + C) | Iterate track definition list |
-| 4 | Placement | O(N) | Auto-place all grid items |
-| 5 | Track Sizing | O(N) | Iterate items for track sizing |
-| 6 | Item Sizing | O(N) | Iterate items for item sizing |
-| 7 | Finalize Tracks | O(N + R + C) | Finalize track base sizes |
-| 8 | Content-distribution | O(R + C) | Calculate track distribution offsets |
-| 9 | Item Positioning | O(N) | Iterate items for self-alignment |
+| Step | Operation            | Complexity   | Description                                 |
+| ---- | -------------------- | ------------ | ------------------------------------------- |
+| 1    | Available Space      | O(1)         | Constant-time calculation                   |
+| 2    | Gutters              | O(1)         | Constant-time calculation                   |
+| 3    | Explicit Grid        | O(R + C)     | Iterate track definition list               |
+| 4    | Placement            | O(N + R × C) | Dense search may scan holes; sparse is O(N) |
+| 5    | Track Sizing         | O(N)         | Iterate items for track sizing              |
+| 6    | Item Sizing          | O(N)         | Iterate items for item sizing               |
+| 7    | Finalize Tracks      | O(N + R + C) | Finalize track base sizes                   |
+| 8    | Content-distribution | O(R + C)     | Calculate track distribution offsets        |
+| 9    | Item Positioning     | O(N)         | Iterate items for self-alignment            |
 
-**Total Time Complexity**: **O(N + R + C)**
+**Total Time Complexity**: **O(N + R × C)**
 
 - For dense grids (N ≈ R × C), complexity is O(R × C)
-- For sparse grids (N << R × C), complexity approaches O(N), achieving theoretical optimum
+- For sparse grids (N << R × C), complexity approaches O(N + R + C)
 
 ### Space Complexity
 
-| Data Structure | Complexity | Description |
-|----------------|------------|-------------|
-| GridMatrix.occupancy | O(R × C) | Occupancy state (1 byte per cell) |
-| GridMatrix.items | O(N) | Grid items list |
-| GridLayoutMatrix.items | O(N) | Layout items list |
-| GridLayoutMatrix.offsets | O(R + C) | Precomputed row/column offsets |
-| Track Lists | O(R + C) | Row/column track definition lists |
-| each_inline_size | O(C) | Column size temporary vector |
-| each_block_size | O(R) | Row size temporary vector |
+| Data Structure           | Complexity | Description                       |
+| ------------------------ | ---------- | --------------------------------- |
+| GridMatrix.occupancy     | O(R × C)   | Occupancy state (1 byte per cell) |
+| GridMatrix.items         | O(N)       | Grid items list                   |
+| GridLayoutMatrix.items   | O(N)       | Layout items list                 |
+| GridLayoutMatrix.offsets | O(R + C)   | Precomputed row/column offsets    |
+| Track Lists              | O(R + C)   | Row/column track definition lists |
+| each_inline_size         | O(C)       | Column size temporary vector      |
+| each_block_size          | O(R)       | Row size temporary vector         |
 
 **Total Space Complexity**: **O(R × C + N)**
 
@@ -290,15 +291,15 @@ Apply self-alignment and calculate final item position:
 
 Currently **~160** Grid test cases covering:
 
-| Category | Test Count | File |
-|----------|------------|------|
-| Explicit Track Sizing | 14 | `grid_template.rs` |
-| Auto-placement (incl. dense) | 24 | `grid_auto_flow.rs` |
-| Gutters | 15 | `gap.rs` |
-| Flexible Length (`fr`) | 11 | `fr_unit.rs` |
-| Basic Layout | 18 | `grid_basics.rs` |
-| Box Alignment | 38 | `alignment.rs` |
-| Maximize Tracks | 14 | `maximize_tracks.rs` |
-| Other | 27 | - |
+| Category                     | Test Count | File                 |
+| ---------------------------- | ---------- | -------------------- |
+| Explicit Track Sizing        | 14         | `grid_template.rs`   |
+| Auto-placement (incl. dense) | 24         | `grid_auto_flow.rs`  |
+| Gutters                      | 15         | `gap.rs`             |
+| Flexible Length (`fr`)       | 11         | `fr_unit.rs`         |
+| Basic Layout                 | 18         | `grid_basics.rs`     |
+| Box Alignment                | 38         | `alignment.rs`       |
+| Maximize Tracks              | 14         | `maximize_tracks.rs` |
+| Other                        | 27         | -                    |
 
 All test assertion values are derived from W3C specification, ensuring compliance with spec-defined calculation logic.
