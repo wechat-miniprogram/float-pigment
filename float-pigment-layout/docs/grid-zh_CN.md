@@ -151,8 +151,11 @@ float-pigment-layout/src/algo/grid/
 
 1. 遍历网格矩阵中的每个项目
 2. 确定项目的可用空间（所跨越的 grid area）
-3. 递归调用布局算法计算项目尺寸
-4. 输出：每个项目的 `width`、`height`
+3. 计算 min-content contribution (§11.5, §6.6)：
+   - **Shortcut**：当项目同时具有明确的 CSS `width` 和 `height`（非 `auto`）时，直接使用 CSS 尺寸作为 `min_content_size`，跳过额外的 `MinContent` 布局计算
+   - 否则：执行完整的 `MinContent` 布局计算（通过 `compute_internal`）
+4. 递归调用布局算法计算项目尺寸
+5. 输出：每个项目的 `width`、`height`、`min_content_size`
 
 ##### Step 7: Finalize Tracks
 
