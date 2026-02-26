@@ -18,12 +18,14 @@
 //! ## Optimization
 //!
 //! This implementation separates occupancy tracking from item storage:
-//! - Occupancy grid: O(R × C) bytes using 1-byte enum
+//! - Occupancy bitmap: 1 bit per cell, laid out along auto-flow direction
+//!   for cache-friendly dense scanning
 //! - Items Vec: O(N) items stored separately
 //!
 //! This achieves:
-//! - **Time**: O(N) for item positioning (instead of O(R × C))
-//! - **Space**: More efficient for sparse grids
+//! - **Time**: O(1) bit-level lookup for occupied cells
+//! - **Space**: 1 bit per cell (vs 50+ bytes per entry with HashSet)
+//! - **Cache**: Sequential bit access along auto-flow direction
 //!
 //! ## Related Specifications
 //! - CSS Grid Layout Module Level 1: <https://www.w3.org/TR/css-grid-1/>
