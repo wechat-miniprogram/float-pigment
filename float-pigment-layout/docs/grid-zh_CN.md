@@ -231,11 +231,11 @@ float-pigment-layout/src/algo/grid/
 | 功能                     | W3C 章节         | 优先级 | 说明                                        |
 | ------------------------ | ---------------- | ------ | ------------------------------------------- |
 | Line-based Placement     | §8.1-8.4         | 高     | `grid-column/row-start/end`, `span` keyword |
-| `repeat()`               | §7.2.2           | 中     | 重复轨道定义                                |
-| `minmax()`               | §7.2.3           | 中     | 轨道最小/最大尺寸约束                       |
-| `auto-fill` / `auto-fit` | §7.2.2.1         | 中     | 自动填充轨道                                |
+| `repeat()`               | §7.2             | 中     | 重复轨道定义                                |
+| `minmax()`               | §7.2             | 中     | 轨道最小/最大尺寸约束                       |
+| `auto-fill` / `auto-fit` | §7.2             | 中     | 自动填充轨道                                |
 | Named Grid Areas         | §7.3             | 中     | `grid-template-areas`                       |
-| `fit-content()`          | §7.2.4           | 低     | 内容适应尺寸                                |
+| `fit-content()`          | §7.2             | 低     | 内容适应尺寸                                |
 | Shorthand Properties     | §7.4             | 低     | `grid-template`, `grid` 简写                |
 | Named Lines              | §8.4             | 低     | `[line-name]` 命名网格线                    |
 | Subgrid                  | CSS Grid Level 2 | 低     | 子网格                                      |

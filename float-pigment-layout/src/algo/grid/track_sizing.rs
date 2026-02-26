@@ -109,7 +109,7 @@ impl<L: LengthNum + Copy + Default> Default for TrackInfo<L> {
 
 /// Compute track sizes based on item content.
 ///
-/// CSS Grid §11: Track Sizing Algorithm
+/// CSS Grid §11.3: Track Sizing Algorithm
 /// <https://www.w3.org/TR/css-grid-1/#algo-track-sizing>
 ///
 /// Phase 1: Collect base sizes for all tracks

@@ -231,11 +231,11 @@ Apply self-alignment and calculate final item position:
 | Feature                  | W3C Section      | Priority | Notes                                       |
 | ------------------------ | ---------------- | -------- | ------------------------------------------- |
 | Line-based Placement     | §8.1-8.4         | High     | `grid-column/row-start/end`, `span` keyword |
-| `repeat()`               | §7.2.2           | Medium   | Repeat track definitions                    |
-| `minmax()`               | §7.2.3           | Medium   | Track min/max size constraints              |
-| `auto-fill` / `auto-fit` | §7.2.2.1         | Medium   | Auto-fill tracks                            |
+| `repeat()`               | §7.2             | Medium   | Repeat track definitions                    |
+| `minmax()`               | §7.2             | Medium   | Track min/max size constraints              |
+| `auto-fill` / `auto-fit` | §7.2             | Medium   | Auto-fill tracks                            |
 | Named Grid Areas         | §7.3             | Medium   | `grid-template-areas`                       |
-| `fit-content()`          | §7.2.4           | Low      | Content-fit sizing                          |
+| `fit-content()`          | §7.2             | Low      | Content-fit sizing                          |
 | Shorthand Properties     | §7.4             | Low      | `grid-template`, `grid` shorthands          |
 | Named Lines              | §8.4             | Low      | `[line-name]` named grid lines              |
 | Subgrid                  | CSS Grid Level 2 | Low      | Subgrid feature                             |
