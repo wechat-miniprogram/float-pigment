@@ -8,13 +8,13 @@
 //!
 //! ## Optimization
 //!
-//! Uses HashSet for occupancy tracking instead of a 2D array:
-//! - O(1) lookup for occupied cells
-//! - O(N) space where N = number of items (not R × C)
+//! Uses a bitmap for occupancy tracking:
+//! - O(1) bit-level lookup for occupied cells
+//! - Cache-friendly: sequential bits for dense scanning
+//! - Layout adapts to auto-flow direction
 //! - Items stored in Vec for efficient iteration
 
 use core::fmt::Debug;
-use hashbrown::HashSet;
 
 use alloc::vec::Vec;
 use float_pigment_css::typing::GridAutoFlow;
@@ -24,18 +24,142 @@ use crate::{
     LayoutTreeNode,
 };
 
+/// Bitmap-based occupancy tracker for the grid.
+///
+/// Stores one bit per cell, laid out so that the auto-flow scanning
+/// direction corresponds to sequential bits (cache-friendly).
+///
+/// - `row_order = true` (row flow): `bit_index = row * stride + col`, stride = column count
+/// - `row_order = false` (column flow): `bit_index = col * stride + row`, stride = row count
+///
+/// The stride can grow dynamically via `grow_stride()` when items are placed
+/// beyond the current fixed dimension.
+#[derive(Clone, PartialEq)]
+pub(crate) struct OccupiedBitmap {
+    /// Bit storage, each u64 holds 64 cells.
+    bits: Vec<u64>,
+    /// The fixed-dimension length.
+    /// For row flow: stride = column count; for column flow: stride = row count.
+    stride: usize,
+    /// Whether the bitmap is in row order
+    row_order: bool,
+}
+
+impl OccupiedBitmap {
+    /// Create a new bitmap.
+    ///
+    /// `stride` is the fixed dimension length and `row_order` indicates
+    /// whether bits are laid out row-first (row flow) or column-first (column flow).
+    fn new(stride: usize, row_order: bool, capacity: usize) -> Self {
+        // Pre-allocate enough words for `capacity` bits.
+        let num_words = (capacity + 63) / 64;
+        Self {
+            bits: alloc::vec![0u64; num_words],
+            stride,
+            row_order,
+        }
+    }
+
+    /// Compute the linear bit index from (row, col).
+    #[inline(always)]
+    fn bit_index(&self, row: usize, col: usize) -> usize {
+        if self.row_order {
+            row * self.stride + col
+        } else {
+            col * self.stride + row
+        }
+    }
+
+    /// Ensure the bitmap has enough capacity for the given bit index.
+    #[inline]
+    fn ensure_capacity(&mut self, bit_idx: usize) {
+        let required_words = bit_idx / 64 + 1;
+        if required_words > self.bits.len() {
+            self.bits.resize(required_words, 0u64);
+        }
+    }
+
+    /// Mark the cell at (row, col) as occupied.
+    #[inline]
+    fn set(&mut self, row: usize, col: usize) {
+        let idx = self.bit_index(row, col);
+        self.ensure_capacity(idx);
+        let word = idx / 64;
+        let bit = idx % 64;
+        self.bits[word] |= 1u64 << bit;
+    }
+
+    /// Check if the cell at (row, col) is occupied.
+    #[inline]
+    fn get(&self, row: usize, col: usize) -> bool {
+        let idx = self.bit_index(row, col);
+        let word = idx / 64;
+        let bit = idx % 64;
+        if word >= self.bits.len() {
+            return false;
+        }
+        (self.bits[word] & (1u64 << bit)) != 0
+    }
+
+    /// Grow the stride to `new_stride`, re-mapping all existing bits.
+    ///
+    /// When an item is placed beyond the current fixed dimension,
+    /// the stride must grow to accommodate it. This re-maps all existing
+    /// bits from old layout to new layout, preserving (row, col) semantics.
+    ///
+    /// `max_lines` is the number of lines already occupied (tracked by
+    /// GridMatrix). The new bitmap is sized to `max_lines * new_stride`;
+    /// any further growth is handled by `ensure_capacity()` in `set()`.
+    fn grow_stride(&mut self, new_stride: usize, max_lines: usize) {
+        let old_stride = self.stride;
+        let new_total_bits = max_lines * new_stride;
+        let new_total_words = (new_total_bits + 63) / 64;
+        let mut new_bits = alloc::vec![0u64; new_total_words];
+
+        // Re-map existing set bits from old layout to new layout.
+        for (word_idx, &word) in self.bits.iter().enumerate() {
+            if word == 0 {
+                // skip empty words
+                continue;
+            }
+            for idx in 0..64u32 {
+                if (word & (1u64 << idx)) != 0 {
+                    let old_bit_idx = word_idx * 64 + idx as usize;
+                    let old_line_idx = old_bit_idx / old_stride;
+                    let old_offset_in_line = old_bit_idx % old_stride;
+                    let new_bit_idx = old_line_idx * new_stride + old_offset_in_line;
+                    let new_word_idx = new_bit_idx / 64;
+                    let new_bit_in_word = new_bit_idx % 64;
+                    if new_word_idx < new_bits.len() {
+                        new_bits[new_word_idx] |= 1u64 << new_bit_in_word;
+                    }
+                }
+            }
+        }
+
+        self.bits = new_bits;
+        self.stride = new_stride;
+    }
+
+    /// Return the current stride value.
+    #[inline(always)]
+    fn stride(&self) -> usize {
+        self.stride
+    }
+}
+
 /// The grid matrix stores grid items during the placement phase.
 ///
 /// CSS Grid §7.1: The grid is a two-dimensional structure with:
 /// - Explicit grid: Defined by `grid-template-rows` and `grid-template-columns`
 /// - Implicit grid: Automatically created when items overflow the explicit grid
 ///
-/// Uses HashSet for occupancy tracking - more efficient for sparse grids
-/// where most cells are empty.
+/// Uses a bitmap for occupancy tracking - O(1) bit-level lookup and
+/// cache-friendly sequential access along the auto-flow direction.
 #[derive(Clone, PartialEq)]
 pub(crate) struct GridMatrix<'a, T: LayoutTreeNode> {
-    /// Set of occupied cell positions (row, column)
-    occupied: HashSet<(usize, usize)>,
+    /// Bitmap tracking occupied cell positions
+    occupied: OccupiedBitmap,
     /// Maximum row index + 1 (tracks grid boundary)
     max_row: usize,
     /// Maximum column index + 1 (tracks grid boundary)
@@ -58,8 +182,9 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
     /// Create a new empty grid matrix.
     ///
     /// The grid starts empty and expands dynamically when items are placed.
-    /// This avoids pre-allocating cells that may not be needed (e.g., when
-    /// all children are absolutely positioned or display:none).
+    /// The bitmap layout is chosen based on `flow`:
+    /// - Row/RowDense: row order, stride = column count
+    /// - Column/ColumnDense: column order, stride = row count
     pub(crate) fn new(
         explicit_row_count: usize,
         explicit_column_count: usize,
@@ -68,8 +193,12 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
         flow: GridAutoFlow,
         capacity: usize,
     ) -> Self {
+        let (row_order, stride) = match flow {
+            GridAutoFlow::Row | GridAutoFlow::RowDense => (true, explicit_column_count.max(1)),
+            GridAutoFlow::Column | GridAutoFlow::ColumnDense => (false, explicit_row_count.max(1)),
+        };
         Self {
-            occupied: HashSet::with_capacity(capacity),
+            occupied: OccupiedBitmap::new(stride, row_order, capacity),
             max_row: 0,
             max_col: 0,
             items: Vec::with_capacity(capacity),
@@ -84,12 +213,30 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
     /// Place an item at the specified position, expanding the grid if needed.
     ///
     /// This method:
-    /// 1. Marks the cell as occupied in the HashSet
-    /// 2. Updates grid boundaries
-    /// 3. Adds the item to the items Vec
+    /// 1. Grows the bitmap stride if the item exceeds the current fixed dimension
+    /// 2. Marks the cell as occupied in the bitmap
+    /// 3. Updates grid boundaries
+    /// 4. Adds the item to the items Vec
     pub(crate) fn place_item(&mut self, row: usize, column: usize, item: GridItem<'a, T>) {
+        // Check if stride needs to grow for implicit grid tracks.
+        // Row flow: stride = column count, so check if col exceeds stride.
+        // Column flow: stride = row count, so check if row exceeds stride.
+        let stride = if self.occupied.row_order {
+            column + 1
+        } else {
+            row + 1
+        };
+        if stride > self.occupied.stride() {
+            let max_lines = if self.occupied.row_order {
+                self.max_row
+            } else {
+                self.max_col
+            };
+            self.occupied.grow_stride(stride, max_lines);
+        }
+
         // Mark cell as occupied
-        self.occupied.insert((row, column));
+        self.occupied.set(row, column);
         // Update boundaries
         self.max_row = self.max_row.max(row + 1);
         self.max_col = self.max_col.max(column + 1);
@@ -99,7 +246,7 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
 
     /// Check if a cell is occupied.
     pub(crate) fn is_occupied(&self, row: usize, column: usize) -> bool {
-        self.occupied.contains(&(row, column))
+        self.occupied.get(row, column)
     }
 
     /// Get an iterator over all placed items.

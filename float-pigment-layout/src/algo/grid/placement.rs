@@ -127,28 +127,28 @@ fn find_first_unoccupied_dense<'a, T: LayoutTreeNode>(
     grid_matrix: &GridMatrix<'a, T>,
     line_len: usize,
     hint_line: &mut usize,
-    auto_flow_is_row: bool,
+    row_order: bool,
 ) -> (usize, usize) {
     let mut line = *hint_line;
-    let mut current_line_cursor = 0;
+    let mut cursor_in_line = 0;
 
     loop {
-        let (row, col) = if auto_flow_is_row {
-            (line, current_line_cursor)
+        let (row, col) = if row_order {
+            (line, cursor_in_line)
         } else {
-            (current_line_cursor, line)
+            (cursor_in_line, line)
         };
 
         if !grid_matrix.is_occupied(row, col) {
             return (row, col);
         }
 
-        current_line_cursor += 1;
-        if current_line_cursor >= line_len {
+        cursor_in_line += 1;
+        if cursor_in_line >= line_len {
             if line == *hint_line {
                 *hint_line = line + 1;
             }
-            current_line_cursor = 0;
+            cursor_in_line = 0;
             line += 1;
         }
     }
