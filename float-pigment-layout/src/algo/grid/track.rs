@@ -180,7 +180,6 @@ pub(crate) enum TrackSizingFunction<T: LayoutTreeNode> {
     Fixed(DefLength<T::Length, T::LengthCustom>),
 
     /// Flexible length: `1fr`, `2fr`, etc.
-    /// CSS Grid §7.2.4: <https://www.w3.org/TR/css-grid-1/#fr-unit>
     Flex(f32),
 
     /// Auto sizing: `auto`

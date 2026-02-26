@@ -9,7 +9,7 @@
 //! 2. STEP 2: Resolve gutters/gap (§10.1)
 //! 3. STEP 3: Resolve explicit grid (§7.1)
 //! 4. STEP 4: Place grid items (§8.5)
-//! 5. STEP 5: Track Sizing Algorithm with Iterative Re-resolution (§11.1, §11.3-11.7)
+//! 5. STEP 5: Grid Sizing Algorithm with Iterative Re-resolution (§11.1)
 //! 6. STEP 6: Compute item sizes (§11.5)
 //! 7. STEP 7: Finalize tracks + Maximize Tracks (§11.5-11.6)
 //! 8. STEP 8: Content alignment (§10.5)
@@ -252,28 +252,16 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         available_grid_space.height = available_grid_space.height - total_row_gaps;
 
         // ═══════════════════════════════════════════════════════════════════════
-        // STEP 5: Track Sizing Algorithm (with Iterative Re-resolution)
-        // CSS Grid §11.1 Step 2-4: https://www.w3.org/TR/css-grid-1/#algo-grid-sizing
-        // CSS Grid §11.3: https://www.w3.org/TR/css-grid-1/#algo-track-sizing
-        //
-        // This step sizes the grid tracks. The algorithm:
-        // 1. Initialize each track's base size and growth limit (§11.4)
-        // 2. Resolve intrinsic track sizes (§11.5)
-        // 3. Maximize tracks (§11.6)
-        // 4. Expand flexible tracks (§11.7)
-        //
-        // §11.1 Step 3-4: If min-content contribution changes based on row sizes,
-        // repeat the column sizing (once only).
-        //
-        // fr unit (§7.2.4): https://www.w3.org/TR/css-grid-1/#fr-unit
-        // Flexible lengths share remaining space proportionally.
+        // STEP 5: Grid Sizing Algorithm (with Iterative Re-resolution)
+        // CSS Grid §11.1 https://www.w3.org/TR/css-grid-1/#algo-grid-sizing
+
         // ═══════════════════════════════════════════════════════════════════════
 
         // Save original available space for potential re-iteration
         let original_available_width = available_grid_space.width;
         let original_available_height = available_grid_space.height;
 
-        // First pass: size columns then rows
+        // First, the track sizing algorithm is used to resolve the sizes of the grid columns.
         apply_track_size(
             column_track_list.as_slice(),
             GridFlow::Column,
@@ -284,6 +272,7 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             column_total_fr,
         );
 
+        // Next, the track sizing algorithm resolves the sizes of the grid rows.
         apply_track_size(
             row_track_list.as_slice(),
             GridFlow::Row,
@@ -294,9 +283,11 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             row_total_fr,
         );
 
-        // §11.1 Step 3-4: Check if iterative re-resolution is needed
-        // This is needed when items span auto tracks and have content that
-        // can reflow (e.g., text wrapping, aspect-ratio items).
+        // Then, if the min-content contribution of any grid item
+        // has changed based on the row sizes and alignment calculated in step 2,
+        // re-resolve the sizes of the grid columns
+        // with the new min-content and max-content contributions (once only).
+        // Here we approximate this by checking if both axes have auto tracks.
         let needs_re_resolution = column_track_auto_count > 0 && row_track_auto_count > 0;
 
         if needs_re_resolution {
@@ -389,7 +380,7 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             ));
 
             // Shortcut: When item has both explicit CSS width and height (non-auto),
-            // the min-content contribution equals its CSS size (§11.5, §6.6).
+            // the min-content contribution equals its CSS size (§11.5).
             // Skip the expensive MinContent layout pass in this case.
             let has_definite_css_width = css_size.width.is_some();
             let has_definite_css_height = css_size.height.is_some();
@@ -475,7 +466,7 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
 
         // ═══════════════════════════════════════════════════════════════════════
         // STEP 7: Finalize Track Sizes
-        // CSS Grid §11.5 + §11.7: https://www.w3.org/TR/css-grid-1/#algo-content
+        // CSS Grid §11.3: https://www.w3.org/TR/css-grid-1/#algo-track-sizing
         //
         // Adjust track sizes based on item content:
         // - For auto tracks: size to fit content (using outer/margin-box size)
@@ -496,7 +487,6 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
 
         // ═══════════════════════════════════════════════════════════════════════
         // STEP 7b: Create GridTracks for subsequent processing
-        // CSS Grid §11.6-11.8
         //
         // NOTE: §11.7 (Expand Flexible Tracks) is already done in compute_track_sizes
         // using the iterative algorithm. The fr track sizes in column_result/row_result
@@ -545,8 +535,8 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         // STEP 7d: Stretch auto Tracks (§11.8)
         // CSS Grid §11.8: https://www.w3.org/TR/css-grid-1/#algo-stretch
         //
-        // When align-content/justify-content is `normal`, auto tracks are
-        // stretched to fill the container.
+        // When justify-content is `stretch`, or align-content is `normal`/`stretch`,
+        // auto tracks are stretched to fill the container.
         // ═══════════════════════════════════════════════════════════════════════
         use float_pigment_css::typing::{AlignContent, JustifyContent};
 

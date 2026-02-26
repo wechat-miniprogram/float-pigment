@@ -285,7 +285,7 @@ fn grid_direction_rtl_multirow() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Case: direction: rtl with fr units
-// W3C Spec §7.2.4:
+// W3C Spec §7.2:
 //   - fr units divide remaining space proportionally
 //   - Direction affects track placement order, not fr calculation
 //

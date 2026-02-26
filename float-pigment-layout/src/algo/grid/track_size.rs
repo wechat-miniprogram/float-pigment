@@ -19,7 +19,6 @@ pub(crate) enum TrackSize<T: LayoutTreeNode> {
     /// Original track sizing function (auto, length, percentage)
     Original(DefLength<T::Length, T::LengthCustom>),
     /// Flexible length (fr unit) with its fr value
-    /// CSS Grid §7.2.4: https://www.w3.org/TR/css-grid-1/#fr-unit
     Fr(f32),
     /// Resolved fixed size after track sizing algorithm
     Fixed(OptionNum<T::Length>),
