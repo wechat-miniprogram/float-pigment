@@ -7,8 +7,8 @@ use crate::{
     algo::grid::{GridFlow, GridMatrix},
     DefLength, LayoutTrackListItem, LayoutTrackSize, LayoutTreeNode, OptionNum,
 };
-use float_pigment_css::{length_num::LengthNum, num_traits::Zero};
 use core::fmt::Debug;
+use float_pigment_css::{length_num::LengthNum, num_traits::Zero};
 
 /// Represents the sizing state of a track during the sizing algorithm.
 ///
@@ -131,8 +131,10 @@ pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
     // because auto tracks need content-based sizing first (§11.5).
     // ═══════════════════════════════════════════════════════════════════════
 
-    // If there are auto tracks and fr tracks, defer fr calculation
-    // The fr size will be recalculated in compute_track_sizes after auto tracks are sized
+    // If there are explicit auto tracks and fr tracks, defer fr calculation.
+    // The fr size will be recalculated in compute_track_sizes after auto tracks are sized.
+    // NOTE: Only processes explicit tracks (grid-template-rows/columns).
+    // Implicit tracks (grid-auto-rows/columns, §7.6) are handled in compute_track_sizes.
     let has_mixed_auto_and_fr = auto_count > 0 && total_fr > 0.0;
 
     let remaining_space = if let Some(available) = available_grid_space.val() {
