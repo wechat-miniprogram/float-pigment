@@ -273,19 +273,19 @@ float-pigment-layout/src/algo/grid/
 
 ### 空间复杂度
 
-| 数据结构                 | 复杂度   | 说明                             |
-| ------------------------ | -------- | -------------------------------- |
-| GridMatrix.occupancy     | O(R × C) | occupancy 状态 (1 byte per cell) |
-| GridMatrix.items         | O(N)     | grid items 列表                  |
-| GridLayoutMatrix.items   | O(N)     | layout items 列表                |
-| GridLayoutMatrix.offsets | O(R + C) | 预计算的行/列偏移                |
-| Track Lists              | O(R + C) | 行/列轨道定义列表                |
-| each_inline_size         | O(C)     | 列尺寸临时向量                   |
-| each_block_size          | O(R)     | 行尺寸临时向量                   |
+| 数据结构                 | 复杂度        | 说明                                                        |
+| ------------------------ | ------------- | ----------------------------------------------------------- |
+| GridMatrix.occupancy     | O(R × C / 64) | 占用状态按位存储（每个单元 1 bit，空间约为密集矩阵的 1/64） |
+| GridMatrix.items         | O(N)          | grid items 列表                                             |
+| GridLayoutMatrix.items   | O(N)          | layout items 列表                                           |
+| GridLayoutMatrix.offsets | O(R + C)      | 预计算的行/列偏移                                           |
+| Track Lists              | O(R + C)      | 行/列轨道定义列表                                           |
+| each_inline_size         | O(C)          | 列尺寸临时向量                                              |
+| each_block_size          | O(R)          | 行尺寸临时向量                                              |
 
-**总空间复杂度**: **O(R × C + N)**
+**总空间复杂度**: **O(R × C / 64 + N)**
 
-- Occupancy 追踪使用 1 byte per cell，比存储完整 GridItem 更高效
+- 占用状态使用 `OccupiedBitmap` 按位存储，每个单元仅占 1 bit，空间开销约为密集矩阵的 1/64
 - Items 独立存储在 Vec 中，支持 O(N) 遍历
 
 ---
