@@ -273,19 +273,19 @@ Apply self-alignment and calculate final item position:
 
 ### Space Complexity
 
-| Data Structure           | Complexity | Description                       |
-| ------------------------ | ---------- | --------------------------------- |
-| GridMatrix.occupancy     | O(R × C)   | Occupancy state (1 byte per cell) |
-| GridMatrix.items         | O(N)       | Grid items list                   |
-| GridLayoutMatrix.items   | O(N)       | Layout items list                 |
-| GridLayoutMatrix.offsets | O(R + C)   | Precomputed row/column offsets    |
-| Track Lists              | O(R + C)   | Row/column track definition lists |
-| each_inline_size         | O(C)       | Column size temporary vector      |
-| each_block_size          | O(R)       | Row size temporary vector         |
+| Data Structure           | Complexity    | Description                                                               |
+| ------------------------ | ------------- | ------------------------------------------------------------------------- |
+| GridMatrix.occupancy     | O(R × C / 64) | Bit-level occupancy storage (1 bit per cell, ~1/64 space of dense matrix) |
+| GridMatrix.items         | O(N)          | Grid items list                                                           |
+| GridLayoutMatrix.items   | O(N)          | Layout items list                                                         |
+| GridLayoutMatrix.offsets | O(R + C)      | Precomputed row/column offsets                                            |
+| Track Lists              | O(R + C)      | Row/column track definition lists                                         |
+| each_inline_size         | O(C)          | Column size temporary vector                                              |
+| each_block_size          | O(R)          | Row size temporary vector                                                 |
 
-**Total Space Complexity**: **O(R × C + N)**
+**Total Space Complexity**: **O(R × C / 64 + N)**
 
-- Occupancy tracking uses 1 byte per cell, more efficient than storing full GridItem
+- Occupancy state is stored in `OccupiedBitmap` at bit granularity (1 bit per cell), using about 1/64 of the space of a dense matrix
 - Items stored separately in Vec for O(N) iteration
 
 ---
