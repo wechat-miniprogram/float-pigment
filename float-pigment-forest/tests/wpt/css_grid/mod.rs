@@ -6,5 +6,6 @@ mod grid_auto;
 mod grid_auto_flow;
 mod grid_basics;
 mod grid_template;
+mod margin;
 mod maximize_tracks;
 mod writing_mode;
