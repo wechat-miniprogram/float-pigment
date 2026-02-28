@@ -587,15 +587,10 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                 request.kind == ComputeRequestKind::Position,
                 request.sizing_mode,
             );
-            let size = match request.sizing_mode {
-                SizingMode::Normal => Normalized(Size::new(
-                    r.size.width + padding_border.horizontal(),
-                    r.size.height + padding_border.vertical(),
-                )), // original r.size is normalized
-                SizingMode::MinContent | SizingMode::MaxContent => {
-                    Normalized(Size::new(r.size.width, r.size.height))
-                }
-            };
+            let size = Normalized(Size::new(
+                r.size.width + padding_border.horizontal(),
+                r.size.height + padding_border.vertical(),
+            ));
             let first_baseline_ascent =
                 r.first_baseline_ascent + Vector::new(padding_border.left, padding_border.top);
             let last_baseline_ascent =
@@ -672,15 +667,10 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                 sizing_mode,
             );
 
-            let size = match sizing_mode {
-                SizingMode::Normal => Size::new(
-                    r.size.width + padding_border.horizontal(),
-                    r.size.height + padding_border.vertical(),
-                ), // original r.size is normalized
-                SizingMode::MinContent | SizingMode::MaxContent => {
-                    Size::new(r.size.width, r.size.height)
-                }
-            };
+            let size = Size::new(
+                r.size.width + padding_border.horizontal(),
+                r.size.height + padding_border.vertical(),
+            );
             let first_baseline_ascent =
                 r.first_baseline_ascent + Vector::new(padding_border.left, padding_border.top);
             let last_baseline_ascent =
