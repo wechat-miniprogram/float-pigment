@@ -109,14 +109,17 @@ impl<L: LengthNum + Copy + Default> Default for TrackInfo<L> {
 
 /// Compute track sizes based on item content.
 ///
-/// CSS Grid §11.3: Track Sizing Algorithm
-/// <https://www.w3.org/TR/css-grid-1/#algo-track-sizing>
+/// Implements the core parts of the Track Sizing Algorithm:
+/// - CSS Grid §11.5 (Resolve Intrinsic Track Sizes):
+///   <https://www.w3.org/TR/css-grid-1/#algo-content>
+/// - CSS Grid §11.7 (Expand Flexible Tracks):
+///   <https://www.w3.org/TR/css-grid-1/#algo-flex-tracks>
 ///
-/// Phase 1: Collect base sizes for all tracks
+/// Phase 1: Collect base sizes for all tracks (§11.5)
 /// - For explicit tracks (fixed): use the specified size (at least min-content)
 /// - For implicit tracks: use grid-auto-rows/columns (§7.6)
 /// - For auto tracks: use the item's outer size (margin box)
-/// - For fr tracks: collect min-content as base_size
+/// - For fr tracks: collect min-content as freeze threshold
 ///
 /// Phase 2: Iterative fr algorithm (§11.7)
 /// 1. Calculate hypothetical_fr_size = leftover_space / total_flex
