@@ -731,13 +731,13 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                     + align_offset
                     + grid_layout_item
                         .margin
-                        .cross_axis_start(axis_info.dir, axis_info.cross_dir_rev)
+                        .main_axis_start(axis_info.dir, axis_info.main_dir_rev)
                         .or_zero(),
                 inline_offset
                     + justify_offset
                     + grid_layout_item
                         .margin
-                        .main_axis_start(axis_info.dir, axis_info.main_dir_rev)
+                        .cross_axis_start(axis_info.dir, axis_info.cross_dir_rev)
                         .or_zero(),
             );
         }
