@@ -1081,14 +1081,11 @@ impl<L: LengthNum, T: PartialEq + Clone> Default for LayoutGridAuto<L, T> {
 impl<L: LengthNum, T: PartialEq + Clone> LayoutGridAuto<L, T> {
     /// Get the track size for an implicit track at the given index.
     /// Cycles through the list if index exceeds the list length.
-    pub fn get(&self, index: usize) -> &LayoutTrackSize<L, T> {
+    pub fn get(&self, index: usize) -> LayoutTrackSize<L, T> {
         if self.0.is_empty() {
-            // Should not happen with default, but be safe
-            static AUTO: LayoutTrackSize<f32, i32> = LayoutTrackSize::Length(DefLength::Auto);
-            // SAFETY: We return a reference to a static with matching type layout
-            unsafe { &*(&AUTO as *const _ as *const LayoutTrackSize<L, T>) }
+            LayoutTrackSize::Length(DefLength::Auto)
         } else {
-            &self.0[index % self.0.len()]
+            self.0[index % self.0.len()].clone()
         }
     }
 
