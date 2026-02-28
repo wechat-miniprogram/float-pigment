@@ -446,8 +446,8 @@ impl<T: LayoutTreeNode> GridTracks<T> {
     /// CSS Grid §11.8: Stretch auto Tracks
     /// <https://www.w3.org/TR/css-grid-1/#algo-stretch>
     ///
-    /// This step only applies when the content-distribution property
-    /// (align-content/justify-content) is `normal`.
+    /// This step applies when the content-distribution property
+    /// (align-content/justify-content) is `normal` or `stretch`.
     ///
     /// It distributes any remaining free space equally among auto tracks,
     /// similar to maximize but specifically for the stretch behavior.

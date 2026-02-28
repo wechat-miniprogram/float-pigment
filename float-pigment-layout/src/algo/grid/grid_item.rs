@@ -14,8 +14,8 @@ use crate::{
 
 /// Grid item with computed layout information.
 ///
-/// CSS Grid §6.2: Grid Item Sizing
-/// <https://www.w3.org/TR/css-grid-1/#grid-item-sizing>
+/// CSS Grid §6: Grid Items
+/// <https://www.w3.org/TR/css-grid-1/#grid-items>
 ///
 /// This structure stores the final layout information for a grid item
 /// after the track sizing algorithm has been applied, including:

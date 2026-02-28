@@ -9,9 +9,9 @@
 //! 2. STEP 2: Resolve gutters/gap (§10.1)
 //! 3. STEP 3: Resolve explicit grid (§7.1)
 //! 4. STEP 4: Place grid items (§8.5)
-//! 5. STEP 5: Grid Sizing Algorithm with Iterative Re-resolution (§11.1)
-//! 6. STEP 6: Compute item sizes (§11.5)
-//! 7. STEP 7: Finalize tracks + Maximize Tracks (§11.5-11.6)
+//! 5. STEP 5: Initial track sizing with iterative re-resolution (§11.3-11.4)
+//! 6. STEP 6: Compute item sizes using resolved track sizes
+//! 7. STEP 7: Finalize tracks (§11.5 Intrinsic + §11.6 Maximize + §11.7 Flex + §11.8 Stretch)
 //! 8. STEP 8: Content alignment (§10.5)
 //! 9. STEP 9: Item positioning with self-alignment (§10.3-10.4)
 //!
@@ -104,9 +104,9 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
     /// 2. **Gutters** (§10.1): Calculate row-gap and column-gap
     /// 3. **Explicit Grid** (§7.1): Resolve grid-template-rows/columns
     /// 4. **Placement** (§8.5): Place items using auto-placement
-    /// 5. **Track Sizing** (§11.3): Size columns, then rows (single pass)
-    /// 6. **Item Sizing**: Compute each item's size
-    /// 7. **Finalize Tracks**: Adjust for auto tracks
+    /// 5. **Track Sizing** (§11.3-11.4): Size columns, then rows, with iterative re-resolution
+    /// 6. **Item Sizing**: Compute each item's size using resolved track sizes
+    /// 7. **Finalize Tracks** (§11.5-11.8): Intrinsic sizing, maximize, flex, stretch
     /// 8. **Content Alignment** (§10.5): Apply align/justify-content
     /// 9. **Item Positioning** (§10.3-10.4): Apply align/justify-self
     fn compute(
@@ -334,14 +334,16 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
 
         // ═══════════════════════════════════════════════════════════════════════
         // STEP 6: Compute Item Sizes
-        // CSS Grid §11.5: https://www.w3.org/TR/css-grid-1/#algo-content
         //
-        // Compute the min-content and max-content sizes of each grid item.
-        // These values are used for intrinsic track sizing.
+        // Compute each grid item's size using the resolved track sizes from STEP 5.
+        // This includes:
+        // - min-content size: used for intrinsic track sizing in STEP 7 (§11.5)
+        // - computed size: the item's actual layout size
         //
         // The min-content/max-content contribution of a grid item is its
         // outer size (including margins).
-        // Reference: https://www.w3.org/TR/css-grid-1/#min-size-contribution
+        // Reference: CSS Sizing §5 - Intrinsic Size Determination
+        // https://www.w3.org/TR/css-sizing-3/#intrinsic-sizes
         // ═══════════════════════════════════════════════════════════════════════
 
         let mut grid_layout_matrix = GridLayoutMatrix::new(
@@ -454,12 +456,15 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
 
         // ═══════════════════════════════════════════════════════════════════════
         // STEP 7: Finalize Track Sizes
-        // CSS Grid §11.3: https://www.w3.org/TR/css-grid-1/#algo-track-sizing
+        // CSS Grid §11.5 (Resolve Intrinsic Track Sizes):
+        //   https://www.w3.org/TR/css-grid-1/#algo-content
+        // CSS Grid §11.7 (Expand Flexible Tracks):
+        //   https://www.w3.org/TR/css-grid-1/#algo-flex-tracks
         //
-        // Adjust track sizes based on item content:
+        // Determine final track sizes based on item content:
+        // - For fixed tracks: use the specified size (at least min-content)
         // - For auto tracks: size to fit content (using outer/margin-box size)
-        // - For fixed tracks: use the specified size
-        // - For fr tracks: distribute remaining space (available - fixed - auto)
+        // - For fr tracks: distribute remaining space via iterative algorithm
         // ═══════════════════════════════════════════════════════════════════════
         let (column_result, row_result) = compute_track_sizes(
             &mut grid_layout_matrix,
