@@ -631,8 +631,13 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         //
         // Items are positioned at: base_offset + alignment_offset + margin
         // ═══════════════════════════════════════════════════════════════════════
-        // Check if inline axis is reversed (RTL in horizontal-tb)
+        // Check if inline axis is reversed (RTL)
         let is_inline_reversed = matches!(axis_info.cross_dir_rev, AxisReverse::Reversed);
+
+        let container_inline_size = match axis_info.dir {
+            crate::AxisDirection::Vertical => container_content_width,
+            crate::AxisDirection::Horizontal => container_content_height,
+        };
 
         for grid_layout_item in grid_layout_matrix.items() {
             let row = grid_layout_item.row();
@@ -640,16 +645,13 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
 
             let block_offset = block_content_offset + grid_layout_matrix.get_row_offset(row);
 
-            // For RTL: calculate offset from right edge instead of left edge
             let track_width = grid_layout_item
                 .track_size
                 .width
                 .val()
                 .unwrap_or(T::Length::zero());
             let inline_offset = if is_inline_reversed {
-                // RTL: position from right edge, accounting for content alignment
-                // inline_offset = container_width - content_offset - (column_offset + track_width)
-                container_content_width
+                container_inline_size
                     - inline_content_offset
                     - grid_layout_matrix.get_column_offset(column)
                     - track_width

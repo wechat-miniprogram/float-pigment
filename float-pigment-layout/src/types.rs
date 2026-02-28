@@ -825,45 +825,34 @@ impl AxisInfo {
     }
 
     /// Create AxisInfo considering both writing-mode and direction.
-    ///
-    /// CSS `direction` property (ltr/rtl) affects the inline axis direction:
-    /// - `direction: rtl` reverses the inline (cross) axis in horizontal-tb
-    /// - `direction: rtl` reverses the block (main) axis in vertical-* modes
+
     pub(crate) fn from_writing_mode_and_direction(
         writing_mode: WritingMode,
         direction: Direction,
     ) -> Self {
+        let rtl_reverse = if matches!(direction, Direction::RTL) {
+            AxisReverse::Reversed
+        } else {
+            AxisReverse::NotReversed
+        };
         let (dir, main_dir_rev, cross_dir_rev) = match writing_mode {
+            // horizontal-tb: block(main) = top->bottom, inline(cross) = left->right
             WritingMode::HorizontalTb => (
                 AxisDirection::Vertical,
                 AxisReverse::NotReversed,
-                // direction: rtl reverses inline axis (horizontal in horizontal-tb)
-                if matches!(direction, Direction::RTL) {
-                    AxisReverse::Reversed
-                } else {
-                    AxisReverse::NotReversed
-                },
+                rtl_reverse,
             ),
+            // vertical-lr: block(main) = left->right, inline(cross) = top->bottom
             WritingMode::VerticalLr => (
                 AxisDirection::Horizontal,
-                // direction: rtl reverses inline axis (vertical in vertical-lr)
-                if matches!(direction, Direction::RTL) {
-                    AxisReverse::Reversed
-                } else {
-                    AxisReverse::NotReversed
-                },
                 AxisReverse::NotReversed,
+                rtl_reverse,
             ),
+            // vertical-rl: block(main) = right->left (reversed), inline(cross) = top->bottom
             WritingMode::VerticalRl => (
                 AxisDirection::Horizontal,
-                // direction: rtl reverses inline axis (vertical in vertical-rl)
-                // Note: vertical-rl already has reversed main axis
-                if matches!(direction, Direction::RTL) {
-                    AxisReverse::NotReversed // RTL cancels the reversal
-                } else {
-                    AxisReverse::Reversed
-                },
-                AxisReverse::NotReversed,
+                AxisReverse::Reversed,
+                rtl_reverse,
             ),
         };
         Self {
