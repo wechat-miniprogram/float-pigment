@@ -127,7 +127,6 @@ impl<L: LengthNum + Copy + Default> Default for TrackInfo<L> {
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
     grid_layout_matrix: &mut GridLayoutMatrix<T>,
-    should_use_min_content_size: bool,
     column_track_list: &[&LayoutTrackListItem<T::Length, T::LengthCustom>],
     row_track_list: &[&LayoutTrackListItem<T::Length, T::LengthCustom>],
     available_grid_space: OptionSize<T::Length>,
@@ -269,21 +268,13 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
                 // Track has explicit size (fixed)
                 columns[column].has_explicit = true;
                 let track_width = track_size.val().unwrap();
-                let width = if !should_use_min_content_size {
-                    track_width.max(min_content_width)
-                } else {
-                    min_content_width
-                };
+                let width = track_width.max(min_content_width);
                 columns[column].size =
                     Some(columns[column].size.map(|s| s.max(width)).unwrap_or(width));
             } else {
                 // Auto track - use outer size (margin box)
-                let outer_width = if !should_use_min_content_size {
-                    let computed = item.computed_size().width + item.margin.horizontal();
-                    computed.max(min_content_width)
-                } else {
-                    min_content_width
-                };
+                let computed = item.computed_size().width + item.margin.horizontal();
+                let outer_width = computed.max(min_content_width);
                 columns[column].size = Some(
                     columns[column]
                         .size
