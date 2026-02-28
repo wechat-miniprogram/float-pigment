@@ -375,7 +375,12 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                 child_padding_border,
             );
             let min_max_limit_css_size = child_layout_node
-                .normalized_min_max_limit(child_node, track_size, border, padding_border)
+                .normalized_min_max_limit(
+                    child_node,
+                    track_size,
+                    child_border,
+                    child_padding_border,
+                )
                 .normalized_size(css_size);
 
             let size = Normalized(Size::new(
