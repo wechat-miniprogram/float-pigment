@@ -24,7 +24,7 @@
 //!
 //! This achieves:
 //! - **Time**: O(1) bit-level lookup for occupied cells
-//! - **Space**: 1 bit per cell (vs 50+ bytes per entry with HashSet)
+//! - **Space**: 1 bit per cell 
 //! - **Cache**: Sequential bit access along auto-flow direction
 //!
 //! ## Related Specifications
