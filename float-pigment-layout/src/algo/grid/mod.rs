@@ -352,9 +352,6 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             children_count,
         );
 
-        let mut each_min_content_size: Vec<Option<Size<T::Length>>> =
-            vec![None; grid_matrix.column_count()];
-
         for grid_item in grid_matrix.items() {
             let row = grid_item.row();
             let column = grid_item.column();
@@ -439,21 +436,6 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                 GridLayoutItem::new(row, column, child_node, child_margin, css_size, track_size);
             grid_layout_item.set_min_content_size(min_content_res.min_content_size.0);
             grid_layout_item.set_computed_size(res.size.0);
-
-            // Update column min-content size
-            if let Some(min_content_size) = each_min_content_size.get_mut(column) {
-                if min_content_size.is_none() {
-                    min_content_size.replace(min_content_res.min_content_size.0);
-                } else {
-                    min_content_size.replace(
-                        min_content_size
-                            .as_ref()
-                            .unwrap()
-                            .max(min_content_res.min_content_size.0),
-                    );
-                }
-            }
-
             grid_layout_matrix.add_item(grid_layout_item);
         }
 
