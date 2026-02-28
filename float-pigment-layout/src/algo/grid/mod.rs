@@ -24,7 +24,7 @@
 //!
 //! This achieves:
 //! - **Time**: O(1) bit-level lookup for occupied cells
-//! - **Space**: 1 bit per cell 
+//! - **Space**: 1 bit per cell
 //! - **Cache**: Sequential bit access along auto-flow direction
 //!
 //! ## Related Specifications
@@ -382,18 +382,20 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             ));
 
             // Shortcut: When item has both explicit CSS width and height (non-auto),
-            // the min-content contribution equals its CSS size (§11.5).
+            // the min-content contribution equals its constrained CSS size (§6.6).
+            // Apply min/max constraints per spec: the min-content contribution
+            // should respect min-width/max-width/min-height/max-height.
             // Skip the expensive MinContent layout pass in this case.
             let has_definite_css_width = css_size.width.is_some();
             let has_definite_css_height = css_size.height.is_some();
             let min_content_res = if has_definite_css_width && has_definite_css_height {
-                let definite_size = Size::new(
-                    css_size.width.val().unwrap(),
-                    css_size.height.val().unwrap(),
+                let constrained_size = Size::new(
+                    min_max_limit_css_size.0.width.val().unwrap(),
+                    min_max_limit_css_size.0.height.val().unwrap(),
                 );
                 ComputeResult {
-                    size: Normalized(definite_size),
-                    min_content_size: Normalized(definite_size),
+                    size: Normalized(constrained_size),
+                    min_content_size: Normalized(constrained_size),
                     first_baseline_ascent: Vector::zero(),
                     last_baseline_ascent: Vector::zero(),
                     collapsed_margin: CollapsedBlockMargin::zero(),
@@ -448,22 +450,6 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             grid_layout_matrix.add_item(grid_layout_item);
         }
 
-        let total_min_content_size =
-            each_min_content_size
-                .into_iter()
-                .fold(T::Length::zero(), |acc, cur| {
-                    if let Some(min_content_size) = cur {
-                        return acc + min_content_size.width;
-                    }
-                    acc
-                });
-
-        let should_use_min_content_size = if let Some(request_width) = requested_size.width.val() {
-            total_min_content_size > request_width
-        } else {
-            false
-        };
-
         drop(grid_matrix);
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -477,7 +463,6 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         // ═══════════════════════════════════════════════════════════════════════
         let (column_result, row_result) = compute_track_sizes(
             &mut grid_layout_matrix,
-            should_use_min_content_size,
             &column_track_list,
             &row_track_list,
             available_grid_space,
