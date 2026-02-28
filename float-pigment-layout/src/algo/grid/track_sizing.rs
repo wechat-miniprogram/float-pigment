@@ -167,7 +167,7 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
                 match grid_auto_columns.get(implicit_index) {
                     LayoutTrackSize::Fr(fr_value) => {
                         info.is_fr = true;
-                        info.fr_value = *fr_value;
+                        info.fr_value = fr_value;
                     }
                     _ => {}
                 }
@@ -199,7 +199,7 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
                 match grid_auto_rows.get(implicit_index) {
                     LayoutTrackSize::Fr(fr_value) => {
                         info.is_fr = true;
-                        info.fr_value = *fr_value;
+                        info.fr_value = fr_value;
                     }
                     _ => {}
                 }
