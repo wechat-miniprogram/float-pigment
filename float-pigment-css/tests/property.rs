@@ -6561,11 +6561,24 @@ mod grid {
             "row row",
             GridAutoFlow::Row
         );
+        test_parse_property!(
+            grid_auto_flow,
+            "grid-auto-flow",
+            "column column",
+            GridAutoFlow::Row
+        );
     }
 
     // 0xa9 0xaa
     #[test]
     fn grid_auto_rows_columns() {
+        // grid-auto-rows: illegal
+        test_parse_property!(
+            grid_auto_rows,
+            "grid-auto-rows",
+            "illegal",
+            GridAuto::List(vec![TrackSize::Length(Length::Auto)].into())
+        );
         // grid-auto-rows: single track size
         test_parse_property!(
             grid_auto_rows,
@@ -6613,6 +6626,13 @@ mod grid {
             "grid-auto-rows",
             "max-content",
             GridAuto::List(vec![TrackSize::MaxContent].into())
+        );
+        // grid-auto-columns: illegal
+        test_parse_property!(
+            grid_auto_columns,
+            "grid-auto-columns",
+            "illegal",
+            GridAuto::List(vec![TrackSize::Length(Length::Auto)].into())
         );
         // grid-auto-columns: single track size
         test_parse_property!(

@@ -59,22 +59,16 @@ pub(crate) fn grid_auto_flow_repr<'a, 't: 'a, 'i: 't>(
     }
     let mut flow_direction = None;
     let mut dense = false;
-    let check_flow_direction = move |target: FlowDirection| {
-        if flow_direction.is_none() {
-            return true;
-        }
-        flow_direction.unwrap() != target
-    };
     while !parser.is_exhausted() {
         let next = parser.next()?;
         match next {
             Token::Ident(ident) => {
                 let ident: &str = ident;
                 match ident {
-                    "row" if check_flow_direction(FlowDirection::Row) => {
+                    "row" if flow_direction.is_none() => {
                         flow_direction.replace(FlowDirection::Row);
                     }
-                    "column" if check_flow_direction(FlowDirection::Column) => {
+                    "column" if flow_direction.is_none() => {
                         flow_direction.replace(FlowDirection::Column);
                     }
                     "dense" if !dense => {
