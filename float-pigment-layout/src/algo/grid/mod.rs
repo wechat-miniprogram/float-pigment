@@ -399,7 +399,6 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                 );
                 ComputeResult {
                     size: Normalized(constrained_size),
-                    min_content_size: Normalized(constrained_size),
                     first_baseline_ascent: Vector::zero(),
                     last_baseline_ascent: Vector::zero(),
                     collapsed_margin: CollapsedBlockMargin::zero(),
@@ -434,7 +433,7 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
 
             let mut grid_layout_item =
                 GridLayoutItem::new(row, column, child_node, child_margin, css_size, track_size);
-            grid_layout_item.set_min_content_size(min_content_res.min_content_size.0);
+            grid_layout_item.set_min_content_size(min_content_res.size.0);
             grid_layout_item.set_computed_size(res.size.0);
             grid_layout_matrix.add_item(grid_layout_item);
         }
@@ -729,7 +728,6 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         );
         let ret = ComputeResult {
             size: Normalized(size),
-            min_content_size: Normalized(size),
             first_baseline_ascent: Vector::zero(),
             last_baseline_ascent: Vector::zero(),
             collapsed_margin: CollapsedBlockMargin::zero(),

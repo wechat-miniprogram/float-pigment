@@ -169,7 +169,6 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                         self.clear_display_none_result(node);
                         ComputeResult {
                             size: Normalized(Size::zero()),
-                            min_content_size: Normalized(Size::zero()),
                             first_baseline_ascent: Vector::zero(),
                             last_baseline_ascent: Vector::zero(),
                             collapsed_margin: CollapsedBlockMargin::zero(),
@@ -298,7 +297,6 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                         let size = Size::new(width, height);
                         return Some(ComputeResult {
                             size: Normalized(size),
-                            min_content_size: Normalized(size),
                             first_baseline_ascent: size.to_vector(),
                             last_baseline_ascent: size.to_vector(),
                             collapsed_margin,
@@ -311,7 +309,6 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                     let size = Size::new(width, T::Length::zero());
                     return Some(ComputeResult {
                         size: Normalized(size),
-                        min_content_size: Normalized(size),
                         first_baseline_ascent: size.to_vector(),
                         last_baseline_ascent: size.to_vector(),
                         collapsed_margin,
@@ -323,7 +320,6 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                     let size = Size::new(T::Length::zero(), height);
                     return Some(ComputeResult {
                         size: Normalized(size),
-                        min_content_size: Normalized(size),
                         first_baseline_ascent: size.to_vector(),
                         last_baseline_ascent: size.to_vector(),
                         collapsed_margin,
@@ -598,7 +594,6 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
             let axis_info = AxisInfo::from_writing_mode(node.style().writing_mode());
             let ret = ComputeResult {
                 size,
-                min_content_size: size,
                 first_baseline_ascent,
                 last_baseline_ascent,
                 collapsed_margin: CollapsedBlockMargin::from_margin(
@@ -767,9 +762,8 @@ impl<L: LengthNum> fmt::Debug for ComputeRequest<L> {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct ComputeResult<L: LengthNum> {
     pub(crate) size: Normalized<Size<L>>, // only valid on corresponding size which the request includes
-    pub(crate) min_content_size: Normalized<Size<L>>, // only valid on corresponding size which the request includes
-    pub(crate) first_baseline_ascent: Vector<L>,      // only valid on position request
-    pub(crate) last_baseline_ascent: Vector<L>,       // only valid on position request
+    pub(crate) first_baseline_ascent: Vector<L>, // only valid on position request
+    pub(crate) last_baseline_ascent: Vector<L>, // only valid on position request
     pub(crate) collapsed_margin: CollapsedBlockMargin<L>, // only valid on corresponding size which the request includes and collapsed_margin set
 }
 

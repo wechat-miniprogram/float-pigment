@@ -241,21 +241,22 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
             padding_border,
             margin,
         );
-        let mut total_main_size = padding_border
-            .main_axis_start(axis_info.dir, axis_info.main_dir_rev)
-            + compute_res.size.main_size(axis_info.dir);
-
-        total_main_size += padding_border.main_axis_end(axis_info.dir, axis_info.main_dir_rev);
+        let total_main_size = || {
+            compute_res.size.main_size(axis_info.dir) + padding_border.main_axis_sum(axis_info.dir)
+        };
+        let total_cross_size = || {
+            compute_res.size.cross_size(axis_info.dir)
+                + padding_border.cross_axis_sum(axis_info.dir)
+        };
 
         let size = Size::new_with_dir(
             axis_info.dir,
             node_size
                 .main_size(axis_info.dir)
-                .unwrap_or(total_main_size),
-            node_size.cross_size(axis_info.dir).unwrap_or(
-                compute_res.size.cross_size(axis_info.dir)
-                    + padding_border.cross_axis_sum(axis_info.dir),
-            ),
+                .unwrap_or_else(total_main_size),
+            node_size
+                .cross_size(axis_info.dir)
+                .unwrap_or_else(total_cross_size),
         );
         let size = self.min_max_size_limit(
             node,
@@ -285,13 +286,14 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
         // TODO requires another adjust progress if main axis is reversed?
 
         let ret = ComputeResult {
-            size,
-            min_content_size: Normalized(Size::new_with_dir(
-                axis_info.dir,
-                total_main_size,
-                compute_res.size.cross_size(axis_info.dir)
-                    + padding_border.cross_axis_sum(axis_info.dir),
-            )),
+            size: match request.sizing_mode {
+                SizingMode::Normal => size,
+                _ => Normalized(Size::new_with_dir(
+                    axis_info.dir,
+                    total_main_size(),
+                    total_cross_size(),
+                )),
+            },
             first_baseline_ascent,
             last_baseline_ascent,
             collapsed_margin: compute_res.collapsed_margin,
@@ -761,7 +763,6 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                 middle_node,
                                 &ComputeResult {
                                     size: Normalized(merged_rect.size),
-                                    min_content_size: Normalized(merged_rect.size),
                                     collapsed_margin: CollapsedBlockMargin::zero(),
                                     first_baseline_ascent: first_baseline_ascent_option
                                         .unwrap_or_else(|| merged_rect.size.to_vector()),
