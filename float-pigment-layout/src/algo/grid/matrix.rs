@@ -10,8 +10,7 @@
 //!
 //! Uses a bitmap for occupancy tracking:
 //! - O(1) bit-level lookup for occupied cells
-//! - Cache-friendly: sequential bits for dense scanning
-//! - Layout adapts to auto-flow direction
+//! - Cache-friendly: sequential bytes for dense scanning along auto-flow direction
 //! - Items stored in Vec for efficient iteration
 
 use core::fmt::Debug;
@@ -36,11 +35,13 @@ use crate::{
 /// beyond the current fixed dimension.
 #[derive(Clone, PartialEq)]
 pub(crate) struct OccupiedBitmap {
-    /// Bit storage, each u64 holds 64 cells.
-    bits: Vec<u64>,
+    /// Bit storage, each u8 holds 8 cells.
+    bits: Vec<u8>,
     /// The fixed-dimension length.
     /// For row flow: stride = column count; for column flow: stride = row count.
     stride: usize,
+    /// Bytes per line, always `(stride + 7) / 8`.
+    bytes_per_line: usize,
     /// Whether the bitmap is in row order
     row_order: bool,
 }
@@ -51,94 +52,113 @@ impl OccupiedBitmap {
     /// `stride` is the fixed dimension length and `row_order` indicates
     /// whether bits are laid out row-first (row flow) or column-first (column flow).
     fn new(stride: usize, row_order: bool, capacity: usize) -> Self {
-        // Pre-allocate enough words for `capacity` bits.
-        let num_words = (capacity + 63) / 64;
+        let bytes_per_line = (stride + 7) / 8;
+        let estimated_lines = if stride > 0 {
+            (capacity + stride - 1) / stride
+        } else {
+            0
+        };
+        let total_bytes = estimated_lines * bytes_per_line;
         Self {
-            bits: alloc::vec![0u64; num_words],
+            bits: alloc::vec![0u8; total_bytes],
             stride,
+            bytes_per_line,
             row_order,
         }
     }
 
-    /// Compute the linear bit index from (row, col).
+    /// Compute the (line, offset) from (row, col) based on flow direction.
     #[inline(always)]
-    fn bit_index(&self, row: usize, col: usize) -> usize {
+    fn line_and_offset(&self, row: usize, col: usize) -> (usize, usize) {
         if self.row_order {
-            row * self.stride + col
+            (row, col)
         } else {
-            col * self.stride + row
+            (col, row)
         }
     }
 
-    /// Ensure the bitmap has enough capacity for the given bit index.
+    /// Compute the byte index and bit position based on line and offset.
+    #[inline(always)]
+    fn byte_and_bit(&self, line: usize, offset: usize) -> (usize, usize) {
+        let byte_idx = line * self.bytes_per_line + offset / 8;
+        let bit_idx = offset % 8;
+        (byte_idx, bit_idx)
+    }
+
+    /// Ensure the bitmap has enough capacity for the given byte index.
     #[inline]
-    fn ensure_capacity(&mut self, bit_idx: usize) {
-        let required_words = bit_idx / 64 + 1;
-        if required_words > self.bits.len() {
-            self.bits.resize(required_words, 0u64);
+    fn ensure_capacity(&mut self, byte_idx: usize) {
+        let required_bytes = byte_idx + 1;
+        if required_bytes > self.bits.len() {
+            self.bits.resize(required_bytes, 0u8);
         }
     }
 
     /// Mark the cell at (row, col) as occupied.
     #[inline]
     fn set(&mut self, row: usize, col: usize) {
-        let idx = self.bit_index(row, col);
-        self.ensure_capacity(idx);
-        let word = idx / 64;
-        let bit = idx % 64;
-        self.bits[word] |= 1u64 << bit;
+        let (line, offset) = self.line_and_offset(row, col);
+        let (byte, bit) = self.byte_and_bit(line, offset);
+        self.ensure_capacity(byte);
+        self.bits[byte] |= 1u8 << bit;
     }
 
     /// Check if the cell at (row, col) is occupied.
     #[inline]
     fn get(&self, row: usize, col: usize) -> bool {
-        let idx = self.bit_index(row, col);
-        let word = idx / 64;
-        let bit = idx % 64;
-        if word >= self.bits.len() {
+        let (line, offset) = self.line_and_offset(row, col);
+        let (byte, bit) = self.byte_and_bit(line, offset);
+        if byte >= self.bits.len() {
             return false;
         }
-        (self.bits[word] & (1u64 << bit)) != 0
+        (self.bits[byte] & (1u8 << bit)) != 0
     }
 
-    /// Grow the stride to `new_stride`, re-mapping all existing bits.
+    /// Grow the stride to `new_stride` in-place.
     ///
     /// When an item is placed beyond the current fixed dimension,
-    /// the stride must grow to accommodate it. This re-maps all existing
-    /// bits from old layout to new layout, preserving (row, col) semantics.
+    /// the stride must grow to accommodate it. Since each line is
+    /// byte-aligned, the bit layout within each byte is unchanged —
+    /// only the line start offsets shift. We resize the Vec and then
+    /// move line data from back to front so that no unread data is
+    /// overwritten (new_start >= old_start for every line).
     ///
     /// `max_lines` is the number of lines already occupied (tracked by
-    /// GridMatrix). The new bitmap is sized to `max_lines * new_stride`;
+    /// GridMatrix). The bitmap is resized to `max_lines * new_bytes_per_line`;
     /// any further growth is handled by `ensure_capacity()` in `set()`.
     fn grow_stride(&mut self, new_stride: usize, max_lines: usize) {
-        let old_stride = self.stride;
-        let new_total_bits = max_lines * new_stride;
-        let new_total_words = (new_total_bits + 63) / 64;
-        let mut new_bits = alloc::vec![0u64; new_total_words];
+        debug_assert!(new_stride > self.stride, "stride can only grow");
+        let old_bytes_per_line = self.bytes_per_line;
+        let new_bytes_per_line = (new_stride + 7) / 8;
+        let new_total_bytes = max_lines * new_bytes_per_line;
 
-        // Re-map existing set bits from old layout to new layout.
-        for (word_idx, &word) in self.bits.iter().enumerate() {
-            if word == 0 {
-                // skip empty words
-                continue;
-            }
-            for idx in 0..64u32 {
-                if (word & (1u64 << idx)) != 0 {
-                    let old_bit_idx = word_idx * 64 + idx as usize;
-                    let old_line_idx = old_bit_idx / old_stride;
-                    let old_offset_in_line = old_bit_idx % old_stride;
-                    let new_bit_idx = old_line_idx * new_stride + old_offset_in_line;
-                    let new_word_idx = new_bit_idx / 64;
-                    let new_bit_in_word = new_bit_idx % 64;
-                    if new_word_idx < new_bits.len() {
-                        new_bits[new_word_idx] |= 1u64 << new_bit_in_word;
-                    }
+        self.bits.resize(new_total_bytes, 0u8);
+
+        // Move line data from back to front so we never overwrite unread data.
+        // For every line: new_start = line * new_bytes_per_line >= line * old_bytes_per_line = old_start,
+        // so reverse iteration is safe.
+        for line_idx in (0..max_lines).rev() {
+            let old_start = line_idx * old_bytes_per_line;
+            let new_start = line_idx * new_bytes_per_line;
+            // Copy preserved bytes in reverse order within the line.
+            for byte_idx in (0..old_bytes_per_line).rev() {
+                let src = old_start + byte_idx;
+                let dst = new_start + byte_idx;
+                debug_assert!(src < self.bits.len(), "src out of bounds");
+                debug_assert!(dst < self.bits.len(), "dst out of bounds");
+                self.bits[dst] = self.bits[src];
+                if src != dst {
+                    self.bits[src] = 0;
                 }
+            }
+            // Zero the new trailing bytes introduced by the wider stride.
+            for byte_idx in old_bytes_per_line..new_bytes_per_line {
+                self.bits[new_start + byte_idx] = 0;
             }
         }
 
-        self.bits = new_bits;
         self.stride = new_stride;
+        self.bytes_per_line = new_bytes_per_line;
     }
 
     /// Return the current stride value.
