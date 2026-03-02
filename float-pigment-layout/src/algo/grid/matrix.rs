@@ -14,6 +14,7 @@
 //! - Items stored in Vec for efficient iteration
 
 use core::fmt::Debug;
+use float_pigment_css::num_traits::Zero;
 
 use alloc::vec::Vec;
 use float_pigment_css::typing::GridAutoFlow;
@@ -517,4 +518,215 @@ impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
     }
 }
 
-use float_pigment_css::num_traits::Zero;
+#[cfg(test)]
+mod tests {
+    use super::OccupiedBitmap;
+
+    #[test]
+    fn set_get_basic_row_order() {
+        // 3-column grid, row order (row flow)
+        let mut bm = OccupiedBitmap::new(3, true, 9);
+        bm.set(0, 0);
+        bm.set(1, 2);
+        bm.set(2, 1);
+        assert!(bm.get(0, 0));
+        assert!(bm.get(1, 2));
+        assert!(bm.get(2, 1));
+    }
+
+    #[test]
+    fn get_unset_returns_false() {
+        // Unoccupied cells must return false so auto-placement can use them.
+        let bm = OccupiedBitmap::new(4, true, 16);
+        for r in 0..4 {
+            for c in 0..4 {
+                assert!(!bm.get(r, c), "cell ({r},{c}) should be empty");
+            }
+        }
+    }
+
+    #[test]
+    fn set_get_column_order() {
+        // Column flow — bitmap is in column order.
+        // bit_index = col * stride + row, stride = row count
+        let mut bm = OccupiedBitmap::new(3, false, 9);
+        bm.set(2, 0); // row=2, col=0 → line=0(col=0), offset=2(row=2)
+        bm.set(0, 1); // row=0, col=1 → line=1(col=1), offset=0(row=0)
+        assert!(bm.get(2, 0));
+        assert!(bm.get(0, 1));
+        assert!(!bm.get(0, 0));
+        assert!(!bm.get(2, 1));
+    }
+
+    // --- Auto-expand (ensure_capacity) ---
+    // Implicit grid tracks are created on-the-fly.
+
+    #[test]
+    fn auto_expand_beyond_initial_capacity() {
+        // Start with capacity for 4 cells but write far beyond.
+        let mut bm = OccupiedBitmap::new(2, true, 4);
+        bm.set(10, 0);
+        bm.set(10, 1);
+        assert!(bm.get(10, 0));
+        assert!(bm.get(10, 1));
+        // Earlier rows still empty.
+        assert!(!bm.get(0, 0));
+    }
+
+    // --- grow_stride ---
+    // When items exceed the fixed dimension,
+    // the grid expands and existing data must be preserved.
+
+    #[test]
+    fn grow_stride_preserves_existing_data() {
+        // 2-column row-order grid
+        let mut bm = OccupiedBitmap::new(2, true, 6);
+        bm.set(0, 0);
+        bm.set(0, 1);
+        bm.set(1, 0);
+        bm.set(2, 1);
+        // Grow to 5 columns (max_lines = 3)
+        bm.grow_stride(5, 3);
+        assert_eq!(bm.stride(), 5);
+        // All previous data intact.
+        assert!(bm.get(0, 0));
+        assert!(bm.get(0, 1));
+        assert!(bm.get(1, 0));
+        assert!(bm.get(2, 1));
+        // New columns are empty.
+        assert!(!bm.get(0, 2));
+        assert!(!bm.get(0, 3));
+        assert!(!bm.get(0, 4));
+    }
+
+    #[test]
+    fn grow_stride_allows_writing_new_columns() {
+        let mut bm = OccupiedBitmap::new(2, true, 4);
+        bm.set(0, 0);
+        bm.set(1, 1);
+        bm.grow_stride(4, 2);
+        bm.set(0, 3);
+        bm.set(1, 2);
+        assert!(bm.get(0, 0));
+        assert!(bm.get(0, 3));
+        assert!(bm.get(1, 1));
+        assert!(bm.get(1, 2));
+        assert!(!bm.get(0, 2));
+    }
+
+    #[test]
+    fn grow_stride_column_order() {
+        // column order: stride = row count
+        let mut bm = OccupiedBitmap::new(2, false, 6);
+        bm.set(0, 0); // line=0(col=0), offset=0(row=0)
+        bm.set(1, 1); // line=1(col=1), offset=1(row=1)
+                      // Grow stride (more rows)
+        bm.grow_stride(4, 2);
+        assert!(bm.get(0, 0));
+        assert!(bm.get(1, 1));
+        assert!(!bm.get(2, 0));
+        // Write in new row slots.
+        bm.set(3, 0);
+        assert!(bm.get(3, 0));
+    }
+
+    // --- find_first_zero ---
+    // Auto-placement scans left-to-right, top-to-bottom
+    // (row flow) or top-to-bottom, left-to-right (column flow).
+
+    #[test]
+    fn find_first_zero_empty_bitmap() {
+        let bm = OccupiedBitmap::new(3, true, 9);
+        // Completely empty — first zero is (0, 0).
+        assert_eq!(bm.find_first_zero(0), (0, 0));
+    }
+
+    #[test]
+    fn find_first_zero_partially_filled() {
+        let mut bm = OccupiedBitmap::new(4, true, 16);
+        bm.set(0, 0);
+        bm.set(0, 1);
+        // First zero at offset 2 in line 0.
+        assert_eq!(bm.find_first_zero(0), (0, 2));
+    }
+
+    #[test]
+    fn find_first_zero_skips_full_line() {
+        let mut bm = OccupiedBitmap::new(3, true, 9);
+        bm.set(0, 0);
+        bm.set(0, 1);
+        bm.set(0, 2);
+        // Line 0 fully occupied → should return (1, 0).
+        assert_eq!(bm.find_first_zero(0), (1, 0));
+    }
+
+    #[test]
+    fn find_first_zero_with_start_line() {
+        let mut bm = OccupiedBitmap::new(3, true, 9);
+        bm.set(0, 0);
+        bm.set(1, 0);
+        bm.set(1, 1);
+        // Start scanning from line 1 → first zero at (1, 2).
+        assert_eq!(bm.find_first_zero(1), (1, 2));
+    }
+
+    #[test]
+    fn find_first_zero_beyond_allocated() {
+        // Bitmap only has 1 line allocated, search from line 5.
+        let bm = OccupiedBitmap::new(4, true, 4);
+        // Line 5 has no allocated bytes → first zero at (5, 0).
+        assert_eq!(bm.find_first_zero(5), (5, 0));
+    }
+
+    #[test]
+    fn find_first_zero_stride_gt_8() {
+        // Stride > 8 to exercise multi-byte scanning.
+        let mut bm = OccupiedBitmap::new(10, true, 20);
+        // Fill first 9 columns of row 0.
+        for c in 0..9 {
+            bm.set(0, c);
+        }
+        // First zero in row 0 is at column 9.
+        assert_eq!(bm.find_first_zero(0), (0, 9));
+    }
+
+    #[test]
+    fn find_first_zero_full_byte_boundary() {
+        // Stride = 8, fill entire first row (exactly 1 byte = 0xFF).
+        let mut bm = OccupiedBitmap::new(8, true, 16);
+        for c in 0..8 {
+            bm.set(0, c);
+        }
+        // Row 0 full → (1, 0).
+        assert_eq!(bm.find_first_zero(0), (1, 0));
+    }
+
+    // --- Edge case: stride = 1 ---
+
+    #[test]
+    fn single_column_grid() {
+        // stride = 1: each line is 1 bit, 1 byte per line.
+        let mut bm = OccupiedBitmap::new(1, true, 4);
+        bm.set(0, 0);
+        bm.set(1, 0);
+        assert_eq!(bm.find_first_zero(0), (2, 0));
+    }
+
+    // --- grow_stride across byte boundary ---
+
+    #[test]
+    fn grow_stride_across_byte_boundary() {
+        // Grow from stride=7 (1 byte/line) to stride=10 (2 bytes/line).
+        let mut bm = OccupiedBitmap::new(7, true, 14);
+        bm.set(0, 6);
+        bm.set(1, 3);
+        bm.grow_stride(10, 2);
+        assert!(bm.get(0, 6));
+        assert!(bm.get(1, 3));
+        assert!(!bm.get(0, 7));
+        assert!(!bm.get(1, 9));
+        // Write new columns beyond old stride.
+        bm.set(0, 9);
+        assert!(bm.get(0, 9));
+    }
+}
