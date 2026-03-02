@@ -58,8 +58,7 @@ pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
 
     // Dense mode optimization: track the first row/column that may have space
     // This avoids re-scanning rows/columns that are known to be full
-    let mut dense_hint_row = 0;
-    let mut dense_hint_col = 0;
+    let mut dense_hint = 0;
 
     // Process each grid item according to grid-auto-flow
     // CSS Grid §8.5: Auto-placement algorithm
@@ -80,9 +79,7 @@ pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
         }
         // For each item, search from hint for first unoccupied cell.
         GridAutoFlow::RowDense => {
-            let max_cols = explicit_column_count.max(1);
-            let (row, col) =
-                find_first_unoccupied_dense(grid_matrix, max_cols, &mut dense_hint_row, true);
+            let (row, col) = grid_matrix.find_first_unoccupied(&mut dense_hint);
 
             let grid_item = GridItem::new(child, origin_idx, row, col);
             grid_matrix.place_item(row, col, grid_item);
@@ -102,54 +99,10 @@ pub(crate) fn place_grid_items<'a, T: LayoutTreeNode>(
         }
         // For each item, search from hint for first unoccupied cell.
         GridAutoFlow::ColumnDense => {
-            let max_rows = explicit_row_count.max(1);
-            let (row, col) =
-                find_first_unoccupied_dense(grid_matrix, max_rows, &mut dense_hint_col, false);
+            let (row, col) = grid_matrix.find_first_unoccupied(&mut dense_hint);
 
             let grid_item = GridItem::new(child, origin_idx, row, col);
             grid_matrix.place_item(row, col, grid_item);
         }
     });
-}
-
-/// Find the first unoccupied cell in dense packing order.
-///
-/// CSS Grid §8.5: Dense packing - search from the start for holes.
-/// Returns (row, column) of the first available cell.
-///
-/// ## Optimization
-///
-/// Uses `hint_line` to skip lines that are known to be full:
-/// - Start searching from `hint_line` instead of the first line
-/// - When a line is found to be completely full, advance `hint_line`
-/// - This reduces repeated scanning of filled lines
-fn find_first_unoccupied_dense<'a, T: LayoutTreeNode>(
-    grid_matrix: &GridMatrix<'a, T>,
-    line_len: usize,
-    hint_line: &mut usize,
-    row_order: bool,
-) -> (usize, usize) {
-    let mut line = *hint_line;
-    let mut cursor_in_line = 0;
-
-    loop {
-        let (row, col) = if row_order {
-            (line, cursor_in_line)
-        } else {
-            (cursor_in_line, line)
-        };
-
-        if !grid_matrix.is_occupied(row, col) {
-            return (row, col);
-        }
-
-        cursor_in_line += 1;
-        if cursor_in_line >= line_len {
-            if line == *hint_line {
-                *hint_line = line + 1;
-            }
-            cursor_in_line = 0;
-            line += 1;
-        }
-    }
 }

@@ -154,6 +154,41 @@ impl OccupiedBitmap {
         self.bytes_per_line = new_bytes_per_line;
     }
 
+    /// Find the first unoccupied cell starting from `(start_line, start_offset)`.
+    /// Returns `(line, offset)` of the first zero bit.
+    fn find_first_zero(&self, start_line_idx: usize) -> (usize, usize) {
+        let mut line_idx = start_line_idx;
+
+        loop {
+            let total_bytes = self.bits.len();
+            let line_start_byte_idx = line_idx * self.bytes_per_line;
+            let line_end_byte_idx = line_start_byte_idx + self.bytes_per_line;
+
+            let mut byte_idx = line_start_byte_idx;
+            let mut offset = 0usize;
+
+            while byte_idx < line_end_byte_idx {
+                if byte_idx >= total_bytes {
+                    return (line_idx, offset);
+                }
+                let b = self.bits[byte_idx];
+                if b != 0xFF {
+                    let bit_pos = b.trailing_ones() as usize;
+                    let candidate = offset + bit_pos;
+                    if candidate < self.stride {
+                        return (line_idx, candidate);
+                    }
+                    break;
+                }
+                byte_idx += 1;
+                offset += 8;
+            }
+
+            // Move to the next line.
+            line_idx += 1;
+        }
+    }
+
     /// Return the current stride value.
     #[inline(always)]
     fn stride(&self) -> usize {
@@ -258,8 +293,22 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
     }
 
     /// Check if a cell is occupied.
+    #[allow(unused)]
     pub(crate) fn is_occupied(&self, row: usize, column: usize) -> bool {
         self.occupied.get(row, column)
+    }
+
+    /// Find the first unoccupied cell starting from the given hint line.
+    pub(crate) fn find_first_unoccupied(&self, hint_line: &mut usize) -> (usize, usize) {
+        let (line, offset) = self.occupied.find_first_zero(*hint_line);
+        if line > *hint_line {
+            *hint_line = line;
+        }
+        if self.occupied.row_order {
+            (line, offset)
+        } else {
+            (offset, line)
+        }
     }
 
     /// Get an iterator over all placed items.
@@ -332,9 +381,9 @@ impl<'a, T: LayoutTreeNode> Debug for GridMatrix<'a, T> {
 /// Uses precomputed cumulative offsets for efficient position lookup during
 /// item positioning.
 pub(crate) struct GridLayoutMatrix<'a, T: LayoutTreeNode> {
-    /// Precomputed cumulative row offsets: row_offsets[i] = sum of row heights [0..i)
+    /// Precomputed cumulative row offsets: row_offsets[i] = sum of row heights [0..i) + gaps
     row_offsets: Vec<T::Length>,
-    /// Precomputed cumulative column offsets: column_offsets[j] = sum of column widths [0..j)
+    /// Precomputed cumulative column offsets: column_offsets[j] = sum of column widths [0..j) + gaps
     column_offsets: Vec<T::Length>,
     /// The layout items with computed sizes
     items: Vec<GridLayoutItem<'a, T>>,
@@ -342,6 +391,10 @@ pub(crate) struct GridLayoutMatrix<'a, T: LayoutTreeNode> {
     row_count: usize,
     /// Number of columns
     column_count: usize,
+    /// Row gap (CSS `row-gap`), stored for `get_row_size` to exclude gap from track size.
+    row_gap: T::Length,
+    /// Column gap (CSS `column-gap`), stored for `get_column_size` to exclude gap from track size.
+    column_gap: T::Length,
 }
 
 impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
@@ -353,6 +406,8 @@ impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
             items: Vec::with_capacity(capacity),
             row_count,
             column_count,
+            row_gap: T::Length::zero(),
+            column_gap: T::Length::zero(),
         }
     }
 
@@ -386,6 +441,7 @@ impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
     /// After calling this, `get_row_offset(i)` returns the y position of row i.
     pub(crate) fn set_row_sizes(&mut self, sizes: &[T::Length], gap: T::Length) {
         use float_pigment_css::num_traits::Zero;
+        self.row_gap = gap;
         let mut offset = T::Length::zero();
         self.row_offsets[0] = offset;
         for (i, &size) in sizes.iter().enumerate() {
@@ -402,6 +458,7 @@ impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
     /// After calling this, `get_column_offset(j)` returns the x position of column j.
     pub(crate) fn set_column_sizes(&mut self, sizes: &[T::Length], gap: T::Length) {
         use float_pigment_css::num_traits::Zero;
+        self.column_gap = gap;
         let mut offset = T::Length::zero();
         self.column_offsets[0] = offset;
         for (i, &size) in sizes.iter().enumerate() {
@@ -430,7 +487,13 @@ impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
     #[inline(always)]
     pub(crate) fn get_row_size(&self, row: usize) -> T::Length {
         if row + 1 < self.row_offsets.len() {
-            self.row_offsets[row + 1] - self.row_offsets[row]
+            let diff = self.row_offsets[row + 1] - self.row_offsets[row];
+            // Non-last rows have gap baked into the offset difference.
+            if row + 1 < self.row_count {
+                diff - self.row_gap
+            } else {
+                diff
+            }
         } else {
             T::Length::zero()
         }
@@ -441,7 +504,13 @@ impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
     #[inline(always)]
     pub(crate) fn get_column_size(&self, column: usize) -> T::Length {
         if column + 1 < self.column_offsets.len() {
-            self.column_offsets[column + 1] - self.column_offsets[column]
+            let diff = self.column_offsets[column + 1] - self.column_offsets[column];
+            // Non-last columns have gap baked into the offset difference.
+            if column + 1 < self.column_count {
+                diff - self.column_gap
+            } else {
+                diff
+            }
         } else {
             T::Length::zero()
         }
