@@ -315,6 +315,12 @@ impl<L: LengthNum> OptionNum<L> {
         self.0.unwrap_or(rhs)
     }
 
+    /// Unwrap to a number, default to `f()`.
+    #[inline]
+    pub fn unwrap_or_else(self, f: impl FnOnce() -> L) -> L {
+        self.0.unwrap_or_else(f)
+    }
+
     /// If `self` is undetermined, return `rhs`.
     #[inline]
     pub fn or(self, rhs: Self) -> Self {
