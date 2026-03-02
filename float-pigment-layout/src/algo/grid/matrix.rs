@@ -67,19 +67,14 @@ impl OccupiedBitmap {
         }
     }
 
-    /// Compute the (line, offset) from (row, col) based on flow direction.
+    /// Compute the byte index and bit position from (row, col).
     #[inline(always)]
-    fn line_and_offset(&self, row: usize, col: usize) -> (usize, usize) {
-        if self.row_order {
+    fn byte_and_bit(&self, row: usize, col: usize) -> (usize, usize) {
+        let (line, offset) = if self.row_order {
             (row, col)
         } else {
             (col, row)
-        }
-    }
-
-    /// Compute the byte index and bit position based on line and offset.
-    #[inline(always)]
-    fn byte_and_bit(&self, line: usize, offset: usize) -> (usize, usize) {
+        };
         let byte_idx = line * self.bytes_per_line + offset / 8;
         let bit_idx = offset % 8;
         (byte_idx, bit_idx)
@@ -97,8 +92,7 @@ impl OccupiedBitmap {
     /// Mark the cell at (row, col) as occupied.
     #[inline]
     fn set(&mut self, row: usize, col: usize) {
-        let (line, offset) = self.line_and_offset(row, col);
-        let (byte, bit) = self.byte_and_bit(line, offset);
+        let (byte, bit) = self.byte_and_bit(row, col);
         self.ensure_capacity(byte);
         self.bits[byte] |= 1u8 << bit;
     }
@@ -106,8 +100,7 @@ impl OccupiedBitmap {
     /// Check if the cell at (row, col) is occupied.
     #[inline]
     fn get(&self, row: usize, col: usize) -> bool {
-        let (line, offset) = self.line_and_offset(row, col);
-        let (byte, bit) = self.byte_and_bit(line, offset);
+        let (byte, bit) = self.byte_and_bit(row, col);
         if byte >= self.bits.len() {
             return false;
         }
