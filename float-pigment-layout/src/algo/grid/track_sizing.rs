@@ -209,12 +209,15 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
         .collect();
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Phase 1: Collect base sizes (min-content) for ALL tracks
+    // Phase 1: Collect track base sizes from item contributions
     // CSS Grid §11.5: Resolve Intrinsic Track Sizes
     // https://www.w3.org/TR/css-grid-1/#algo-content
     //
-    // For each track, collect the min-content contribution of items.
-    // This applies to fixed, auto, AND fr tracks.
+    // For each item, contribute to its track's base size:
+    // - Fixed tracks: use the explicit track size (§11.4)
+    // - Auto / min-content / max-content tracks: use max(computed_size,
+    //   min_content_size) + margin as the content contribution (§11.5)
+    // - Fr tracks: collect min-content for the freeze threshold (§11.7)
     // ═══════════════════════════════════════════════════════════════════════
 
     for item in grid_layout_matrix.items() {
@@ -226,22 +229,23 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
         // For items without (auto), use min-content size
         let css_width = item.css_size.width;
         let css_height = item.css_size.height;
-
-        let min_content_width = item.min_content_size().unwrap().width;
-        let min_content_height = item.min_content_size().unwrap().height;
+        let min_content_size = item
+            .min_content_size()
+            .map(|size| *size)
+            .unwrap_or(Size::zero());
 
         // If item has a CSS width, use it; otherwise use min-content
         let base_width = if css_width.is_some() {
-            css_width.val().unwrap().max(min_content_width)
+            css_width.val().unwrap().max(min_content_size.width)
         } else {
-            min_content_width
+            min_content_size.width
         };
         let outer_width = base_width + item.margin.horizontal();
 
         let base_height = if css_height.is_some() {
-            css_height.val().unwrap().max(min_content_height)
+            css_height.val().unwrap().max(min_content_size.height)
         } else {
-            min_content_height
+            min_content_size.height
         };
         let outer_height = base_height + item.margin.vertical();
 
@@ -271,13 +275,16 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
                 // Track has explicit size (fixed)
                 columns[column].has_explicit = true;
                 let track_width = track_size.val().unwrap();
-                let width = track_width.max(min_content_width);
-                columns[column].size =
-                    Some(columns[column].size.map(|s| s.max(width)).unwrap_or(width));
+                columns[column].size = Some(
+                    columns[column]
+                        .size
+                        .map(|s| s.max(track_width))
+                        .unwrap_or(track_width),
+                );
             } else {
                 // Auto track - use outer size (margin box)
                 let computed = item.computed_size().width + item.margin.horizontal();
-                let outer_width = computed.max(min_content_width);
+                let outer_width = computed.max(min_content_size.width);
                 columns[column].size = Some(
                     columns[column]
                         .size
@@ -317,7 +324,8 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
                 );
             } else {
                 // Auto track - use outer size (margin box)
-                let outer_height = item.computed_size().height + item.margin.vertical();
+                let computed = item.computed_size().height + item.margin.vertical();
+                let outer_height = computed.max(min_content_size.height);
                 rows[row].size = Some(
                     rows[row]
                         .size

@@ -87,8 +87,8 @@ impl<'a, T: LayoutTreeNode> GridLayoutItem<'a, T> {
         self.min_content_size.as_ref()
     }
 
-    pub(crate) fn set_min_content_size(&mut self, min_content_size: Size<T::Length>) {
-        self.min_content_size = Some(min_content_size);
+    pub(crate) fn set_min_content_size(&mut self, min_content_size: Option<Size<T::Length>>) {
+        self.min_content_size = min_content_size;
     }
 
     pub(crate) fn computed_size(&self) -> Size<T::Length> {
