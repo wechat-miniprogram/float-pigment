@@ -185,6 +185,12 @@ impl<T: LayoutTreeNode> GridTracks<T> {
             } else if item.is_auto {
                 auto_count += 1;
                 TrackSizingFunction::Auto
+            } else if item.is_min_content || item.is_max_content {
+                // min-content/max-content tracks participate in §11.6 Maximize
+                // like auto tracks, but are NOT stretched in §11.8.
+                // Use Auto sizing function so Maximize treats them correctly
+                // (they have finite growth_limit from §11.5 Step 4).
+                TrackSizingFunction::Auto
             } else {
                 TrackSizingFunction::Fixed(DefLength::Points(item.size))
             };
