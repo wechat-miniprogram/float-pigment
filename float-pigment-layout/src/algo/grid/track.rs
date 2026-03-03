@@ -6,13 +6,13 @@
 //! This module defines the `GridTrack` structure which represents a single
 //! grid track (row or column) during the track sizing algorithm.
 
-#![allow(dead_code)]
-
-use crate::{DefLength, LayoutTreeNode, OptionNum};
+use crate::{DefLength, LayoutTreeNode};
 use alloc::vec::Vec;
 use core::fmt::Debug;
 use float_pigment_css::length_num::LengthNum;
 use float_pigment_css::num_traits::Zero;
+
+use super::track_sizing::TrackSizingResult;
 
 /// A single grid track (row or column) with its sizing information.
 ///
@@ -52,10 +52,6 @@ pub(crate) struct GridTrack<T: LayoutTreeNode> {
     ///
     /// `None` represents infinity.
     pub growth_limit: Option<T::Length>,
-
-    /// Whether this track contains any items.
-    /// Used for `auto-fill`/`auto-fit` empty track handling.
-    pub is_occupied: bool,
 }
 
 impl<T: LayoutTreeNode> Debug for GridTrack<T> {
@@ -81,7 +77,6 @@ impl<T: LayoutTreeNode> GridTrack<T> {
             max_sizing_function,
             base_size: T::Length::zero(),
             growth_limit: None,
-            is_occupied: false,
         }
     }
 
@@ -102,66 +97,16 @@ impl<T: LayoutTreeNode> GridTrack<T> {
         Self::new(min_fn, max_fn)
     }
 
-    /// Initialize base_size and growth_limit based on sizing functions.
-    ///
-    /// CSS Grid §11.4: Initialize Track Sizes
-    /// <https://www.w3.org/TR/css-grid-1/#algo-init>
-    pub fn initialize(
-        &mut self,
-        available_space: OptionNum<T::Length>,
-        resolve_length: impl Fn(
-            &DefLength<T::Length, T::LengthCustom>,
-            OptionNum<T::Length>,
-        ) -> T::Length,
-    ) {
-        // Initialize base_size from min sizing function
-        self.base_size = match &self.min_sizing_function {
-            TrackSizingFunction::Fixed(length) => resolve_length(length, available_space),
-            TrackSizingFunction::Flex(_) => T::Length::zero(),
-            TrackSizingFunction::Auto => T::Length::zero(),
-        };
-
-        // Initialize growth_limit from max sizing function
-        self.growth_limit = match &self.max_sizing_function {
-            TrackSizingFunction::Fixed(length) => {
-                let resolved = resolve_length(length, available_space);
-                // growth_limit must be >= base_size
-                if resolved >= self.base_size {
-                    Some(resolved)
-                } else {
-                    Some(self.base_size)
-                }
-            }
-            TrackSizingFunction::Flex(_) => None, // infinity
-            TrackSizingFunction::Auto => None,    // infinity
-        };
-    }
-
     /// Get the resolved track size (base_size).
     #[inline(always)]
     pub fn resolved_size(&self) -> T::Length {
         self.base_size
     }
 
-    /// Check if the track has an infinite growth limit.
-    #[inline(always)]
-    pub fn has_infinite_growth_limit(&self) -> bool {
-        self.growth_limit.is_none()
-    }
-
     /// Check if the track is flexible (fr unit).
     #[inline(always)]
     pub fn is_flexible(&self) -> bool {
         matches!(self.max_sizing_function, TrackSizingFunction::Flex(_))
-    }
-
-    /// Get the flex factor if this is a flexible track.
-    #[inline(always)]
-    pub fn flex_factor(&self) -> Option<f32> {
-        match &self.max_sizing_function {
-            TrackSizingFunction::Flex(fr) => Some(*fr),
-            _ => None,
-        }
     }
 
     /// Check if the track is auto-sized.
@@ -203,127 +148,20 @@ pub(crate) struct GridTracks<T: LayoutTreeNode> {
     tracks: Vec<GridTrack<T>>,
     /// Count of auto tracks (for distributing remaining space)
     auto_count: usize,
-    /// Total flex factor (sum of all fr values)
-    total_flex: f32,
 }
 
 impl<T: LayoutTreeNode> Debug for GridTracks<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
-            "GridTracks {{ count: {}, auto_count: {}, total_flex: {} }}",
+            "GridTracks {{ count: {}, auto_count: {} }}",
             self.tracks.len(),
-            self.auto_count,
-            self.total_flex
+            self.auto_count
         )
     }
 }
 
 impl<T: LayoutTreeNode> GridTracks<T> {
-    /// Create a new empty track collection.
-    pub fn new() -> Self {
-        Self {
-            tracks: Vec::new(),
-            auto_count: 0,
-            total_flex: 0.0,
-        }
-    }
-
-    /// Create tracks from a track list.
-    pub fn from_track_list(
-        track_count: usize,
-        get_sizing_function: impl Fn(usize) -> TrackSizingFunction<T>,
-    ) -> Self {
-        let mut tracks = Vec::with_capacity(track_count);
-        let mut auto_count = 0;
-        let mut total_flex = 0.0;
-
-        for i in 0..track_count {
-            let sizing_fn = get_sizing_function(i);
-            match &sizing_fn {
-                TrackSizingFunction::Auto => auto_count += 1,
-                TrackSizingFunction::Flex(fr) => total_flex += fr,
-                _ => {}
-            }
-            tracks.push(GridTrack::from_single(sizing_fn));
-        }
-
-        Self {
-            tracks,
-            auto_count,
-            total_flex,
-        }
-    }
-
-    /// Get the number of tracks.
-    #[inline(always)]
-    pub fn len(&self) -> usize {
-        self.tracks.len()
-    }
-
-    /// Check if empty.
-    #[inline(always)]
-    #[allow(dead_code)]
-    pub fn is_empty(&self) -> bool {
-        self.tracks.is_empty()
-    }
-
-    /// Get a track by index.
-    #[inline(always)]
-    pub fn get(&self, index: usize) -> Option<&GridTrack<T>> {
-        self.tracks.get(index)
-    }
-
-    /// Get a mutable track by index.
-    #[inline(always)]
-    pub fn get_mut(&mut self, index: usize) -> Option<&mut GridTrack<T>> {
-        self.tracks.get_mut(index)
-    }
-
-    /// Get the count of auto tracks.
-    #[inline(always)]
-    pub fn auto_count(&self) -> usize {
-        self.auto_count
-    }
-
-    /// Get the total flex factor.
-    #[inline(always)]
-    pub fn total_flex(&self) -> f32 {
-        self.total_flex
-    }
-
-    /// Mark a track as occupied.
-    pub fn mark_occupied(&mut self, index: usize) {
-        if let Some(track) = self.tracks.get_mut(index) {
-            track.is_occupied = true;
-        }
-    }
-
-    /// Ensure we have at least `count` tracks, adding implicit auto tracks as needed.
-    pub fn ensure_count(&mut self, count: usize) {
-        while self.tracks.len() < count {
-            self.tracks.push(GridTrack::new(
-                TrackSizingFunction::Auto,
-                TrackSizingFunction::Auto,
-            ));
-            self.auto_count += 1;
-        }
-    }
-
-    /// Initialize all track sizes.
-    pub fn initialize(
-        &mut self,
-        available_space: OptionNum<T::Length>,
-        resolve_length: impl Fn(
-            &DefLength<T::Length, T::LengthCustom>,
-            OptionNum<T::Length>,
-        ) -> T::Length,
-    ) {
-        for track in &mut self.tracks {
-            track.initialize(available_space, &resolve_length);
-        }
-    }
-
     /// Get the total base size of all tracks.
     pub fn total_base_size(&self) -> T::Length {
         self.tracks
@@ -336,63 +174,27 @@ impl<T: LayoutTreeNode> GridTracks<T> {
         self.tracks.iter().map(|t| t.resolved_size()).collect()
     }
 
-    /// Iterate over tracks.
-    pub fn iter(&self) -> impl Iterator<Item = &GridTrack<T>> {
-        self.tracks.iter()
-    }
-
-    /// Iterate mutably over tracks.
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut GridTrack<T>> {
-        self.tracks.iter_mut()
-    }
-
-    /// Create GridTracks from computed sizes.
-    ///
-    /// This is used to create GridTracks after the initial track sizing
-    /// has been computed, for use in maximize_tracks.
-    ///
-    /// - `sizes`: The computed base sizes for each track
-    /// - `has_explicit`: Whether each track has an explicit (non-auto) size
-    pub fn from_sizes(sizes: &[T::Length], has_explicit: &[bool]) -> Self {
-        Self::from_sizes_with_fr(sizes, has_explicit, &[])
-    }
-
-    /// Create GridTracks from computed sizes with fr track info.
-    ///
-    /// - `sizes`: The computed base sizes for each track
-    /// - `has_explicit`: Whether each track has an explicit (non-auto) size
-    /// - `fr_values`: The fr value for each track (0.0 if not an fr track)
-    pub fn from_sizes_with_fr(
-        sizes: &[T::Length],
-        has_explicit: &[bool],
-        fr_values: &[f32],
-    ) -> Self {
-        let track_count = sizes.len();
-        let mut tracks = Vec::with_capacity(track_count);
+    /// Create GridTracks from a slice of per-track sizing items.
+    pub fn from_computed_track_size(items: &[TrackSizingResult<T::Length>]) -> Self {
+        let mut tracks = Vec::with_capacity(items.len());
         let mut auto_count = 0;
-        let mut total_flex = 0.0;
 
-        for (i, &size) in sizes.iter().enumerate() {
-            let fr_value = fr_values.get(i).copied().unwrap_or(0.0);
-            let is_auto = !has_explicit.get(i).copied().unwrap_or(false);
-
-            let sizing_fn = if fr_value > 0.0 {
-                total_flex += fr_value;
-                TrackSizingFunction::Flex(fr_value)
-            } else if is_auto {
+        for item in items {
+            let sizing_fn = if item.fr_value > 0.0 {
+                TrackSizingFunction::Flex(item.fr_value)
+            } else if item.is_auto {
                 auto_count += 1;
                 TrackSizingFunction::Auto
             } else {
-                TrackSizingFunction::Fixed(DefLength::Points(size))
+                TrackSizingFunction::Fixed(DefLength::Points(item.size))
             };
 
             let mut track = GridTrack::from_single(sizing_fn);
-            track.base_size = size;
-            // fr tracks and auto tracks have infinite growth limit
-            track.growth_limit = if fr_value > 0.0 || is_auto {
+            track.base_size = item.size;
+            track.growth_limit = if item.fr_value > 0.0 {
                 None
             } else {
-                Some(size)
+                item.growth_limit
             };
             tracks.push(track);
         }
@@ -400,7 +202,6 @@ impl<T: LayoutTreeNode> GridTracks<T> {
         Self {
             tracks,
             auto_count,
-            total_flex,
         }
     }
 
@@ -410,34 +211,73 @@ impl<T: LayoutTreeNode> GridTracks<T> {
     /// <https://www.w3.org/TR/css-grid-1/#algo-grow-tracks>
     ///
     /// If the free space is positive, distribute it equally to the base sizes
-    /// of all tracks with infinite growth limits.
+    /// of all tracks, freezing tracks as they reach their growth limits.
     ///
-    /// ## Optimization
+    /// This is an iterative algorithm:
+    /// 1. Distribute free space equally among all unfrozen non-flex tracks
+    /// 2. If any track's base_size would exceed its growth_limit, freeze it
+    ///    at the growth_limit and reclaim the excess
+    /// 3. Repeat until all free space is consumed or all tracks are frozen
     ///
-    /// Single-pass implementation: collect eligible track indices during counting,
-    /// then directly update those tracks without re-filtering.
+    /// Tracks with infinite growth limits (None) never freeze.
     pub fn maximize(&mut self, free_space: T::Length) {
         if free_space <= T::Length::zero() {
             return;
         }
 
-        // Single pass: collect indices of tracks with infinite growth limit (non-flex)
-        let mut infinite_indices: Vec<usize> = Vec::with_capacity(self.tracks.len());
+        // Collect indices of all non-flex tracks (candidates for space distribution)
+        let mut unfrozen: Vec<usize> = Vec::with_capacity(self.tracks.len());
         for (i, track) in self.tracks.iter().enumerate() {
-            if track.has_infinite_growth_limit() && !track.is_flexible() {
-                infinite_indices.push(i);
+            if !track.is_flexible() {
+                unfrozen.push(i);
             }
         }
 
-        if infinite_indices.is_empty() {
+        if unfrozen.is_empty() {
             return;
         }
 
-        // Distribute free space equally among collected tracks
-        let space_per_track = free_space.div_f32(infinite_indices.len() as f32);
+        let mut remaining = free_space;
 
-        for i in infinite_indices {
-            self.tracks[i].base_size += space_per_track;
+        // Iterative distribution with freeze-on-limit (§11.6)
+        loop {
+            if unfrozen.is_empty() || remaining <= T::Length::zero() {
+                break;
+            }
+
+            let share = remaining.div_f32(unfrozen.len() as f32);
+            let mut any_frozen = false;
+            let mut space_used = T::Length::zero();
+
+            unfrozen.retain(|&i| {
+                let track = &self.tracks[i];
+                let new_base = track.base_size + share;
+
+                if let Some(limit) = track.growth_limit {
+                    if new_base >= limit {
+                        // Freeze at growth_limit; only consume the delta
+                        let delta = limit - self.tracks[i].base_size;
+                        if delta > T::Length::zero() {
+                            space_used += delta;
+                            self.tracks[i].base_size = limit;
+                        }
+                        any_frozen = true;
+                        return false; // remove from unfrozen
+                    }
+                }
+
+                // Not frozen yet; tentatively accept the share
+                space_used += share;
+                self.tracks[i].base_size = new_base;
+                true // keep in unfrozen
+            });
+
+            remaining -= space_used;
+
+            // If no track was frozen this round, all space has been distributed
+            if !any_frozen {
+                break;
+            }
         }
     }
 
@@ -449,36 +289,25 @@ impl<T: LayoutTreeNode> GridTracks<T> {
     /// This step applies when the content-distribution property
     /// (align-content/justify-content) is `normal` or `stretch`.
     ///
-    /// It distributes any remaining free space equally among auto tracks,
-    /// similar to maximize but specifically for the stretch behavior.
+    /// If the free space is positive, distribute it equally to the
+    /// base sizes of all auto tracks. Fr tracks are excluded because
+    /// they already consumed their share of free space in §11.7.
     pub fn stretch_auto_tracks(&mut self, free_space: T::Length) {
         if free_space <= T::Length::zero() {
             return;
         }
 
-        // Count auto tracks (tracks with infinite growth limit that aren't fr)
-        let auto_count = self
-            .tracks
-            .iter()
-            .filter(|track| track.is_auto() && track.has_infinite_growth_limit())
-            .count();
-
-        if auto_count == 0 {
+        if self.auto_count == 0 {
             return;
         }
 
         // Distribute free space equally among auto tracks
-        let space_per_track = free_space.div_f32(auto_count as f32);
+        let space_per_track = free_space.div_f32(self.auto_count as f32);
 
         for track in &mut self.tracks {
-            if track.is_auto() && track.has_infinite_growth_limit() {
+            if track.is_auto() {
                 track.base_size += space_per_track;
             }
         }
-    }
-
-    /// Check if there are any flexible tracks.
-    pub fn has_flexible_tracks(&self) -> bool {
-        self.total_flex > 0.0
     }
 }

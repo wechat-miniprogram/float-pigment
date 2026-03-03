@@ -110,6 +110,9 @@ pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
                     GridFlow::Row => item.update_track_block_size(TrackSize::Fr(*fr_value)),
                     GridFlow::Column => item.update_track_inline_size(TrackSize::Fr(*fr_value)),
                 },
+                // MinContent/MaxContent tracks: initial base size = 0.
+                // Their actual sizes are resolved by content-based sizing
+                // in compute_track_sizes (§11.5), not here.
                 _ => {}
             }
         }

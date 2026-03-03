@@ -355,40 +355,42 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
 
         // Pre-compute which tracks need a separate MinContent layout pass.
         //
-        // Only fr / min-content / max-content tracks need it:
-        // - fr tracks: min-content is the freeze threshold in §11.7
-        // - min-content/max-content tracks: base size from content (§11.5)
+        // Tracks with intrinsic min sizing functions need it:
+        // auto / fr / min-content / max-content.
         //
-        // Auto tracks do NOT need a separate MinContent pass because:
-        // - In the current architecture, the MinContent pass receives
-        //   track_size = OptionNum::none() for auto tracks (width = 0),
-        //   which produces an extreme min-content height (e.g. one char
-        //   per line for text). This is not the correct auto track behavior.
-        // - Instead, auto tracks use `computed_size` from the normal layout
-        //   pass (which already uses the correct resolved column width).
+        // - auto / min-content / max-content: base size depends on min-content
+        //   contribution in §11.5 Step 2.
+        // - fr tracks: min-content is the freeze threshold in §11.7
         //
         // Fixed tracks (length/percentage) also don't need it —
         // they use their explicit size directly.
         let column_needs_min_content: Vec<bool> = (0..actual_column_count)
             .map(|i| {
                 if let Some(track_item) = column_track_list.get(i) {
-                    matches!(
-                        track_item,
-                        LayoutTrackListItem::TrackSize(
-                            LayoutTrackSize::Fr(_)
-                                | LayoutTrackSize::MinContent
-                                | LayoutTrackSize::MaxContent
-                        )
-                    )
+                    match track_item {
+                        LayoutTrackListItem::TrackSize(track_size) => match track_size {
+                            LayoutTrackSize::Length(
+                                DefLength::Points(_) | DefLength::Percent(_),
+                            ) => false,
+                            LayoutTrackSize::Length(_)
+                            | LayoutTrackSize::Fr(_)
+                            | LayoutTrackSize::MinContent
+                            | LayoutTrackSize::MaxContent => true,
+                        },
+                        _ => false,
+                    }
                 } else {
                     // Implicit track - check grid-auto-columns (§7.6)
                     let implicit_index = i - column_track_list.len();
-                    matches!(
-                        grid_auto_columns.get(implicit_index),
-                        LayoutTrackSize::Fr(_)
-                            | LayoutTrackSize::MinContent
-                            | LayoutTrackSize::MaxContent
-                    )
+                    match grid_auto_columns.get(implicit_index) {
+                        LayoutTrackSize::Length(DefLength::Points(_) | DefLength::Percent(_)) => {
+                            false
+                        }
+                        LayoutTrackSize::Length(_)
+                        | LayoutTrackSize::Fr(_)
+                        | LayoutTrackSize::MinContent
+                        | LayoutTrackSize::MaxContent => true,
+                    }
                 }
             })
             .collect();
@@ -396,23 +398,30 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         let row_needs_min_content: Vec<bool> = (0..actual_row_count)
             .map(|i| {
                 if let Some(track_item) = row_track_list.get(i) {
-                    matches!(
-                        track_item,
-                        LayoutTrackListItem::TrackSize(
-                            LayoutTrackSize::Fr(_)
-                                | LayoutTrackSize::MinContent
-                                | LayoutTrackSize::MaxContent
-                        )
-                    )
+                    match track_item {
+                        LayoutTrackListItem::TrackSize(track_size) => match track_size {
+                            LayoutTrackSize::Length(
+                                DefLength::Points(_) | DefLength::Percent(_),
+                            ) => false,
+                            LayoutTrackSize::Length(_)
+                            | LayoutTrackSize::Fr(_)
+                            | LayoutTrackSize::MinContent
+                            | LayoutTrackSize::MaxContent => true,
+                        },
+                        _ => false,
+                    }
                 } else {
                     // Implicit track - check grid-auto-rows (§7.6)
                     let implicit_index = i - row_track_list.len();
-                    matches!(
-                        grid_auto_rows.get(implicit_index),
-                        LayoutTrackSize::Fr(_)
-                            | LayoutTrackSize::MinContent
-                            | LayoutTrackSize::MaxContent
-                    )
+                    match grid_auto_rows.get(implicit_index) {
+                        LayoutTrackSize::Length(DefLength::Points(_) | DefLength::Percent(_)) => {
+                            false
+                        }
+                        LayoutTrackSize::Length(_)
+                        | LayoutTrackSize::Fr(_)
+                        | LayoutTrackSize::MinContent
+                        | LayoutTrackSize::MaxContent => true,
+                    }
                 }
             })
             .collect();
@@ -457,16 +466,18 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             // with min/max constraints applied.
             //
             // Case 2: Neither the item's column nor its row track needs min-content.
-            // This covers auto tracks and fixed tracks (length/percentage).
-            // Per §11.5/§11.7, min_content_size is only consumed by:
+            // This covers fixed tracks (length/percentage) only.
+            // Per §11.5/§11.7, min_content_size is consumed by:
+            // - auto tracks: as base size (§11.5 Step 2)
             // - fr tracks: as freeze threshold (§11.7)
             // - min-content/max-content tracks: as intrinsic base size (§11.5)
-            // Auto/fixed tracks use computed_size instead, so skipping the
+            // Fixed tracks use their explicit size directly, so skipping the
             // MinContent pass won't affect track sizing results.
             let has_definite_css_width = css_size.width.is_some();
             let has_definite_css_height = css_size.height.is_some();
             let item_tracks_all_fixed =
                 !column_needs_min_content[column] && !row_needs_min_content[row];
+            let min_content_constraint = Size::new(OptionNum::none(), OptionNum::none());
             let min_content_size =
                 if (has_definite_css_width && has_definite_css_height) || item_tracks_all_fixed {
                     None
@@ -477,9 +488,9 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                                 env,
                                 child_node,
                                 ComputeRequest {
-                                    size: Normalized(track_size),
-                                    parent_inner_size: Normalized(track_size),
-                                    max_content: Normalized(track_size),
+                                    size: Normalized(min_content_constraint),
+                                    parent_inner_size: Normalized(min_content_constraint),
+                                    max_content: Normalized(min_content_constraint),
                                     kind: ComputeRequestKind::AllSize,
                                     parent_is_block: false,
                                     sizing_mode: SizingMode::MinContent,
@@ -524,7 +535,7 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         // - For auto tracks: size to fit content (using outer/margin-box size)
         // - For fr tracks: distribute remaining space via iterative algorithm
         // ═══════════════════════════════════════════════════════════════════════
-        let (column_result, row_result) = compute_track_sizes(
+        let computed_track_sizes = compute_track_sizes(
             &mut grid_layout_matrix,
             &column_track_list,
             &row_track_list,
@@ -544,16 +555,10 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         // ═══════════════════════════════════════════════════════════════════════
         use crate::algo::grid::track::GridTracks;
 
-        let mut column_tracks: GridTracks<T> = GridTracks::from_sizes_with_fr(
-            &column_result.sizes,
-            &column_result.has_explicit,
-            &column_result.fr_values,
-        );
-        let mut row_tracks: GridTracks<T> = GridTracks::from_sizes_with_fr(
-            &row_result.sizes,
-            &row_result.has_explicit,
-            &row_result.fr_values,
-        );
+        let mut column_tracks: GridTracks<T> =
+            GridTracks::from_computed_track_size(&computed_track_sizes.columns);
+        let mut row_tracks: GridTracks<T> =
+            GridTracks::from_computed_track_size(&computed_track_sizes.rows);
 
         let has_definite_width = !matches!(style.width(), DefLength::Auto);
         let has_definite_height = !matches!(style.height(), DefLength::Auto);
@@ -562,8 +567,9 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         // STEP 7c: Maximize Tracks (§11.6)
         // CSS Grid §11.6: https://www.w3.org/TR/css-grid-1/#algo-grow-tracks
         //
-        // Distribute free space equally to tracks with infinite growth limits
-        // (auto tracks that aren't fr).
+        // Distribute free space equally to the base sizes of all non-flex tracks,
+        // freezing tracks as they reach their growth limits.
+        // Tracks with infinite growth limits (auto tracks) never freeze.
         // ═══════════════════════════════════════════════════════════════════════
         if has_definite_width {
             if let Some(container_width) = requested_inner_size.0.width.val() {
@@ -585,12 +591,17 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         // STEP 7d: Stretch auto Tracks (§11.8)
         // CSS Grid §11.8: https://www.w3.org/TR/css-grid-1/#algo-stretch
         //
-        // When justify-content is `stretch`, or align-content is `normal`/`stretch`,
+        // When justify-content is `normal`/`stretch`, or align-content is `normal`/`stretch`,
         // auto tracks are stretched to fill the container.
+        // Per CSS Box Alignment §5.1.4, `normal` behaves as `stretch` in grid containers.
+        // Reference: https://drafts.csswg.org/css-align-3/#distribution-grid
         // ═══════════════════════════════════════════════════════════════════════
         use float_pigment_css::typing::{AlignContent, JustifyContent};
 
-        let should_stretch_columns = matches!(style.justify_content(), JustifyContent::Stretch);
+        let should_stretch_columns = matches!(
+            style.justify_content(),
+            JustifyContent::Normal | JustifyContent::Stretch
+        );
         let should_stretch_rows = matches!(
             style.align_content(),
             AlignContent::Normal | AlignContent::Stretch

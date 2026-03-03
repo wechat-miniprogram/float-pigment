@@ -291,6 +291,8 @@ pub(crate) fn calculate_justify_content_offset<L: LengthNum>(
             let gap = available_space.div_f32((track_count + 1) as f32);
             (gap, gap)
         }
-        JustifyContent::Stretch | JustifyContent::Baseline => (L::zero(), L::zero()),
+        JustifyContent::Stretch | JustifyContent::Baseline | JustifyContent::Normal => {
+            (L::zero(), L::zero())
+        }
     }
 }

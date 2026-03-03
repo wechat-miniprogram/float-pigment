@@ -2214,7 +2214,7 @@ mod flex {
         ssg.append(ss);
         {
             let np = query(&ssg, "", "", [], []);
-            assert_eq!(np.justify_content(), JustifyContent::FlexStart);
+            assert_eq!(np.justify_content(), JustifyContent::Normal);
         }
         {
             let np = query(&ssg, "", "", ["a"], []);

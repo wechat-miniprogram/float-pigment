@@ -268,6 +268,7 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
             match parent.style.justify_content() {
                 JustifyContent::SpaceBetween
                 | JustifyContent::FlexStart
+                | JustifyContent::Normal
                 | JustifyContent::Start
                 | JustifyContent::Stretch
                 | JustifyContent::Baseline => parent
