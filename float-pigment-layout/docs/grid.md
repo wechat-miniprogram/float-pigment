@@ -67,11 +67,14 @@ This implementation uses a simplified single-pass approach with 9 steps:
 |                                                                                   |
 |  6. Item Sizing (§11.5)                                                           |
 |     +-- Calculate min-content / max-content contribution for each item            |
+|     +-- Calculate computed size for each item                                     |
 |     +-- Use outer size (margin-box) for track sizing                              |
 |                                                                                   |
-|  7. Finalize Tracks (§11.5-11.6)                                                  |
-|     +-- Adjust auto track sizes based on item outer size (§11.5)                  |
-|     +-- §11.6 Maximize Tracks: Distribute free space to auto tracks               |
+|  7. Finalize Tracks (§11.5-11.8)                                                  |
+|     +-- §11.5 Resolve Intrinsic Track Sizes: size tracks from item contributions  |
+|     +-- §11.7 Expand Flexible Tracks: iterative freeze algorithm for fr tracks    |
+|     +-- §11.6 Maximize Tracks: distribute free space to auto tracks               |
+|     +-- §11.8 Stretch auto Tracks: when align/justify-content is normal/stretch   |
 |                                                                                   |
 |  8. Content Distribution (§10.5)                                                  |
 |     +-- Apply align-content: distribute remaining space on block axis             |
@@ -151,20 +154,30 @@ Recursively calculate size contribution of each grid item:
 
 1. Iterate through each item in grid matrix
 2. Determine item's available space (grid area it spans)
-3. Calculate min-content contribution (§11.5, §6.6):
-   - **Shortcut**: When item has both definite CSS `width` and `height` (non-`auto`), use CSS size directly as `min_content_size` without performing an extra `MinContent` layout pass
-   - Otherwise: Perform a full `MinContent` layout pass via `compute_internal`
-4. Recursively invoke layout algorithm to compute item size
-5. Output: Each item's `width`, `height`, `min_content_size`
+3. Pre-compute which tracks need min-content / max-content layout passes:
+   - Fixed tracks (`<length>`, `<percentage>`): not needed
+   - Intrinsic tracks (`auto`, `min-content`, `max-content`, `fr`): need min-content
+   - `auto` / `max-content` tracks: also need max-content (§11.5 Step 4)
+4. Calculate min-content contribution (§11.5 Step 2):
+   - **Shortcut**: When item has both definite CSS `width` and `height` (non-`auto`), or all tracks it spans are fixed, skip the `MinContent` layout pass
+   - Otherwise: Perform a full `MinContent` layout pass via `compute_internal` with unconstrained available space
+5. Calculate max-content contribution (§11.5 Step 4):
+   - **Shortcut**: When item has definite CSS size, or its tracks don't need max-content, skip
+   - Otherwise: Perform a full `MaxContent` layout pass via `compute_internal` with unconstrained available space
+6. Recursively invoke layout algorithm to compute item's computed size (using resolved track sizes as constraints)
+7. Output: Each item's `computed_size`, `min_content_size`, `max_content_size`
 
 ##### Step 7: Finalize Tracks
 
 Adjust track sizes based on item contribution and complete fr calculation:
 
 1. **§11.5 Resolve Intrinsic Track Sizes**:
-   - Iterate through all `auto` tracks
-   - Take maximum outer size (margin-box) of all items spanning that track
-   - Update track `base_size`
+   - Iterate through all items, updating `base_size` and `growth_limit` per track type:
+     - **Fixed** tracks: use specified size (§11.4)
+     - **Auto** tracks: `base_size` = max(min-content contribution), `growth_limit` = infinity (§11.5 Step 2, §11.4)
+     - **MinContent** tracks: `base_size` = max(min-content), `growth_limit` = max(min-content) (§11.5 Step 2+4)
+     - **MaxContent** tracks: `base_size` = max(min-content), `growth_limit` = max(max-content) (§11.5 Step 2+4)
+     - **Fr** tracks: collect min-content as freeze threshold (§11.7)
 2. **§11.7 Expand Flexible Tracks** (iterative algorithm):
    - Calculate `hypothetical_fr_size = free_space / total_flex`
    - If any fr track's size < its min-content, freeze that track at min-content
@@ -174,7 +187,11 @@ Adjust track sizes based on item contribution and complete fr calculation:
    - Only execute when container has definite size
    - Calculate free space: `free_space = container_size - total_base_size - gutters`
    - Distribute free space equally to tracks with `growth_limit` = infinity (auto tracks)
-4. Output: Final `each_inline_size[]`, `each_block_size[]`
+4. **§11.8 Stretch auto Tracks**:
+   - When `justify-content` is `normal`/`stretch`, stretch auto tracks in column direction
+   - When `align-content` is `normal`/`stretch`, stretch auto tracks in row direction
+   - `normal` behaves as `stretch` in grid containers (CSS Box Alignment §5.1.4)
+5. Output: Final `each_inline_size[]`, `each_block_size[]`
 
 ##### Step 8: Content Distribution
 
@@ -208,7 +225,7 @@ Apply self-alignment and calculate final item position:
 | ---------------------------- | ------------------------------------- | ------ | ---------------------------------------------------------------- |
 | §5 Grid Containers           | `display: grid/inline-grid`           | ✅      | Full support                                                     |
 | §6 Grid Items                | Grid item definition                  | ✅      | Correctly filters `display: none`, supports `position: absolute` |
-| §7.1 Explicit Grid           | `grid-template-rows/columns`          | ✅      | Supports `<length>`, `<percentage>`, `auto`, `fr`                |
+| §7.1 Explicit Grid           | `grid-template-rows/columns`          | ✅      | Supports `<length>`, `<percentage>`, `auto`, `fr`, `min-content`, `max-content` |
 | §7.5-7.6 Implicit Grid       | `grid-auto-rows/columns`              | ✅      | Supports fixed, percentage, fr, multiple values cycling          |
 | §8.1-8.4 Line Placement      | Line-based placement                  | ❌      | `grid-column/row-start/end` not implemented                      |
 | §8.5 Auto-placement          | Auto-placement algorithm              | ✅      | Full sparse and dense mode support                               |
@@ -292,17 +309,24 @@ Apply self-alignment and calculate final item position:
 
 ## Test Coverage
 
-Currently **~160** Grid test cases covering:
+Currently **~243** Grid test cases covering:
 
-| Category                     | Test Count | File                 |
-| ---------------------------- | ---------- | -------------------- |
-| Explicit Track Sizing        | 14         | `grid_template.rs`   |
-| Auto-placement (incl. dense) | 24         | `grid_auto_flow.rs`  |
-| Gutters                      | 15         | `gap.rs`             |
-| Flexible Length (`fr`)       | 11         | `fr_unit.rs`         |
-| Basic Layout                 | 18         | `grid_basics.rs`     |
-| Box Alignment                | 38         | `alignment.rs`       |
-| Maximize Tracks              | 14         | `maximize_tracks.rs` |
-| Other                        | 27         | -                    |
+### WPT Tests (`tests/wpt/css_grid/`)
+
+| Category                     | Test Count | File                  |
+| ---------------------------- | ---------- | --------------------- |
+| Box Alignment                | 47         | `alignment.rs`        |
+| Intrinsic Track Sizing       | 33         | `intrinsic_tracks.rs` |
+| Maximize Tracks              | 25         | `maximize_tracks.rs`  |
+| Auto-placement (incl. dense) | 22         | `grid_auto_flow.rs`   |
+| Basic Layout                 | 17         | `grid_basics.rs`      |
+| Gutters                      | 15         | `gap.rs`              |
+| Explicit Track Sizing        | 14         | `grid_template.rs`    |
+| Direction (RTL)              | 13         | `direction.rs`        |
+| Flexible Length (`fr`)       | 11         | `fr_unit.rs`          |
+| Margin                       | 11         | `margin.rs`           |
+| Auto Tracks                  | 9          | `grid_auto.rs`        |
+| Writing Mode                 | 7          | `writing_mode.rs`     |
+| **WPT Subtotal**             | **224**    |                       |
 
 All test assertion values are derived from W3C specification, ensuring compliance with spec-defined calculation logic.

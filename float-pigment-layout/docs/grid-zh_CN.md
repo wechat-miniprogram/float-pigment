@@ -67,11 +67,14 @@ float-pigment-layout/src/algo/grid/
 |                                                                                   |
 |  6. Item Sizing (§11.5)                                                           |
 |     +-- 计算每个项目的 min-content / max-content contribution                      |
+|     +-- 计算每个项目的 computed size                                               |
 |     +-- 使用 outer size (margin-box) 参与 track sizing                            |
 |                                                                                   |
-|  7. Finalize Tracks (§11.5-11.6)                                                  |
-|     +-- 根据项目 outer size 调整 auto 轨道尺寸 (§11.5)                              |
+|  7. Finalize Tracks (§11.5-11.8)                                                  |
+|     +-- §11.5 Resolve Intrinsic Track Sizes: 根据项目贡献计算轨道尺寸             |
+|     +-- §11.7 Expand Flexible Tracks: 迭代冻结算法计算 fr 轨道尺寸                |
 |     +-- §11.6 Maximize Tracks: 分配 free space 给 auto tracks                     |
+|     +-- §11.8 Stretch auto Tracks: 当 align/justify-content 为 normal/stretch 时  |
 |                                                                                   |
 |  8. Content Distribution (§10.5)                                                  |
 |     +-- 应用 align-content: 分配 block axis 方向的剩余空间                          |
@@ -151,20 +154,30 @@ float-pigment-layout/src/algo/grid/
 
 1. 遍历网格矩阵中的每个项目
 2. 确定项目的可用空间（所跨越的 grid area）
-3. 计算 min-content contribution (§11.5, §6.6)：
-   - **Shortcut**：当项目同时具有明确的 CSS `width` 和 `height`（非 `auto`）时，直接使用 CSS 尺寸作为 `min_content_size`，跳过额外的 `MinContent` 布局计算
-   - 否则：执行完整的 `MinContent` 布局计算（通过 `compute_internal`）
-4. 递归调用布局算法计算项目尺寸
-5. 输出：每个项目的 `width`、`height`、`min_content_size`
+3. 预计算每个轨道是否需要 min-content / max-content 布局：
+   - 固定轨道 (`<length>`, `<percentage>`)：不需要
+   - 内在轨道 (`auto`, `min-content`, `max-content`, `fr`)：需要 min-content
+   - `auto` / `max-content` 轨道：还需要 max-content (§11.5 Step 4)
+4. 计算 min-content contribution (§11.5 Step 2)：
+   - **Shortcut**：当项目同时具有明确的 CSS `width` 和 `height`（非 `auto`），或所在轨道全部为固定轨道时，跳过 `MinContent` 布局计算
+   - 否则：执行完整的 `MinContent` 布局计算（通过 `compute_internal`，使用无约束可用空间）
+5. 计算 max-content contribution (§11.5 Step 4)：
+   - **Shortcut**：当项目有明确 CSS 尺寸，或所在轨道不需要 max-content 时，跳过
+   - 否则：执行完整的 `MaxContent` 布局计算（通过 `compute_internal`，使用无约束可用空间）
+6. 递归调用布局算法计算项目的 computed size（使用已解析的轨道尺寸作为约束）
+7. 输出：每个项目的 `computed_size`、`min_content_size`、`max_content_size`
 
 ##### Step 7: Finalize Tracks
 
 根据 item contribution 调整 track size 并完成 fr 计算：
 
 1. **§11.5 Resolve Intrinsic Track Sizes**：
-   - 遍历所有 `auto` tracks
-   - 取该 track 内所有 items 的最大 outer size (margin-box)
-   - 更新 track `base_size`
+   - 遍历所有项目，按轨道类型更新 `base_size` 和 `growth_limit`：
+     - **Fixed** 轨道：使用指定尺寸 (§11.4)
+     - **Auto** 轨道：`base_size` = max(min-content contribution)，`growth_limit` = infinity (§11.5 Step 2, §11.4)
+     - **MinContent** 轨道：`base_size` = max(min-content)，`growth_limit` = max(min-content) (§11.5 Step 2+4)
+     - **MaxContent** 轨道：`base_size` = max(min-content)，`growth_limit` = max(max-content) (§11.5 Step 2+4)
+     - **Fr** 轨道：收集 min-content 作为冻结阈值 (§11.7)
 2. **§11.7 Expand Flexible Tracks** (迭代算法)：
    - 计算 `hypothetical_fr_size = free_space / total_flex`
    - 如果任何 fr track 的 size < 其 min-content，冻结该 track 在 min-content
@@ -174,7 +187,11 @@ float-pigment-layout/src/algo/grid/
    - 仅当 container 有 definite size 时执行
    - 计算 free space：`free_space = container_size - total_base_size - gutters`
    - 将 free space 平均分配给 `growth_limit` 为 infinity 的 tracks (auto tracks)
-4. 输出：最终的 `each_inline_size[]`、`each_block_size[]`
+4. **§11.8 Stretch auto Tracks**：
+   - 当 `justify-content` 为 `normal`/`stretch` 时，拉伸列方向的 auto 轨道
+   - 当 `align-content` 为 `normal`/`stretch` 时，拉伸行方向的 auto 轨道
+   - `normal` 在 grid 容器中等效于 `stretch` (CSS Box Alignment §5.1.4)
+5. 输出：最终的 `each_inline_size[]`、`each_block_size[]`
 
 ##### Step 8: Content Distribution
 
@@ -208,7 +225,7 @@ float-pigment-layout/src/algo/grid/
 | ---------------------------- | ---------------------------------- | ---- | --------------------------------------------------- |
 | §5 Grid Containers           | `display: grid/inline-grid`        | ✅    | 完整支持                                            |
 | §6 Grid Items                | 网格项目定义                       | ✅    | 正确过滤 `display: none`，支持 `position: absolute` |
-| §7.1 Explicit Grid           | `grid-template-rows/columns`       | ✅    | 支持 `<length>`, `<percentage>`, `auto`, `fr`       |
+| §7.1 Explicit Grid           | `grid-template-rows/columns`       | ✅    | 支持 `<length>`, `<percentage>`, `auto`, `fr`, `min-content`, `max-content` |
 | §7.5-7.6 Implicit Grid       | `grid-auto-rows/columns`           | ✅    | 支持固定值、百分比、fr、多值循环                    |
 | §8.1-8.4 Line Placement      | 基于线的放置                       | ❌    | 未实现 `grid-column/row-start/end`                  |
 | §8.5 Auto-placement          | 自动放置算法                       | ✅    | 完整实现 sparse 和 dense 模式                       |
@@ -292,17 +309,23 @@ float-pigment-layout/src/algo/grid/
 
 ## 测试覆盖
 
-当前共有 **~160 个** Grid 测试用例，覆盖：
+当前共有 **~243 个** Grid 测试用例，覆盖：
 
-| 类别                      | 测试数 | 文件                 |
-| ------------------------- | ------ | -------------------- |
-| Explicit Track Sizing     | 14     | `grid_template.rs`   |
-| Auto-placement (含 dense) | 24     | `grid_auto_flow.rs`  |
-| Gutters                   | 15     | `gap.rs`             |
-| Flexible Length (`fr`)    | 11     | `fr_unit.rs`         |
-| Basic Layout              | 18     | `grid_basics.rs`     |
-| Box Alignment             | 38     | `alignment.rs`       |
-| Maximize Tracks           | 14     | `maximize_tracks.rs` |
-| Other                     | 27     | -                    |
+### WPT 测试 (`tests/wpt/css_grid/`)
+
+| 类别                      | 测试数 | 文件                   |
+| ------------------------- | ------ | ---------------------- |
+| Box Alignment             | 47     | `alignment.rs`         |
+| Intrinsic Track Sizing    | 33     | `intrinsic_tracks.rs`  |
+| Maximize Tracks           | 25     | `maximize_tracks.rs`   |
+| Auto-placement (含 dense) | 22     | `grid_auto_flow.rs`    |
+| Basic Layout              | 17     | `grid_basics.rs`       |
+| Gutters                   | 15     | `gap.rs`               |
+| Explicit Track Sizing     | 14     | `grid_template.rs`     |
+| Direction (RTL)           | 13     | `direction.rs`         |
+| Flexible Length (`fr`)    | 11     | `fr_unit.rs`           |
+| Margin                    | 11     | `margin.rs`            |
+| Auto Tracks               | 9      | `grid_auto.rs`         |
+| Writing Mode              | 7      | `writing_mode.rs`      |
 
 所有测试断言值均根据 W3C 规范推算，确保符合规范定义的计算逻辑。
