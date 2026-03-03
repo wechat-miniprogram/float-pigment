@@ -637,6 +637,7 @@ pub enum JustifyContent {
     Right,
     Stretch,
     Baseline,
+    Normal,
 }
 
 #[allow(missing_docs)]

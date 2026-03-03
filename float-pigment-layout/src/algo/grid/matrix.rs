@@ -99,6 +99,7 @@ impl OccupiedBitmap {
     }
 
     /// Check if the cell at (row, col) is occupied.
+    #[allow(dead_code)]
     #[inline]
     fn get(&self, row: usize, col: usize) -> bool {
         let (byte, bit) = self.byte_and_bit(row, col);
@@ -291,12 +292,6 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
         self.max_col = self.max_col.max(column + 1);
         // Store item in the Vec
         self.items.push(item);
-    }
-
-    /// Check if a cell is occupied.
-    #[allow(unused)]
-    pub(crate) fn is_occupied(&self, row: usize, column: usize) -> bool {
-        self.occupied.get(row, column)
     }
 
     /// Find the first unoccupied cell starting from the given hint line.

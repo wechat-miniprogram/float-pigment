@@ -1121,7 +1121,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                             JustifyContent::Start
                             | JustifyContent::Baseline
                             | JustifyContent::Stretch => T::Length::zero(),
-                            JustifyContent::FlexStart => T::Length::zero(),
+                            JustifyContent::FlexStart | JustifyContent::Normal => T::Length::zero(),
                             JustifyContent::Center => free_space.div_i32(2),
                             JustifyContent::FlexEnd => free_space,
                             JustifyContent::End => free_space,
@@ -1159,6 +1159,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                         let free_space = free_space.max(T::Length::zero());
                         gap + match style.justify_content() {
                             JustifyContent::FlexStart
+                            | JustifyContent::Normal
                             | JustifyContent::Start
                             | JustifyContent::Baseline
                             | JustifyContent::Stretch => T::Length::zero(),

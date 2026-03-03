@@ -50,7 +50,7 @@ property_list! (PropertyValueWithGlobal, {
     0x22 AlignItems: AlignItemsType as Initial default AlignItems::Stretch;
     0x23 AlignSelf: AlignSelfType as Initial default AlignSelf::Auto;
     0x24 AlignContent: AlignContentType as Initial default AlignContent::Stretch;
-    0x25 JustifyContent: JustifyContentType as Initial default JustifyContent::FlexStart;
+    0x25 JustifyContent: JustifyContentType as Initial default JustifyContent::Normal;
     0x26 FlexGrow: NumberType as Initial default Number::F32(0.);
     0x27 FlexShrink: NumberType as Initial default Number::F32(1.);
     0x28 FlexBasis: LengthType as Initial default Length::Undefined, resolver = Length::resolve_em;
@@ -316,7 +316,8 @@ property_value_format! (PropertyValueWithGlobal, {
     }};
 
     justify_content: {{ JustifyContent
-        = "center" => JustifyContent::Center
+        = "normal" => JustifyContent::Normal
+        | "center" => JustifyContent::Center
         | "flex-start" => JustifyContent::FlexStart
         | "flex-end" => JustifyContent::FlexEnd
         | "space-between" => JustifyContent::SpaceBetween

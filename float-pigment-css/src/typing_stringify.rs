@@ -531,6 +531,7 @@ impl fmt::Display for JustifyContent {
                 JustifyContent::Right => "right",
                 JustifyContent::Stretch => "stretch",
                 JustifyContent::Baseline => "baseline",
+                JustifyContent::Normal => "normal",
             }
         )
     }

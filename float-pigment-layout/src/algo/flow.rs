@@ -290,8 +290,12 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                 SizingMode::Normal => size,
                 _ => Normalized(Size::new_with_dir(
                     axis_info.dir,
-                    total_main_size(),
-                    total_cross_size(),
+                    node_size
+                        .main_size(axis_info.dir)
+                        .unwrap_or_else(total_main_size),
+                    node_size
+                        .cross_size(axis_info.dir)
+                        .unwrap_or_else(total_cross_size),
                 )),
             },
             first_baseline_ascent,
