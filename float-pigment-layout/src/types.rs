@@ -1059,6 +1059,21 @@ pub enum LayoutTrackListItem<L: LengthNum, T: PartialEq + Clone = i32> {
     TrackSize(LayoutTrackSize<L, T>),
 }
 
+impl<L: LengthNum, T: PartialEq + Clone> LayoutTrackListItem<L, T> {
+    /// Returns `true` if this item is a track size with an intrinsic sizing
+    /// `auto`, `min-content`, `max-content` are intrinsic.
+    pub fn is_intrinsic(&self) -> bool {
+        matches!(
+            self,
+            LayoutTrackListItem::TrackSize(
+                LayoutTrackSize::Length(DefLength::Auto)
+                    | LayoutTrackSize::MinContent
+                    | LayoutTrackSize::MaxContent
+            )
+        )
+    }
+}
+
 #[allow(missing_docs)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum LayoutTrackSize<L: LengthNum, T: PartialEq + Clone = i32> {

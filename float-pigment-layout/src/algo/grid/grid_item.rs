@@ -40,6 +40,8 @@ pub(crate) struct GridLayoutItem<'a, T: LayoutTreeNode> {
     pub(crate) track_size: Size<OptionNum<T::Length>>,
     /// The item's min-content size (used for intrinsic track sizing)
     pub(crate) min_content_size: Option<Size<T::Length>>,
+    /// The item's max-content size (used for intrinsic track sizing)
+    pub(crate) max_content_size: Option<Size<T::Length>>,
     /// The item's final computed size
     pub(crate) computed_size: Size<T::Length>,
 }
@@ -61,6 +63,7 @@ impl<'a, T: LayoutTreeNode> GridLayoutItem<'a, T> {
             css_size,
             track_size,
             min_content_size: None,
+            max_content_size: None,
             computed_size: Size::zero(),
         }
     }
@@ -89,6 +92,14 @@ impl<'a, T: LayoutTreeNode> GridLayoutItem<'a, T> {
 
     pub(crate) fn set_min_content_size(&mut self, min_content_size: Option<Size<T::Length>>) {
         self.min_content_size = min_content_size;
+    }
+
+    pub(crate) fn max_content_size(&self) -> Option<&Size<T::Length>> {
+        self.max_content_size.as_ref()
+    }
+
+    pub(crate) fn set_max_content_size(&mut self, max_content_size: Option<Size<T::Length>>) {
+        self.max_content_size = max_content_size;
     }
 
     pub(crate) fn computed_size(&self) -> Size<T::Length> {

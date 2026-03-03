@@ -92,6 +92,10 @@ pub(crate) struct TrackSizingResult<L: LengthNum> {
     pub fr_value: f32,
     /// Whether this track has an `auto` sizing function (§7.2).
     pub is_auto: bool,
+    /// Whether this track has a `min-content` sizing function (§7.2).
+    pub is_min_content: bool,
+    /// Whether this track has a `max-content` sizing function (§7.2).
+    pub is_max_content: bool,
     /// The track's growth limit; `None` represents infinity (§11.4).
     pub growth_limit: Option<L>,
 }
@@ -317,12 +321,19 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
         let outer_min_content_height = min_content_height + item.margin.vertical();
 
         // §11.5 Step 4: max-content contribution for growth_limit
-        // Use computed_size as the max-content contribution
-        // (computed_size is from the normal layout pass, which approximates max-content)
+        //
+        // For columns: use max_content_size (unconstrained layout) to get the
+        // true max-content width. This is the size the item would take with
+        // infinite available space.
+        //
+        // For rows: use computed_size (constrained by resolved column width).
+        // Per §11.5, row contributions are computed using the item's resolved
+        // column size, so the constrained layout result is correct.
+        let max_content_size = item.max_content_size().copied();
         let max_content_width = if css_width.is_some() {
             css_width.val().unwrap()
         } else {
-            item.computed_size().width
+            max_content_size.map_or(item.computed_size().width, |s| s.width)
         };
         let outer_max_content_width = max_content_width + item.margin.horizontal();
 
@@ -383,11 +394,12 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
                             .map(|s| s.max(effective_min_content_width))
                             .unwrap_or(effective_min_content_width),
                     );
-                    // §11.4: auto max → growth_limit initialized to infinity.
-                    // §11.5 Step 4: increase(infinity, max-content) = infinity
-                    // (increase is defined as max(current, new), so infinity
-                    // remains unchanged). Keep None so §11.6 Maximize can
-                    // distribute free space into this track without freezing.
+                    // §11.4: auto max → growth_limit initialized to infinity (None).
+                    // §11.5 Step 4: increase(infinity, max-content) = infinity.
+                    // The "increase" operation is max(current, new); since
+                    // infinity > any finite value, it stays infinity.
+                    // This allows §11.6 Maximize to distribute free space
+                    // into auto tracks without freezing them.
                     columns[column].growth_limit = None;
                 }
                 IntrinsicTrackType::MinContent => {
@@ -467,11 +479,9 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
                             .map(|s| s.max(effective_min_content_height))
                             .unwrap_or(effective_min_content_height),
                     );
-                    // §11.4: auto max → growth_limit initialized to infinity.
-                    // §11.5 Step 4: increase(infinity, max-content) = infinity
-                    // (increase is defined as max(current, new), so infinity
-                    // remains unchanged). Keep None so §11.6 Maximize can
-                    // distribute free space into this track without freezing.
+                    // §11.4: auto max → growth_limit initialized to infinity (None).
+                    // §11.5 Step 4: increase(infinity, max-content) = infinity.
+                    // See column Auto comment above for rationale.
                     rows[row].growth_limit = None;
                 }
                 IntrinsicTrackType::MinContent => {
@@ -552,6 +562,8 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
             size,
             fr_value: c.fr_value,
             is_auto: c.track_type == IntrinsicTrackType::Auto,
+            is_min_content: c.track_type == IntrinsicTrackType::MinContent,
+            is_max_content: c.track_type == IntrinsicTrackType::MaxContent,
             growth_limit: c.growth_limit,
         })
         .collect();
@@ -562,6 +574,8 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
             size,
             fr_value: r.fr_value,
             is_auto: r.track_type == IntrinsicTrackType::Auto,
+            is_min_content: r.track_type == IntrinsicTrackType::MinContent,
+            is_max_content: r.track_type == IntrinsicTrackType::MaxContent,
             growth_limit: r.growth_limit,
         })
         .collect();
