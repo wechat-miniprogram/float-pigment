@@ -1,4 +1,4 @@
-//! Layout engine with common CSS block and flexbox support.
+//! Layout engine with common CSS block, flexbox, and grid support.
 //!
 //! Note: it is not a full web-compatible layout engine because it supports a subset of web layout algorithms.
 //!
@@ -6,6 +6,7 @@
 //!
 //! * `display: block`
 //! * `display: flex`
+//! * `display: grid`
 //! * `display: none`
 //! * `position: absolute`
 //! * with an optional external *text layout engine*:

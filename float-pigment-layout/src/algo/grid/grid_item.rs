@@ -47,6 +47,7 @@ pub(crate) struct GridLayoutItem<'a, T: LayoutTreeNode> {
 }
 
 impl<'a, T: LayoutTreeNode> GridLayoutItem<'a, T> {
+    /// Create a new layout item with the given placement and sizing info.
     pub(crate) fn new(
         row: usize,
         column: usize,
@@ -68,44 +69,54 @@ impl<'a, T: LayoutTreeNode> GridLayoutItem<'a, T> {
         }
     }
 
+    /// Get the item's row index.
     #[inline(always)]
     pub(crate) fn row(&self) -> usize {
         self.row
     }
 
+    /// Get the item's column index.
     #[inline(always)]
     pub(crate) fn column(&self) -> usize {
         self.column
     }
 
+    /// Get the track size along the inline (width) axis.
     pub(crate) fn track_inline_size(&self) -> OptionNum<T::Length> {
         self.track_size.width.clone()
     }
 
+    /// Get the track size along the block (height) axis.
     pub(crate) fn track_block_size(&self) -> OptionNum<T::Length> {
         self.track_size.height.clone()
     }
 
+    /// Get the item's min-content size, if computed.
     pub(crate) fn min_content_size(&self) -> Option<&Size<T::Length>> {
         self.min_content_size.as_ref()
     }
 
+    /// Set the item's min-content size (computed during intrinsic sizing).
     pub(crate) fn set_min_content_size(&mut self, min_content_size: Option<Size<T::Length>>) {
         self.min_content_size = min_content_size;
     }
 
+    /// Get the item's max-content size, if computed.
     pub(crate) fn max_content_size(&self) -> Option<&Size<T::Length>> {
         self.max_content_size.as_ref()
     }
 
+    /// Set the item's max-content size (computed during intrinsic sizing).
     pub(crate) fn set_max_content_size(&mut self, max_content_size: Option<Size<T::Length>>) {
         self.max_content_size = max_content_size;
     }
 
+    /// Get the item's final computed size.
     pub(crate) fn computed_size(&self) -> Size<T::Length> {
         self.computed_size
     }
 
+    /// Set the item's final computed size after layout.
     pub(crate) fn set_computed_size(&mut self, computed_size: Size<T::Length>) {
         self.computed_size = computed_size;
     }
@@ -167,14 +178,17 @@ impl<'a, T: LayoutTreeNode> GridItem<'a, T> {
         self.column
     }
 
+    /// Update the track sizing function for the block (row) axis.
     pub(crate) fn update_track_block_size(&mut self, track_block_size: TrackSize<T>) {
         self.track_block_size = track_block_size;
     }
 
+    /// Update the track sizing function for the inline (column) axis.
     pub(crate) fn update_track_inline_size(&mut self, track_inline_size: TrackSize<T>) {
         self.track_inline_size = track_inline_size;
     }
 
+    /// Get the fixed track size for the block axis, if the track is fixed.
     pub(crate) fn fixed_track_block_size(&self) -> Option<&OptionNum<T::Length>> {
         match &self.track_block_size {
             TrackSize::Fixed(size) => Some(size),
@@ -182,6 +196,7 @@ impl<'a, T: LayoutTreeNode> GridItem<'a, T> {
         }
     }
 
+    /// Get the fixed track size for the inline axis, if the track is fixed.
     pub(crate) fn fixed_track_inline_size(&self) -> Option<&OptionNum<T::Length>> {
         match &self.track_inline_size {
             TrackSize::Fixed(size) => Some(size),

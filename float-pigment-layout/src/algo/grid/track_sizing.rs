@@ -127,10 +127,15 @@ pub(crate) struct TrackSizingResult<L: LengthNum> {
 /// - Fr: handled separately in §11.7
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum IntrinsicTrackType {
+    /// A fixed-size track (length or percentage). No intrinsic sizing needed.
     Fixed,
+    /// An `auto` track: min = min-content, max = max-content.
     Auto,
+    /// A `min-content` track: min = min-content, max = min-content.
     MinContent,
+    /// A `max-content` track: min = min-content, max = max-content.
     MaxContent,
+    /// An `fr` track: handled separately in §11.7.
     Fr,
 }
 
