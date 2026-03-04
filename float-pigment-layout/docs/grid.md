@@ -13,18 +13,16 @@ This document describes the CSS Grid layout algorithm implementation in `float-p
 
 ```
 float-pigment-layout/src/algo/grid/
-├── mod.rs           # Main entry, Grid layout algorithm
-├── alignment.rs     # Alignment calculations (align/justify-items/self/content)
-├── track_size.rs    # Initial track size assignment
-├── track_sizing.rs  # Final track sizing (§11.5, §11.7)
-├── track.rs         # Track data structures (GridTrack, GridTracks)
-├── template.rs      # Track template initialization (§7.1)
-├── placement.rs     # Grid item placement algorithm (§8.5)
-├── matrix.rs        # Grid matrix data structure
-└── grid_item.rs     # Grid item structure definitions
+├── mod.rs           # Main entry: 9-step layout algorithm orchestration (GridContainer::compute)
+├── alignment.rs     # §10.3-10.5: Self-alignment (align/justify-self) & content distribution (align/justify-content)
+├── grid_item.rs     # §6: GridItem (placement phase) & GridLayoutItem (layout phase) data structures
+├── matrix.rs        # §7.1: OccupiedBitmap (1 bit/cell) + GridMatrix (placement) + GridLayoutMatrix (positioning)
+├── placement.rs     # §8.5: Auto-placement algorithm (row/column × sparse/dense)
+├── template.rs      # §7.1-7.2: Parse grid-template-rows/columns into track lists
+├── track.rs         # §11.4-11.8: GridTrack/GridTracks + TrackSizingFunction + maximize (§11.6) + stretch (§11.8)
+├── track_size.rs    # §11.3-11.4: Initial track size resolution (fixed/fr → used values)
+└── track_sizing.rs  # §11.5+§11.7: Intrinsic track sizing + fr iterative freeze algorithm
 ```
-
----
 
 ## Algorithm Flow
 
@@ -34,186 +32,177 @@ For the complete Grid layout flow, see: [W3C CSS Grid Layout Module Level 1 - §
 
 ### float-pigment Implementation Flow
 
-This implementation uses a simplified single-pass approach with 9 steps:
+This implementation follows the W3C Grid Layout Algorithm (§11) in a 9-step pipeline.
+Steps 5–7 form the core track sizing loop (columns → rows → optional re-resolution → finalize).
 
 ```
-+-----------------------------------------------------------------------------------+
-|                      float-pigment Grid Layout Flow                               |
-+-----------------------------------------------------------------------------------+
-|                                                                                   |
-|  1. Available Space (§11.1)                                                       |
-|     +-- Calculate grid container's content-box available space                    |
-|     +-- Constrain available space by min/max-width/height                         |
-|                                                                                   |
-|  2. Gutters (§10.1)                                                               |
-|     +-- Parse row-gap / column-gap properties                                     |
-|     +-- Calculate actual pixel values for gaps                                    |
-|                                                                                   |
-|  3. Explicit Grid (§7.1)                                                          |
-|     +-- Parse grid-template-rows / grid-template-columns                          |
-|     +-- Initialize track list (TrackList)                                         |
-|                                                                                   |
-|  4. Placement (§8.5)                                                              |
-|     +-- Filter grid items (exclude absolute / display:none)                       |
-|     +-- Single-pass placement using DynamicGrid                                   |
-|     +-- grid-auto-flow: row / column (sparse packing)                             |
-|     +-- grid-auto-flow: row dense / column dense (dense packing)                  |
-|                                                                                   |
-|  5. Track Sizing (§11.1 + §11.3-11.4)                                             |
-|     +-- Initialize track base_size and growth_limit (§11.4)                       |
-|     +-- §11.7 Flex Tracks: Calculate fr unit pixel values                         |
-|     +-- Size columns first, then rows                                             |
-|     +-- §11.1 Step 3-4: Iterative re-resolution (when auto tracks exist)          |
-|                                                                                   |
-|  6. Item Sizing (§11.5)                                                           |
-|     +-- Calculate min-content / max-content contribution for each item            |
-|     +-- Calculate computed size for each item                                     |
-|     +-- Use outer size (margin-box) for track sizing                              |
-|                                                                                   |
-|  7. Finalize Tracks (§11.5-11.8)                                                  |
-|     +-- §11.5 Resolve Intrinsic Track Sizes: size tracks from item contributions  |
-|     +-- §11.7 Expand Flexible Tracks: iterative freeze algorithm for fr tracks    |
-|     +-- §11.6 Maximize Tracks: distribute free space to auto tracks               |
-|     +-- §11.8 Stretch auto Tracks: when align/justify-content is normal/stretch   |
-|                                                                                   |
-|  8. Content Distribution (§10.5)                                                  |
-|     +-- Apply align-content: distribute remaining space on block axis             |
-|     +-- Apply justify-content: distribute remaining space on inline axis          |
-|                                                                                   |
-|  9. Item Positioning (§10.3-10.4)                                                 |
-|     +-- Apply align-self: item alignment within cell on block axis                |
-|     +-- Apply justify-self: item alignment within cell on inline axis             |
-|                                                                                   |
-+-----------------------------------------------------------------------------------+
+┌──────────────────────────────────────────────────────────────────────┐
+│               float-pigment Grid Layout Flow                       │
+│                                                                    │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  STEP 1  Resolve Available Grid Space (§11.1)             │   │
+│  │  Determine the available space in both axes by subtracting │   │
+│  │  the container's padding and border from the used size.    │   │
+│  └────────────────────────────┬─────────────────────────────┘   │
+│                               ▼                                    │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  STEP 2  Resolve Gutters (§10.1)                           │   │
+│  │  Resolve row-gap and column-gap to used values.            │   │
+│  └────────────────────────────┬─────────────────────────────┘   │
+│                               ▼                                    │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  STEP 3  Establish Grid (§7.1, §7.5-7.6)                  │   │
+│  │  Parse grid-template-rows / grid-template-columns to form  │   │
+│  │  the explicit grid; read grid-auto-rows / grid-auto-columns│   │
+│  │  for implicit track sizing functions.                       │   │
+│  └────────────────────────────┬─────────────────────────────┘   │
+│                               ▼                                    │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  STEP 4  Place Grid Items (§8.5)                           │   │
+│  │  Run the auto-placement algorithm according to             │   │
+│  │  grid-auto-flow (row | column) × (sparse | dense).        │   │
+│  │  Implicit tracks are created as needed.                    │   │
+│  └────────────────────────────┬─────────────────────────────┘   │
+│                               ▼                                    │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  STEP 5  Initialize Track Sizes (§11.3-11.4)              │   │
+│  │  For each track (columns first, then rows):                │   │
+│  │   ├─ Initialize each track's base size and growth limit    │   │
+│  │   │   according to its track sizing function (§11.4).      │   │
+│  │   └─ If both axes contain intrinsic tracks, perform        │   │
+│  │       iterative re-resolution (§11.1 Step 3-4).            │   │
+│  └────────────────────────────┬─────────────────────────────┘   │
+│                               ▼                                    │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  STEP 6  Calculate Item Size Contributions (§11.5)         │   │
+│  │  For each grid item, calculate its:                        │   │
+│  │   ├─ min-content contribution (§11.5 Step 2)               │   │
+│  │   ├─ max-content contribution (§11.5 Step 4)               │   │
+│  │   └─ computed size under resolved track constraints.       │   │
+│  └────────────────────────────┬─────────────────────────────┘   │
+│                               ▼                                    │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  STEP 7  Resolve Final Track Sizes (§11.5-11.8)            │   │
+│  │                                                             │   │
+│  │  7a. Resolve Intrinsic Track Sizes (§11.5)                  │   │
+│  │      Increase base sizes and growth limits using items'     │   │
+│  │      min-content and max-content contributions.             │   │
+│  │                                                             │   │
+│  │  7b. Expand Flexible Tracks (§11.7)                         │   │
+│  │      Distribute remaining free space to fr tracks using     │   │
+│  │      the iterative freeze algorithm.                        │   │
+│  │                                                             │   │
+│  │  7c. Maximize Tracks (§11.6)                                │   │
+│  │      If the grid container has a definite size, distribute  │   │
+│  │      remaining free space equally among growable tracks.    │   │
+│  │                                                             │   │
+│  │  7d. Stretch auto Tracks (§11.8)                            │   │
+│  │      When align/justify-content is normal or stretch,       │   │
+│  │      expand auto tracks to fill remaining space.            │   │
+│  └────────────────────────────┬─────────────────────────────┘   │
+│                               ▼                                    │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  STEP 8  Align Grid Tracks — Content Distribution (§10.5)  │   │
+│  │  Distribute free space among tracks per align-content /    │   │
+│  │  justify-content (start | end | center | space-between |   │   │
+│  │  space-around | space-evenly | stretch | normal).          │   │
+│  └────────────────────────────┬─────────────────────────────┘   │
+│                               ▼                                    │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  STEP 9  Position Grid Items — Self-Alignment (§10.3-10.4) │   │
+│  │  For each item:                                            │   │
+│  │   ├─ Determine its grid area position from track offsets.  │   │
+│  │   ├─ Apply align-self / justify-self within the grid area. │   │
+│  │   ├─ Handle stretch alignment (re-layout if needed).       │   │
+│  │   └─ Resolve writing direction (ltr / rtl).                │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                    │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 #### Step Details
 
-##### Step 1: Available Space
+##### Step 1: Resolve Available Grid Space (§11.1)
 
-Calculate the available grid space (content-box) of the grid container:
+Determine the available space for the grid container's content box:
 
-1. Determine container's `width` / `height` (or derive from containing block constraints)
-2. Subtract `padding` and `border` to get content-box dimensions
-3. Output: `available_inline_size` (inline-axis), `available_block_size` (block-axis)
+1. Determine the grid container's used `width` and `height` (or derive from containing block constraints)
+2. Subtract `padding` and `border` to obtain the content-box dimensions
+3. Output: available inline-axis size and available block-axis size
 
-##### Step 2: Gutters
+##### Step 2: Resolve Gutters (§10.1)
 
-Resolve `gap` / `row-gap` / `column-gap` properties:
+Resolve `gap` / `row-gap` / `column-gap` to used values:
 
-1. Resolve `row-gap` and `column-gap` to used values (supports `<length>`, `<percentage>`)
-2. Calculate total gutter space: `total_row_gap = row_gap × (row_count - 1)`
-3. Subtract gutters from available space: `available_for_tracks = available - total_gap`
+1. Resolve `row-gap` and `column-gap` (supports `<length>` and `<percentage>`)
+2. Compute total gutter space per axis: `gutter_total = gap × (track_count − 1)`
 
-##### Step 3: Explicit Grid
+##### Step 3: Establish Grid (§7.1, §7.5-7.6)
 
-Parse `grid-template-rows` / `grid-template-columns` to define explicit grid:
+Build the explicit and implicit grid:
 
-1. Iterate through track sizing function list
-2. Classify track sizing functions:
-   - Fixed sizing (`100px`, `50%`) → Resolve to used pixel values
-   - Flexible sizing (`fr`) → Mark for free space distribution
-   - Intrinsic sizing (`auto`) → Mark for content-based sizing
-3. Output: Row/column track counts, initialized track sizes
+1. Parse `grid-template-rows` / `grid-template-columns` into a list of track sizing functions
+2. Classify each track sizing function:
+   - **Fixed** (`<length>`, `<percentage>`) — resolve to a definite size
+   - **Flexible** (`<flex>`, i.e. `fr`) — marked for free-space distribution
+   - **Intrinsic** (`auto`, `min-content`, `max-content`) — marked for content-based sizing
+3. Read `grid-auto-rows` / `grid-auto-columns` for implicit track sizing functions
 
-##### Step 4: Placement
+##### Step 4: Place Grid Items (§8.5)
 
-Auto-place items into grid matrix according to `grid-auto-flow`:
+Run the auto-placement algorithm per `grid-auto-flow`:
 
-1. Filter out `position: absolute` and `display: none` items
-2. Initialize empty dynamic grid matrix (`DynamicGrid`)
-3. Place each item using auto-placement algorithm:
-   - `row` (default): row-major order, cursor only moves forward (sparse)
-   - `column`: column-major order, cursor only moves forward (sparse)
-   - `row dense`: row-major order, search from start for holes (dense, single-cell only)
-   - `column dense`: column-major order, search from start for holes (dense, single-cell only)
-   - Dense mode keeps a line hint to skip fully occupied rows/columns and reduce re-scanning
-   - **Implicit track creation**: Automatically creates implicit tracks when exceeding explicit grid
-4. Output: `GridMatrix` (item placement mapping, sized to actual grid dimensions; dense mode does not consider spans or line-based placement)
+1. Exclude `position: absolute` and `display: none` children
+2. Place each remaining item into the grid:
+   - `row` (default) / `column`: sparse packing — the cursor only advances forward
+   - `row dense` / `column dense`: dense packing — the cursor resets to search for earlier gaps
+3. Create implicit tracks as needed when items exceed the explicit grid boundary
 
+##### Step 5: Initialize Track Sizes (§11.3-11.4)
 
-##### Step 5: Track Sizing (Initial Pass)
+Initialize each track's **base size** and **growth limit**, columns first then rows:
 
-Calculate initial used track size for each track, columns first then rows:
+1. For each track, set initial values according to its track sizing function (§11.4):
+   - **Fixed**: base size = resolved value; growth limit = resolved value
+   - **Flexible** (`fr`): base size = 0; growth limit = ∞
+   - **Intrinsic** (`auto`, `min-content`, `max-content`): base size = 0; growth limit = ∞
+2. If both axes contain intrinsic tracks, perform iterative re-resolution (§11.1 Step 3-4):
+   resolve columns, then rows; if column sizes change, re-resolve rows (at most one extra pass)
 
-1. **Initialize (§11.4)**: Initialize `base_size` and `growth_limit` for each track
-   - Fixed sizing function: `base_size` = resolved pixel value
-   - Flexible sizing function (`fr`): `base_size` = 0, `growth_limit` = infinity
-   - `auto` sizing function: `base_size` = 0, `growth_limit` = infinity
-2. **Flexible tracks (§11.7)** - only calculated in this step when no auto tracks:
-   - If no auto tracks: `fr_size = (available - fixed_tracks) / total_fr`
-   - If auto + fr mixed: deferred to Step 7 (need to determine auto content size first)
-3. **Iterative Re-resolution (§11.1 Step 3-4)**:
-   - When both auto rows and auto columns exist, check if re-resolution is needed
-   - If column track sizes change due to row sizes, re-run track sizing
-   - Maximum one iteration to avoid infinite loops
+##### Step 6: Calculate Item Size Contributions (§11.5)
 
-##### Step 6: Item Sizing
+Compute each grid item's size contributions for the track sizing algorithm:
 
-Recursively calculate size contribution of each grid item:
+1. For each item, calculate its **min-content contribution** (§11.5 Step 2) — the item's size when given the minimum possible space
+2. For each item, calculate its **max-content contribution** (§11.5 Step 4) — the item's size when given unlimited space
+3. Compute the item's final size under the resolved track constraints
 
-1. Iterate through each item in grid matrix
-2. Determine item's available space (grid area it spans)
-3. Pre-compute which tracks need min-content / max-content layout passes:
-   - Fixed tracks (`<length>`, `<percentage>`): not needed
-   - Intrinsic tracks (`auto`, `min-content`, `max-content`, `fr`): need min-content
-   - `auto` / `max-content` tracks: also need max-content (§11.5 Step 4)
-4. Calculate min-content contribution (§11.5 Step 2):
-   - **Shortcut**: When item has both definite CSS `width` and `height` (non-`auto`), or all tracks it spans are fixed, skip the `MinContent` layout pass
-   - Otherwise: Perform a full `MinContent` layout pass via `compute_internal` with unconstrained available space
-5. Calculate max-content contribution (§11.5 Step 4):
-   - **Shortcut**: When item has definite CSS size, or its tracks don't need max-content, skip
-   - Otherwise: Perform a full `MaxContent` layout pass via `compute_internal` with unconstrained available space
-6. Recursively invoke layout algorithm to compute item's computed size (using resolved track sizes as constraints)
-7. Output: Each item's `computed_size`, `min_content_size`, `max_content_size`
+##### Step 7: Resolve Final Track Sizes (§11.5-11.8)
 
-##### Step 7: Finalize Tracks
+1. **Resolve Intrinsic Track Sizes (§11.5)**: increase each track's base size and growth limit using items' min-content and max-content contributions
+2. **Expand Flexible Tracks (§11.7)**: distribute remaining free space to `fr` tracks using the iterative freeze algorithm — any track whose hypothetical size is below its base size is frozen, and the remaining space is redistributed
+3. **Maximize Tracks (§11.6)**: if the grid container has a definite size, distribute any remaining free space equally among growable tracks
+4. **Stretch `auto` Tracks (§11.8)**: when `align-content` or `justify-content` computes to `normal` or `stretch`, expand `auto` tracks to fill remaining space
 
-Adjust track sizes based on item contribution and complete fr calculation:
+##### Step 8: Align Grid Tracks — Content Distribution (§10.5)
 
-1. **§11.5 Resolve Intrinsic Track Sizes**:
-   - Iterate through all items, updating `base_size` and `growth_limit` per track type:
-     - **Fixed** tracks: use specified size (§11.4)
-     - **Auto** tracks: `base_size` = max(min-content contribution), `growth_limit` = infinity (§11.5 Step 2, §11.4)
-     - **MinContent** tracks: `base_size` = max(min-content), `growth_limit` = max(min-content) (§11.5 Step 2+4)
-     - **MaxContent** tracks: `base_size` = max(min-content), `growth_limit` = max(max-content) (§11.5 Step 2+4)
-     - **Fr** tracks: collect min-content as freeze threshold (§11.7)
-2. **§11.7 Expand Flexible Tracks** (iterative algorithm):
-   - Calculate `hypothetical_fr_size = free_space / total_flex`
-   - If any fr track's size < its min-content, freeze that track at min-content
-   - Repeat until stable
-   - Final: `track_size = hypothetical_fr_size × fr_value`
-3. **§11.6 Maximize Tracks**:
-   - Only execute when container has definite size
-   - Calculate free space: `free_space = container_size - total_base_size - gutters`
-   - Distribute free space equally to tracks with `growth_limit` = infinity (auto tracks)
-4. **§11.8 Stretch auto Tracks**:
-   - When `justify-content` is `normal`/`stretch`, stretch auto tracks in column direction
-   - When `align-content` is `normal`/`stretch`, stretch auto tracks in row direction
-   - `normal` behaves as `stretch` in grid containers (CSS Box Alignment §5.1.4)
-5. Output: Final `each_inline_size[]`, `each_block_size[]`
+Distribute free space among grid tracks per `align-content` / `justify-content`:
 
-##### Step 8: Content Distribution
+1. Compute free space: container size minus total track sizes minus total gutters
+2. Apply the alignment value:
+   - `start` / `end` / `center`: shift all tracks by the corresponding offset
+   - `space-between` / `space-around` / `space-evenly`: distribute extra spacing between tracks
+   - `stretch` / `normal`: handled in Step 7d
 
-Apply `align-content` / `justify-content` for content distribution:
+##### Step 9: Position Grid Items — Self-Alignment (§10.3-10.4)
 
-1. Calculate free space: `free_space = container_size - total_track_size`
-2. Calculate offset based on distribution value:
-   - `start`: initial offset = 0
-   - `end`: initial offset = free space
-   - `center`: initial offset = free space / 2
-   - `space-between` / `space-around` / `space-evenly`: Calculate additional inter-track spacing
-3. Output: `(initial_offset, gap_addition)`
+Determine each grid item's final position within its grid area:
 
-##### Step 9: Item Positioning
-
-Apply self-alignment and calculate final item position:
-
-1. Iterate through grid matrix
-2. Accumulate track sizes and gutters to determine grid area position
-3. Apply content-distribution offset
-4. Apply self-alignment (`align-self` / `justify-self`) offset within grid area
-5. Set item's `left`, `top`, `width`, `height`
+1. Accumulate track sizes and gutters to determine the grid area's position and size
+2. Apply content-distribution offsets from Step 8
+3. Apply `align-self` (block axis) and `justify-self` (inline axis) within the grid area
+4. Handle `stretch` alignment: re-layout the item if it has no explicit size and no `auto` margins
+5. Resolve writing direction (`ltr` / `rtl`) for inline-axis positioning
 
 ---
 
