@@ -148,7 +148,7 @@ property_list! (PropertyValueWithGlobal, {
     0x91 Direction: DirectionType as Inherit default Direction::Auto;
     0x92 WritingMode: WritingModeType as Inherit default WritingMode::HorizontalTb;
     0x93 LineHeight: LineHeightType as Inherit default LineHeight::Normal;
-    0x94 TextAlign: TextAlignType as Inherit default TextAlign::Left;
+    0x94 TextAlign: TextAlignType as Inherit default TextAlign::Start;
     0x95 FontWeight: FontWeightType as Inherit default FontWeight::Normal;
     0x96 WordBreak: WordBreakType as Inherit default WordBreak::BreakWord;
     0x97 WhiteSpace: WhiteSpaceType as Inherit default WhiteSpace::Normal;
