@@ -13,15 +13,15 @@
 
 ```
 float-pigment-layout/src/algo/grid/
-├── mod.rs           # 主入口，Grid 布局算法实现
-├── alignment.rs     # 对齐计算 (align/justify-items/self/content)
-├── track_size.rs    # 初始轨道尺寸分配
-├── track_sizing.rs  # 轨道最终尺寸计算 (§11.5, §11.7)
-├── track.rs         # 轨道数据结构 (GridTrack, GridTracks)
-├── template.rs      # 轨道模板初始化 (§7.1)
-├── placement.rs     # Grid 项目放置算法 (§8.5)
-├── matrix.rs        # Grid 矩阵数据结构
-└── grid_item.rs     # Grid 项目结构定义
+├── mod.rs           # 主入口：9 步布局算法编排 (GridContainer::compute)
+├── alignment.rs     # §10.3-10.5：自身对齐 (align/justify-self) & 内容分配 (align/justify-content)
+├── grid_item.rs     # §6：GridItem（放置阶段）& GridLayoutItem（布局阶段）数据结构
+├── matrix.rs        # §7.1：OccupiedBitmap（1 bit/cell）+ GridMatrix（放置）+ GridLayoutMatrix（定位）
+├── placement.rs     # §8.5：自动放置算法 (row/column × sparse/dense)
+├── template.rs      # §7.1-7.2：解析 grid-template-rows/columns 为轨道列表
+├── track.rs         # §11.4-11.8：GridTrack/GridTracks + TrackSizingFunction + maximize (§11.6) + stretch (§11.8)
+├── track_size.rs    # §11.3-11.4：初始轨道尺寸解析 (fixed/fr → used values)
+└── track_sizing.rs  # §11.5+§11.7：内在轨道尺寸计算 + fr 迭代冻结算法
 ```
 
 ---
@@ -34,186 +34,177 @@ float-pigment-layout/src/algo/grid/
 
 ### float-pigment 已实现的 Grid 布局流程
 
-本实现采用简化的单次遍历方式，共 9 个步骤：
+本实现遵循 W3C Grid 布局算法（§11）的 9 步流水线。
+其中步骤 5–7 构成核心的轨道尺寸计算循环（列 → 行 → 可选重解析 → 最终化）。
 
 ```
-+-----------------------------------------------------------------------------------+
-|                      float-pigment Grid Layout Flow                               |
-+-----------------------------------------------------------------------------------+
-|                                                                                   |
-|  1. Available Space (§11.1)                                                       |
-|     +-- 计算 Grid 容器的 content-box 可用空间                                      |
-|     +-- 根据 min/max-width/height 约束可用空间                                     |
-|                                                                                   |
-|  2. Gutters (§10.1)                                                               |
-|     +-- 解析 row-gap / column-gap 属性                                             |
-|     +-- 计算间距的实际像素值                                                        |
-|                                                                                   |
-|  3. Explicit Grid (§7.1)                                                          |
-|     +-- 解析 grid-template-rows / grid-template-columns                            |
-|     +-- 初始化轨道列表 (TrackList)                                                  |
-|                                                                                   |
-|  4. Placement (§8.5)                                                              |
-|     +-- 过滤 Grid 项目 (排除 absolute / display:none)                              |
-|     +-- 使用动态网格 (DynamicGrid) 单次遍历放置项目                                 |
-|     +-- grid-auto-flow: row / column (sparse packing)                             |
-|     +-- grid-auto-flow: row dense / column dense (dense packing)                  |
-|                                                                                   |
-|  5. Track Sizing (§11.1 + §11.3-11.4)                                             |
-|     +-- 初始化轨道 base_size 和 growth_limit (§11.4)                               |
-|     +-- §11.7 Flex Tracks: 计算 fr 单位的实际像素值                                 |
-|     +-- 先计算列尺寸，再计算行尺寸                                                  |
-|     +-- §11.1 Step 3-4: Iterative re-resolution (当 auto tracks 存在时)           |
-|                                                                                   |
-|  6. Item Sizing (§11.5)                                                           |
-|     +-- 计算每个项目的 min-content / max-content contribution                      |
-|     +-- 计算每个项目的 computed size                                               |
-|     +-- 使用 outer size (margin-box) 参与 track sizing                            |
-|                                                                                   |
-|  7. Finalize Tracks (§11.5-11.8)                                                  |
-|     +-- §11.5 Resolve Intrinsic Track Sizes: 根据项目贡献计算轨道尺寸             |
-|     +-- §11.7 Expand Flexible Tracks: 迭代冻结算法计算 fr 轨道尺寸                |
-|     +-- §11.6 Maximize Tracks: 分配 free space 给 auto tracks                     |
-|     +-- §11.8 Stretch auto Tracks: 当 align/justify-content 为 normal/stretch 时  |
-|                                                                                   |
-|  8. Content Distribution (§10.5)                                                  |
-|     +-- 应用 align-content: 分配 block axis 方向的剩余空间                          |
-|     +-- 应用 justify-content: 分配 inline axis 方向的剩余空间                       |
-|                                                                                   |
-|  9. Item Positioning (§10.3-10.4)                                                 |
-|     +-- 应用 align-self: 项目在单元格内的 block axis 对齐                           |
-|     +-- 应用 justify-self: 项目在单元格内的 inline axis 对齐                        |
-|                                                                                   |
-+-----------------------------------------------------------------------------------+
+┌───────────────────────────────────────────────────────────────────┐
+│              float-pigment Grid Layout Flow                      │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐   │
+│  │  STEP 1  Resolve Available Grid Space (§11.1)           │   │
+│  │  从容器的已用尺寸中减去 padding 和 border，             │   │
+│  │  确定两个轴的可用空间。                                 │   │
+│  └──────────────────────────┬─────────────────────────────┘   │
+│                              ▼                                   │
+│  ┌────────────────────────────────────────────────────────────┐   │
+│  │  STEP 2  Resolve Gutters (§10.1)                        │   │
+│  │  将 row-gap 和 column-gap 解析为 used value。           │   │
+│  └──────────────────────────┬─────────────────────────────┘   │
+│                              ▼                                   │
+│  ┌────────────────────────────────────────────────────────────┐   │
+│  │  STEP 3  Establish Grid (§7.1, §7.5-7.6)               │   │
+│  │  解析 grid-template-rows / grid-template-columns        │   │
+│  │  形成 explicit grid；读取 grid-auto-rows /              │   │
+│  │  grid-auto-columns 作为 implicit track sizing function。│   │
+│  └──────────────────────────┬─────────────────────────────┘   │
+│                              ▼                                   │
+│  ┌────────────────────────────────────────────────────────────┐   │
+│  │  STEP 4  Place Grid Items (§8.5)                        │   │
+│  │  按 grid-auto-flow (row | column) x (sparse | dense)   │   │
+│  │  执行 auto-placement algorithm。                        │   │
+│  │  必要时创建 implicit tracks。                           │   │
+│  └──────────────────────────┬─────────────────────────────┘   │
+│                              ▼                                   │
+│  ┌────────────────────────────────────────────────────────────┐   │
+│  │  STEP 5  Initialize Track Sizes (§11.3-11.4)           │   │
+│  │  对每个轨道（先列后行）：                               │   │
+│  │   ├─ 根据 track sizing function 初始化每个轨道的       │   │
+│  │   │   base size 和 growth limit (§11.4)。               │   │
+│  │   └─ 若两个轴都包含 intrinsic tracks，执行             │   │
+│  │       迭代重解析 (§11.1 Step 3-4)。                     │   │
+│  └──────────────────────────┬─────────────────────────────┘   │
+│                              ▼                                   │
+│  ┌────────────────────────────────────────────────────────────┐   │
+│  │  STEP 6  Calculate Item Size Contributions (§11.5)      │   │
+│  │  对每个 grid item 计算：                                │   │
+│  │   ├─ min-content contribution (§11.5 Step 2)            │   │
+│  │   ├─ max-content contribution (§11.5 Step 4)            │   │
+│  │   └─ 在已解析轨道约束下的 computed size。               │   │
+│  └──────────────────────────┬─────────────────────────────┘   │
+│                              ▼                                   │
+│  ┌────────────────────────────────────────────────────────────┐   │
+│  │  STEP 7  Resolve Final Track Sizes (§11.5-11.8)         │   │
+│  │                                                          │   │
+│  │  7a. Resolve Intrinsic Track Sizes (§11.5)               │   │
+│  │      根据项目的 min/max-content contribution            │   │
+│  │      增大 base size 和 growth limit。                   │   │
+│  │                                                          │   │
+│  │  7b. Expand Flexible Tracks (§11.7)                      │   │
+│  │      使用迭代冻结算法将剩余 free space                  │   │
+│  │      分配给 fr 轨道。                                   │   │
+│  │                                                          │   │
+│  │  7c. Maximize Tracks (§11.6)                             │   │
+│  │      若 grid container 有 definite size，               │   │
+│  │      将剩余 free space 平均分配给可增长的轨道。         │   │
+│  │                                                          │   │
+│  │  7d. Stretch auto Tracks (§11.8)                         │   │
+│  │      当 align/justify-content 为 normal 或 stretch      │   │
+│  │      时，扩展 auto 轨道以填充剩余空间。                 │   │
+│  └──────────────────────────┬─────────────────────────────┘   │
+│                              ▼                                   │
+│  ┌────────────────────────────────────────────────────────────┐   │
+│  │  STEP 8  Align Grid Tracks (§10.5)                      │   │
+│  │  按 align-content / justify-content 在轨道间分配        │   │
+│  │  free space (start | end | center | space-between |     │   │
+│  │  space-around | space-evenly | stretch | normal)。      │   │
+│  └──────────────────────────┬─────────────────────────────┘   │
+│                              ▼                                   │
+│  ┌────────────────────────────────────────────────────────────┐   │
+│  │  STEP 9  Position Grid Items (§10.3-10.4)               │   │
+│  │  对每个项目：                                           │   │
+│  │   ├─ 根据轨道偏移确定其 grid area 位置。               │   │
+│  │   ├─ 在 grid area 内应用 align-self / justify-self。   │   │
+│  │   ├─ 处理 stretch 对齐（必要时重新布局）。             │   │
+│  │   └─ 解析 writing direction (ltr / rtl)。               │   │
+│  └────────────────────────────────────────────────────────────┘   │
+│                                                                  │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 #### 步骤详解
 
-##### Step 1: Available Space
+##### Step 1: 解析可用网格空间 (§11.1)
 
-计算 Grid container 的 available grid space (content-box)：
+确定 grid container 的 content box 可用空间：
 
-1. 确定容器的 `width` / `height`（或从 containing block 约束推导）
+1. 确定容器的已用 `width` 和 `height`（或从 containing block 约束推导）
 2. 减去 `padding` 和 `border` 得到 content-box 尺寸
-3. 输出：`available_inline_size`（inline-axis）、`available_block_size`（block-axis）
+3. 输出：inline 轴可用尺寸、block 轴可用尺寸
 
-##### Step 2: Gutters
+##### Step 2: 解析间距 (§10.1)
 
-解析 `gap` / `row-gap` / `column-gap` 属性：
+将 `gap` / `row-gap` / `column-gap` 解析为 used value：
 
-1. 将 `row-gap` 和 `column-gap` 解析为 used value（支持 `<length>`、`<percentage>`）
-2. 计算总 gutter 空间：`total_row_gap = row_gap × (row_count - 1)`
-3. 从可用空间中扣除 gutters：`available_for_tracks = available - total_gap`
+1. 解析 `row-gap` 和 `column-gap`（支持 `<length>` 和 `<percentage>`）
+2. 计算每轴的总 gutter 空间：`gutter_total = gap × (track_count − 1)`
 
-##### Step 3: Explicit Grid
+##### Step 3: 建立网格 (§7.1, §7.5-7.6)
 
-解析 `grid-template-rows` / `grid-template-columns` 定义 explicit grid：
+构建 explicit grid 和 implicit grid：
 
-1. 遍历 track sizing function 列表
-2. 分类 track sizing function：
-   - Fixed (`100px`, `50%`) → 解析为 used pixel value
-   - Flexible (`fr`) → 标记待 free space 分配
-   - Intrinsic (`auto`) → 标记待 content-based sizing
-3. 输出：row/column track 数量、初始化的 track sizes
+1. 解析 `grid-template-rows` / `grid-template-columns` 为 track sizing function 列表
+2. 分类每个 track sizing function：
+   - **Fixed** (`<length>`、`<percentage>`) — 解析为确定尺寸
+   - **Flexible** (`<flex>`，即 `fr`) — 标记为待 free-space 分配
+   - **Intrinsic** (`auto`、`min-content`、`max-content`) — 标记为待内容尺寸确定
+3. 读取 `grid-auto-rows` / `grid-auto-columns` 作为 implicit track sizing function
 
-##### Step 4: Placement
+##### Step 4: 放置网格项目 (§8.5)
 
-按 `grid-auto-flow` 使用 auto-placement algorithm 将 items 放入 grid matrix：
+按 `grid-auto-flow` 执行 auto-placement algorithm：
 
-1. 过滤掉 `position: absolute` 和 `display: none` 的 items
-2. 初始化空的动态网格矩阵 (`DynamicGrid`)
-3. 使用 auto-placement algorithm 放置每个 item：
-   - `row` (default): row-major order，cursor 只向前移动 (sparse)
-   - `column`: column-major order，cursor 只向前移动 (sparse)
-   - `row dense`: row-major order，从头搜索空洞 (dense，仅单格)
-   - `column dense`: column-major order，从头搜索空洞 (dense，仅单格)
-   - Dense 模式维护 line hint，用于跳过已满的行/列，减少重复扫描
-   - **Implicit track creation**：超出 explicit grid 边界时，自动创建 implicit tracks
-4. 输出：`GridMatrix` (item placement mapping，尺寸为实际 grid 维度；dense 不考虑 span 或 line placement)
+1. 排除 `position: absolute` 和 `display: none` 的子项
+2. 将每个剩余项目放入网格：
+   - `row`（默认）/ `column`：sparse packing — 游标只向前推进
+   - `row dense` / `column dense`：dense packing — 游标重置以搜索前方空洞
+3. 当项目超出 explicit grid 边界时，按需创建 implicit tracks
 
+##### Step 5: 初始化轨道尺寸 (§11.3-11.4)
 
-##### Step 5: Track Sizing (Initial Pass)
+初始化每个轨道的 **base size** 和 **growth limit**，先列后行：
 
-计算每个 track 的初始 used track size，先 columns 后 rows：
+1. 根据 track sizing function 设置初始值 (§11.4)：
+   - **Fixed**：base size = 解析值；growth limit = 解析值
+   - **Flexible** (`fr`)：base size = 0；growth limit = ∞
+   - **Intrinsic** (`auto`、`min-content`、`max-content`)：base size = 0；growth limit = ∞
+2. 若两个轴都包含 intrinsic tracks，执行迭代重解析 (§11.1 Step 3-4)：
+   先解析列、再解析行；若列尺寸发生变化则重新解析行（最多额外一轮）
 
-1. **初始化 (§11.4)**：为每个 track 初始化 `base_size` 和 `growth_limit`
-   - Fixed sizing function：`base_size` = 解析后的像素值
-   - Flexible sizing function (`fr`)：`base_size` = 0，`growth_limit` = infinity
-   - `auto` sizing function：`base_size` = 0，`growth_limit` = infinity
-2. **Flexible tracks (§11.7)** - 仅当没有 auto tracks 时在此步骤计算：
-   - 若无 auto tracks：`fr_size = (available - fixed_tracks) / total_fr`
-   - 若有 auto + fr 混用：延迟到 Step 7 计算（需先确定 auto 的 content size）
-3. **Iterative Re-resolution (§11.1 Step 3-4)**：
-   - 当同时存在 auto 行和 auto 列时，检查是否需要重新计算
-   - 如果 column track sizes 因 row sizes 而改变，重新运行 track sizing
-   - 最多重复一次，避免无限循环
+##### Step 6: 计算项目尺寸贡献 (§11.5)
 
-##### Step 6: Item Sizing
+为 track sizing algorithm 计算每个 grid item 的尺寸贡献：
 
-递归计算每个 grid item 的 size contribution：
+1. 对每个项目计算 **min-content contribution** (§11.5 Step 2) — 给定最小可用空间时的项目尺寸
+2. 对每个项目计算 **max-content contribution** (§11.5 Step 4) — 给定无限可用空间时的项目尺寸
+3. 在已解析的轨道约束下计算项目的最终尺寸
 
-1. 遍历网格矩阵中的每个项目
-2. 确定项目的可用空间（所跨越的 grid area）
-3. 预计算每个轨道是否需要 min-content / max-content 布局：
-   - 固定轨道 (`<length>`, `<percentage>`)：不需要
-   - 内在轨道 (`auto`, `min-content`, `max-content`, `fr`)：需要 min-content
-   - `auto` / `max-content` 轨道：还需要 max-content (§11.5 Step 4)
-4. 计算 min-content contribution (§11.5 Step 2)：
-   - **Shortcut**：当项目同时具有明确的 CSS `width` 和 `height`（非 `auto`），或所在轨道全部为固定轨道时，跳过 `MinContent` 布局计算
-   - 否则：执行完整的 `MinContent` 布局计算（通过 `compute_internal`，使用无约束可用空间）
-5. 计算 max-content contribution (§11.5 Step 4)：
-   - **Shortcut**：当项目有明确 CSS 尺寸，或所在轨道不需要 max-content 时，跳过
-   - 否则：执行完整的 `MaxContent` 布局计算（通过 `compute_internal`，使用无约束可用空间）
-6. 递归调用布局算法计算项目的 computed size（使用已解析的轨道尺寸作为约束）
-7. 输出：每个项目的 `computed_size`、`min_content_size`、`max_content_size`
+##### Step 7: 解析最终轨道尺寸 (§11.5-11.8)
 
-##### Step 7: Finalize Tracks
+1. **解析内在轨道尺寸 (§11.5)**：使用项目的 min-content 和 max-content contribution 增大每个轨道的 base size 和 growth limit
+2. **扩展弹性轨道 (§11.7)**：使用迭代冻结算法将剩余 free space 分配给 `fr` 轨道 — 若轨道的假设尺寸低于其 base size 则冻结该轨道，并重新分配剩余空间
+3. **最大化轨道 (§11.6)**：若 grid container 有 definite size，将剩余 free space 平均分配给可增长的轨道
+4. **拉伸 `auto` 轨道 (§11.8)**：当 `align-content` 或 `justify-content` 计算值为 `normal` 或 `stretch` 时，扩展 `auto` 轨道以填充剩余空间
 
-根据 item contribution 调整 track size 并完成 fr 计算：
+##### Step 8: 对齐网格轨道 — 内容分配 (§10.5)
 
-1. **§11.5 Resolve Intrinsic Track Sizes**：
-   - 遍历所有项目，按轨道类型更新 `base_size` 和 `growth_limit`：
-     - **Fixed** 轨道：使用指定尺寸 (§11.4)
-     - **Auto** 轨道：`base_size` = max(min-content contribution)，`growth_limit` = infinity (§11.5 Step 2, §11.4)
-     - **MinContent** 轨道：`base_size` = max(min-content)，`growth_limit` = max(min-content) (§11.5 Step 2+4)
-     - **MaxContent** 轨道：`base_size` = max(min-content)，`growth_limit` = max(max-content) (§11.5 Step 2+4)
-     - **Fr** 轨道：收集 min-content 作为冻结阈值 (§11.7)
-2. **§11.7 Expand Flexible Tracks** (迭代算法)：
-   - 计算 `hypothetical_fr_size = free_space / total_flex`
-   - 如果任何 fr track 的 size < 其 min-content，冻结该 track 在 min-content
-   - 重复迭代直到稳定
-   - 最终：`track_size = hypothetical_fr_size × fr_value`
-3. **§11.6 Maximize Tracks**：
-   - 仅当 container 有 definite size 时执行
-   - 计算 free space：`free_space = container_size - total_base_size - gutters`
-   - 将 free space 平均分配给 `growth_limit` 为 infinity 的 tracks (auto tracks)
-4. **§11.8 Stretch auto Tracks**：
-   - 当 `justify-content` 为 `normal`/`stretch` 时，拉伸列方向的 auto 轨道
-   - 当 `align-content` 为 `normal`/`stretch` 时，拉伸行方向的 auto 轨道
-   - `normal` 在 grid 容器中等效于 `stretch` (CSS Box Alignment §5.1.4)
-5. 输出：最终的 `each_inline_size[]`、`each_block_size[]`
+按 `align-content` / `justify-content` 在网格轨道间分配 free space：
 
-##### Step 8: Content Distribution
+1. 计算 free space：容器尺寸 − 总轨道尺寸 − 总 gutter
+2. 应用对齐值：
+   - `start` / `end` / `center`：按对应偏移量移动所有轨道
+   - `space-between` / `space-around` / `space-evenly`：在轨道间分配额外间距
+   - `stretch` / `normal`：已在 Step 7d 处理
 
-应用 `align-content` / `justify-content` 进行 content distribution：
+##### Step 9: 定位网格项目 — 自身对齐 (§10.3-10.4)
 
-1. 计算 free space：`free_space = container_size - total_track_size`
-2. 根据 distribution value 计算偏移：
-   - `start`：初始偏移 = 0
-   - `end`：初始偏移 = free space
-   - `center`：初始偏移 = free space / 2
-   - `space-between` / `space-around` / `space-evenly`：计算额外的 inter-track spacing
-3. 输出：`(initial_offset, gap_addition)`
+确定每个 grid item 在其 grid area 内的最终位置：
 
-##### Step 9: Item Positioning
-
-应用 self-alignment 并计算每个 item 的最终位置：
-
-1. 遍历网格矩阵
-2. 累加轨道尺寸和 gutters 确定 grid area 位置
-3. 应用 content-distribution 偏移
-4. 在 grid area 内应用 self-alignment（`align-self` / `justify-self`）偏移
-5. 设置项目的 `left`、`top`、`width`、`height`
+1. 累加轨道尺寸和 gutter 确定 grid area 的位置和尺寸
+2. 应用 Step 8 的 content-distribution 偏移
+3. 在 grid area 内应用 `align-self`（block 轴）和 `justify-self`（inline 轴）
+4. 处理 `stretch` 对齐：若项目无显式尺寸且无 `auto` margin 则重新布局
+5. 解析 writing direction (`ltr` / `rtl`) 用于 inline 轴定位
 
 ---
 
