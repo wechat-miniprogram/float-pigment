@@ -66,13 +66,27 @@ use crate::{
     Normalized, OptionNum, OptionSize, Point, Size, SizingMode, Vector,
 };
 
+/// The resolved auto-flow direction for the grid container.
+///
+/// CSS Grid §7.7: grid-auto-flow
+/// <https://www.w3.org/TR/css-grid-1/#grid-auto-flow-property>
+///
+/// This is the simplified flow direction (without dense/sparse),
+/// used internally to determine the inline vs block axis mapping.
 #[derive(Clone, PartialEq)]
 pub(crate) enum GridFlow {
+    /// Row flow: inline axis = column, block axis = row.
     Row,
+    /// Column flow: inline axis = row, block axis = column.
     Column,
 }
 
+/// The trait for computing CSS Grid layout on a `LayoutUnit`.
+///
+/// Implements the Grid Sizing Algorithm from CSS Grid Layout Module Level 1.
+/// <https://www.w3.org/TR/css-grid-1/#algo-grid-sizing>
 pub(crate) trait GridContainer<T: LayoutTreeNode> {
+    /// Compute the grid layout for the given node and return the result.
     fn compute(
         &mut self,
         env: &mut T::Env,

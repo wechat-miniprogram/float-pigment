@@ -321,16 +321,19 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
         self.max_col
     }
 
+    /// Returns the explicit row count defined by grid-template-rows.
     #[inline(always)]
     pub(crate) fn explicit_row_count(&self) -> usize {
         self.explicit_row_count
     }
 
+    /// Returns the explicit column count defined by grid-template-columns.
     #[inline(always)]
     pub(crate) fn explicit_column_count(&self) -> usize {
         self.explicit_column_count
     }
 
+    /// Returns the auto-placement flow direction for this grid.
     #[inline(always)]
     pub(crate) fn flow(&self) -> GridAutoFlow {
         self.flow.clone()
@@ -383,11 +386,13 @@ impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
         }
     }
 
+    /// Returns the number of rows in the layout matrix.
     #[inline(always)]
     pub(crate) fn row_count(&self) -> usize {
         self.row_count
     }
 
+    /// Returns the number of columns in the layout matrix.
     #[inline(always)]
     pub(crate) fn column_count(&self) -> usize {
         self.column_count
