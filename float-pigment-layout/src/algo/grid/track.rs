@@ -86,6 +86,7 @@ impl<T: LayoutTreeNode> GridTrack<T> {
             TrackSizingFunction::Fixed(length) => TrackSizingFunction::Fixed(length.clone()),
             TrackSizingFunction::Flex(fr) => TrackSizingFunction::Flex(*fr),
             TrackSizingFunction::Auto => TrackSizingFunction::Auto,
+            TrackSizingFunction::Intrinsic => TrackSizingFunction::Intrinsic,
         };
         Self::new(sizing_function, max_fn)
     }
@@ -113,6 +114,13 @@ impl<T: LayoutTreeNode> GridTrack<T> {
 ///
 /// CSS Grid §7.2: Track Sizing Functions
 /// <https://www.w3.org/TR/css-grid-1/#track-sizing>
+///
+/// This enum represents the max track sizing function after §11.5 processing.
+/// It determines how the track participates in §11.6 Maximize and §11.8 Stretch:
+/// - `Fixed`: does not grow in §11.6 (finite growth_limit), excluded from §11.8
+/// - `Auto`: grows in §11.6 (infinite growth_limit, never freezes), participates in §11.8
+/// - `Intrinsic`: grows in §11.6 (finite growth_limit, freezes at limit), excluded from §11.8
+/// - `Flex`: excluded from §11.6 (fr tracks already sized in §11.7), excluded from §11.8
 pub(crate) enum TrackSizingFunction<T: LayoutTreeNode> {
     /// Fixed length: `100px`, `50%`, etc.
     Fixed(DefLength<T::Length, T::LengthCustom>),
@@ -121,8 +129,10 @@ pub(crate) enum TrackSizingFunction<T: LayoutTreeNode> {
     Flex(f32),
 
     /// Auto sizing: `auto`
-    /// Represents max-content as max, min-content as min
     Auto,
+
+    /// Intrinsic sizing: `min-content` or `max-content`
+    Intrinsic,
 }
 
 impl<T: LayoutTreeNode> Debug for TrackSizingFunction<T> {
@@ -131,6 +141,7 @@ impl<T: LayoutTreeNode> Debug for TrackSizingFunction<T> {
             Self::Fixed(length) => write!(f, "Fixed({:?})", length),
             Self::Flex(fr) => write!(f, "Flex({}fr)", fr),
             Self::Auto => write!(f, "Auto"),
+            Self::Intrinsic => write!(f, "Intrinsic"),
         }
     }
 }
@@ -180,11 +191,7 @@ impl<T: LayoutTreeNode> GridTracks<T> {
                     TrackSizingFunction::Auto
                 }
                 IntrinsicTrackType::MinContent | IntrinsicTrackType::MaxContent => {
-                    // min-content/max-content tracks participate in §11.6 Maximize
-                    // like auto tracks, but are NOT stretched in §11.8.
-                    // Use Auto sizing function so Maximize treats them correctly
-                    // (they have finite growth_limit from §11.5 Step 4).
-                    TrackSizingFunction::Auto
+                    TrackSizingFunction::Intrinsic
                 }
                 IntrinsicTrackType::Fixed => {
                     TrackSizingFunction::Fixed(DefLength::Points(item.size))

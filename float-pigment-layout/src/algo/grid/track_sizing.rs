@@ -21,6 +21,12 @@ use super::matrix::GridLayoutMatrix;
 /// 1. hypothetical_fr_size = remaining_space / active_flex
 /// 2. If any fr track's size < its min-content, freeze it at min-content
 /// 3. Repeat until stable
+///
+/// When `available_space` is `None` (indefinite), this function is a no-op.
+/// Per W3C §11.7 "Find the Size of an fr", indefinite free space should use
+/// items' max-content contributions to derive fr sizes. In practice, the
+/// caller (`mod.rs`) ensures `available_space` is almost always `Some` by
+/// falling back to `request.max_content` when `requested_size` is `None`.
 fn resolve_fr_track_sizes<L: LengthNum + Copy>(
     tracks: &mut [TrackInfo<L>],
     available_space: OptionNum<L>,
@@ -674,8 +680,14 @@ mod tests {
 
     #[test]
     fn fr_indefinite_container_skipped() {
-        // CSS Grid §11.7: When the available space is indefinite,
-        // fr tracks cannot be resolved and are left untouched.
+        // When available_space is None, resolve_fr_track_sizes is a no-op.
+        //
+        // NOTE: Per W3C §11.7 "Find the Size of an fr", when free space is
+        // indefinite, fr sizes should be derived from items' max-content
+        // contributions. However, in practice this path is rarely reached
+        // because mod.rs falls back to request.max_content (see §11.1
+        // available_grid_space calculation), so available_space is almost
+        // always Some.
         let mut tracks = vec![fr_track(1.0, 0.0)];
         resolve_fr_track_sizes(&mut tracks, OptionNum::none());
         assert_eq!(tracks[0].base_size, None); // unchanged
