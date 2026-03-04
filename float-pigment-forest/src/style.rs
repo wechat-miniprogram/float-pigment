@@ -194,7 +194,7 @@ impl Default for FlexStyle {
             flex_direction: FlexDirection::Row,
             flex_wrap: FlexWrap::NoWrap,
             justify_content: JustifyContent::FlexStart,
-            align_content: AlignContent::Stretch,
+            align_content: AlignContent::Normal,
             align_items: AlignItems::Stretch,
             align_self: AlignSelf::Auto,
             justify_items: JustifyItems::Stretch,
