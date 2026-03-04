@@ -12,7 +12,7 @@ use core::fmt::Debug;
 use float_pigment_css::length_num::LengthNum;
 use float_pigment_css::num_traits::Zero;
 
-use super::track_sizing::TrackSizingResult;
+use super::track_sizing::{IntrinsicTrackType, TrackSizingResult};
 
 /// A single grid track (row or column) with its sizing information.
 ///
@@ -82,19 +82,12 @@ impl<T: LayoutTreeNode> GridTrack<T> {
 
     /// Create a new track from a single sizing function (min == max).
     pub fn from_single(sizing_function: TrackSizingFunction<T>) -> Self {
-        // For non-minmax tracks, we need to duplicate the sizing function
-        // We'll extract the values and create new instances
-        let (min_fn, max_fn) = match sizing_function {
-            TrackSizingFunction::Fixed(ref length) => (
-                TrackSizingFunction::Fixed(length.clone()),
-                TrackSizingFunction::Fixed(length.clone()),
-            ),
-            TrackSizingFunction::Flex(fr) => {
-                (TrackSizingFunction::Flex(fr), TrackSizingFunction::Flex(fr))
-            }
-            TrackSizingFunction::Auto => (TrackSizingFunction::Auto, TrackSizingFunction::Auto),
+        let max_fn = match &sizing_function {
+            TrackSizingFunction::Fixed(length) => TrackSizingFunction::Fixed(length.clone()),
+            TrackSizingFunction::Flex(fr) => TrackSizingFunction::Flex(*fr),
+            TrackSizingFunction::Auto => TrackSizingFunction::Auto,
         };
-        Self::new(min_fn, max_fn)
+        Self::new(sizing_function, max_fn)
     }
 
     /// Get the resolved track size (base_size).
@@ -180,24 +173,27 @@ impl<T: LayoutTreeNode> GridTracks<T> {
         let mut auto_count = 0;
 
         for item in items {
-            let sizing_fn = if item.fr_value > 0.0 {
-                TrackSizingFunction::Flex(item.fr_value)
-            } else if item.is_auto {
-                auto_count += 1;
-                TrackSizingFunction::Auto
-            } else if item.is_min_content || item.is_max_content {
-                // min-content/max-content tracks participate in §11.6 Maximize
-                // like auto tracks, but are NOT stretched in §11.8.
-                // Use Auto sizing function so Maximize treats them correctly
-                // (they have finite growth_limit from §11.5 Step 4).
-                TrackSizingFunction::Auto
-            } else {
-                TrackSizingFunction::Fixed(DefLength::Points(item.size))
+            let sizing_fn = match item.track_type {
+                IntrinsicTrackType::Fr => TrackSizingFunction::Flex(item.fr_value),
+                IntrinsicTrackType::Auto => {
+                    auto_count += 1;
+                    TrackSizingFunction::Auto
+                }
+                IntrinsicTrackType::MinContent | IntrinsicTrackType::MaxContent => {
+                    // min-content/max-content tracks participate in §11.6 Maximize
+                    // like auto tracks, but are NOT stretched in §11.8.
+                    // Use Auto sizing function so Maximize treats them correctly
+                    // (they have finite growth_limit from §11.5 Step 4).
+                    TrackSizingFunction::Auto
+                }
+                IntrinsicTrackType::Fixed => {
+                    TrackSizingFunction::Fixed(DefLength::Points(item.size))
+                }
             };
 
             let mut track = GridTrack::from_single(sizing_fn);
             track.base_size = item.size;
-            track.growth_limit = if item.fr_value > 0.0 {
+            track.growth_limit = if item.track_type == IntrinsicTrackType::Fr {
                 None
             } else {
                 item.growth_limit
@@ -205,10 +201,7 @@ impl<T: LayoutTreeNode> GridTracks<T> {
             tracks.push(track);
         }
 
-        Self {
-            tracks,
-            auto_count,
-        }
+        Self { tracks, auto_count }
     }
 
     /// Maximize tracks by distributing free space.

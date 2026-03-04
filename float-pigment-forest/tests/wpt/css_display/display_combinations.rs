@@ -43,7 +43,6 @@ fn display_flex_to_none() {
     )
 }
 
-
 // Case: `display:flex` with an inline-block child (inline-block becomes a flex item)
 // Spec meaning:
 // - any non-none display value inside a flex container becomes a flex item

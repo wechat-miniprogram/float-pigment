@@ -99,7 +99,7 @@ impl OccupiedBitmap {
     }
 
     /// Check if the cell at (row, col) is occupied.
-    #[allow(dead_code)]
+    #[cfg(test)]
     #[inline]
     fn get(&self, row: usize, col: usize) -> bool {
         let (byte, bit) = self.byte_and_bit(row, col);
@@ -216,10 +216,6 @@ pub(crate) struct GridMatrix<'a, T: LayoutTreeNode> {
     max_col: usize,
     /// The grid items stored separately for efficient iteration
     items: Vec<GridItem<'a, T>>,
-    /// Number of rows with `auto` sizing function
-    row_auto_count: usize,
-    /// Number of columns with `auto` sizing function
-    column_auto_count: usize,
     /// Minimum row count from explicit grid template
     explicit_row_count: usize,
     /// Minimum column count from explicit grid template
@@ -238,8 +234,6 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
     pub(crate) fn new(
         explicit_row_count: usize,
         explicit_column_count: usize,
-        row_auto_count: usize,
-        column_auto_count: usize,
         flow: GridAutoFlow,
         capacity: usize,
     ) -> Self {
@@ -252,8 +246,6 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
             max_row: 0,
             max_col: 0,
             items: Vec::with_capacity(capacity),
-            row_auto_count,
-            column_auto_count,
             explicit_row_count,
             explicit_column_count,
             flow,
@@ -330,16 +322,6 @@ impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
     }
 
     #[inline(always)]
-    pub(crate) fn row_auto_count(&self) -> usize {
-        self.row_auto_count
-    }
-
-    #[inline(always)]
-    pub(crate) fn column_auto_count(&self) -> usize {
-        self.column_auto_count
-    }
-
-    #[inline(always)]
     pub(crate) fn explicit_row_count(&self) -> usize {
         self.explicit_row_count
     }
@@ -387,10 +369,6 @@ pub(crate) struct GridLayoutMatrix<'a, T: LayoutTreeNode> {
     row_count: usize,
     /// Number of columns
     column_count: usize,
-    /// Row gap (CSS `row-gap`), stored for `get_row_size` to exclude gap from track size.
-    row_gap: T::Length,
-    /// Column gap (CSS `column-gap`), stored for `get_column_size` to exclude gap from track size.
-    column_gap: T::Length,
 }
 
 impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
@@ -402,8 +380,6 @@ impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
             items: Vec::with_capacity(capacity),
             row_count,
             column_count,
-            row_gap: T::Length::zero(),
-            column_gap: T::Length::zero(),
         }
     }
 
@@ -437,7 +413,6 @@ impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
     /// After calling this, `get_row_offset(i)` returns the y position of row i.
     pub(crate) fn set_row_sizes(&mut self, sizes: &[T::Length], gap: T::Length) {
         use float_pigment_css::num_traits::Zero;
-        self.row_gap = gap;
         let mut offset = T::Length::zero();
         self.row_offsets[0] = offset;
         for (i, &size) in sizes.iter().enumerate() {
@@ -454,7 +429,6 @@ impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
     /// After calling this, `get_column_offset(j)` returns the x position of column j.
     pub(crate) fn set_column_sizes(&mut self, sizes: &[T::Length], gap: T::Length) {
         use float_pigment_css::num_traits::Zero;
-        self.column_gap = gap;
         let mut offset = T::Length::zero();
         self.column_offsets[0] = offset;
         for (i, &size) in sizes.iter().enumerate() {
@@ -476,40 +450,6 @@ impl<'a, T: LayoutTreeNode> GridLayoutMatrix<'a, T> {
     #[inline(always)]
     pub(crate) fn get_column_offset(&self, column: usize) -> T::Length {
         self.column_offsets[column]
-    }
-
-    /// Get the height of a row.
-    #[allow(dead_code)]
-    #[inline(always)]
-    pub(crate) fn get_row_size(&self, row: usize) -> T::Length {
-        if row + 1 < self.row_offsets.len() {
-            let diff = self.row_offsets[row + 1] - self.row_offsets[row];
-            // Non-last rows have gap baked into the offset difference.
-            if row + 1 < self.row_count {
-                diff - self.row_gap
-            } else {
-                diff
-            }
-        } else {
-            T::Length::zero()
-        }
-    }
-
-    /// Get the width of a column.
-    #[allow(dead_code)]
-    #[inline(always)]
-    pub(crate) fn get_column_size(&self, column: usize) -> T::Length {
-        if column + 1 < self.column_offsets.len() {
-            let diff = self.column_offsets[column + 1] - self.column_offsets[column];
-            // Non-last columns have gap baked into the offset difference.
-            if column + 1 < self.column_count {
-                diff - self.column_gap
-            } else {
-                diff
-            }
-        } else {
-            T::Length::zero()
-        }
     }
 }
 

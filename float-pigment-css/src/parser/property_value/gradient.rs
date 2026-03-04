@@ -55,7 +55,7 @@ fn resolved_gradient_color_stops<'a, 't: 'a, 'i: 't>(
         };
         match hint {
             Length::Auto => {
-                if idx == 0 && color_len > 1{
+                if idx == 0 && color_len > 1 {
                     *hint = Length::Ratio(0.);
                 } else if idx == color_len - 1 {
                     *hint = Length::Ratio(1.);
@@ -587,8 +587,9 @@ fn gradient_position_repr<'a, 't: 'a, 'i: 't>(
     };
 
     let mut try_parse_length = |parser: &mut Parser<'i, 't>| {
-        parser
-            .try_parse::<_, _, ParseError<'i, CustomError>>(|parser| length_percentage(parser, properties, st))
+        parser.try_parse::<_, _, ParseError<'i, CustomError>>(|parser| {
+            length_percentage(parser, properties, st)
+        })
     };
 
     // <position-four>
