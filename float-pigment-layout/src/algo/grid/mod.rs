@@ -636,6 +636,15 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             crate::AxisDirection::Horizontal => container_content_height,
         };
 
+        let axis_info_for_origin = if is_inline_reversed {
+            AxisInfo {
+                cross_dir_rev: AxisReverse::NotReversed,
+                ..axis_info
+            }
+        } else {
+            axis_info
+        };
+
         for grid_layout_item in grid_layout_matrix.items() {
             let row = grid_layout_item.row();
             let column = grid_layout_item.column();
@@ -727,16 +736,6 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                 calculate_justify_offset_rtl(justify_self, item_size.width, track_size.width)
             } else {
                 calculate_justify_offset(justify_self, item_size.width, track_size.width)
-            };
-
-            // For RTL, we've already calculated the correct position, so use non-reversed axis_info
-            let axis_info_for_origin = if is_inline_reversed {
-                AxisInfo {
-                    cross_dir_rev: AxisReverse::NotReversed,
-                    ..axis_info
-                }
-            } else {
-                axis_info
             };
 
             layout_node.gen_origin(
