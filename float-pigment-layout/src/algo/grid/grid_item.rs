@@ -126,8 +126,6 @@ pub(crate) struct GridItem<'a, T: LayoutTreeNode> {
     row: usize,
     /// The item's column index in the grid (0-based)
     column: usize,
-    /// Original DOM index for maintaining source order
-    origin_index: usize,
     /// Reference to the DOM node
     pub(crate) node: &'a T,
     /// Track sizing function for the block (row) axis
@@ -140,19 +138,18 @@ impl<'a, T: LayoutTreeNode> Debug for GridItem<'a, T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
-            "GridItem {{ row: {}, column: {}, origin_index: {}, track_block_size: {:?}, track_inline_size: {:?} }}",
-            self.row, self.column, self.origin_index, self.track_block_size, self.track_inline_size
+            "GridItem {{ row: {}, column: {}, track_block_size: {:?}, track_inline_size: {:?} }}",
+            self.row, self.column, self.track_block_size, self.track_inline_size
         )
     }
 }
 
 impl<'a, T: LayoutTreeNode> GridItem<'a, T> {
-    pub fn new(node: &'a T, origin_index: usize, row: usize, column: usize) -> Self {
+    pub fn new(node: &'a T, row: usize, column: usize) -> Self {
         Self {
             row,
             column,
             node,
-            origin_index,
             track_block_size: TrackSize::Original(DefLength::Auto),
             track_inline_size: TrackSize::Original(DefLength::Auto),
         }

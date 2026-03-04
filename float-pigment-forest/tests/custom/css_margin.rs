@@ -608,7 +608,7 @@ fn margin_collapse_between_parent_and_empty_block_3() {
 // In this test:
 // - Element: position=absolute, left=0, right=100px, width=10px
 // - Available space = 0 to (375-100) = 275px, center = (275-10)/2 = 132.5 ≈ 95
-// - Wait, the test expects 95... Let me check: (375 - 100 - 10) / 2 = 132.5... 
+// - Wait, the test expects 95... Let me check: (375 - 100 - 10) / 2 = 132.5...
 // - Actually with left=0, right=100, space = 275, (275-10)/2 = 132.5... but expect_left=95
 // - Maybe right is relative position? Let me preserve original test
 #[test]

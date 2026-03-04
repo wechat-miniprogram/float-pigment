@@ -56,15 +56,14 @@ use crate::{
         grid_item::GridLayoutItem,
         matrix::{GridLayoutMatrix, GridMatrix},
         placement::place_grid_items,
-        template::{initialize_track_list, InitializedTrackListInfo},
+        template::initialize_track_list,
         track_size::apply_track_size,
-        track_sizing::compute_track_sizes,
+        track_sizing::{classify_track_at_index, compute_track_sizes},
     },
     compute_special_position_children, is_display_none, is_independent_positioning, AxisInfo,
     AxisReverse, CollapsedBlockMargin, ComputeRequest, ComputeRequestKind, ComputeResult,
-    DefLength, Edge, EdgeOption, LayoutStyle, LayoutTrackListItem, LayoutTrackSize, LayoutTreeNode,
-    LayoutTreeVisitor, LayoutUnit, Normalized, OptionNum, OptionSize, Point, Size, SizingMode,
-    Vector,
+    DefLength, Edge, EdgeOption, LayoutStyle, LayoutTreeNode, LayoutTreeVisitor, LayoutUnit,
+    Normalized, OptionNum, OptionSize, Point, Size, SizingMode, Vector,
 };
 
 #[derive(Clone, PartialEq)]
@@ -189,16 +188,8 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         let grid_auto_rows = style.grid_auto_rows();
         let grid_auto_columns = style.grid_auto_columns();
 
-        let InitializedTrackListInfo {
-            list: row_track_list,
-            auto_count: row_track_auto_count,
-            total_fr: row_total_fr,
-        } = initialize_track_list::<T>(&grid_template_rows);
-        let InitializedTrackListInfo {
-            list: column_track_list,
-            auto_count: column_track_auto_count,
-            total_fr: column_total_fr,
-        } = initialize_track_list::<T>(&grid_template_columns);
+        let row_track_list = initialize_track_list::<T>(&grid_template_rows);
+        let column_track_list = initialize_track_list::<T>(&grid_template_columns);
 
         // ═══════════════════════════════════════════════════════════════════════
         // STEP 4: Grid Item Placement (Single-Pass with Dynamic Expansion)
@@ -215,8 +206,7 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         let children = node
             .tree_visitor()
             .children_iter()
-            .enumerate()
-            .filter(|(_, child)| {
+            .filter(|child| {
                 !is_independent_positioning(*child) && !is_display_none::<T>(child.style())
             })
             .collect::<Vec<_>>();
@@ -225,8 +215,6 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         let mut grid_matrix = GridMatrix::new(
             row_track_list.len(),    // Explicit row count
             column_track_list.len(), // Explicit column count
-            row_track_auto_count,
-            column_track_auto_count,
             style.grid_auto_flow(),
             children_count,
         );
@@ -273,7 +261,6 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             node,
             requested_inner_size.width,
             &mut available_grid_space.width,
-            column_total_fr,
         );
 
         // Next, the track sizing algorithm resolves the sizes of the grid rows.
@@ -284,7 +271,6 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             node,
             requested_inner_size.height,
             &mut available_grid_space.height,
-            row_total_fr,
         );
 
         // CSS Grid §11.1 Step 3-4: Re-resolution (once only)
@@ -311,7 +297,6 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                 node,
                 requested_inner_size.width,
                 &mut available_grid_space.width,
-                column_total_fr,
             );
 
             // Only re-resolve rows if column sizes actually changed
@@ -329,7 +314,6 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                     node,
                     requested_inner_size.height,
                     &mut available_grid_space.height,
-                    row_total_fr,
                 );
             }
         }
@@ -359,95 +343,11 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         // min-content pass needed for: auto / fr / min-content / max-content tracks.
         // max-content pass needed for: auto / max-content tracks (§11.5 Step 4).
         // Fixed tracks (length/percentage) don't need either.
-        let column_needs_min_content: Vec<bool> = (0..actual_column_count)
-            .map(|i| {
-                if let Some(track_item) = column_track_list.get(i) {
-                    match track_item {
-                        LayoutTrackListItem::TrackSize(track_size) => match track_size {
-                            LayoutTrackSize::Length(
-                                DefLength::Points(_) | DefLength::Percent(_),
-                            ) => false,
-                            LayoutTrackSize::Length(_)
-                            | LayoutTrackSize::Fr(_)
-                            | LayoutTrackSize::MinContent
-                            | LayoutTrackSize::MaxContent => true,
-                        },
-                        _ => false,
-                    }
-                } else {
-                    let implicit_index = i - column_track_list.len();
-                    !matches!(
-                        grid_auto_columns.get(implicit_index),
-                        LayoutTrackSize::Length(DefLength::Points(_) | DefLength::Percent(_))
-                    )
-                }
-            })
+        let column_track_types: Vec<_> = (0..actual_column_count)
+            .map(|i| classify_track_at_index(i, &column_track_list, &grid_auto_columns))
             .collect();
-
-        let row_needs_min_content: Vec<bool> = (0..actual_row_count)
-            .map(|i| {
-                if let Some(track_item) = row_track_list.get(i) {
-                    match track_item {
-                        LayoutTrackListItem::TrackSize(track_size) => match track_size {
-                            LayoutTrackSize::Length(
-                                DefLength::Points(_) | DefLength::Percent(_),
-                            ) => false,
-                            LayoutTrackSize::Length(_)
-                            | LayoutTrackSize::Fr(_)
-                            | LayoutTrackSize::MinContent
-                            | LayoutTrackSize::MaxContent => true,
-                        },
-                        _ => false,
-                    }
-                } else {
-                    let implicit_index = i - row_track_list.len();
-                    !matches!(
-                        grid_auto_rows.get(implicit_index),
-                        LayoutTrackSize::Length(DefLength::Points(_) | DefLength::Percent(_))
-                    )
-                }
-            })
-            .collect();
-
-        // §11.5 Step 4: max-content contribution is needed for tracks with
-        // intrinsic max sizing functions (auto, max-content).
-        // min-content tracks use min-content for their growth_limit instead.
-        let column_needs_max_content: Vec<bool> = (0..actual_column_count)
-            .map(|i| {
-                if let Some(track_item) = column_track_list.get(i) {
-                    matches!(
-                        track_item,
-                        LayoutTrackListItem::TrackSize(
-                            LayoutTrackSize::Length(DefLength::Auto) | LayoutTrackSize::MaxContent,
-                        )
-                    )
-                } else {
-                    let implicit_index = i - column_track_list.len();
-                    matches!(
-                        grid_auto_columns.get(implicit_index),
-                        LayoutTrackSize::Length(DefLength::Auto) | LayoutTrackSize::MaxContent
-                    )
-                }
-            })
-            .collect();
-
-        let row_needs_max_content: Vec<bool> = (0..actual_row_count)
-            .map(|i| {
-                if let Some(track_item) = row_track_list.get(i) {
-                    matches!(
-                        track_item,
-                        LayoutTrackListItem::TrackSize(
-                            LayoutTrackSize::Length(DefLength::Auto) | LayoutTrackSize::MaxContent,
-                        )
-                    )
-                } else {
-                    let implicit_index = i - row_track_list.len();
-                    matches!(
-                        grid_auto_rows.get(implicit_index),
-                        LayoutTrackSize::Length(DefLength::Auto) | LayoutTrackSize::MaxContent
-                    )
-                }
-            })
+        let row_track_types: Vec<_> = (0..actual_row_count)
+            .map(|i| classify_track_at_index(i, &row_track_list, &grid_auto_rows))
             .collect();
 
         for grid_item in grid_matrix.items() {
@@ -485,8 +385,8 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
 
             let has_definite_css_width = css_size.width.is_some();
             let has_definite_css_height = css_size.height.is_some();
-            let item_tracks_all_fixed =
-                !column_needs_min_content[column] && !row_needs_min_content[row];
+            let item_tracks_all_fixed = !column_track_types[column].needs_min_content()
+                && !row_track_types[row].needs_min_content();
             let unconstrained = Size::new(OptionNum::none(), OptionNum::none());
 
             // §11.5 Step 2: min-content contribution for base_size
@@ -515,8 +415,8 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
 
             // §11.5 Step 4: max-content contribution for growth_limit
             // Must use unconstrained (infinite) available space, not track_size.
-            let needs_max_content =
-                column_needs_max_content[column] || row_needs_max_content[row];
+            let needs_max_content = column_track_types[column].needs_max_content()
+                || row_track_types[row].needs_max_content();
             let max_content_size =
                 if (has_definite_css_width && has_definite_css_height) || !needs_max_content {
                     None
@@ -576,12 +476,10 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         // - For fr tracks: distribute remaining space via iterative algorithm
         // ═══════════════════════════════════════════════════════════════════════
         let computed_track_sizes = compute_track_sizes(
-            &mut grid_layout_matrix,
+            &grid_layout_matrix,
             &column_track_list,
             &row_track_list,
             available_grid_space,
-            column_total_fr,
-            row_total_fr,
             &grid_auto_columns,
             &grid_auto_rows,
         );

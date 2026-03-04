@@ -6,9 +6,13 @@
 //! CSS Grid §11.7 (Expand Flexible Tracks):
 //! https://www.w3.org/TR/css-grid-1/#algo-flex-tracks
 
-use crate::*;
+use alloc::vec::Vec;
 use float_pigment_css::length_num::LengthNum;
-use float_pigment_css::num_traits::Zero;
+
+use crate::{
+    types::MinMax, DefLength, LayoutGridAuto, LayoutTrackListItem, LayoutTrackSize, LayoutTreeNode,
+    OptionNum, OptionSize, Size,
+};
 
 use super::matrix::GridLayoutMatrix;
 
@@ -19,9 +23,14 @@ use super::matrix::GridLayoutMatrix;
 /// 3. Repeat until stable
 fn resolve_fr_track_sizes<L: LengthNum + Copy>(
     tracks: &mut [TrackInfo<L>],
-    total_fr: f32,
     available_space: OptionNum<L>,
 ) {
+    let total_fr: f32 = tracks
+        .iter()
+        .filter(|t| t.track_type == IntrinsicTrackType::Fr)
+        .map(|t| t.fr_value)
+        .sum();
+
     if total_fr <= 0.0 {
         return;
     }
@@ -32,7 +41,7 @@ fn resolve_fr_track_sizes<L: LengthNum + Copy>(
 
     let total_non_fr_size: L = tracks
         .iter()
-        .filter(|t| !t.is_fr)
+        .filter(|t| t.track_type != IntrinsicTrackType::Fr)
         .fold(L::zero(), |acc, t| acc + t.base_size.unwrap_or(L::zero()));
 
     let initial_remaining = if available > total_non_fr_size {
@@ -43,7 +52,9 @@ fn resolve_fr_track_sizes<L: LengthNum + Copy>(
 
     let mut remaining_space = initial_remaining;
     let mut active_flex = total_fr;
-    let mut flexible_indices: Vec<usize> = (0..tracks.len()).filter(|&i| tracks[i].is_fr).collect();
+    let mut flexible_indices: Vec<usize> = (0..tracks.len())
+        .filter(|&i| tracks[i].track_type == IntrinsicTrackType::Fr)
+        .collect();
     if flexible_indices.is_empty() {
         return;
     }
@@ -90,12 +101,9 @@ pub(crate) struct TrackSizingResult<L: LengthNum> {
     pub size: L,
     /// The flex factor if this is an fr track (§11.7); 0.0 otherwise.
     pub fr_value: f32,
-    /// Whether this track has an `auto` sizing function (§7.2).
-    pub is_auto: bool,
-    /// Whether this track has a `min-content` sizing function (§7.2).
-    pub is_min_content: bool,
-    /// Whether this track has a `max-content` sizing function (§7.2).
-    pub is_max_content: bool,
+    /// The intrinsic track type (§7.2), used by §11.6/§11.8 to determine
+    /// how the track participates in maximize and stretch phases.
+    pub track_type: IntrinsicTrackType,
     /// The track's growth limit; `None` represents infinity (§11.4).
     pub growth_limit: Option<L>,
 }
@@ -112,7 +120,7 @@ pub(crate) struct TrackSizingResult<L: LengthNum> {
 /// - MaxContent: min = min-content, max = max-content (§11.5)
 /// - Fr: handled separately in §11.7
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum IntrinsicTrackType {
+pub(crate) enum IntrinsicTrackType {
     Fixed,
     Auto,
     MinContent,
@@ -127,22 +135,20 @@ struct TrackInfo<L: LengthNum> {
     /// `None` represents infinity.
     growth_limit: Option<L>,
     has_explicit: bool,
-    is_fr: bool,
     fr_value: f32,
     min_content: L,
     /// The type of track for intrinsic sizing purposes (§11.5).
     track_type: IntrinsicTrackType,
 }
 
-impl<L: LengthNum + Copy + Default> Default for TrackInfo<L> {
-    fn default() -> Self {
+impl<L: LengthNum + Copy> TrackInfo<L> {
+    fn new() -> Self {
         Self {
             base_size: None,
             growth_limit: None,
             has_explicit: false,
-            is_fr: false,
             fr_value: 0.0,
-            min_content: L::default(),
+            min_content: L::zero(),
             track_type: IntrinsicTrackType::Auto,
         }
     }
@@ -152,7 +158,7 @@ impl<L: LengthNum + Copy + Default> Default for TrackInfo<L> {
 ///
 /// CSS Grid §7.2: Track Sizing Functions
 /// <https://www.w3.org/TR/css-grid-1/#track-sizing>
-fn classify_track_type<L: LengthNum, C: PartialEq + Clone>(
+pub(crate) fn classify_track_type<L: LengthNum, C: PartialEq + Clone>(
     track_size: &LayoutTrackSize<L, C>,
 ) -> IntrinsicTrackType {
     match track_size {
@@ -166,10 +172,208 @@ fn classify_track_type<L: LengthNum, C: PartialEq + Clone>(
     }
 }
 
+impl IntrinsicTrackType {
+    /// Whether this track needs a min-content layout pass.
+    ///
+    /// All non-fixed tracks need min-content: auto, fr, min-content, max-content.
+    /// Fixed tracks (length/percentage) do not.
+    #[inline]
+    pub(crate) fn needs_min_content(self) -> bool {
+        self != IntrinsicTrackType::Fixed
+    }
+
+    /// Whether this track needs a max-content layout pass.
+    ///
+    /// §11.5 Step 4: Only tracks with intrinsic max sizing functions
+    /// (auto, max-content) need max-content contributions.
+    #[inline]
+    pub(crate) fn needs_max_content(self) -> bool {
+        matches!(
+            self,
+            IntrinsicTrackType::Auto | IntrinsicTrackType::MaxContent
+        )
+    }
+}
+
+/// Classify a track at a given index, handling both explicit and implicit tracks.
+///
+/// For explicit tracks, classifies from the track list.
+/// For implicit tracks (§7.6), classifies from grid-auto-rows/columns.
+pub(crate) fn classify_track_at_index<L: LengthNum, C: PartialEq + Clone>(
+    index: usize,
+    explicit_track_list: &[&LayoutTrackListItem<L, C>],
+    grid_auto_tracks: &LayoutGridAuto<L, C>,
+) -> IntrinsicTrackType {
+    if let Some(track_item) = explicit_track_list.get(index) {
+        match track_item {
+            LayoutTrackListItem::TrackSize(track_size) => classify_track_type(track_size),
+            _ => IntrinsicTrackType::Fixed,
+        }
+    } else {
+        let implicit_index = index - explicit_track_list.len();
+        classify_track_type(&grid_auto_tracks.get(implicit_index))
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct ComputedTrackSizes<T: LayoutTreeNode> {
     pub rows: Vec<TrackSizingResult<T::Length>>,
     pub columns: Vec<TrackSizingResult<T::Length>>,
+}
+
+/// Initialize track info for one axis.
+///
+/// CSS Grid §7.6: Implicit tracks use grid-auto-rows/columns.
+/// For each track position, determines its type (Fixed/Auto/MinContent/MaxContent/Fr)
+/// from either the explicit track list or implicit auto tracks.
+fn init_track_infos<L: LengthNum + Copy, C: PartialEq + Clone>(
+    track_count: usize,
+    explicit_track_list: &[&LayoutTrackListItem<L, C>],
+    grid_auto_tracks: &LayoutGridAuto<L, C>,
+) -> Vec<TrackInfo<L>> {
+    let explicit_count = explicit_track_list.len();
+    (0..track_count)
+        .map(|i| {
+            let mut info = TrackInfo::new();
+            if let Some(LayoutTrackListItem::TrackSize(track_size)) = explicit_track_list.get(i) {
+                info.track_type = classify_track_type(track_size);
+                if let LayoutTrackSize::Fr(fr_value) = track_size {
+                    info.fr_value = *fr_value;
+                }
+            } else if i >= explicit_count {
+                // Implicit track (§7.6)
+                let implicit_index = i - explicit_count;
+                let implicit_track_size = grid_auto_tracks.get(implicit_index);
+                info.track_type = classify_track_type(&implicit_track_size);
+                if let LayoutTrackSize::Fr(fr_value) = implicit_track_size {
+                    info.fr_value = fr_value;
+                }
+            }
+            info
+        })
+        .collect()
+}
+
+/// Update a single track's intrinsic sizes based on an item's contribution.
+///
+/// CSS Grid §11.5: Resolve Intrinsic Track Sizes
+/// <https://www.w3.org/TR/css-grid-1/#algo-content>
+///
+/// - §11.5 Step 2: For tracks with intrinsic min sizing function,
+///   increase base_size to the item's min-content contribution.
+/// - §11.5 Step 4: For tracks with intrinsic max sizing function,
+///   increase growth_limit to the item's max-content contribution.
+///
+/// For fixed tracks: use the explicit track size (§11.4).
+/// For fr tracks: only min_content is updated (used as freeze threshold §11.7).
+fn update_track_intrinsic_sizes<L: LengthNum + Copy>(
+    track: &mut TrackInfo<L>,
+    outer_min_content: L,
+    effective_min_content: L,
+    outer_max_content: L,
+    fixed_track_size: OptionNum<L>,
+) {
+    // Always update min_content for all tracks (used as fr freeze threshold §11.7)
+    track.min_content = track.min_content.max(outer_min_content);
+
+    if track.track_type == IntrinsicTrackType::Fr {
+        return;
+    }
+
+    match track.track_type {
+        IntrinsicTrackType::Fixed => {
+            // Fixed track: use the specified size (§11.4)
+            if fixed_track_size.is_some() {
+                track.has_explicit = true;
+                let size = fixed_track_size.val().unwrap();
+                track.base_size = Some(track.base_size.map(|s| s.max(size)).unwrap_or(size));
+                // Fixed track: growth_limit = base_size (§11.4)
+                track.growth_limit = track.base_size;
+            }
+        }
+        IntrinsicTrackType::Auto => {
+            // §11.5 Step 2: auto min -> increase base_size to min-content contribution.
+            track.base_size = Some(
+                track
+                    .base_size
+                    .map_or(effective_min_content, |s| s.max(effective_min_content)),
+            );
+            // §11.4: auto max -> growth_limit = infinity (None).
+            // §11.5 Step 4: increase(infinity, max-content) = infinity.
+            // This allows §11.6 Maximize to distribute free space.
+            track.growth_limit = None;
+        }
+        IntrinsicTrackType::MinContent => {
+            // §11.5 Step 2: base_size = min-content contribution
+            track.base_size = Some(
+                track
+                    .base_size
+                    .map(|s| s.max(effective_min_content))
+                    .unwrap_or(effective_min_content),
+            );
+            // §11.5 Step 4: min-content max -> growth_limit = min-content
+            track.growth_limit = Some(
+                track
+                    .growth_limit
+                    .map(|s| s.max(effective_min_content))
+                    .unwrap_or(effective_min_content),
+            );
+        }
+        IntrinsicTrackType::MaxContent => {
+            // §11.5 Step 2: base_size = min-content contribution
+            track.base_size = Some(
+                track
+                    .base_size
+                    .map(|s| s.max(effective_min_content))
+                    .unwrap_or(effective_min_content),
+            );
+            // §11.5 Step 4: max-content max -> growth_limit = max-content
+            track.growth_limit = Some(
+                track
+                    .growth_limit
+                    .map(|s| s.max(outer_max_content))
+                    .unwrap_or(outer_max_content),
+            );
+        }
+        // Fr is handled by the early return above
+        IntrinsicTrackType::Fr => {}
+    }
+}
+
+/// Resolve the fixed track size for an implicit or explicit track.
+///
+/// For explicit tracks, uses the item's pre-resolved track size.
+/// For implicit tracks (§7.6), resolves from grid-auto-rows/columns.
+fn resolve_fixed_track_size<T: LayoutTreeNode>(
+    track_index: usize,
+    explicit_count: usize,
+    item_track_size: OptionNum<T::Length>,
+    grid_auto_tracks: &LayoutGridAuto<T::Length, T::LengthCustom>,
+    available_space: OptionNum<T::Length>,
+    node: &T,
+) -> OptionNum<T::Length> {
+    if track_index < explicit_count {
+        item_track_size
+    } else {
+        let implicit_index = track_index - explicit_count;
+        match grid_auto_tracks.get(implicit_index) {
+            LayoutTrackSize::Length(def_len) => def_len.resolve(available_space, node),
+            _ => OptionNum::none(),
+        }
+    }
+}
+
+/// Convert TrackInfo slice to TrackSizingResult vector.
+fn tracks_to_results<L: LengthNum + Copy>(tracks: &[TrackInfo<L>]) -> Vec<TrackSizingResult<L>> {
+    tracks
+        .iter()
+        .map(|t| TrackSizingResult {
+            size: t.base_size.unwrap_or(L::zero()),
+            fr_value: t.fr_value,
+            track_type: t.track_type,
+            growth_limit: t.growth_limit,
+        })
+        .collect()
 }
 
 /// Compute track sizes based on item content.
@@ -185,99 +389,40 @@ pub(crate) struct ComputedTrackSizes<T: LayoutTreeNode> {
 ///   max-content): set base_size = item's min-content contribution
 ///   Step 4 - For tracks with intrinsic max sizing function:
 ///   set growth_limit = item's max-content contribution
-///   (auto/max-content → max-content; min-content → min-content)
+///   (auto/max-content -> max-content; min-content -> min-content)
 ///
 ///   For fixed tracks: use the specified size for both base_size and growth_limit
 ///   For fr tracks: collect min-content as freeze threshold
 ///
 /// Phase 2: Iterative fr algorithm (§11.7)
-/// 1. Calculate hypothetical_fr_size = leftover_space / total_flex
+/// 1. Calculate hypothetical_fr_size = remaining_space / total_flex
 /// 2. If any fr track's size < its min-content, freeze it at min-content
 /// 3. Repeat until stable
 ///
-/// Returns (column_result, row_result).
+/// Returns `ComputedTrackSizes` with column and row results.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
-    grid_layout_matrix: &mut GridLayoutMatrix<T>,
+    grid_layout_matrix: &GridLayoutMatrix<T>,
     column_track_list: &[&LayoutTrackListItem<T::Length, T::LengthCustom>],
     row_track_list: &[&LayoutTrackListItem<T::Length, T::LengthCustom>],
     available_grid_space: OptionSize<T::Length>,
-    column_total_fr: f32,
-    row_total_fr: f32,
     grid_auto_columns: &LayoutGridAuto<T::Length, T::LengthCustom>,
     grid_auto_rows: &LayoutGridAuto<T::Length, T::LengthCustom>,
 ) -> ComputedTrackSizes<T> {
-    let row_count = grid_layout_matrix.row_count();
-    let column_count = grid_layout_matrix.column_count();
-
     let explicit_column_count = column_track_list.len();
     let explicit_row_count = row_track_list.len();
 
-    // Initialize column track info
-    // CSS Grid §7.6: Implicit tracks use grid-auto-columns
-    let mut columns: Vec<TrackInfo<T::Length>> = (0..column_count)
-        .map(|i| {
-            let mut info = TrackInfo {
-                base_size: None,
-                growth_limit: None,
-                has_explicit: false,
-                is_fr: false,
-                fr_value: 0.0,
-                min_content: T::Length::zero(),
-                track_type: IntrinsicTrackType::Auto,
-            };
-            if let Some(LayoutTrackListItem::TrackSize(track_size)) = column_track_list.get(i) {
-                info.track_type = classify_track_type(track_size);
-                if let LayoutTrackSize::Fr(fr_value) = track_size {
-                    info.is_fr = true;
-                    info.fr_value = *fr_value;
-                }
-            } else if i >= explicit_column_count {
-                // Implicit track - use grid-auto-columns (§7.6)
-                let implicit_index = i - explicit_column_count;
-                let implicit_track_size = grid_auto_columns.get(implicit_index);
-                info.track_type = classify_track_type(&implicit_track_size);
-                if let LayoutTrackSize::Fr(fr_value) = implicit_track_size {
-                    info.is_fr = true;
-                    info.fr_value = fr_value;
-                }
-            }
-            info
-        })
-        .collect();
-
-    // Initialize row track info
-    // CSS Grid §7.6: Implicit tracks use grid-auto-rows
-    let mut rows: Vec<TrackInfo<T::Length>> = (0..row_count)
-        .map(|i| {
-            let mut info = TrackInfo {
-                base_size: None,
-                growth_limit: None,
-                has_explicit: false,
-                is_fr: false,
-                fr_value: 0.0,
-                min_content: T::Length::zero(),
-                track_type: IntrinsicTrackType::Auto,
-            };
-            if let Some(LayoutTrackListItem::TrackSize(track_size)) = row_track_list.get(i) {
-                info.track_type = classify_track_type(track_size);
-                if let LayoutTrackSize::Fr(fr_value) = track_size {
-                    info.is_fr = true;
-                    info.fr_value = *fr_value;
-                }
-            } else if i >= explicit_row_count {
-                // Implicit track - use grid-auto-rows (§7.6)
-                let implicit_index = i - explicit_row_count;
-                let implicit_track_size = grid_auto_rows.get(implicit_index);
-                info.track_type = classify_track_type(&implicit_track_size);
-                if let LayoutTrackSize::Fr(fr_value) = implicit_track_size {
-                    info.is_fr = true;
-                    info.fr_value = fr_value;
-                }
-            }
-            info
-        })
-        .collect();
+    // Initialize track info for both axes (§7.6)
+    let mut columns = init_track_infos(
+        grid_layout_matrix.column_count(),
+        column_track_list,
+        grid_auto_columns,
+    );
+    let mut rows = init_track_infos(
+        grid_layout_matrix.row_count(),
+        row_track_list,
+        grid_auto_rows,
+    );
 
     // ═══════════════════════════════════════════════════════════════════════
     // Phase 1: Resolve intrinsic track sizes (§11.5)
@@ -289,8 +434,8 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
     //
     // §11.5 Step 4: For tracks with an intrinsic max track sizing function,
     //   increase growth_limit to the item's max-content contribution.
-    //   - auto / max-content → growth_limit = max-content contribution
-    //   - min-content → growth_limit = min-content contribution
+    //   - auto / max-content -> growth_limit = max-content contribution
+    //   - min-content -> growth_limit = min-content contribution
     //
     // For fixed tracks: use the explicit track size (§11.4)
     // For fr tracks: collect min-content for freeze threshold (§11.7)
@@ -305,7 +450,7 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
         let min_content_size = item.min_content_size().copied().unwrap_or(Size::zero());
 
         // §11.5 Step 2: min-content contribution for base_size
-        // If item has a CSS width, use it; otherwise use min-content
+        // If item has a CSS size, use it; otherwise use min-content
         let min_content_width = if css_width.is_some() {
             css_width.val().unwrap().max(min_content_size.width)
         } else {
@@ -346,181 +491,44 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
 
         // Intrinsic sizing invariants from CSS Sizing:
         // min-content contribution must not exceed max-content contribution.
-        // Clamp defensively because engine-internal min-content measurement can be
-        // over-constrained in some contexts.
         let effective_min_content_width = outer_min_content_width.min(outer_max_content_width);
         let effective_min_content_height = outer_min_content_height.min(outer_max_content_height);
 
-        // Always update min_content for all tracks (used as fr freeze threshold §11.7)
-        columns[column].min_content = columns[column].min_content.max(outer_min_content_width);
-        rows[row].min_content = rows[row].min_content.max(outer_min_content_height);
+        // Resolve fixed track sizes for implicit/explicit tracks
+        let col_fixed_size = resolve_fixed_track_size::<T>(
+            column,
+            explicit_column_count,
+            item.track_inline_size(),
+            grid_auto_columns,
+            available_grid_space.width,
+            item.node,
+        );
+        let row_fixed_size = resolve_fixed_track_size::<T>(
+            row,
+            explicit_row_count,
+            item.track_block_size(),
+            grid_auto_rows,
+            available_grid_space.height,
+            item.node,
+        );
 
-        // Handle column sizing for non-fr tracks
-        if !columns[column].is_fr {
-            match columns[column].track_type {
-                IntrinsicTrackType::Fixed => {
-                    // Fixed track: use the specified size (§11.4)
-                    let track_size = if column < explicit_column_count {
-                        item.track_inline_size()
-                    } else {
-                        let implicit_index = column - explicit_column_count;
-                        match grid_auto_columns.get(implicit_index) {
-                            LayoutTrackSize::Length(def_len) => {
-                                def_len.resolve(available_grid_space.width, item.node)
-                            }
-                            _ => OptionNum::none(),
-                        }
-                    };
+        // Update column track
+        update_track_intrinsic_sizes(
+            &mut columns[column],
+            outer_min_content_width,
+            effective_min_content_width,
+            outer_max_content_width,
+            col_fixed_size,
+        );
 
-                    if track_size.is_some() {
-                        columns[column].has_explicit = true;
-                        let track_width = track_size.val().unwrap();
-                        columns[column].base_size = Some(
-                            columns[column]
-                                .base_size
-                                .map(|s| s.max(track_width))
-                                .unwrap_or(track_width),
-                        );
-                        // Fixed track: growth_limit = base_size (§11.4)
-                        columns[column].growth_limit = columns[column].base_size;
-                    }
-                }
-                IntrinsicTrackType::Auto => {
-                    // §11.5 Step 2: auto min track sizing function
-                    // → increase base_size to min-content contribution.
-                    columns[column].base_size = Some(
-                        columns[column]
-                            .base_size
-                            .map(|s| s.max(effective_min_content_width))
-                            .unwrap_or(effective_min_content_width),
-                    );
-                    // §11.4: auto max → growth_limit initialized to infinity (None).
-                    // §11.5 Step 4: increase(infinity, max-content) = infinity.
-                    // The "increase" operation is max(current, new); since
-                    // infinity > any finite value, it stays infinity.
-                    // This allows §11.6 Maximize to distribute free space
-                    // into auto tracks without freezing them.
-                    columns[column].growth_limit = None;
-                }
-                IntrinsicTrackType::MinContent => {
-                    // §11.5 Step 2: base_size = min-content contribution
-                    columns[column].base_size = Some(
-                        columns[column]
-                            .base_size
-                            .map(|s| s.max(effective_min_content_width))
-                            .unwrap_or(effective_min_content_width),
-                    );
-                    // §11.5 Step 4: min-content max → growth_limit = min-content
-                    columns[column].growth_limit = Some(
-                        columns[column]
-                            .growth_limit
-                            .map(|s| s.max(effective_min_content_width))
-                            .unwrap_or(effective_min_content_width),
-                    );
-                }
-                IntrinsicTrackType::MaxContent => {
-                    // §11.5 Step 2: base_size = min-content contribution
-                    columns[column].base_size = Some(
-                        columns[column]
-                            .base_size
-                            .map(|s| s.max(effective_min_content_width))
-                            .unwrap_or(effective_min_content_width),
-                    );
-                    // §11.5 Step 4: max-content max → growth_limit = max-content
-                    columns[column].growth_limit = Some(
-                        columns[column]
-                            .growth_limit
-                            .map(|s| s.max(outer_max_content_width))
-                            .unwrap_or(outer_max_content_width),
-                    );
-                }
-                IntrinsicTrackType::Fr => {
-                    // Fr tracks handled by resolve_fr_track_sizes
-                }
-            }
-        }
-
-        // Handle row sizing for non-fr tracks
-        if !rows[row].is_fr {
-            match rows[row].track_type {
-                IntrinsicTrackType::Fixed => {
-                    // Fixed track: use the specified size (§11.4)
-                    let track_size = if row < explicit_row_count {
-                        item.track_block_size()
-                    } else {
-                        let implicit_index = row - explicit_row_count;
-                        match grid_auto_rows.get(implicit_index) {
-                            LayoutTrackSize::Length(def_len) => {
-                                def_len.resolve(available_grid_space.height, item.node)
-                            }
-                            _ => OptionNum::none(),
-                        }
-                    };
-
-                    if track_size.is_some() {
-                        rows[row].has_explicit = true;
-                        let track_height = track_size.val().unwrap();
-                        rows[row].base_size = Some(
-                            rows[row]
-                                .base_size
-                                .map(|s| s.max(track_height))
-                                .unwrap_or(track_height),
-                        );
-                        // Fixed track: growth_limit = base_size (§11.4)
-                        rows[row].growth_limit = rows[row].base_size;
-                    }
-                }
-                IntrinsicTrackType::Auto => {
-                    // §11.5 Step 2: auto min track sizing function
-                    // → increase base_size to min-content contribution.
-                    rows[row].base_size = Some(
-                        rows[row]
-                            .base_size
-                            .map(|s| s.max(effective_min_content_height))
-                            .unwrap_or(effective_min_content_height),
-                    );
-                    // §11.4: auto max → growth_limit initialized to infinity (None).
-                    // §11.5 Step 4: increase(infinity, max-content) = infinity.
-                    // See column Auto comment above for rationale.
-                    rows[row].growth_limit = None;
-                }
-                IntrinsicTrackType::MinContent => {
-                    // §11.5 Step 2: base_size = min-content contribution
-                    rows[row].base_size = Some(
-                        rows[row]
-                            .base_size
-                            .map(|s| s.max(effective_min_content_height))
-                            .unwrap_or(effective_min_content_height),
-                    );
-                    // §11.5 Step 4: min-content max → growth_limit = min-content
-                    rows[row].growth_limit = Some(
-                        rows[row]
-                            .growth_limit
-                            .map(|s| s.max(effective_min_content_height))
-                            .unwrap_or(effective_min_content_height),
-                    );
-                }
-                IntrinsicTrackType::MaxContent => {
-                    // §11.5 Step 2: base_size = min-content contribution
-                    rows[row].base_size = Some(
-                        rows[row]
-                            .base_size
-                            .map(|s| s.max(effective_min_content_height))
-                            .unwrap_or(effective_min_content_height),
-                    );
-                    // §11.5 Step 4: max-content max → growth_limit = max-content
-                    rows[row].growth_limit = Some(
-                        rows[row]
-                            .growth_limit
-                            .map(|s| s.max(outer_max_content_height))
-                            .unwrap_or(outer_max_content_height),
-                    );
-                }
-                IntrinsicTrackType::Fr => {
-                    // Fr tracks handled by resolve_fr_track_sizes
-                }
-            }
-        }
+        // Update row track
+        update_track_intrinsic_sizes(
+            &mut rows[row],
+            outer_min_content_height,
+            effective_min_content_height,
+            outer_max_content_height,
+            row_fixed_size,
+        );
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -534,55 +542,12 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
     // 3. Repeat until stable
     // ═══════════════════════════════════════════════════════════════════════
 
-    resolve_fr_track_sizes(&mut columns, column_total_fr, available_grid_space.width);
-    resolve_fr_track_sizes(&mut rows, row_total_fr, available_grid_space.height);
-
-    // Extract final sizes, defaulting to zero
-    let column_sizes: Vec<T::Length> = columns
-        .iter()
-        .map(|c| c.base_size.unwrap_or(T::Length::zero()))
-        .collect();
-    let row_sizes: Vec<T::Length> = rows
-        .iter()
-        .map(|r| r.base_size.unwrap_or(T::Length::zero()))
-        .collect();
-
-    // Update items with final track sizes
-    for item in grid_layout_matrix.items_mut() {
-        let row = item.row();
-        let column = item.column();
-        item.track_size.width = OptionNum::some(column_sizes[column]);
-        item.track_size.height = OptionNum::some(row_sizes[row]);
-    }
-
-    let column_items: Vec<TrackSizingResult<T::Length>> = columns
-        .iter()
-        .zip(column_sizes.iter())
-        .map(|(c, &size)| TrackSizingResult {
-            size,
-            fr_value: c.fr_value,
-            is_auto: c.track_type == IntrinsicTrackType::Auto,
-            is_min_content: c.track_type == IntrinsicTrackType::MinContent,
-            is_max_content: c.track_type == IntrinsicTrackType::MaxContent,
-            growth_limit: c.growth_limit,
-        })
-        .collect();
-    let row_items: Vec<TrackSizingResult<T::Length>> = rows
-        .iter()
-        .zip(row_sizes.iter())
-        .map(|(r, &size)| TrackSizingResult {
-            size,
-            fr_value: r.fr_value,
-            is_auto: r.track_type == IntrinsicTrackType::Auto,
-            is_min_content: r.track_type == IntrinsicTrackType::MinContent,
-            is_max_content: r.track_type == IntrinsicTrackType::MaxContent,
-            growth_limit: r.growth_limit,
-        })
-        .collect();
+    resolve_fr_track_sizes(&mut columns, available_grid_space.width);
+    resolve_fr_track_sizes(&mut rows, available_grid_space.height);
 
     ComputedTrackSizes {
-        columns: column_items,
-        rows: row_items,
+        columns: tracks_to_results(&columns),
+        rows: tracks_to_results(&rows),
     }
 }
 
@@ -596,7 +561,6 @@ mod tests {
             base_size: Some(base),
             growth_limit: Some(base),
             has_explicit: true,
-            is_fr: false,
             fr_value: 0.0,
             min_content: 0.0,
             track_type: IntrinsicTrackType::Fixed,
@@ -609,7 +573,6 @@ mod tests {
             base_size: None,
             growth_limit: None,
             has_explicit: false,
-            is_fr: true,
             fr_value: fr,
             min_content,
             track_type: IntrinsicTrackType::Fr,
@@ -627,9 +590,9 @@ mod tests {
         // space after non-flexible tracks are subtracted.
         //
         // Layout: grid-template-columns: 100px 1fr
-        // Available: 400px → remaining = 400 - 100 = 300px
+        // Available: 400px -> remaining = 400 - 100 = 300px
         let mut tracks = vec![fixed_track(100.0), fr_track(1.0, 0.0)];
-        resolve_fr_track_sizes(&mut tracks, 1.0, OptionNum::some(400.0));
+        resolve_fr_track_sizes(&mut tracks, OptionNum::some(400.0));
         assert_eq!(tracks[0].base_size, Some(100.0));
         assert_eq!(tracks[1].base_size, Some(300.0));
     }
@@ -640,9 +603,9 @@ mod tests {
         // proportionally to their flex factor.
         //
         // Layout: grid-template-columns: 1fr 2fr 1fr
-        // Available: 400px → each fr unit = 400 / 4 = 100px
+        // Available: 400px -> each fr unit = 400 / 4 = 100px
         let mut tracks = vec![fr_track(1.0, 0.0), fr_track(2.0, 0.0), fr_track(1.0, 0.0)];
-        resolve_fr_track_sizes(&mut tracks, 4.0, OptionNum::some(400.0));
+        resolve_fr_track_sizes(&mut tracks, OptionNum::some(400.0));
         assert_eq!(tracks[0].base_size, Some(100.0));
         assert_eq!(tracks[1].base_size, Some(200.0));
         assert_eq!(tracks[2].base_size, Some(100.0));
@@ -654,7 +617,7 @@ mod tests {
         // before distributing to fr tracks.
         //
         // Layout: grid-template-columns: 50px 1fr 50px 2fr
-        // Available: 350px → remaining = 350 - 50 - 50 = 250px
+        // Available: 350px -> remaining = 350 - 50 - 50 = 250px
         // fr unit = 250 / 3 = 83.333...
         let mut tracks = vec![
             fixed_track(50.0),
@@ -662,7 +625,7 @@ mod tests {
             fixed_track(50.0),
             fr_track(2.0, 0.0),
         ];
-        resolve_fr_track_sizes(&mut tracks, 3.0, OptionNum::some(350.0));
+        resolve_fr_track_sizes(&mut tracks, OptionNum::some(350.0));
         assert_eq!(tracks[0].base_size, Some(50.0)); // fixed
         let fr_unit = 250.0 / 3.0;
         assert!((tracks[1].base_size.unwrap() - fr_unit).abs() < 0.01);
@@ -678,10 +641,10 @@ mod tests {
         //
         // Layout: grid-template-columns: 1fr 1fr
         // Available: 100px, track[0].min_content = 80px
-        // Round 1: hypothetical = 100/2 = 50 < 80 → freeze track[0] at 80
-        // Round 2: remaining = 100 - 80 = 20 → track[1] = 20
+        // Round 1: hypothetical = 100/2 = 50 < 80 -> freeze track[0] at 80
+        // Round 2: remaining = 100 - 80 = 20 -> track[1] = 20
         let mut tracks = vec![fr_track(1.0, 80.0), fr_track(1.0, 0.0)];
-        resolve_fr_track_sizes(&mut tracks, 2.0, OptionNum::some(100.0));
+        resolve_fr_track_sizes(&mut tracks, OptionNum::some(100.0));
         assert_eq!(tracks[0].base_size, Some(80.0));
         assert_eq!(tracks[1].base_size, Some(20.0));
     }
@@ -693,9 +656,9 @@ mod tests {
         //
         // Layout: grid-template-columns: 1fr 1fr
         // Available: 100px, min-content = 60 each
-        // Round 1: hypothetical = 100/2 = 50 < 60 → both frozen
+        // Round 1: hypothetical = 100/2 = 50 < 60 -> both frozen
         let mut tracks = vec![fr_track(1.0, 60.0), fr_track(1.0, 60.0)];
-        resolve_fr_track_sizes(&mut tracks, 2.0, OptionNum::some(100.0));
+        resolve_fr_track_sizes(&mut tracks, OptionNum::some(100.0));
         assert_eq!(tracks[0].base_size, Some(60.0));
         assert_eq!(tracks[1].base_size, Some(60.0));
     }
@@ -704,7 +667,7 @@ mod tests {
     fn fr_no_available_space_returns_zero() {
         // CSS Grid §11.7: When available space is zero, fr tracks get zero.
         let mut tracks = vec![fr_track(1.0, 0.0), fr_track(2.0, 0.0)];
-        resolve_fr_track_sizes(&mut tracks, 3.0, OptionNum::some(0.0));
+        resolve_fr_track_sizes(&mut tracks, OptionNum::some(0.0));
         assert_eq!(tracks[0].base_size, Some(0.0));
         assert_eq!(tracks[1].base_size, Some(0.0));
     }
@@ -714,7 +677,7 @@ mod tests {
         // CSS Grid §11.7: When the available space is indefinite,
         // fr tracks cannot be resolved and are left untouched.
         let mut tracks = vec![fr_track(1.0, 0.0)];
-        resolve_fr_track_sizes(&mut tracks, 1.0, OptionNum::none());
+        resolve_fr_track_sizes(&mut tracks, OptionNum::none());
         assert_eq!(tracks[0].base_size, None); // unchanged
     }
 
@@ -722,7 +685,7 @@ mod tests {
     fn fr_zero_total_fr_is_noop() {
         // Edge case: total_fr = 0 should be a no-op.
         let mut tracks = vec![fixed_track(100.0)];
-        resolve_fr_track_sizes(&mut tracks, 0.0, OptionNum::some(400.0));
+        resolve_fr_track_sizes(&mut tracks, OptionNum::some(400.0));
         assert_eq!(tracks[0].base_size, Some(100.0)); // unchanged
     }
 
@@ -732,9 +695,9 @@ mod tests {
         // remaining = 0, fr tracks get zero.
         //
         // Layout: grid-template-columns: 300px 1fr
-        // Available: 300px → remaining = 0
+        // Available: 300px -> remaining = 0
         let mut tracks = vec![fixed_track(300.0), fr_track(1.0, 0.0)];
-        resolve_fr_track_sizes(&mut tracks, 1.0, OptionNum::some(300.0));
+        resolve_fr_track_sizes(&mut tracks, OptionNum::some(300.0));
         assert_eq!(tracks[0].base_size, Some(300.0));
         assert_eq!(tracks[1].base_size, Some(0.0));
     }
