@@ -5854,7 +5854,7 @@ mod typography {
         );
         ssg.append(ss);
         let np = query(&ssg, "", "", [""], []);
-        assert_eq!(np.text_align(), TextAlign::Left);
+        assert_eq!(np.text_align(), TextAlign::Start);
         let np = query(&ssg, "", "", ["a"], []);
         assert_eq!(np.text_align(), TextAlign::Left);
         let np = query(&ssg, "", "", ["b"], []);
