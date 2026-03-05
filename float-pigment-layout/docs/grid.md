@@ -298,7 +298,7 @@ Determine each grid item's final position within its grid area:
 
 ## Test Coverage
 
-Currently **~243** Grid test cases covering:
+Currently **~248** Grid test cases covering:
 
 ### WPT Tests (`tests/wpt/css_grid/`)
 
@@ -312,10 +312,10 @@ Currently **~243** Grid test cases covering:
 | Gutters                      | 15         | `gap.rs`              |
 | Explicit Track Sizing        | 14         | `grid_template.rs`    |
 | Direction (RTL)              | 13         | `direction.rs`        |
-| Flexible Length (`fr`)       | 11         | `fr_unit.rs`          |
+| Flexible Length (`fr`)       | 16         | `fr_unit.rs`          |
 | Margin                       | 11         | `margin.rs`           |
 | Auto Tracks                  | 9          | `grid_auto.rs`        |
 | Writing Mode                 | 7          | `writing_mode.rs`     |
-| **WPT Subtotal**             | **224**    |                       |
+| **WPT Subtotal**             | **229**    |                       |
 
 All test assertion values are derived from W3C specification, ensuring compliance with spec-defined calculation logic.

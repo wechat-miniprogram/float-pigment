@@ -18,15 +18,18 @@ use super::matrix::GridLayoutMatrix;
 
 /// Resolve fr track sizes using the iterative algorithm from CSS Grid §11.7.
 ///
+/// **Definite free space** (§11.7):
 /// 1. hypothetical_fr_size = remaining_space / active_flex
 /// 2. If any fr track's size < its min-content, freeze it at min-content
 /// 3. Repeat until stable
 ///
-/// When `available_space` is `None` (indefinite), this function is a no-op.
-/// Per W3C §11.7 "Find the Size of an fr", indefinite free space should use
-/// items' max-content contributions to derive fr sizes. In practice, the
-/// caller (`mod.rs`) ensures `available_space` is almost always `Some` by
-/// falling back to `request.max_content` when `requested_size` is `None`.
+/// **Indefinite free space** (§11.7.1 "Find the Size of an fr"):
+/// When `available_space` is `None`, fr sizes are derived from items'
+/// max-content contributions:
+/// 1. For each fr track, compute hypothetical_1fr = max_content / fr_value
+/// 2. Take the maximum hypothetical_1fr across all fr tracks
+/// 3. Each fr track's size = hypothetical_1fr × fr_value
+/// 4. Clamp: if a track's size < min-content, use min-content instead
 fn resolve_fr_track_sizes<L: LengthNum + Copy>(
     tracks: &mut [TrackInfo<L>],
     available_space: OptionNum<L>,
@@ -40,11 +43,24 @@ fn resolve_fr_track_sizes<L: LengthNum + Copy>(
     if total_fr <= 0.0 {
         return;
     }
-    let available = match available_space.val() {
-        Some(v) => v,
-        None => return,
-    };
 
+    match available_space.val() {
+        Some(available) => {
+            // Definite free space: distribute remaining space proportionally
+            resolve_fr_definite(tracks, available);
+        }
+        None => {
+            // Indefinite free space (§11.7.1): derive fr size from max-content
+            resolve_fr_indefinite(tracks);
+        }
+    }
+}
+
+/// §11.7: Resolve fr tracks with definite free space.
+///
+/// Iteratively distributes remaining space among fr tracks, freezing
+/// tracks at min-content when their hypothetical size is too small.
+fn resolve_fr_definite<L: LengthNum + Copy>(tracks: &mut [TrackInfo<L>], available: L) {
     let total_non_fr_size: L = tracks
         .iter()
         .filter(|t| t.track_type != IntrinsicTrackType::Fr)
@@ -57,7 +73,11 @@ fn resolve_fr_track_sizes<L: LengthNum + Copy>(
     };
 
     let mut remaining_space = initial_remaining;
-    let mut active_flex = total_fr;
+    let mut active_flex: f32 = tracks
+        .iter()
+        .filter(|t| t.track_type == IntrinsicTrackType::Fr)
+        .map(|t| t.fr_value)
+        .sum();
     let mut flexible_indices: Vec<usize> = (0..tracks.len())
         .filter(|&i| tracks[i].track_type == IntrinsicTrackType::Fr)
         .collect();
@@ -93,6 +113,37 @@ fn resolve_fr_track_sizes<L: LengthNum + Copy>(
                 tracks[i].has_explicit = true;
             }
             break;
+        }
+    }
+}
+
+/// §11.7.1: Resolve fr tracks with indefinite free space.
+///
+/// Per W3C CSS Grid §11.7.1 "Find the Size of an fr":
+/// When free space is indefinite, the fr size is derived from items'
+/// max-content contributions:
+/// 1. For each fr track, compute hypothetical_1fr = max_content / fr_value
+/// 2. The unified 1fr size = max(all hypothetical_1fr values)
+/// 3. Each fr track's base_size = unified_1fr × fr_value
+/// 4. Clamp: if base_size < min_content, use min_content
+fn resolve_fr_indefinite<L: LengthNum + Copy>(tracks: &mut [TrackInfo<L>]) {
+    // Step 1-2: Find the largest hypothetical 1fr size across all fr tracks
+    let mut hypothetical_1fr = L::zero();
+    for track in tracks.iter() {
+        if track.track_type == IntrinsicTrackType::Fr && track.fr_value > 0.0 {
+            let candidate = track.max_content.div_f32(track.fr_value);
+            if candidate > hypothetical_1fr {
+                hypothetical_1fr = candidate;
+            }
+        }
+    }
+
+    // Step 3-4: Apply the unified 1fr size to each fr track, clamped to min-content
+    for track in tracks.iter_mut() {
+        if track.track_type == IntrinsicTrackType::Fr {
+            let fr_size = hypothetical_1fr.mul_f32(track.fr_value);
+            track.base_size = Some(fr_size.max(track.min_content));
+            track.has_explicit = true;
         }
     }
 }
@@ -148,6 +199,7 @@ struct TrackInfo<L: LengthNum> {
     has_explicit: bool,
     fr_value: f32,
     min_content: L,
+    max_content: L,
     /// The type of track for intrinsic sizing purposes (§11.5).
     track_type: IntrinsicTrackType,
 }
@@ -160,6 +212,7 @@ impl<L: LengthNum + Copy> TrackInfo<L> {
             has_explicit: false,
             fr_value: 0.0,
             min_content: L::zero(),
+            max_content: L::zero(),
             track_type: IntrinsicTrackType::Auto,
         }
     }
@@ -195,13 +248,14 @@ impl IntrinsicTrackType {
 
     /// Whether this track needs a max-content layout pass.
     ///
-    /// §11.5 Step 4: Only tracks with intrinsic max sizing functions
+    /// §11.5 Step 4: Tracks with intrinsic max sizing functions
     /// (auto, max-content) need max-content contributions.
+    /// §11.7.1: Fr tracks also need max-content for indefinite free space.
     #[inline]
     pub(crate) fn needs_max_content(self) -> bool {
         matches!(
             self,
-            IntrinsicTrackType::Auto | IntrinsicTrackType::MaxContent
+            IntrinsicTrackType::Auto | IntrinsicTrackType::MaxContent | IntrinsicTrackType::Fr
         )
     }
 }
@@ -286,6 +340,8 @@ fn update_track_intrinsic_sizes<L: LengthNum + Copy>(
 ) {
     // Always update min_content for all tracks (used as fr freeze threshold §11.7)
     track.min_content = track.min_content.max(outer_min_content);
+    // Always update max_content for all tracks (used for §11.7.1 indefinite fr sizing)
+    track.max_content = track.max_content.max(outer_max_content);
 
     if track.track_type == IntrinsicTrackType::Fr {
         return;
@@ -574,6 +630,7 @@ mod tests {
             has_explicit: true,
             fr_value: 0.0,
             min_content: 0.0,
+            max_content: 0.0,
             track_type: IntrinsicTrackType::Fixed,
         }
     }
@@ -586,6 +643,20 @@ mod tests {
             has_explicit: false,
             fr_value: fr,
             min_content,
+            max_content: 0.0,
+            track_type: IntrinsicTrackType::Fr,
+        }
+    }
+
+    /// Helper: create an fr TrackInfo with max_content (for indefinite tests).
+    fn fr_track_with_max(fr: f32, min_content: f32, max_content: f32) -> TrackInfo<f32> {
+        TrackInfo {
+            base_size: None,
+            growth_limit: None,
+            has_explicit: false,
+            fr_value: fr,
+            min_content,
+            max_content,
             track_type: IntrinsicTrackType::Fr,
         }
     }
@@ -684,18 +755,72 @@ mod tests {
     }
 
     #[test]
-    fn fr_indefinite_container_skipped() {
-        // When available_space is None, resolve_fr_track_sizes is a no-op.
+    fn fr_indefinite_container_uses_max_content() {
+        // CSS Grid §11.7.1: When free space is indefinite, fr sizes are
+        // derived from items' max-content contributions.
         //
-        // NOTE: Per W3C §11.7 "Find the Size of an fr", when free space is
-        // indefinite, fr sizes should be derived from items' max-content
-        // contributions. However, in practice this path is rarely reached
-        // because mod.rs falls back to request.max_content (see §11.1
-        // available_grid_space calculation), so available_space is almost
-        // always Some.
-        let mut tracks = vec![fr_track(1.0, 0.0)];
+        // Layout: grid-template-columns: 1fr 2fr
+        // item-a (1fr): max-content = 100px → hypothetical 1fr = 100/1 = 100
+        // item-b (2fr): max-content = 200px → hypothetical 1fr = 200/2 = 100
+        // unified 1fr = max(100, 100) = 100
+        // Result: 1fr = 100px, 2fr = 200px
+        let mut tracks = vec![
+            fr_track_with_max(1.0, 0.0, 100.0),
+            fr_track_with_max(2.0, 0.0, 200.0),
+        ];
         resolve_fr_track_sizes(&mut tracks, OptionNum::none());
-        assert_eq!(tracks[0].base_size, None); // unchanged
+        assert_eq!(tracks[0].base_size, Some(100.0));
+        assert_eq!(tracks[1].base_size, Some(200.0));
+    }
+
+    #[test]
+    fn fr_indefinite_picks_largest_hypothetical() {
+        // §11.7.1: The unified 1fr = max of all (max-content / fr_value).
+        //
+        // Layout: grid-template-columns: 1fr 2fr
+        // item-a (1fr): max-content = 150px → hypothetical 1fr = 150/1 = 150
+        // item-b (2fr): max-content = 200px → hypothetical 1fr = 200/2 = 100
+        // unified 1fr = max(150, 100) = 150
+        // Result: 1fr = 150px, 2fr = 300px
+        let mut tracks = vec![
+            fr_track_with_max(1.0, 0.0, 150.0),
+            fr_track_with_max(2.0, 0.0, 200.0),
+        ];
+        resolve_fr_track_sizes(&mut tracks, OptionNum::none());
+        assert_eq!(tracks[0].base_size, Some(150.0));
+        assert_eq!(tracks[1].base_size, Some(300.0));
+    }
+
+    #[test]
+    fn fr_indefinite_clamps_to_min_content() {
+        // §11.7.1: fr size should not be smaller than min-content.
+        //
+        // Layout: grid-template-columns: 1fr 1fr
+        // item-a (1fr): max-content = 50px, min-content = 80px
+        // item-b (1fr): max-content = 50px, min-content = 0px
+        // hypothetical 1fr = max(50/1, 50/1) = 50
+        // track-a: max(50, 80) = 80 (clamped to min-content)
+        // track-b: max(50, 0) = 50
+        let mut tracks = vec![
+            fr_track_with_max(1.0, 80.0, 50.0),
+            fr_track_with_max(1.0, 0.0, 50.0),
+        ];
+        resolve_fr_track_sizes(&mut tracks, OptionNum::none());
+        assert_eq!(tracks[0].base_size, Some(80.0));
+        assert_eq!(tracks[1].base_size, Some(50.0));
+    }
+
+    #[test]
+    fn fr_indefinite_zero_max_content() {
+        // §11.7.1: When all max-content = 0, fr tracks get zero
+        // (or min-content if min-content > 0).
+        let mut tracks = vec![
+            fr_track_with_max(1.0, 0.0, 0.0),
+            fr_track_with_max(2.0, 0.0, 0.0),
+        ];
+        resolve_fr_track_sizes(&mut tracks, OptionNum::none());
+        assert_eq!(tracks[0].base_size, Some(0.0));
+        assert_eq!(tracks[1].base_size, Some(0.0));
     }
 
     #[test]

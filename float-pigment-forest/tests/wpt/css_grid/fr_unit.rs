@@ -256,3 +256,134 @@ fn grid_fr_complex() {
         true
     )
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Indefinite free space: §11.7.1 "Find the Size of an fr"
+// https://www.w3.org/TR/css-grid-1/#algo-find-fr-size
+//
+// When the available space for fr tracks is indefinite (e.g. inline-grid
+// without explicit width), fr sizes are derived from items' max-content
+// contributions rather than distributing remaining space.
+// ═══════════════════════════════════════════════════════════════════════
+
+// Case: Equal fr columns with indefinite width (inline-grid)
+// Spec points:
+//   - §11.7.1: When free space is indefinite, fr = max(max-content / fr_value)
+//   - display: inline-grid → container shrinks to fit content
+// In this test:
+//   - Container: inline-grid, columns: 1fr 1fr
+//   - Item 1: width=100px → max-content=100, hypothetical 1fr = 100/1 = 100
+//   - Item 2: width=100px → max-content=100, hypothetical 1fr = 100/1 = 100
+//   - Unified 1fr = max(100, 100) = 100
+//   - Both columns: 100px each
+//   - Container width: 200px
+#[test]
+fn grid_fr_indefinite_equal_columns() {
+    assert_xml!(
+        r#"
+        <div style="display: inline-grid; grid-template-columns: 1fr 1fr;" expect_width="200">
+          <div style="width: 100px; height: 50px;" expect_left="0" expect_width="100"></div>
+          <div style="width: 100px; height: 50px;" expect_left="100" expect_width="100"></div>
+        </div>
+    "#,
+        true
+    )
+}
+
+// Case: Proportional fr with indefinite width
+// Spec points:
+//   - §11.7.1: hypothetical_1fr = max(max-content / fr_value) across all fr tracks
+//   - Items without explicit width stretch to track width
+// In this test:
+//   - Container: inline-grid, columns: 1fr 2fr
+//   - Item 1 (1fr): padding-left=100px → max-content=100, hypothetical 1fr = 100/1 = 100
+//   - Item 2 (2fr): padding-left=200px → max-content=200, hypothetical 1fr = 200/2 = 100
+//   - Unified 1fr = max(100, 100) = 100
+//   - Column 1: 100×1 = 100px, Column 2: 100×2 = 200px
+//   - Container width: 300px
+#[test]
+fn grid_fr_indefinite_proportional() {
+    assert_xml!(
+        r#"
+        <div style="display: inline-grid; grid-template-columns: 1fr 2fr;" expect_width="300">
+          <div style="padding-left: 100px; height: 50px;" expect_left="0" expect_width="100"></div>
+          <div style="padding-left: 200px; height: 50px;" expect_left="100" expect_width="200"></div>
+        </div>
+    "#,
+        true
+    )
+}
+
+// Case: Proportional fr with unequal hypothetical values
+// Spec points:
+//   - §11.7.1: The largest hypothetical_1fr dominates
+// In this test:
+//   - Container: inline-grid, columns: 1fr 2fr
+//   - Item 1 (1fr): width=150px → hypothetical 1fr = 150/1 = 150
+//   - Item 2 (2fr): width=200px → hypothetical 1fr = 200/2 = 100
+//   - Unified 1fr = max(150, 100) = 150
+//   - Column 1: 150px (item stretches), Column 2: 300px (item has explicit width 200)
+//   - Container width: 450px
+#[test]
+fn grid_fr_indefinite_largest_hypothetical() {
+    assert_xml!(
+        r#"
+        <div style="display: inline-grid; grid-template-columns: 1fr 2fr;" expect_width="450">
+          <div style="width: 150px; height: 50px;" expect_left="0" expect_width="150"></div>
+          <div style="width: 200px; height: 50px;" expect_left="150" expect_width="200"></div>
+        </div>
+    "#,
+        true
+    )
+}
+
+// Case: Mixed fixed + fr with indefinite width
+// Spec points:
+//   - Fixed columns keep their explicit size
+//   - §11.7.1 applies to fr tracks even when mixed with fixed tracks
+//   - The free space being indefinite is determined by the container,
+//     not by the presence of fixed tracks
+// In this test:
+//   - Container: inline-grid, columns: 80px 1fr 1fr
+//   - Fixed column: 80px
+//   - Item 2 (1fr): padding-left=100px → max-content=100, hypothetical 1fr = 100/1 = 100
+//   - Item 3 (1fr): padding-left=60px  → max-content=60, hypothetical 1fr = 60/1 = 60
+//   - Unified 1fr = max(100, 60) = 100
+//   - Column sizes: 80, 100, 100
+//   - Container width: 280px
+//   - Item 3 stretches from 60 to 100 (no explicit width, stretch to track width)
+#[test]
+fn grid_fr_indefinite_mixed_fixed() {
+    assert_xml!(
+        r#"
+        <div style="display: inline-grid; grid-template-columns: 80px 1fr 1fr;" expect_width="280">
+          <div style="height: 50px;" expect_left="0" expect_width="80"></div>
+          <div style="padding-left: 100px; height: 50px;" expect_left="80" expect_width="100"></div>
+          <div style="padding-left: 60px; height: 50px;" expect_left="180" expect_width="100"></div>
+        </div>
+    "#,
+        true
+    )
+}
+
+// Case: fr with indefinite height (rows)
+// Spec points:
+//   - §11.7.1 also applies to row direction when height is indefinite
+// In this test:
+//   - Container: inline-grid without height, columns: 100px, rows: 1fr 2fr
+//   - Item 1 (1fr): padding-top=60px → max-content height=60, hypothetical 1fr = 60/1 = 60
+//   - Item 2 (2fr): padding-top=80px → max-content height=80, hypothetical 1fr = 80/2 = 40
+//   - Unified 1fr = max(60, 40) = 60
+//   - Row 1: 60×1 = 60px, Row 2: 60×2 = 120px
+#[test]
+fn grid_fr_indefinite_rows() {
+    assert_xml!(
+        r#"
+        <div style="display: inline-grid; grid-template-columns: 100px; grid-template-rows: 1fr 2fr;">
+          <div style="padding-top: 60px;" expect_top="0" expect_height="60"></div>
+          <div style="padding-top: 80px;" expect_top="60" expect_height="120"></div>
+        </div>
+    "#,
+        true
+    )
+}

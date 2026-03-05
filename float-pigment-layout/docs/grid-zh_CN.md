@@ -300,7 +300,7 @@ float-pigment-layout/src/algo/grid/
 
 ## 测试覆盖
 
-当前共有 **~243 个** Grid 测试用例，覆盖：
+当前共有 **~248 个** Grid 测试用例，覆盖：
 
 ### WPT 测试 (`tests/wpt/css_grid/`)
 
@@ -314,7 +314,7 @@ float-pigment-layout/src/algo/grid/
 | Gutters                   | 15     | `gap.rs`               |
 | Explicit Track Sizing     | 14     | `grid_template.rs`     |
 | Direction (RTL)           | 13     | `direction.rs`         |
-| Flexible Length (`fr`)    | 11     | `fr_unit.rs`           |
+| Flexible Length (`fr`)    | 16     | `fr_unit.rs`           |
 | Margin                    | 11     | `margin.rs`            |
 | Auto Tracks               | 9      | `grid_auto.rs`         |
 | Writing Mode              | 7      | `writing_mode.rs`      |
