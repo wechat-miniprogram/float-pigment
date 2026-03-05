@@ -108,9 +108,6 @@ pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
         }
     }
 
-    if available_grid_space.is_none() && total_specified_track_size > T::Length::zero() {
-        *available_grid_space = OptionNum::some(total_specified_track_size);
-    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Phase 2: Resolve track sizes
