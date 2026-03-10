@@ -1,5 +1,5 @@
 use float_pigment_css::length_num::*;
-use float_pigment_css::typing::TextAlign;
+use float_pigment_css::typing::{GridAutoFlow, JustifyItems, JustifySelf, TextAlign};
 use float_pigment_css::{
     num_traits::Zero,
     typing::{
@@ -9,10 +9,11 @@ use float_pigment_css::{
 };
 use float_pigment_layout::{
     DefLength, EdgeOption, InlineMeasure, InlineUnit, InlineUnitMetadata, LayoutNode, LayoutStyle,
-    LayoutTreeNode, LayoutTreeVisitor, MeasureResult, OptionNum, OptionSize, Point, Size, Vector,
+    LayoutTreeNode, LayoutTreeVisitor, MeasureResult, OptionNum, OptionSize, Point, Size,
+    SizingMode, Vector,
 };
 
-use crate::{convert_node_ref_to_ptr, Length};
+use crate::{convert_node_ref_to_ptr, LayoutGridAuto, LayoutGridTemplate, Length};
 use crate::{
     env::Env,
     node::{ChildOperation, Node},
@@ -73,6 +74,7 @@ impl LayoutTreeNode for Node {
         max: Size<Self::Length>,
         max_content: OptionSize<Self::Length>,
         _update_position: bool,
+        _sizing_mode: SizingMode,
     ) -> MeasureResult<Self::Length> {
         let width = req_size.width.val();
         let height = req_size.height.val();
@@ -240,8 +242,9 @@ impl LayoutTreeNode for Node {
         min: Size<Self::Length>,
         max: Size<Self::Length>,
         max_content: OptionSize<Self::Length>,
+        sizing_mode: SizingMode,
     ) -> MeasureResult<Self::Length> {
-        self.measure_block_size(env, req_size, min, max, max_content, false)
+        self.measure_block_size(env, req_size, min, max, max_content, false, sizing_mode)
     }
 }
 
@@ -268,6 +271,14 @@ impl LayoutTreeVisitor<Node> for Node {
     #[inline]
     fn child_at(&self, index: usize) -> Option<&Node> {
         unsafe { self.get_child_at(index) }
+    }
+
+    #[inline]
+    fn children_iter<'a, 'b: 'a>(&'b self) -> impl Iterator<Item = &'a Node>
+    where
+        Node: 'a,
+    {
+        unsafe { self.children().into_iter() }
     }
 }
 #[derive(Debug, Clone)]
@@ -378,6 +389,7 @@ impl InlineMeasure<Node> for LayoutInlineMeasure {
         req_size: OptionSize<Len>,
         _max_content_with_max_size: OptionSize<Len>,
         _update_position: bool,
+        sizing_mode: SizingMode,
     ) -> (Size<Len>, Vec<(Point<Len>, MeasureResult<Len>)>) {
         let suggested_width = req_size.width;
         let suggested_height = req_size.height;
@@ -424,10 +436,14 @@ impl InlineMeasure<Node> for LayoutInlineMeasure {
             block_height += line.total_block_size;
             line.adjust_block_offset();
         });
-        let block_size = Size::new(
-            suggested_width.unwrap_or(block_width),
-            suggested_height.unwrap_or(block_height),
-        );
+        let block_size = match sizing_mode {
+            SizingMode::Normal => Size::new(
+                suggested_width.unwrap_or(block_width),
+                suggested_height.unwrap_or(block_height),
+            ),
+            SizingMode::MinContent => Size::new(block_width, block_height),
+            SizingMode::MaxContent => Size::new(block_width, block_height),
+        };
         if let Some(suggested_width) = suggested_width.val() {
             if suggested_width > block_width {
                 let text_align = block_node.style().text_align();
@@ -665,5 +681,39 @@ impl LayoutStyle<Len> for Node {
     #[inline]
     fn column_gap(&self) -> Length {
         self.style_manager().column_gap()
+    }
+    #[inline]
+    fn grid_template_rows(&self) -> LayoutGridTemplate {
+        self.style_manager().grid_template_rows()
+    }
+
+    #[inline]
+    fn grid_template_columns(&self) -> LayoutGridTemplate {
+        self.style_manager().grid_template_columns()
+    }
+
+    #[inline]
+    fn grid_auto_flow(&self) -> GridAutoFlow {
+        self.style_manager().grid_auto_flow()
+    }
+
+    #[inline]
+    fn grid_auto_rows(&self) -> LayoutGridAuto {
+        self.style_manager().grid_auto_rows()
+    }
+
+    #[inline]
+    fn grid_auto_columns(&self) -> LayoutGridAuto {
+        self.style_manager().grid_auto_columns()
+    }
+
+    #[inline]
+    fn justify_items(&self) -> JustifyItems {
+        self.style_manager().justify_items()
+    }
+
+    #[inline]
+    fn justify_self(&self) -> JustifySelf {
+        self.style_manager().justify_self()
     }
 }

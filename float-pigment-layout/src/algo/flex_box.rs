@@ -6,7 +6,7 @@ use float_pigment_css::num_traits::Zero;
 ///   - The size of each gap
 ///   - The number of items (children or flex-lines) between which there are gaps
 #[inline(always)]
-fn sum_axis_gaps<L: LengthNum>(gap: L, num_items: usize) -> L {
+pub(crate) fn sum_axis_gaps<L: LengthNum>(gap: L, num_items: usize) -> L {
     if num_items <= 1 {
         L::zero()
     } else {
@@ -15,7 +15,7 @@ fn sum_axis_gaps<L: LengthNum>(gap: L, num_items: usize) -> L {
 }
 
 #[inline(always)]
-fn resolve_row_gap<T: LayoutTreeNode>(
+pub(crate) fn resolve_row_gap<T: LayoutTreeNode>(
     style: &T::Style,
     node: &T,
     inner_size: &Normalized<OptionSize<T::Length>>,
@@ -29,7 +29,7 @@ fn resolve_row_gap<T: LayoutTreeNode>(
 }
 
 #[inline(always)]
-fn resolve_column_gap<T: LayoutTreeNode>(
+pub(crate) fn resolve_column_gap<T: LayoutTreeNode>(
     style: &T::Style,
     node: &T,
     inner_size: &Normalized<OptionSize<T::Length>>,
@@ -230,12 +230,11 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
         //    margin, border, and padding from the space available to the flex container
         //    in that dimension and use that value. This might result in an infinite value.
 
-        let available_space = {
-            Normalized(OptionSize::new(
-                requested_size.width.or(request.max_content.width) - padding_border.horizontal(),
-                requested_size.height.or(request.max_content.height) - padding_border.vertical(),
-            ))
-        };
+        let available_space = Normalized(OptionSize::new(
+            requested_size.width.or(request.max_content.width) - padding_border.horizontal(),
+            requested_size.height.or(request.max_content.height) - padding_border.vertical(),
+        ));
+
         let inner_max_content = OptionSize::new(
             request.max_content.width - padding_border.horizontal(),
             request.max_content.height - padding_border.vertical(),
@@ -351,6 +350,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                         max_content,
                         kind: main_size_request_kind.shift_to_all_size(),
                         parent_is_block: false,
+                        sizing_mode: request.sizing_mode,
                     },
                 )
                 .size
@@ -506,6 +506,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                                 max_content,
                                 kind: main_size_request_kind.shift_to_all_size(),
                                 parent_is_block: false,
+                                sizing_mode: request.sizing_mode,
                             },
                         )
                         .size
@@ -810,6 +811,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                             flex_child.early_positioning != EarlyPositioning::NoPositioning,
                         ),
                         parent_is_block: false,
+                        sizing_mode: request.sizing_mode,
                     },
                 );
                 flex_child
@@ -852,7 +854,10 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
             && (!flex_wrap
                 || matches!(
                     style.align_content(),
-                    AlignContent::Stretch | AlignContent::SpaceEvenly | AlignContent::SpaceAround
+                    AlignContent::Stretch
+                        | AlignContent::Normal
+                        | AlignContent::SpaceEvenly
+                        | AlignContent::SpaceAround
                 ))
         {
             flex_lines[0].cross_size = self_min_max_limit
@@ -934,7 +939,10 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
             flex_lines.len(),
         );
 
-        if style.align_content() == AlignContent::Stretch {
+        if matches!(
+            style.align_content(),
+            AlignContent::Stretch | AlignContent::Normal
+        ) {
             let requested_cross_size = requested_size.cross_size(dir).or_zero();
             let min_inner_cross =
                 self_min_max_limit.cross_size(requested_cross_size, dir) - padding_border_cross;
@@ -1041,6 +1049,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                                 max_content: Normalized(size), // main_size and cross_size is both normalized above
                                 kind: ComputeRequestKind::Position,
                                 parent_is_block: false,
+                                sizing_mode: request.sizing_mode,
                             },
                         );
                     }
@@ -1118,7 +1127,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                             JustifyContent::Start
                             | JustifyContent::Baseline
                             | JustifyContent::Stretch => T::Length::zero(),
-                            JustifyContent::FlexStart => T::Length::zero(),
+                            JustifyContent::FlexStart | JustifyContent::Normal => T::Length::zero(),
                             JustifyContent::Center => free_space.div_i32(2),
                             JustifyContent::FlexEnd => free_space,
                             JustifyContent::End => free_space,
@@ -1156,6 +1165,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                         let free_space = free_space.max(T::Length::zero());
                         gap + match style.justify_content() {
                             JustifyContent::FlexStart
+                            | JustifyContent::Normal
                             | JustifyContent::Start
                             | JustifyContent::Baseline
                             | JustifyContent::Stretch => T::Length::zero(),
@@ -1263,14 +1273,12 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
             let is_first = index == 0;
             line.extra_offset_cross = if is_first {
                 match style.align_content() {
-                    AlignContent::Start | AlignContent::Normal | AlignContent::Baseline => {
-                        T::Length::zero()
-                    }
+                    AlignContent::Start | AlignContent::Baseline => T::Length::zero(),
                     AlignContent::FlexStart => T::Length::zero(),
                     AlignContent::End => free_space,
                     AlignContent::FlexEnd => free_space,
                     AlignContent::Center => free_space.div_i32(2),
-                    AlignContent::Stretch => T::Length::zero(),
+                    AlignContent::Stretch | AlignContent::Normal => T::Length::zero(),
                     AlignContent::SpaceBetween => T::Length::zero(),
                     AlignContent::SpaceEvenly => {
                         if free_space >= T::Length::zero() {
@@ -1289,14 +1297,12 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                 }
             } else {
                 gap + match style.align_content() {
-                    AlignContent::Start | AlignContent::Normal | AlignContent::Baseline => {
-                        T::Length::zero()
-                    }
+                    AlignContent::Start | AlignContent::Baseline => T::Length::zero(),
                     AlignContent::FlexStart => T::Length::zero(),
                     AlignContent::End => T::Length::zero(),
                     AlignContent::FlexEnd => T::Length::zero(),
                     AlignContent::Center => T::Length::zero(),
-                    AlignContent::Stretch => T::Length::zero(),
+                    AlignContent::Stretch | AlignContent::Normal => T::Length::zero(),
                     AlignContent::SpaceBetween => free_space.div_i32(num_lines - 1),
                     AlignContent::SpaceEvenly => free_space.div_i32(num_lines + 1),
                     AlignContent::SpaceAround => free_space.div_i32(num_lines),

@@ -6,6 +6,7 @@ const LAYOUT_LRU_CACHE_LEN_PER_NODE: usize = 8;
 pub type CacheKeyRequestSize<L> = OptionSize<<L as LengthNum>::Hashable>;
 pub type CacheKeyMaxContent<L> = OptionSize<<L as LengthNum>::Hashable>;
 pub type CacheKeyParentSize<L> = OptionSize<<L as LengthNum>::Hashable>;
+pub type CacheKeySizingMode = SizingMode;
 
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[allow(clippy::type_complexity)]
@@ -17,6 +18,7 @@ pub(crate) struct LayoutComputeCache<L: LengthNum> {
             CacheKeyRequestSize<L>,
             CacheKeyMaxContent<L>,
             CacheKeyParentSize<L>,
+            CacheKeySizingMode,
         ),
         ComputeResult<L>,
     >,
@@ -113,6 +115,31 @@ impl<L: LengthNum> LayoutComputeCache<L> {
         }
     }
 
+    pub(crate) fn gen_key_with_sizing_mode(
+        &mut self,
+        node: &impl LayoutTreeNode,
+        req: &ComputeRequest<L>,
+    ) -> (
+        CacheKeyRequestSize<L>,
+        CacheKeyMaxContent<L>,
+        CacheKeyParentSize<L>,
+        CacheKeySizingMode,
+    ) {
+        self.touch(node);
+        let p = if self.parent_size_affected {
+            *req.parent_inner_size
+        } else {
+            OptionSize::new(OptionNum::none(), OptionNum::none())
+        };
+        let size = Size::new(req.size.width.to_hashable(), req.size.height.to_hashable());
+        let max_content = Size::new(
+            req.max_content.width.to_hashable(),
+            req.max_content.height.to_hashable(),
+        );
+        let p = Size::new(p.width.to_hashable(), p.height.to_hashable());
+        (size, max_content, p, req.sizing_mode)
+    }
+
     pub(crate) fn gen_key(
         &mut self,
         node: &impl LayoutTreeNode,
@@ -143,7 +170,7 @@ impl<L: LengthNum> LayoutComputeCache<L> {
         req: &ComputeRequest<L>,
         result: ComputeResult<L>,
     ) {
-        let key = self.gen_key(node, req);
+        let key = self.gen_key_with_sizing_mode(node, req);
         if self.size_cache.cap() == 0 {
             self.size_cache.resize(LAYOUT_LRU_CACHE_LEN_PER_NODE);
         }
@@ -214,10 +241,11 @@ impl<L: LengthNum> LayoutComputeCache<L> {
         if !self.touched {
             return None;
         }
-        let key = self.gen_key(node, req);
         if req.kind != ComputeRequestKind::Position {
+            let key = self.gen_key_with_sizing_mode(node, req);
             self.size_cache.get(&key).cloned()
         } else {
+            let key = self.gen_key(node, req);
             self.position_cache
                 .as_ref()
                 .and_then(|(k, res)| if *k == key { Some(*res) } else { None })
