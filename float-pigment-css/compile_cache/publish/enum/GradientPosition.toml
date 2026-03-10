@@ -1,2 +1,2 @@
 key = "GradientPosition"
-value = ["typing = \"Unnamed\"\nident = \"Pos\"\nfield = [\"Length\", \"Length\"]\n"]
+value = ["typing = \"Unnamed\"\nident = \"Pos\"\nfield = [\"Length\", \"Length\"]\n", "typing = \"Unnamed\"\nident = \"SpecifiedPos\"\nfield = [\"GradientSpecifiedPos\", \"GradientSpecifiedPos\"]\n"]
