@@ -132,7 +132,6 @@ fn display_none_with_position_absolute() {
     )
 }
 
-
 // Case: `display: none` on multiple siblings
 // Spec meaning:
 // - multiple hidden siblings do not take space; only visible siblings contribute to layout

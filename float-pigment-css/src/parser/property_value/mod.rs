@@ -12,6 +12,9 @@ pub(crate) mod background;
 pub(crate) mod filter;
 pub(crate) mod font;
 pub(crate) mod gradient;
+pub(crate) mod grid;
+pub(crate) use grid::*;
+
 pub(crate) mod var;
 
 #[allow(unused_macros)]
@@ -801,6 +804,19 @@ pub(crate) fn element_func_repr<'a, 't: 'a, 'i: 't>(
             _ => Err(parser.new_custom_error(CustomError::Unsupported)),
         }
     })
+}
+
+pub(crate) fn custom_ident_repr<'a, 't: 'a, 'i: 't>(
+    parser: &'a mut Parser<'i, 't>,
+    _properties: &mut [PropertyMeta],
+    _st: &mut ParseState,
+) -> Result<String, ParseError<'i, CustomError>> {
+    let next = parser.next()?.clone();
+    match &next {
+        Token::Ident(name) => Ok(name.to_string()),
+        Token::QuotedString(name) => Ok(name.to_string()),
+        _ => Err(parser.new_unexpected_token_error::<CustomError>(next.clone())),
+    }
 }
 
 #[inline(never)]

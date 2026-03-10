@@ -1,5 +1,19 @@
+// Tests for `display` property in CSS
+// Based on CSS Display Module Level 3:
+// - display: block - generates a block-level box
+// - display: none - removes element from layout entirely
+// - display: flex - generates a flex container
+// - display: inline - generates inline-level boxes
+
 use crate::*;
 
+// Case: display: block (default)
+// Spec points:
+// - Block elements stack vertically
+// - Block elements stretch to fill container width by default
+// In this test:
+// - First child: width=200px, height=40px
+// - Second child: width=auto (stretches to 375px), positioned at top=40
 #[test]
 fn display_block() {
     assert_xml!(
@@ -14,6 +28,14 @@ fn display_block() {
     )
 }
 
+// Case: display: none
+// Spec points:
+// - Element with display: none takes no space
+// - Element's computed width/height are effectively 0
+// - Subsequent siblings positioned as if element doesn't exist
+// In this test:
+// - First child: display=none, renders as 0x0
+// - Second child: positioned at top=0 (as if first doesn't exist)
 #[test]
 fn display_none() {
     assert_xml!(
@@ -26,6 +48,14 @@ fn display_none() {
     )
 }
 
+// Case: display: flex
+// Spec points:
+// - Flex container lays out children in a row by default
+// - flex-grow distributes remaining space proportionally
+// In this test:
+// - Container: flex, width=100px (explicit in markup)
+// - Child 1: 50x50px fixed
+// - Child 2: 30x50px base, flex-grow=1, grows to fill remaining space (50px)
 #[test]
 fn display_flex() {
     assert_xml!(

@@ -1,5 +1,18 @@
+// Tests for `align-self` property in CSS Flexbox
+// Based on CSS Flexible Box Layout Module Level 1:
+// - align-self overrides align-items for individual flex items
+// - Values: auto, flex-start, flex-end, center, baseline, stretch, start, end, self-start, self-end
+
 use crate::*;
 
+// Case: align-self: center
+// Spec points:
+// - Individual item centered on cross axis
+// - Other items use default stretch
+// In this test:
+// - Item 1 & 3: align-self=center, centered at top=50
+// - Item 2: default (stretch implied but has explicit height)
+// - Item 4: stretch to container height
 #[test]
 fn align_self_center() {
     assert_xml!(
@@ -18,6 +31,14 @@ fn align_self_center() {
     )
 }
 
+// Case: align-self: stretch
+// Spec points:
+// - Item stretches to fill cross axis
+// - Overrides align-items: start
+// In this test:
+// - Container: align-items=start
+// - Item 1: align-self=stretch, height=150
+// - Item 2: follows align-items, height=50
 #[test]
 fn align_self_stretch() {
     assert_xml!(
@@ -33,6 +54,14 @@ fn align_self_stretch() {
     )
 }
 
+// Case: align-self: start, flex-start, self-start
+// Spec points:
+// - All align to start of cross axis
+// - self-start uses item's writing mode for direction
+// In this test:
+// - Container: align-items=center (default would center)
+// - Items with start/flex-start/self-start at top=0
+// - Default item centered at top=50
 #[test]
 fn align_self_self_flex_start() {
     assert_xml!(
@@ -51,6 +80,13 @@ fn align_self_self_flex_start() {
     )
 }
 
+// Case: align-self: end, flex-end, self-end
+// Spec points:
+// - All align to end of cross axis
+// In this test:
+// - Container: align-items=center
+// - Items with end/flex-end/self-end at top=100 (150-50)
+// - Default item centered at top=50
 #[test]
 fn align_self_self_flex_end() {
     assert_xml!(

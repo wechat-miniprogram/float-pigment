@@ -1,7 +1,8 @@
 use crate::{env::Env, layout::LayoutPosition, style::StyleManager};
 use float_pigment_css::typing::{
     AlignContent, AlignItems, AlignSelf, BoxSizing, Direction, FlexDirection, FlexWrap,
-    JustifyContent, Overflow, Position, TextAlign, WritingMode,
+    GridAutoFlow, JustifyContent, JustifyItems, JustifySelf, Overflow, Position, TextAlign,
+    WritingMode,
 };
 
 use float_pigment_css::{length_num::*, typing::Display};
@@ -16,6 +17,8 @@ use std::{
 
 pub type Len = float_pigment_css::fixed::FixedI32<float_pigment_css::fixed::types::extra::U10>;
 pub type Length = DefLength<Len>;
+pub type LayoutGridTemplate = float_pigment_layout::LayoutGridTemplate<Len>;
+pub type LayoutGridAuto = float_pigment_layout::LayoutGridAuto<Len>;
 pub type NodeId = usize;
 pub type NodePtr = *mut Node;
 
@@ -131,6 +134,7 @@ impl DumpNode for Node {
             Display::FlowRoot => "FlowRoot".into(),
             Display::Grid => "Grid".into(),
             Display::InlineFlex => "InlineFlex".into(),
+            Display::InlineGrid => "InlineGrid".into(),
         };
         if self.has_measure_func() {
             tag = format!("Measurable{tag}");
@@ -639,11 +643,18 @@ pub trait StyleSetter {
     unsafe fn set_align_content(&self, value: AlignContent);
     unsafe fn set_align_items(&self, value: AlignItems);
     unsafe fn set_align_self(&self, value: AlignSelf);
+    unsafe fn set_justify_items(&self, value: JustifyItems);
+    unsafe fn set_justify_self(&self, value: JustifySelf);
     unsafe fn set_aspect_ratio(&self, value: Option<f32>);
     unsafe fn set_order(&self, value: i32);
     unsafe fn set_text_align(&self, value: TextAlign);
     unsafe fn set_row_gap(&self, value: Length);
     unsafe fn set_column_gap(&self, value: Length);
+    unsafe fn set_grid_template_rows(&self, value: LayoutGridTemplate);
+    unsafe fn set_grid_template_columns(&self, value: LayoutGridTemplate);
+    unsafe fn set_grid_auto_flow(&self, value: GridAutoFlow);
+    unsafe fn set_grid_auto_rows(&self, value: LayoutGridAuto);
+    unsafe fn set_grid_auto_columns(&self, value: LayoutGridAuto);
 }
 
 impl StyleSetter for Node {
@@ -669,6 +680,16 @@ impl StyleSetter for Node {
     }
     unsafe fn set_align_self(&self, align_self: AlignSelf) {
         if self.style_manager_mut().set_align_self(align_self) {
+            self.mark_dirty_propagate();
+        }
+    }
+    unsafe fn set_justify_items(&self, justify_items: JustifyItems) {
+        if self.style_manager_mut().set_justify_items(justify_items) {
+            self.mark_dirty_propagate();
+        }
+    }
+    unsafe fn set_justify_self(&self, justify_self: JustifySelf) {
+        if self.style_manager_mut().set_justify_self(justify_self) {
             self.mark_dirty_propagate();
         }
     }
@@ -890,6 +911,31 @@ impl StyleSetter for Node {
     }
     unsafe fn set_column_gap(&self, value: Length) {
         if self.style_manager_mut().set_column_gap(value) {
+            self.mark_dirty_propagate();
+        }
+    }
+    unsafe fn set_grid_template_rows(&self, value: LayoutGridTemplate) {
+        if self.style_manager_mut().set_grid_template_rows(value) {
+            self.mark_dirty_propagate();
+        }
+    }
+    unsafe fn set_grid_template_columns(&self, value: LayoutGridTemplate) {
+        if self.style_manager_mut().set_grid_template_columns(value) {
+            self.mark_dirty_propagate();
+        }
+    }
+    unsafe fn set_grid_auto_flow(&self, value: GridAutoFlow) {
+        if self.style_manager_mut().set_grid_auto_flow(value) {
+            self.mark_dirty_propagate();
+        }
+    }
+    unsafe fn set_grid_auto_rows(&self, value: LayoutGridAuto) {
+        if self.style_manager_mut().set_grid_auto_rows(value) {
+            self.mark_dirty_propagate();
+        }
+    }
+    unsafe fn set_grid_auto_columns(&self, value: LayoutGridAuto) {
+        if self.style_manager_mut().set_grid_auto_columns(value) {
             self.mark_dirty_propagate();
         }
     }
