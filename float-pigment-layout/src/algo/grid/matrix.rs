@@ -40,6 +40,7 @@ pub(crate) struct OccupiedBitmap {
     bits: Vec<u8>,
     /// The fixed-dimension length.
     /// For row flow: stride = column count; for column flow: stride = row count.
+    /// Stride always >= 1
     stride: usize,
     /// Bytes per line, always `(stride + 7) / 8`.
     bytes_per_line: usize,
@@ -53,6 +54,8 @@ impl OccupiedBitmap {
     /// `stride` is the fixed dimension length and `row_order` indicates
     /// whether bits are laid out row-first (row flow) or column-first (column flow).
     fn new(stride: usize, row_order: bool, capacity: usize) -> Self {
+        debug_assert!(stride >= 1);
+        let stride: usize = stride.max(1);
         let bytes_per_line = (stride + 7) / 8;
         let estimated_lines = if stride > 0 {
             (capacity + stride - 1) / stride
@@ -122,7 +125,9 @@ impl OccupiedBitmap {
     /// GridMatrix). The bitmap is resized to `max_lines * new_bytes_per_line`;
     /// any further growth is handled by `ensure_capacity()` in `set()`.
     fn grow_stride(&mut self, new_stride: usize, max_lines: usize) {
+        debug_assert!(new_stride >= 1);
         debug_assert!(new_stride > self.stride, "stride can only grow");
+        let new_stride: usize = new_stride.max(1);
         let old_bytes_per_line = self.bytes_per_line;
         let new_bytes_per_line = (new_stride + 7) / 8;
         let new_total_bytes = max_lines * new_bytes_per_line;
@@ -142,9 +147,6 @@ impl OccupiedBitmap {
                 debug_assert!(src < self.bits.len(), "src out of bounds");
                 debug_assert!(dst < self.bits.len(), "dst out of bounds");
                 self.bits[dst] = self.bits[src];
-                if src != dst {
-                    self.bits[src] = 0;
-                }
             }
             // Zero the new trailing bytes introduced by the wider stride.
             for byte_idx in old_bytes_per_line..new_bytes_per_line {
@@ -185,8 +187,6 @@ impl OccupiedBitmap {
                 byte_idx += 1;
                 offset += 8;
             }
-
-            // Move to the next line.
             line_idx += 1;
         }
     }

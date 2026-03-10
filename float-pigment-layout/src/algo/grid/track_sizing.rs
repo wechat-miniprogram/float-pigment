@@ -95,7 +95,6 @@ fn resolve_fr_definite<L: LengthNum + Copy>(tracks: &mut [TrackInfo<L>], availab
             let hypothetical_size = hypothetical_fr_size.mul_f32(tracks[i].fr_value);
             if hypothetical_size < tracks[i].min_content {
                 tracks[i].base_size = Some(tracks[i].min_content);
-                tracks[i].has_explicit = true;
                 remaining_space -= tracks[i].min_content;
                 active_flex -= tracks[i].fr_value;
                 any_frozen = true;
@@ -110,7 +109,6 @@ fn resolve_fr_definite<L: LengthNum + Copy>(tracks: &mut [TrackInfo<L>], availab
             for &i in &flexible_indices {
                 let fr_size = hypothetical_fr_size.mul_f32(tracks[i].fr_value);
                 tracks[i].base_size = Some(fr_size);
-                tracks[i].has_explicit = true;
             }
             break;
         }
@@ -143,7 +141,6 @@ fn resolve_fr_indefinite<L: LengthNum + Copy>(tracks: &mut [TrackInfo<L>]) {
         if track.track_type == IntrinsicTrackType::Fr {
             let fr_size = hypothetical_1fr.mul_f32(track.fr_value);
             track.base_size = Some(fr_size.max(track.min_content));
-            track.has_explicit = true;
         }
     }
 }
@@ -196,7 +193,6 @@ struct TrackInfo<L: LengthNum> {
     /// The track's growth limit (§11.4).
     /// `None` represents infinity.
     growth_limit: Option<L>,
-    has_explicit: bool,
     fr_value: f32,
     min_content: L,
     max_content: L,
@@ -209,7 +205,6 @@ impl<L: LengthNum + Copy> TrackInfo<L> {
         Self {
             base_size: None,
             growth_limit: None,
-            has_explicit: false,
             fr_value: 0.0,
             min_content: L::zero(),
             max_content: L::zero(),
@@ -351,7 +346,6 @@ fn update_track_intrinsic_sizes<L: LengthNum + Copy>(
         IntrinsicTrackType::Fixed => {
             // Fixed track: use the specified size (§11.4)
             if fixed_track_size.is_some() {
-                track.has_explicit = true;
                 let size = fixed_track_size.val().unwrap();
                 track.base_size = Some(track.base_size.map(|s| s.max(size)).unwrap_or(size));
                 // Fixed track: growth_limit = base_size (§11.4)
@@ -627,7 +621,6 @@ mod tests {
         TrackInfo {
             base_size: Some(base),
             growth_limit: Some(base),
-            has_explicit: true,
             fr_value: 0.0,
             min_content: 0.0,
             max_content: 0.0,
@@ -640,7 +633,6 @@ mod tests {
         TrackInfo {
             base_size: None,
             growth_limit: None,
-            has_explicit: false,
             fr_value: fr,
             min_content,
             max_content: 0.0,
@@ -653,7 +645,6 @@ mod tests {
         TrackInfo {
             base_size: None,
             growth_limit: None,
-            has_explicit: false,
             fr_value: fr,
             min_content,
             max_content,
