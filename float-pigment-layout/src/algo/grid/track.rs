@@ -6,13 +6,13 @@
 //! This module defines the `GridTrack` structure which represents a single
 //! grid track (row or column) during the track sizing algorithm.
 
-use crate::{DefLength, LayoutTreeNode};
+use crate::{algo::grid::track_sizing::TrackInfo, DefLength, LayoutTreeNode};
 use alloc::vec::Vec;
 use core::fmt::Debug;
 use float_pigment_css::length_num::LengthNum;
 use float_pigment_css::num_traits::Zero;
 
-use super::track_sizing::{IntrinsicTrackType, TrackSizingResult};
+use super::track_sizing::IntrinsicTrackType;
 
 /// A single grid track (row or column) with its sizing information.
 ///
@@ -178,12 +178,12 @@ impl<T: LayoutTreeNode> GridTracks<T> {
         self.tracks.iter().map(|t| t.resolved_size()).collect()
     }
 
-    /// Create GridTracks from a slice of per-track sizing items.
-    pub fn from_computed_track_size(items: &[TrackSizingResult<T::Length>]) -> Self {
-        let mut tracks = Vec::with_capacity(items.len());
+    /// Create GridTracks from resolved `TrackInfo` entries.
+    pub fn from_track_info(track_info: &[TrackInfo<T::Length>]) -> Self {
+        let mut tracks = Vec::with_capacity(track_info.len());
         let mut auto_count = 0;
 
-        for item in items {
+        for item in track_info {
             let sizing_fn = match item.track_type {
                 IntrinsicTrackType::Fr => TrackSizingFunction::Flex(item.fr_value),
                 IntrinsicTrackType::Auto => {
@@ -193,13 +193,13 @@ impl<T: LayoutTreeNode> GridTracks<T> {
                 IntrinsicTrackType::MinContent | IntrinsicTrackType::MaxContent => {
                     TrackSizingFunction::Intrinsic
                 }
-                IntrinsicTrackType::Fixed => {
-                    TrackSizingFunction::Fixed(DefLength::Points(item.size))
-                }
+                IntrinsicTrackType::Fixed => TrackSizingFunction::Fixed(DefLength::Points(
+                    item.base_size.unwrap_or(T::Length::zero()),
+                )),
             };
 
             let mut track = GridTrack::from_single(sizing_fn);
-            track.base_size = item.size;
+            track.base_size = item.base_size.unwrap_or(T::Length::zero());
             track.growth_limit = if item.track_type == IntrinsicTrackType::Fr {
                 None
             } else {

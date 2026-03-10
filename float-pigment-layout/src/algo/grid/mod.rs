@@ -489,7 +489,7 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         // - For auto tracks: size to fit content (using outer/margin-box size)
         // - For fr tracks: distribute remaining space via iterative algorithm
         // ═══════════════════════════════════════════════════════════════════════
-        let computed_track_sizes = compute_track_sizes(
+        let (mut column_tracks, mut row_tracks) = compute_track_sizes(
             &grid_layout_matrix,
             &column_track_list,
             &row_track_list,
@@ -498,25 +498,11 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             &grid_auto_rows,
         );
 
-        // ═══════════════════════════════════════════════════════════════════════
-        // STEP 7b: Create GridTracks for subsequent processing
-        //
-        // NOTE: §11.7 (Expand Flexible Tracks) is already done in compute_track_sizes
-        // using the iterative algorithm. The fr track sizes in column_result/row_result
-        // are already final.
-        // ═══════════════════════════════════════════════════════════════════════
-        use crate::algo::grid::track::GridTracks;
-
-        let mut column_tracks: GridTracks<T> =
-            GridTracks::from_computed_track_size(&computed_track_sizes.columns);
-        let mut row_tracks: GridTracks<T> =
-            GridTracks::from_computed_track_size(&computed_track_sizes.rows);
-
         let has_definite_width = !matches!(style.width(), DefLength::Auto);
         let has_definite_height = !matches!(style.height(), DefLength::Auto);
 
         // ═══════════════════════════════════════════════════════════════════════
-        // STEP 7c: Maximize Tracks (§11.6)
+        // STEP 7b: Maximize Tracks (§11.6)
         // CSS Grid §11.6: https://www.w3.org/TR/css-grid-1/#algo-grow-tracks
         //
         // Distribute free space equally to the base sizes of all non-flex tracks,
@@ -540,7 +526,7 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        // STEP 7d: Stretch auto Tracks (§11.8)
+        // STEP 7c: Stretch auto Tracks (§11.8)
         // CSS Grid §11.8: https://www.w3.org/TR/css-grid-1/#algo-stretch
         //
         // When justify-content is `normal`/`stretch`, or align-content is `normal`/`stretch`,
