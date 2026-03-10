@@ -10,8 +10,8 @@ use alloc::vec::Vec;
 use float_pigment_css::length_num::LengthNum;
 
 use crate::{
-    types::MinMax, DefLength, LayoutGridAuto, LayoutTrackListItem, LayoutTrackSize, LayoutTreeNode,
-    OptionNum, OptionSize, Size,
+    algo::grid::track::GridTracks, types::MinMax, DefLength, LayoutGridAuto, LayoutTrackListItem,
+    LayoutTrackSize, LayoutTreeNode, OptionNum, OptionSize, Size,
 };
 
 use super::matrix::GridLayoutMatrix;
@@ -145,23 +145,6 @@ fn resolve_fr_indefinite<L: LengthNum + Copy>(tracks: &mut [TrackInfo<L>]) {
     }
 }
 
-/// A single track's sizing result after the track sizing algorithm.
-///
-/// Combines the computed size with metadata needed by subsequent phases
-/// (§11.6 Maximize Tracks, §11.8 Stretch auto Tracks).
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct TrackSizingResult<L: LengthNum> {
-    /// The track's final computed base size (§11.4–§11.7).
-    pub size: L,
-    /// The flex factor if this is an fr track (§11.7); 0.0 otherwise.
-    pub fr_value: f32,
-    /// The intrinsic track type (§7.2), used by §11.6/§11.8 to determine
-    /// how the track participates in maximize and stretch phases.
-    pub track_type: IntrinsicTrackType,
-    /// The track's growth limit; `None` represents infinity (§11.4).
-    pub growth_limit: Option<L>,
-}
-
 /// The type of track sizing function for intrinsic sizing (§11.5).
 ///
 /// CSS Grid §7.2: Track Sizing Functions
@@ -187,17 +170,17 @@ pub(crate) enum IntrinsicTrackType {
     Fr,
 }
 
-struct TrackInfo<L: LengthNum> {
+pub(crate) struct TrackInfo<L: LengthNum> {
     /// The track's computed base size (§11.4).
-    base_size: Option<L>,
+    pub(crate) base_size: Option<L>,
     /// The track's growth limit (§11.4).
     /// `None` represents infinity.
-    growth_limit: Option<L>,
-    fr_value: f32,
-    min_content: L,
-    max_content: L,
+    pub(crate) growth_limit: Option<L>,
+    pub(crate) fr_value: f32,
+    pub(crate) min_content: L,
+    pub(crate) max_content: L,
     /// The type of track for intrinsic sizing purposes (§11.5).
-    track_type: IntrinsicTrackType,
+    pub(crate) track_type: IntrinsicTrackType,
 }
 
 impl<L: LengthNum + Copy> TrackInfo<L> {
@@ -273,12 +256,6 @@ pub(crate) fn classify_track_at_index<L: LengthNum, C: PartialEq + Clone>(
         let implicit_index = index - explicit_track_list.len();
         classify_track_type(&grid_auto_tracks.get(implicit_index))
     }
-}
-
-#[derive(Clone, Debug)]
-pub(crate) struct ComputedTrackSizes<T: LayoutTreeNode> {
-    pub rows: Vec<TrackSizingResult<T::Length>>,
-    pub columns: Vec<TrackSizingResult<T::Length>>,
 }
 
 /// Initialize track info for one axis.
@@ -424,19 +401,6 @@ fn resolve_fixed_track_size<T: LayoutTreeNode>(
     }
 }
 
-/// Convert TrackInfo slice to TrackSizingResult vector.
-fn tracks_to_results<L: LengthNum + Copy>(tracks: &[TrackInfo<L>]) -> Vec<TrackSizingResult<L>> {
-    tracks
-        .iter()
-        .map(|t| TrackSizingResult {
-            size: t.base_size.unwrap_or(L::zero()),
-            fr_value: t.fr_value,
-            track_type: t.track_type,
-            growth_limit: t.growth_limit,
-        })
-        .collect()
-}
-
 /// Compute track sizes based on item content.
 ///
 /// Implements the core parts of the Track Sizing Algorithm:
@@ -460,7 +424,7 @@ fn tracks_to_results<L: LengthNum + Copy>(tracks: &[TrackInfo<L>]) -> Vec<TrackS
 /// 2. If any fr track's size < its min-content, freeze it at min-content
 /// 3. Repeat until stable
 ///
-/// Returns `ComputedTrackSizes` with column and row results.
+/// Returns `(column_tracks, row_tracks)` ready for §11.6/§11.8 processing.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
     grid_layout_matrix: &GridLayoutMatrix<T>,
@@ -469,7 +433,7 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
     available_grid_space: OptionSize<T::Length>,
     grid_auto_columns: &LayoutGridAuto<T::Length, T::LengthCustom>,
     grid_auto_rows: &LayoutGridAuto<T::Length, T::LengthCustom>,
-) -> ComputedTrackSizes<T> {
+) -> (GridTracks<T>, GridTracks<T>) {
     let explicit_column_count = column_track_list.len();
     let explicit_row_count = row_track_list.len();
 
@@ -606,10 +570,10 @@ pub(crate) fn compute_track_sizes<T: LayoutTreeNode>(
     resolve_fr_track_sizes(&mut columns, available_grid_space.width);
     resolve_fr_track_sizes(&mut rows, available_grid_space.height);
 
-    ComputedTrackSizes {
-        columns: tracks_to_results(&columns),
-        rows: tracks_to_results(&rows),
-    }
+    (
+        GridTracks::from_track_info(&columns),
+        GridTracks::from_track_info(&rows),
+    )
 }
 
 #[cfg(test)]
