@@ -108,7 +108,6 @@ pub(crate) fn apply_track_size<'a, T: LayoutTreeNode>(
         }
     }
 
-
     // ═══════════════════════════════════════════════════════════════════════
     // Phase 2: Resolve track sizes
     // CSS Grid §11.5-11.7
