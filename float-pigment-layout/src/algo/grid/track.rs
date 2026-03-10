@@ -256,16 +256,16 @@ impl<T: LayoutTreeNode> GridTracks<T> {
             let mut space_used = T::Length::zero();
 
             unfrozen.retain(|&i| {
-                let track = &self.tracks[i];
+                let track = &mut self.tracks[i];
                 let new_base = track.base_size + share;
 
                 if let Some(limit) = track.growth_limit {
                     if new_base >= limit {
                         // Freeze at growth_limit; only consume the delta
-                        let delta = limit - self.tracks[i].base_size;
+                        let delta = limit - track.base_size;
                         if delta > T::Length::zero() {
                             space_used += delta;
-                            self.tracks[i].base_size = limit;
+                            track.base_size = limit;
                         }
                         any_frozen = true;
                         return false; // remove from unfrozen
@@ -274,7 +274,7 @@ impl<T: LayoutTreeNode> GridTracks<T> {
 
                 // Not frozen yet; tentatively accept the share
                 space_used += share;
-                self.tracks[i].base_size = new_base;
+                track.base_size = new_base;
                 true // keep in unfrozen
             });
 
