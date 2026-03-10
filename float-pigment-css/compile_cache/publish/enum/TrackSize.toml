@@ -1,0 +1,2 @@
+key = "TrackSize"
+value = ["typing = \"Unit\"\nident = \"MinContent\"\nfield = []\n", "typing = \"Unit\"\nident = \"MaxContent\"\nfield = []\n", "typing = \"Unnamed\"\nident = \"Fr\"\nfield = [\"f32\"]\n", "typing = \"Unnamed\"\nident = \"Length\"\nfield = [\"Length\"]\n"]
