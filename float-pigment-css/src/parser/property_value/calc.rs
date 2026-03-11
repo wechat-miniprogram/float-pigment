@@ -38,7 +38,7 @@ impl CalcExpr {
             CalcExpr::Angle(angle) => !matches!(angle.as_ref(), Angle::Calc(_)),
             CalcExpr::Number(num) => !matches!(num.as_ref(), Number::Calc(_)),
             CalcExpr::Length(length) => !matches!(
-                length.as_ref(),
+                length,
                 Length::Expr(_) | Length::Auto | Length::Undefined
             ),
             _ => false,
@@ -69,7 +69,7 @@ impl CalcExpr {
                 } else {
                     length.to_f32() / rhs
                 };
-                let ret = match length.as_ref() {
+                let ret = match length {
                     Length::Px(_) => Length::Px(v),
                     Length::Em(_) => Length::Em(v),
                     Length::Rpx(_) => Length::Rpx(v),
@@ -81,7 +81,7 @@ impl CalcExpr {
                     Length::Vmin(_) => Length::Vmin(v),
                     _ => unreachable!(),
                 };
-                CalcExpr::Length(Box::new(ret))
+                CalcExpr::Length(ret)
             }
             CalcExpr::Number(num) => {
                 let ret = if mul {
@@ -176,7 +176,7 @@ impl ComputeCalcExpr<Angle> {
                     _ => None,
                 }
             }
-            CalcExpr::Length(l) => match l.as_ref() {
+            CalcExpr::Length(l) => match l {
                 Length::Ratio(ratio) => Some(Angle::from_ratio(*ratio)),
                 _ => None,
             },
@@ -250,7 +250,7 @@ impl LengthUnit {
 impl ComputeCalcExpr<Length> {
     pub(crate) fn try_compute(expr: &CalcExpr) -> Option<Length> {
         match expr {
-            CalcExpr::Length(l) => Some(*l.clone()),
+            CalcExpr::Length(l) => Some(l.clone()),
             CalcExpr::Angle(_) | CalcExpr::Number(_) => None,
             CalcExpr::Plus(l, r) | CalcExpr::Sub(l, r) => {
                 let l = Self::try_compute(l)?;
@@ -495,7 +495,7 @@ fn parse_calc_value<'a, 't: 'a, 'i: 't>(
         if expect_type == ExpectValueType::NumberAndLength
             || expect_type == ExpectValueType::AngleAndLength
         {
-            return Ok(CalcExpr::Length(Box::new(length)));
+            return Ok(CalcExpr::Length(length));
         }
     }
     // match angle
