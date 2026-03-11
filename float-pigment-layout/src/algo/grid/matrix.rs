@@ -56,9 +56,9 @@ impl OccupiedBitmap {
     fn new(stride: usize, row_order: bool, capacity: usize) -> Self {
         debug_assert!(stride >= 1);
         let stride: usize = stride.max(1);
-        let bytes_per_line = (stride + 7) / 8;
+        let bytes_per_line = stride.div_ceil(8);
         let estimated_lines = if stride > 0 {
-            (capacity + stride - 1) / stride
+            capacity.div_ceil(stride)
         } else {
             0
         };
@@ -129,7 +129,7 @@ impl OccupiedBitmap {
         debug_assert!(new_stride > self.stride, "stride can only grow");
         let new_stride: usize = new_stride.max(1);
         let old_bytes_per_line = self.bytes_per_line;
-        let new_bytes_per_line = (new_stride + 7) / 8;
+        let new_bytes_per_line = new_stride.div_ceil(8);
         let new_total_bytes = max_lines * new_bytes_per_line;
 
         self.bits.resize(new_total_bytes, 0u8);
@@ -224,7 +224,7 @@ pub(crate) struct GridMatrix<'a, T: LayoutTreeNode> {
     flow: GridAutoFlow,
 }
 
-impl<'a, 'b: 'a, T: LayoutTreeNode> GridMatrix<'a, T> {
+impl<'a, T: LayoutTreeNode> GridMatrix<'a, T> {
     /// Create a new empty grid matrix.
     ///
     /// The grid starts empty and expands dynamically when items are placed.

@@ -352,7 +352,7 @@ pub unsafe extern "C" fn style_sheet_resource_add_bincode(
     check_null!(path, FfiErrorCode::PathNullPointer, null());
     check_null!(buffer_ptr, FfiErrorCode::BufferNullPointer, null());
     let res = raw_ptr_as_mut_ref!(this, group::StyleSheetResource);
-    let bincode: *mut [u8] = core::slice::from_raw_parts_mut(buffer_ptr, buffer_len);
+    let bincode: *mut [u8] = core::ptr::slice_from_raw_parts_mut(buffer_ptr, buffer_len);
     let path = CStr::from_ptr(path).to_string_lossy();
     let w = res.add_bincode_zero_copy(&path, bincode, move || {
         if let Some(drop_fn) = drop_fn {
@@ -595,7 +595,7 @@ pub unsafe extern "C" fn style_sheet_import_index_add_bincode(
     check_null!(buffer_ptr, FfiErrorCode::BufferNullPointer, null_mut());
     let path = CStr::from_ptr(path).to_string_lossy();
     let sheet = de_static_ref_zero_copy_env(
-        core::slice::from_raw_parts_mut(buffer_ptr, buffer_len),
+        core::ptr::slice_from_raw_parts_mut(buffer_ptr, buffer_len),
         |s| {
             let s: Result<StyleSheet, _> = float_pigment_consistent_bincode::DefaultOptions::new()
                 .allow_trailing_bytes()
@@ -790,7 +790,7 @@ pub unsafe extern "C" fn style_sheet_import_index_deserialize_bincode(
     drop_args: RawMutPtr,
 ) -> FfiResult<RawMutPtr> {
     check_null!(buffer_ptr, FfiErrorCode::BufferNullPointer, null_mut());
-    let bincode: *mut [u8] = core::slice::from_raw_parts_mut(buffer_ptr, buffer_len);
+    let bincode: *mut [u8] = core::ptr::slice_from_raw_parts_mut(buffer_ptr, buffer_len);
     FfiResult::ok(
         StyleSheetImportIndex {
             inner: StyleSheetImportIndexImpl::deserialize_bincode_zero_copy(bincode, move || {
@@ -831,7 +831,7 @@ pub unsafe extern "C" fn style_sheet_import_index_merge_bincode(
     check_null!(this, FfiErrorCode::ThisNullPointer, null());
     check_null!(buffer_ptr, FfiErrorCode::BufferNullPointer, null());
     let style_sheet_import_index = raw_ptr_as_mut_ref!(this, StyleSheetImportIndex);
-    let bincode: *mut [u8] = core::slice::from_raw_parts_mut(buffer_ptr, buffer_len);
+    let bincode: *mut [u8] = core::ptr::slice_from_raw_parts_mut(buffer_ptr, buffer_len);
     style_sheet_import_index
         .inner
         .merge_bincode_zero_copy(bincode, move || {
@@ -858,7 +858,7 @@ pub unsafe extern "C" fn style_sheet_import_index_merge_bincode(
 #[export_name = "FPBufferFree"]
 pub unsafe extern "C" fn buffer_free(buffer_ptr: *mut u8, buffer_len: usize) -> FfiResult<NullPtr> {
     check_null!(buffer_ptr, FfiErrorCode::BufferNullPointer, null());
-    let x: *mut [u8] = core::slice::from_raw_parts_mut(buffer_ptr, buffer_len);
+    let x: *mut [u8] = core::ptr::slice_from_raw_parts_mut(buffer_ptr, buffer_len);
     drop(Box::from_raw(x));
     FfiResult::ok(null())
 }
@@ -1088,7 +1088,7 @@ pub unsafe extern "C" fn style_sheet_bincode_version(
     use float_pigment_consistent_bincode::Options;
     check_null!(buffer_ptr, FfiErrorCode::BufferNullPointer, null_mut());
     let sheet = de_static_ref_zero_copy_env(
-        core::slice::from_raw_parts_mut(buffer_ptr, buffer_len),
+        core::ptr::slice_from_raw_parts_mut(buffer_ptr, buffer_len),
         |s| {
             let s: Result<StyleSheet, _> = float_pigment_consistent_bincode::DefaultOptions::new()
                 .allow_trailing_bytes()
@@ -1098,10 +1098,8 @@ pub unsafe extern "C" fn style_sheet_bincode_version(
                 Err(err) => {
                     let mut ss = StyleSheet::from_sheet(&sheet::CompiledStyleSheet::new());
                     if let StyleSheet::V1(ssv) = &mut ss {
-                        ssv.version = Box::new(
-                            format!("Failed to deserialize bincode formatted style sheet: {err}")
-                                .into(),
-                        );
+                        *ssv.version = format!("Failed to deserialize bincode formatted style sheet: {err}")
+                                .into();
                     }
                     ss
                 }

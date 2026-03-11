@@ -206,7 +206,7 @@ impl VarintEncoding {
 
     #[inline(always)]
     fn zigzag_decode(n: u64) -> i64 {
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             // positive number
             (n / 2) as i64
         } else {
@@ -269,7 +269,7 @@ impl VarintEncoding {
         }
         #[inline(always)]
         fn zigzag128_decode(n: u128) -> i128 {
-            if n % 2 == 0 {
+            if n.is_multiple_of(2) {
                 (n / 2) as i128
             } else {
                 !(n / 2) as i128

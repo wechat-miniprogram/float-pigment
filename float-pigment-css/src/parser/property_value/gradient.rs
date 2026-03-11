@@ -822,7 +822,7 @@ fn gradient_position_repr<'a, 't: 'a, 'i: 't>(
             // hit <length-percentage>
             return Ok(GradientPosition::Pos(parsed_length, Length::Ratio(0.5)));
         }
-        return Err(parser.new_custom_error(CustomError::Unsupported));
+        Err(parser.new_custom_error(CustomError::Unsupported))
     });
 
     if parse_position_one_res.is_ok() && (!strict || parser.is_exhausted()) {
