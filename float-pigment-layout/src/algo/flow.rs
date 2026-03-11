@@ -734,7 +734,12 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                 last_baseline_ascent_option =
                                     Some(child_res.last_baseline_ascent + baseline_diff);
                                 if child_node.should_measure(env) {
-                                    child.save_all_results(child_node, env, node_inner_size, LayoutAlgorithm::InlineMeasure);
+                                    child.save_all_results(
+                                        child_node,
+                                        env,
+                                        node_inner_size,
+                                        LayoutAlgorithm::InlineMeasure,
+                                    );
                                 } else {
                                     child.update_result_layout_algorithm(|x| match x {
                                         LayoutAlgorithm::Block => LayoutAlgorithm::InlineBlock,

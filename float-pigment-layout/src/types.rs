@@ -174,8 +174,7 @@ impl<L: LengthNum> VectorProxy<L> for Vector<L> {
 }
 
 /// A length type that can be undefined or auto.
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum DefLength<L: LengthNum, T: PartialEq + Clone = i32> {
     /// The length is undetermined.
     #[default]
@@ -207,7 +206,6 @@ impl<L: LengthNum, T: PartialEq + Display + Clone> Display for DefLength<L, T> {
         }
     }
 }
-
 
 impl<L: LengthNum, T: PartialEq + Clone> DefLength<L, T> {
     pub(crate) fn resolve<N: LayoutTreeNode<Length = L, LengthCustom = T>>(
@@ -1036,14 +1034,12 @@ pub(crate) fn size_to_option<L: LengthNum>(size: Size<L>) -> OptionSize<L> {
 }
 
 #[allow(missing_docs)]
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum LayoutGridTemplate<L: LengthNum, T: PartialEq + Clone = i32> {
     #[default]
     None,
     TrackList(Vec<LayoutTrackListItem<L, T>>),
 }
-
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone, PartialEq)]

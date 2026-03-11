@@ -1098,7 +1098,8 @@ pub unsafe extern "C" fn style_sheet_bincode_version(
                 Err(err) => {
                     let mut ss = StyleSheet::from_sheet(&sheet::CompiledStyleSheet::new());
                     if let StyleSheet::V1(ssv) = &mut ss {
-                        *ssv.version = format!("Failed to deserialize bincode formatted style sheet: {err}")
+                        *ssv.version =
+                            format!("Failed to deserialize bincode formatted style sheet: {err}")
                                 .into();
                     }
                     ss

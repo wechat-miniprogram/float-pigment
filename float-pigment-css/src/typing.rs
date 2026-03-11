@@ -194,7 +194,7 @@ impl Length {
     }
 
     /// Convert to `Box<CalcExpr>`.
-    /// 
+    ///
     /// If the length is already a `CalcExpr`, it will be returned directly.
     /// Otherwise, it will be wrapped into a new `CalcExpr`.
     pub fn into_calc_expr(self) -> Box<CalcExpr> {
