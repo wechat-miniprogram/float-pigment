@@ -10,6 +10,7 @@ use super::{borrow::Array, str_store::*};
 
 #[repr(C)]
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub(crate) enum StyleSheetImportIndex {
     None,
     V1(StyleSheetImportIndexV1),
@@ -17,6 +18,7 @@ pub(crate) enum StyleSheetImportIndex {
 
 #[repr(C)]
 #[derive(Debug)]
+#[allow(dead_code)]
 pub(crate) struct StyleSheetImportIndexV1 {
     buf: StrBuffer,
     deps: Array<(StrRef, Array<StrRef>)>,
