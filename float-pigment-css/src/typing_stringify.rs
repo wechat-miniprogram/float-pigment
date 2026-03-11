@@ -273,7 +273,7 @@ impl fmt::Display for Length {
                     &tmp
                 }
                 Length::Expr(expr) => {
-                    match expr {
+                    match &**expr {
                         LengthExpr::Calc(calc_expr) => {
                             tmp = calc_expr.to_string();
                             &tmp

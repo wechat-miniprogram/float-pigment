@@ -223,10 +223,10 @@ fn parse_length_inner<'a, 't: 'a, 'i: 't>(
                         env_default_value(parser, properties, st)
                     })
                 })?;
-                return Ok(Length::Expr(LengthExpr::Env(
+                return Ok(Length::Expr(Box::new(LengthExpr::Env(
                     name.into(),
                     Box::new(default_value.unwrap_or(Length::Undefined)),
-                )));
+                ))));
             }
             "calc" => {
                 return parse_calc_inner(parser, properties, st, ExpectValueType::NumberAndLength)
@@ -234,7 +234,7 @@ fn parse_length_inner<'a, 't: 'a, 'i: 't>(
                         if let Some(r) = ComputeCalcExpr::<Length>::try_compute(&ret) {
                             return r;
                         }
-                        Length::Expr(LengthExpr::Calc(Box::new(ret)))
+                        Length::Expr(Box::new(LengthExpr::Calc(Box::new(ret))))
                     });
             }
             _ => {}
@@ -401,7 +401,7 @@ pub(crate) fn percentage<'a, 't: 'a, 'i: 't>(
                     if let Some(r) = ComputeCalcExpr::<Length>::try_compute(&ret) {
                         return r;
                     }
-                    Length::Expr(LengthExpr::Calc(Box::new(ret)))
+                    Length::Expr(Box::new(LengthExpr::Calc(Box::new(ret))))
                 });
             }
         }
