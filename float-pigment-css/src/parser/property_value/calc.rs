@@ -176,10 +176,7 @@ impl ComputeCalcExpr<Angle> {
                     _ => None,
                 }
             }
-            CalcExpr::Length(l) => match l {
-                Length::Ratio(ratio) => Some(Angle::from_ratio(*ratio)),
-                _ => None,
-            },
+            CalcExpr::Length(Length::Ratio(ratio)) => Some(Angle::from_ratio(*ratio)),
             _ => None,
         }
     }
