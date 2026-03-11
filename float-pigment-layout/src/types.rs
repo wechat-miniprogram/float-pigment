@@ -175,8 +175,10 @@ impl<L: LengthNum> VectorProxy<L> for Vector<L> {
 
 /// A length type that can be undefined or auto.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Default)]
 pub enum DefLength<L: LengthNum, T: PartialEq + Clone = i32> {
     /// The length is undetermined.
+    #[default]
     Undefined,
 
     /// The length is auto.
@@ -206,11 +208,6 @@ impl<L: LengthNum, T: PartialEq + Display + Clone> Display for DefLength<L, T> {
     }
 }
 
-impl<L: LengthNum, T: PartialEq + Clone> Default for DefLength<L, T> {
-    fn default() -> Self {
-        Self::Undefined
-    }
-}
 
 impl<L: LengthNum, T: PartialEq + Clone> DefLength<L, T> {
     pub(crate) fn resolve<N: LayoutTreeNode<Length = L, LengthCustom = T>>(
@@ -831,7 +828,6 @@ impl AxisInfo {
     }
 
     /// Create AxisInfo considering both writing-mode and direction.
-
     pub(crate) fn from_writing_mode_and_direction(
         writing_mode: WritingMode,
         direction: Direction,
@@ -1041,16 +1037,13 @@ pub(crate) fn size_to_option<L: LengthNum>(size: Size<L>) -> OptionSize<L> {
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub enum LayoutGridTemplate<L: LengthNum, T: PartialEq + Clone = i32> {
+    #[default]
     None,
     TrackList(Vec<LayoutTrackListItem<L, T>>),
 }
 
-impl<L: LengthNum, T: PartialEq + Clone> Default for LayoutGridTemplate<L, T> {
-    fn default() -> Self {
-        Self::None
-    }
-}
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone, PartialEq)]

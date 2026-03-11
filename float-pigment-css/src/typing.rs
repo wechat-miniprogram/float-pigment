@@ -298,16 +298,12 @@ impl Length {
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ResolveFontSize)]
 #[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
+#[derive(Default)]
 pub enum LengthExpr {
+    #[default]
     Invalid,
     Env(StrRef, Box<Length>),
     Calc(Box<CalcExpr>),
-}
-
-impl Default for LengthExpr {
-    fn default() -> Self {
-        Self::Invalid
-    }
 }
 
 impl CalcExpr {
