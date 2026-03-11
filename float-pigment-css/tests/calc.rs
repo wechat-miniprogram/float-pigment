@@ -53,22 +53,22 @@ pub fn calc() {
     //     margin_left,
     //     "margin-left",
     //     "calc(10px + 20vh + 30px)",
-    //     Length::Expr(LengthExpr::Calc(CalcExpr::Plus(
-    //         Box::new(CalcExpr::Length(Box::new(Length::Px(40.)))),
-    //         Box::new(CalcExpr::Length(Box::new(Length::Vh(20.))))
+    //     Length::new_calc_expr(CalcExpr::Plus(
+    //         Box::new(CalcExpr::Length(Length::Px(40.)))),
+    //         Box::new(CalcExpr::Length(Length::Vh(20.))))
     //     )))
     // );
     test_parse_property!(
         margin_left,
         "margin-left",
         "calc(10rpx + (20vh + 30px))",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Plus(
-            Box::new(CalcExpr::Length(Box::new(Length::Rpx(10.)))),
+        Length::new_calc_expr(Box::new(CalcExpr::Plus(
+            Box::new(CalcExpr::Length(Length::Rpx(10.))),
             Box::new(CalcExpr::Plus(
-                Box::new(CalcExpr::Length(Box::new(Length::Vh(20.)))),
-                Box::new(CalcExpr::Length(Box::new(Length::Px(30.))))
+                Box::new(CalcExpr::Length(Length::Vh(20.))),
+                Box::new(CalcExpr::Length(Length::Px(30.)))
             ))
-        ))))
+        )))
     );
     test_parse_property!(
         transform,
@@ -175,16 +175,16 @@ pub fn calc_ch_ex_lang() {
         left,
         "left",
         "calc(1vh + 5vw + 10px + 1rem)",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Plus(
+        Length::new_calc_expr(Box::new(CalcExpr::Plus(
             Box::new(CalcExpr::Plus(
                 Box::new(CalcExpr::Plus(
-                    Box::new(CalcExpr::Length(Box::new(Length::Vh(1.)))),
-                    Box::new(CalcExpr::Length(Box::new(Length::Vw(5.))))
+                    Box::new(CalcExpr::Length(Length::Vh(1.))),
+                    Box::new(CalcExpr::Length(Length::Vw(5.)))
                 )),
-                Box::new(CalcExpr::Length(Box::new(Length::Px(10.))))
+                Box::new(CalcExpr::Length(Length::Px(10.)))
             )),
-            Box::new(CalcExpr::Length(Box::new(Length::Rem(1.))))
-        ))))
+            Box::new(CalcExpr::Length(Length::Rem(1.)))
+        )))
     );
 
     // FIXME
@@ -192,9 +192,9 @@ pub fn calc_ch_ex_lang() {
     //     font_size,
     //     "font-size",
     //     "calc(17px + 0.5 * (1rem - 16px))",
-    //     Length::Expr(LengthExpr::Calc(CalcExpr::Plus(
-    //         Box::new(CalcExpr::Length(Box::new(Length::Px(9.)))),
-    //         Box::new(CalcExpr::Length(Box::new(Length::Rem(0.5))))
+    //     Length::new_calc_expr(CalcExpr::Plus(
+    //         Box::new(CalcExpr::Length(Length::Px(9.)))),
+    //         Box::new(CalcExpr::Length(Length::Rem(0.5))))
     //     )))
     // );
 }
@@ -207,20 +207,20 @@ pub fn calc_height_block_1() {
         height,
         "height",
         "calc(25px + 50%)",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Plus(
-            Box::new(CalcExpr::Length(Box::new(Length::Px(25.)))),
-            Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.5)))),
-        ))))
+        Length::new_calc_expr(Box::new(CalcExpr::Plus(
+            Box::new(CalcExpr::Length(Length::Px(25.))),
+            Box::new(CalcExpr::Length(Length::Ratio(0.5))),
+        )))
     );
 
     test_parse_property!(
         height,
         "height",
         "calc(150% / 2 - 30px)",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Sub(
-            Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.75)))),
-            Box::new(CalcExpr::Length(Box::new(Length::Px(30.)))),
-        ))))
+        Length::new_calc_expr(Box::new(CalcExpr::Sub(
+            Box::new(CalcExpr::Length(Length::Ratio(0.75))),
+            Box::new(CalcExpr::Length(Length::Px(30.))),
+        )))
     );
 
     // FIXME
@@ -235,10 +235,10 @@ pub fn calc_height_block_1() {
         height,
         "height",
         "calc(40px - 10%)",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Sub(
-            Box::new(CalcExpr::Length(Box::new(Length::Px(40.)))),
-            Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.1)))),
-        ))))
+        Length::new_calc_expr(Box::new(CalcExpr::Sub(
+            Box::new(CalcExpr::Length(Length::Px(40.))),
+            Box::new(CalcExpr::Length(Length::Ratio(0.1))),
+        )))
     );
 }
 
@@ -255,13 +255,13 @@ pub fn calc_in_calc() {
         height,
         "height",
         "calc(calc(10px + 10%) + 10px)",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Plus(
+        Length::new_calc_expr(Box::new(CalcExpr::Plus(
             Box::new(CalcExpr::Plus(
-                Box::new(CalcExpr::Length(Box::new(Length::Px(10.)))),
-                Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.1))))
+                Box::new(CalcExpr::Length(Length::Px(10.))),
+                Box::new(CalcExpr::Length(Length::Ratio(0.1)))
             )),
-            Box::new(CalcExpr::Length(Box::new(Length::Px(10.))))
-        ))))
+            Box::new(CalcExpr::Length(Length::Px(10.)))
+        )))
     );
 }
 
@@ -271,55 +271,55 @@ pub fn calc_margin_block_1() {
         margin_top,
         "margin",
         "calc(10px + 1%) 0 0 0",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Plus(
-            Box::new(CalcExpr::Length(Box::new(Length::Px(10.)))),
-            Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.01)))),
-        ))))
+        Length::new_calc_expr(Box::new(CalcExpr::Plus(
+            Box::new(CalcExpr::Length(Length::Px(10.))),
+            Box::new(CalcExpr::Length(Length::Ratio(0.01))),
+        )))
     );
     test_parse_property!(
         margin_right,
         "margin",
         "0 calc(10px + 1%) 0 0",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Plus(
-            Box::new(CalcExpr::Length(Box::new(Length::Px(10.)))),
-            Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.01)))),
-        ))))
+        Length::new_calc_expr(Box::new(CalcExpr::Plus(
+            Box::new(CalcExpr::Length(Length::Px(10.))),
+            Box::new(CalcExpr::Length(Length::Ratio(0.01))),
+        )))
     );
     test_parse_property!(
         margin_bottom,
         "margin",
         "0 0 calc(10px + 1%) 0",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Plus(
-            Box::new(CalcExpr::Length(Box::new(Length::Px(10.)))),
-            Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.01)))),
-        ))))
+        Length::new_calc_expr(Box::new(CalcExpr::Plus(
+            Box::new(CalcExpr::Length(Length::Px(10.))),
+            Box::new(CalcExpr::Length(Length::Ratio(0.01))),
+        )))
     );
     test_parse_property!(
         margin_left,
         "margin",
         "0 0 0 calc(10px + 1%)",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Plus(
-            Box::new(CalcExpr::Length(Box::new(Length::Px(10.)))),
-            Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.01)))),
-        ))))
+        Length::new_calc_expr(Box::new(CalcExpr::Plus(
+            Box::new(CalcExpr::Length(Length::Px(10.))),
+            Box::new(CalcExpr::Length(Length::Ratio(0.01))),
+        )))
     );
     test_parse_property!(
         margin_left,
         "margin",
         "calc(10px + 1%)",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Plus(
-            Box::new(CalcExpr::Length(Box::new(Length::Px(10.)))),
-            Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.01)))),
-        ))))
+        Length::new_calc_expr(Box::new(CalcExpr::Plus(
+            Box::new(CalcExpr::Length(Length::Px(10.))),
+            Box::new(CalcExpr::Length(Length::Ratio(0.01))),
+        )))
     );
     test_parse_property!(
         margin_bottom,
         "margin",
         "calc(10px + 1%)",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Plus(
-            Box::new(CalcExpr::Length(Box::new(Length::Px(10.)))),
-            Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.01)))),
-        ))))
+        Length::new_calc_expr(Box::new(CalcExpr::Plus(
+            Box::new(CalcExpr::Length(Length::Px(10.))),
+            Box::new(CalcExpr::Length(Length::Ratio(0.01))),
+        )))
     );
 }
 
@@ -331,19 +331,19 @@ pub fn calc_max_height_block_1() {
         max_height,
         "max-height",
         "calc(25px + 50%)",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Plus(
-            Box::new(CalcExpr::Length(Box::new(Length::Px(25.)))),
-            Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.5)))),
-        ))))
+        Length::new_calc_expr(Box::new(CalcExpr::Plus(
+            Box::new(CalcExpr::Length(Length::Px(25.))),
+            Box::new(CalcExpr::Length(Length::Ratio(0.5))),
+        )))
     );
     test_parse_property!(
         max_height,
         "max-height",
         "calc(150% / 2 - 30px)",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Sub(
-            Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.75)))),
-            Box::new(CalcExpr::Length(Box::new(Length::Px(30.)))),
-        ))))
+        Length::new_calc_expr(Box::new(CalcExpr::Sub(
+            Box::new(CalcExpr::Length(Length::Ratio(0.75))),
+            Box::new(CalcExpr::Length(Length::Px(30.))),
+        )))
     );
     // FIXME
     // test_parse_property!(
@@ -356,10 +356,10 @@ pub fn calc_max_height_block_1() {
         max_height,
         "max-height",
         "calc(40px - 10%)",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Sub(
-            Box::new(CalcExpr::Length(Box::new(Length::Px(40.)))),
-            Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.1)))),
-        ))))
+        Length::new_calc_expr(Box::new(CalcExpr::Sub(
+            Box::new(CalcExpr::Length(Length::Px(40.))),
+            Box::new(CalcExpr::Length(Length::Ratio(0.1))),
+        )))
     );
 }
 
@@ -369,10 +369,10 @@ pub fn calc_max_width_block_1() {
         max_width,
         "max-width",
         "calc(50% - 3px)",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Sub(
-            Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.5)))),
-            Box::new(CalcExpr::Length(Box::new(Length::Px(3.)))),
-        ))))
+        Length::new_calc_expr(Box::new(CalcExpr::Sub(
+            Box::new(CalcExpr::Length(Length::Ratio(0.5))),
+            Box::new(CalcExpr::Length(Length::Px(3.))),
+        )))
     );
 
     // FIXME
@@ -380,9 +380,9 @@ pub fn calc_max_width_block_1() {
     //     max_width,
     //     "max-width",
     //     "calc(25% - 3px + 25%)",
-    //     Length::Expr(LengthExpr::Calc(CalcExpr::Sub(
-    //         Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.5)))),
-    //         Box::new(CalcExpr::Length(Box::new(Length::Px(3.)))),
+    //     Length::new_calc_expr(CalcExpr::Sub(
+    //         Box::new(CalcExpr::Length(Length::Ratio(0.5))),
+    //         Box::new(CalcExpr::Length(Length::Px(3.))),
     //     )))
     // );
 
@@ -391,9 +391,9 @@ pub fn calc_max_width_block_1() {
     //     max_width,
     //     "max-width",
     //     "calc(25% - 3px + 12.5% * 2)",
-    //     Length::Expr(LengthExpr::Calc(CalcExpr::Sub(
-    //         Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.5)))),
-    //         Box::new(CalcExpr::Length(Box::new(Length::Px(3.)))),
+    //     Length::new_calc_expr(CalcExpr::Sub(
+    //         Box::new(CalcExpr::Length(Length::Ratio(0.5))),
+    //         Box::new(CalcExpr::Length(Length::Px(3.))),
     //     )))
     // );
 
@@ -402,9 +402,9 @@ pub fn calc_max_width_block_1() {
     //     max_width,
     //     "max-width",
     //     "calc(25% - 3px + 12.5%*2)",
-    //     Length::Expr(LengthExpr::Calc(CalcExpr::Sub(
-    //         Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.5)))),
-    //         Box::new(CalcExpr::Length(Box::new(Length::Px(3.)))),
+    //     Length::new_calc_expr(CalcExpr::Sub(
+    //         Box::new(CalcExpr::Length(Length::Ratio(0.5))),
+    //         Box::new(CalcExpr::Length(Length::Px(3.))),
     //     )))
     // );
 
@@ -413,9 +413,9 @@ pub fn calc_max_width_block_1() {
     //     max_width,
     //     "max-width",
     //     "calc(25% - 3px + 2*12.5%)",
-    //     Length::Expr(LengthExpr::Calc(CalcExpr::Sub(
-    //         Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.5)))),
-    //         Box::new(CalcExpr::Length(Box::new(Length::Px(3.)))),
+    //     Length::new_calc_expr(CalcExpr::Sub(
+    //         Box::new(CalcExpr::Length(Length::Ratio(0.5))),
+    //         Box::new(CalcExpr::Length(Length::Px(3.))),
     //     )))
     // );
 
@@ -424,9 +424,9 @@ pub fn calc_max_width_block_1() {
     //     max_width,
     //     "max-width",
     //     "calc(25% - 3px + 2 * 12.5%)",
-    //     Length::Expr(LengthExpr::Calc(CalcExpr::Sub(
-    //         Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.5)))),
-    //         Box::new(CalcExpr::Length(Box::new(Length::Px(3.)))),
+    //     Length::new_calc_expr(CalcExpr::Sub(
+    //         Box::new(CalcExpr::Length(Length::Ratio(0.5))),
+    //         Box::new(CalcExpr::Length(Length::Px(3.))),
     //     )))
     // );
 
@@ -446,19 +446,19 @@ pub fn calc_offset_absolute_left_1() {
         left,
         "left",
         "calc(-25px - 50%)",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Sub(
-            Box::new(CalcExpr::Length(Box::new(Length::Px(-25.)))),
-            Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.5)))),
-        ))))
+        Length::new_calc_expr(Box::new(CalcExpr::Sub(
+            Box::new(CalcExpr::Length(Length::Px(-25.))),
+            Box::new(CalcExpr::Length(Length::Ratio(0.5))),
+        )))
     );
     test_parse_property!(
         left,
         "left",
         "calc(-150% / 2 - 30px)",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Sub(
-            Box::new(CalcExpr::Length(Box::new(Length::Ratio(-0.75)))),
-            Box::new(CalcExpr::Length(Box::new(Length::Px(30.)))),
-        ))))
+        Length::new_calc_expr(Box::new(CalcExpr::Sub(
+            Box::new(CalcExpr::Length(Length::Ratio(-0.75))),
+            Box::new(CalcExpr::Length(Length::Px(30.))),
+        )))
     );
     // FIXME
     // test_parse_property!(
@@ -471,10 +471,10 @@ pub fn calc_offset_absolute_left_1() {
         left,
         "left",
         "calc(-40px - 10%)",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Sub(
-            Box::new(CalcExpr::Length(Box::new(Length::Px(-40.)))),
-            Box::new(CalcExpr::Length(Box::new(Length::Ratio(0.1)))),
-        ))))
+        Length::new_calc_expr(Box::new(CalcExpr::Sub(
+            Box::new(CalcExpr::Length(Length::Px(-40.))),
+            Box::new(CalcExpr::Length(Length::Ratio(0.1))),
+        )))
     );
 }
 
@@ -486,10 +486,10 @@ pub fn calc_rem_lang() {
         left,
         "left",
         "calc(1rem + 1em)",
-        Length::Expr(LengthExpr::Calc(Box::new(CalcExpr::Plus(
-            Box::new(CalcExpr::Length(Box::new(Length::Rem(1.)))),
-            Box::new(CalcExpr::Length(Box::new(Length::Em(1.)))),
-        ))))
+        Length::new_calc_expr(Box::new(CalcExpr::Plus(
+            Box::new(CalcExpr::Length(Length::Rem(1.))),
+            Box::new(CalcExpr::Length(Length::Em(1.))),
+        )))
     );
 }
 

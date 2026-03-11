@@ -23,19 +23,19 @@ pub fn env() {
         margin_left,
         "margin-left",
         "env(safe-area-inset-bottom, 10px)",
-        Length::Expr(LengthExpr::Env(
+        Length::Expr(Box::new(LengthExpr::Env(
             "safe-area-inset-bottom".into(),
             Box::new(Length::Px(10.))
-        ))
+        )))
     );
 
     test_parse_property!(
         margin_left,
         "margin-left",
         "env(safe-area-inset-bottom, 10p)",
-        Length::Expr(LengthExpr::Env(
+        Length::Expr(Box::new(LengthExpr::Env(
             "safe-area-inset-bottom".into(),
             Box::new(Length::Px(0.))
-        ))
+        )))
     );
 }
