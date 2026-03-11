@@ -150,7 +150,7 @@ pub enum Length {
     Rpx(f32),
     Em(f32),
     Ratio(f32),
-    Expr(LengthExpr),
+    Expr(Box<LengthExpr>),
     Vmin(f32),
     Vmax(f32),
 }
@@ -188,6 +188,25 @@ impl Length {
         }
     }
 
+    /// Create a new `Length` from a `CalcExpr`.
+    pub fn new_calc_expr(calc_expr: Box<CalcExpr>) -> Self {
+        Self::Expr(Box::new(LengthExpr::Calc(calc_expr)))
+    }
+
+    /// Convert to `Box<CalcExpr>`.
+    /// 
+    /// If the length is already a `CalcExpr`, it will be returned directly.
+    /// Otherwise, it will be wrapped into a new `CalcExpr`.
+    pub fn into_calc_expr(self) -> Box<CalcExpr> {
+        match self {
+            Length::Expr(x) => match *x {
+                LengthExpr::Calc(x) => x,
+                x => Box::new(CalcExpr::Length(Box::new(Length::Expr(Box::new(x))))),
+            },
+            x => Box::new(CalcExpr::Length(Box::new(x))),
+        }
+    }
+
     /// Resolve the length value to `f32`.
     ///
     /// The `relative_length` is used to calculate `...%` length.
@@ -214,7 +233,7 @@ impl Length {
                 }
             }
             Length::Ratio(x) => relative_length * *x,
-            Length::Expr(x) => match x {
+            Length::Expr(x) => match &**x {
                 LengthExpr::Invalid => None?,
                 LengthExpr::Env(name, default_value) => match name.as_str() {
                     "safe-area-inset-left" => media_query_status.env.safe_area_inset_left.to_f32(),
@@ -268,7 +287,7 @@ impl Length {
     ) -> Option<L> {
         let r = match self {
             Length::Undefined | Length::Auto => None?,
-            Length::Expr(x) => match x {
+            Length::Expr(x) => match &**x {
                 LengthExpr::Invalid => None?,
                 LengthExpr::Env(name, default_value) => match name.as_str() {
                     "safe-area-inset-left" => media_query_status.env.safe_area_inset_left,

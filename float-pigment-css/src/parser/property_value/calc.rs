@@ -334,17 +334,11 @@ pub(crate) enum ExpectValueType {
 fn combine_calc_expr(operator: Operator, lhs: CalcExpr, rhs: CalcExpr) -> CalcExpr {
     // Unwrap nested `Length::Expr(Calc(...))` to flatten the expression tree.
     let final_lhs = match lhs {
-        CalcExpr::Length(length_expr) => match *length_expr {
-            Length::Expr(LengthExpr::Calc(calc_expr)) => calc_expr,
-            other => Box::new(CalcExpr::Length(Box::new(other))),
-        },
+        CalcExpr::Length(length_expr) => length_expr.into_calc_expr(),
         other => Box::new(other),
     };
     let final_rhs = match rhs {
-        CalcExpr::Length(length_expr) => match *length_expr {
-            Length::Expr(LengthExpr::Calc(calc_expr)) => calc_expr,
-            other => Box::new(CalcExpr::Length(Box::new(other))),
-        },
+        CalcExpr::Length(length_expr) => length_expr.into_calc_expr(),
         other => Box::new(other),
     };
     match operator {
