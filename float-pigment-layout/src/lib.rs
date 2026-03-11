@@ -503,7 +503,7 @@ pub enum LayoutAlgorithm {
     None,
 
     /// Used when the node is an inline node.
-    /// 
+    ///
     /// `display: inline` does not guarantee this.
     /// For example, if the parent node has `display: flex`,
     /// this node will not be an inline node.

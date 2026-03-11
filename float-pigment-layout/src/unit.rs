@@ -150,9 +150,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
         let style = node.style();
         let mut layout_algorithm = match style.display() {
             Display::None => LayoutAlgorithm::None,
-            Display::Block
-            | Display::InlineBlock
-            | Display::Inline => LayoutAlgorithm::Block,
+            Display::Block | Display::InlineBlock | Display::Inline => LayoutAlgorithm::Block,
             Display::Flex | Display::InlineFlex => LayoutAlgorithm::Flex,
             Display::Grid | Display::InlineGrid => LayoutAlgorithm::Grid,
             Display::FlowRoot => todo!(),
@@ -188,17 +186,15 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                             collapsed_margin: CollapsedBlockMargin::zero(),
                         }
                     }
-                    LayoutAlgorithm::Block => {
-                        algo::flow::Flow::compute(
-                            self,
-                            env,
-                            node,
-                            request.clone(),
-                            margin,
-                            border,
-                            padding_border,
-                        )
-                    }
+                    LayoutAlgorithm::Block => algo::flow::Flow::compute(
+                        self,
+                        env,
+                        node,
+                        request.clone(),
+                        margin,
+                        border,
+                        padding_border,
+                    ),
                     LayoutAlgorithm::Flex => algo::flex_box::FlexBox::compute(
                         self,
                         env,
@@ -243,7 +239,10 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
         node.size_updated(env, self.result.size, &self.computed_style);
     }
 
-    pub(crate) fn update_result_layout_algorithm(&mut self, f: impl FnOnce(LayoutAlgorithm) -> LayoutAlgorithm) {
+    pub(crate) fn update_result_layout_algorithm(
+        &mut self,
+        f: impl FnOnce(LayoutAlgorithm) -> LayoutAlgorithm,
+    ) {
         self.layout_algorithm = f(self.layout_algorithm);
     }
 

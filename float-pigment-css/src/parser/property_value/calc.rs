@@ -37,10 +37,9 @@ impl CalcExpr {
         match self {
             CalcExpr::Angle(angle) => !matches!(angle.as_ref(), Angle::Calc(_)),
             CalcExpr::Number(num) => !matches!(num.as_ref(), Number::Calc(_)),
-            CalcExpr::Length(length) => !matches!(
-                length,
-                Length::Expr(_) | Length::Auto | Length::Undefined
-            ),
+            CalcExpr::Length(length) => {
+                !matches!(length, Length::Expr(_) | Length::Auto | Length::Undefined)
+            }
             _ => false,
         }
     }
