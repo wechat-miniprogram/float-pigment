@@ -8,6 +8,7 @@ pub(crate) struct LayoutUnit<T: LayoutTreeNode> {
     pub(crate) result_padding_rect: Rect<T::Length>,
     pub(crate) result_content_rect: Rect<T::Length>,
     pub(crate) computed_style: ComputedStyle<T::Length>,
+    pub(crate) layout_algorithm: LayoutAlgorithm,
 }
 
 impl<T: LayoutTreeNode> LayoutUnit<T> {
@@ -18,6 +19,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
             result_padding_rect: Rect::zero(),
             result_content_rect: Rect::zero(),
             computed_style: ComputedStyle::default(),
+            layout_algorithm: LayoutAlgorithm::None,
         }
     }
 
@@ -130,6 +132,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
         self.result = Rect::zero();
         self.result_padding_rect = Rect::zero();
         self.result_content_rect = Rect::zero();
+        self.layout_algorithm = LayoutAlgorithm::None;
         node.tree_visitor().for_each_child(|child_node, _| {
             child_node
                 .layout_node()
@@ -144,6 +147,17 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
         node: &T,
         request: ComputeRequest<T::Length>,
     ) -> ComputeResult<T::Length> {
+        let style = node.style();
+        let mut layout_algorithm = match style.display() {
+            Display::None => LayoutAlgorithm::None,
+            Display::Block
+            | Display::InlineBlock
+            | Display::Inline => LayoutAlgorithm::Block,
+            Display::Flex | Display::InlineFlex => LayoutAlgorithm::Flex,
+            Display::Grid | Display::InlineGrid => LayoutAlgorithm::Grid,
+            Display::FlowRoot => todo!(),
+        };
+
         let ret = if let Some(r) = self.cache.read(node, &request) {
             // if cached, use the cache value
             // info!("!!! {:p} cache req {:?}", self, request);
@@ -151,7 +165,6 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
         } else {
             // do request
             // info!("!!! {:p} req {:?}", self, request);
-            let style = node.style();
             let (margin, border, padding_border) =
                 self.margin_border_padding(node, *request.parent_inner_size);
             if let Some(ret) = self.compute_measure_block_if_exists(
@@ -162,10 +175,11 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                 border,
                 padding_border,
             ) {
+                layout_algorithm = LayoutAlgorithm::BlockMeasure;
                 ret
             } else {
-                match style.display() {
-                    Display::None => {
+                match layout_algorithm {
+                    LayoutAlgorithm::None => {
                         self.clear_display_none_result(node);
                         ComputeResult {
                             size: Normalized(Size::zero()),
@@ -174,7 +188,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                             collapsed_margin: CollapsedBlockMargin::zero(),
                         }
                     }
-                    Display::Block | Display::InlineBlock | Display::Inline => {
+                    LayoutAlgorithm::Block => {
                         algo::flow::Flow::compute(
                             self,
                             env,
@@ -185,7 +199,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                             padding_border,
                         )
                     }
-                    Display::Flex | Display::InlineFlex => algo::flex_box::FlexBox::compute(
+                    LayoutAlgorithm::Flex => algo::flex_box::FlexBox::compute(
                         self,
                         env,
                         node,
@@ -194,7 +208,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                         border,
                         padding_border,
                     ),
-                    Display::Grid | Display::InlineGrid => algo::grid::GridContainer::compute(
+                    LayoutAlgorithm::Grid => algo::grid::GridContainer::compute(
                         self,
                         env,
                         node,
@@ -203,13 +217,13 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
                         border,
                         padding_border,
                     ),
-                    Display::FlowRoot => todo!(),
+                    _ => unreachable!(),
                 }
             }
         };
 
         if request.kind == ComputeRequestKind::Position {
-            self.save_all_results(node, env, *request.parent_inner_size);
+            self.save_all_results(node, env, *request.parent_inner_size, layout_algorithm);
         }
         // info!("!!! {:p} res {:?} {:?}", self, request, ret);
         ret
@@ -220,11 +234,17 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
         node: &T,
         env: &mut T::Env,
         parent_inner_size: OptionSize<T::Length>,
+        layout_algorithm: LayoutAlgorithm,
     ) {
         let (margin, border, padding_border) = self.margin_border_padding(node, parent_inner_size);
         self.save_border_padding_result(border, padding_border);
         self.save_computed_style(margin, border, padding_border - border);
+        self.layout_algorithm = layout_algorithm;
         node.size_updated(env, self.result.size, &self.computed_style);
+    }
+
+    pub(crate) fn update_result_layout_algorithm(&mut self, f: impl FnOnce(LayoutAlgorithm) -> LayoutAlgorithm) {
+        self.layout_algorithm = f(self.layout_algorithm);
     }
 
     pub(crate) fn save_computed_style(
