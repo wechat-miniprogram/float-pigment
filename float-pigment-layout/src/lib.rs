@@ -354,6 +354,12 @@ impl<T: LayoutTreeNode> LayoutNode<T> {
         self.unit.borrow().computed_style()
     }
 
+    /// Get the layout algorithm used for this node.
+    #[inline]
+    pub fn layout_algorithm(&self) -> LayoutAlgorithm {
+        self.unit.borrow().layout_algorithm
+    }
+
     /// Check all nodes that has been `mark_dirty`, and update the layout results of the whole tree.
     ///
     /// Should only be called on the tree root node.
@@ -488,4 +494,42 @@ impl<L: LengthNum> Default for ComputedStyle<L> {
             },
         }
     }
+}
+
+/// The supported layout algorithms.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LayoutAlgorithm {
+    /// Used when the node has no layout, e.g. `display: none`.
+    None,
+
+    /// Used when the node is an inline node.
+    /// 
+    /// `display: inline` does not guarantee this.
+    /// For example, if the parent node has `display: flex`,
+    /// this node will not be an inline node.
+    Inline,
+
+    /// Used when the node measured as an inline node.
+    InlineMeasure,
+
+    /// Used when the node is a block node.
+    Block,
+
+    /// Used when the node is an inline-block node.
+    InlineBlock,
+
+    /// Used when the node measured as a block node.
+    BlockMeasure,
+
+    /// Used when the node is a flex container, e.g. `display: flex`.
+    Flex,
+
+    /// Used when the node is an inline-flex node.
+    InlineFlex,
+
+    /// Used when the node is a grid container, e.g. `display: grid`.
+    Grid,
+
+    /// Used when the node is an inline-grid node.
+    InlineGrid,
 }
