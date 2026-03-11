@@ -41,7 +41,7 @@ pub enum ImportantBitSet {
 #[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
 pub enum CalcExpr {
     /// A length, e.g. `2px`.
-    Length(Box<Length>),
+    Length(Length),
     /// A number, e.g. `0.1`.
     Number(Box<Number>),
     /// An angle, e.g. `45deg`.
@@ -58,7 +58,7 @@ pub enum CalcExpr {
 
 impl Default for CalcExpr {
     fn default() -> Self {
-        Self::Length(Box::new(Length::Undefined))
+        Self::Length(Length::Undefined)
     }
 }
 
@@ -201,9 +201,9 @@ impl Length {
         match self {
             Length::Expr(x) => match *x {
                 LengthExpr::Calc(x) => x,
-                x => Box::new(CalcExpr::Length(Box::new(Length::Expr(Box::new(x))))),
+                x => Box::new(CalcExpr::Length(Length::Expr(Box::new(x)))),
             },
-            x => Box::new(CalcExpr::Length(Box::new(x))),
+            x => Box::new(CalcExpr::Length(x)),
         }
     }
 
