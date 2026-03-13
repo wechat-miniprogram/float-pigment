@@ -230,3 +230,59 @@ fn flex_item_with_gap_should_shrink_to_fit() {
     "#
     )
 }
+
+// Case: flex-grow sum below 1 with gap
+// Spec points:
+// - When the sum of flex-grow is less than 1, only part of free space is distributed
+// - Gap must be accounted exactly once in free-space computation
+#[test]
+fn gap_with_flex_grow_sum_below_one_should_not_double_subtract_gap() {
+    assert_xml!(
+        r#"
+        <div style="display: flex; width: 200px; gap: 20px;">
+          <div style="width: 50px; height: 20px; flex-grow: 0.2;" expect_width="66" expect_left="0"></div>
+          <div style="width: 50px; height: 20px; flex-grow: 0.2;" expect_width="66" expect_left="86"></div>
+        </div>
+    "#
+    )
+}
+
+// Case: flex-shrink sum below 1 with gap
+// Spec points:
+// - When the sum of flex-shrink is less than 1, shrink amount is scaled by the sum
+// - Gap must not be subtracted twice from remaining free space
+#[test]
+fn gap_with_flex_shrink_sum_below_one_should_not_double_subtract_gap() {
+    assert_xml!(
+        r#"
+        <div style="display: flex; width: 200px; gap: 20px;">
+          <div style="width: 150px; height: 20px; flex-shrink: 0.2;" expect_width="126" expect_left="0"></div>
+          <div style="width: 150px; height: 20px; flex-shrink: 0.2;" expect_width="126" expect_left="146"></div>
+        </div>
+    "#
+    )
+}
+
+// Case: nested flex with inner gap and outer space-between
+// Spec points:
+// - Inner flex gap should only affect spacing between its own items
+// - Outer space-between should place left and right groups without forcing unexpected text wrapping
+#[test]
+fn nested_flex_gap_with_space_between_should_keep_text_unwrapped() {
+    assert_xml!(
+        r#"
+        <div style="display: block; width: 300px; padding: 30px;">
+          <div style="display: flex; flex-direction: row; justify-content: space-between; align-items: center;">
+            <div style="display: flex; flex-direction: row; align-items: center; gap: 30px;" expect_width="124" expect_left="0">
+              <div style="height: 30px; width: 30px;" expect_width="30" expect_left="0"></div>
+              <text-slot len="4" expect_width="64" expect_left="60" expect_height="16"></text-slot>
+            </div>
+            <div style="display: flex; flex-direction: row;" expect_left="236">
+              <text-slot len="4" expect_width="64" expect_height="16"></text-slot>
+            </div>
+          </div>
+        </div>
+    "#,
+        true
+    )
+}
