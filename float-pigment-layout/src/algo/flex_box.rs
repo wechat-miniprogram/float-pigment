@@ -604,12 +604,10 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                             (flex_grow + child.flex_grow, flex_shrink + child.flex_shrink)
                         });
                 let free_space = if growing && sum_flex_grow < 1.0 {
-                    initial_free_space
-                        .mul_f32(sum_flex_grow)
+                    (initial_free_space.mul_f32(sum_flex_grow) - total_main_axis_gap)
                         .maybe_min(target_len - used_space)
                 } else if shrinking && sum_flex_shrink < 1.0 {
-                    initial_free_space
-                        .mul_f32(sum_flex_shrink)
+                    (initial_free_space.mul_f32(sum_flex_shrink) - total_main_axis_gap)
                         .maybe_max(target_len - used_space)
                 } else {
                     (target_len - used_space).or_zero()
