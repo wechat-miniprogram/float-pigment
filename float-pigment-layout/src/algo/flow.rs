@@ -463,7 +463,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                     max_content.set_cross_size(
                         axis_info.dir,
                         size.cross_size(axis_info.dir)
-                            .or(max_content.cross_size(axis_info.dir)
+                            .or(request.max_content.cross_size(axis_info.dir)
                                 - child_margin.cross_axis_sum(axis_info.dir)),
                     );
                     let max_content = min_max_limit.normalized_size(max_content);
@@ -644,7 +644,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                         axis_info.dir,
                                         css_size
                                             .cross_size(axis_info.dir)
-                                            .or(max_content.cross_size(axis_info.dir)
+                                            .or(request.max_content.cross_size(axis_info.dir)
                                                 - child_margin.cross_axis_sum(axis_info.dir)),
                                     );
                                     let max_content = min_max_limit.normalized_size(max_content);
