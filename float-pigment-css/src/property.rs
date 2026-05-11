@@ -174,7 +174,7 @@ property_list! (PropertyValueWithGlobal, {
     0xa9 GridAutoRows: GridAutoType as Initial default GridAuto::List(vec![TrackSize::Length(Length::Auto)].into());
     0xaa GridAutoColumns: GridAutoType as Initial default GridAuto::List(vec![TrackSize::Length(Length::Auto)].into());
 
-
+    // misc
     0xd0 ListStyleType: ListStyleTypeType as Inherit default ListStyleType::Disc;
     0xd1 ListStyleImage: ListStyleImageType as Inherit default ListStyleImage::None;
     0xd2 ListStylePosition: ListStylePositionType as Inherit default ListStylePosition::Outside;
@@ -185,6 +185,7 @@ property_list! (PropertyValueWithGlobal, {
     0xd7 AspectRatio: AspectRatioType as Initial default AspectRatio::Auto;
     0xd8 Contain: ContainType as Initial default Contain::None;
     0xd9 Content: ContentType as Initial default Content::None;
+    0xda TouchAction: TouchActionType as Initial default TouchAction::Auto;
 
     // wx-spec special properties
     0xe0 WxScrollbarX: ScrollbarType as Initial default Scrollbar::Auto;
@@ -1729,6 +1730,32 @@ property_value_format! (PropertyValueWithGlobal, {
         };
     }};
 
+    <touch_action_pan_x: u8>:
+        "pan-x" -> |_| 3;
+        | "pan-left" -> |_| 1;
+        | "pan-right" -> |_| 2;
+    ;
+    <touch_action_pan_y: u8>:
+        "pan-y" -> |_| 3;
+        | "pan-up" -> |_| 1;
+        | "pan-down" -> |_| 2;
+    ;
+    touch_action: {{ TouchAction
+        = "auto" => TouchActionType::Auto
+        | "none" => TouchActionType::None
+        | "manipulation" => TouchActionType::Manipulation
+        | [<touch_action_pan_x> || <touch_action_pan_y>] -> |(pan_x, pan_y): (Option<u8>, Option<u8>)| {
+            let pan_x = pan_x.unwrap_or(0);
+            let pan_y = pan_y.unwrap_or(0);
+            let ges = TouchActionGestures {
+                pan_left: (pan_x & 1) > 0,
+                pan_right: (pan_x & 2) > 0,
+                pan_up: (pan_y & 1) > 0,
+                pan_down: (pan_y & 2) > 0,
+            };
+            TouchActionType::Gestures(ges)
+        };
+    }}
 });
 
 pub(crate) fn split_hv<T: Clone>(x: Vec<T>) -> (T, T) {
