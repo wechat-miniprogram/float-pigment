@@ -1730,16 +1730,31 @@ property_value_format! (PropertyValueWithGlobal, {
         };
     }};
 
+    <touch_action_pan_x: u8>:
+        "pan-x" -> |_| 3;
+        | "pan-left" -> |_| 1;
+        | "pan-right" -> |_| 2;
+    ;
+    <touch_action_pan_y: u8>:
+        "pan-y" -> |_| 3;
+        | "pan-up" -> |_| 1;
+        | "pan-down" -> |_| 2;
+    ;
     touch_action: {{ TouchAction
         = "auto" => TouchActionType::Auto
         | "none" => TouchActionType::None
-        | "pan-x" => TouchActionType::PanX
-        | "pan-y" => TouchActionType::PanY
         | "manipulation" => TouchActionType::Manipulation
-        | "pan-left" => TouchActionType::PanLeft
-        | "pan-right" => TouchActionType::PanRight
-        | "pan-up" => TouchActionType::PanUp
-        | "pan-down" => TouchActionType::PanDown
+        | [<touch_action_pan_x> || <touch_action_pan_y>] -> |(pan_x, pan_y): (Option<u8>, Option<u8>)| {
+            let pan_x = pan_x.unwrap_or(0);
+            let pan_y = pan_y.unwrap_or(0);
+            let ges = TouchActionGestures {
+                pan_left: (pan_x & 1) > 0,
+                pan_right: (pan_x & 2) > 0,
+                pan_up: (pan_y & 1) > 0,
+                pan_down: (pan_y & 2) > 0,
+            };
+            TouchActionType::Gestures(ges)
+        };
     }}
 });
 

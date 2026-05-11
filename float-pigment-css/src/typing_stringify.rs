@@ -2436,17 +2436,38 @@ impl fmt::Display for GridAuto {
 }
 
 impl fmt::Display for TouchAction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TouchAction::Auto => write!(f, "auto"),
             TouchAction::None => write!(f, "none"),
-            TouchAction::PanX => write!(f, "pan-x"),
-            TouchAction::PanY => write!(f, "pan-y"),
             TouchAction::Manipulation => write!(f, "manipulation"),
-            TouchAction::PanLeft => write!(f, "pan-left"),
-            TouchAction::PanRight => write!(f, "pan-right"),
-            TouchAction::PanUp => write!(f, "pan-up"),
-            TouchAction::PanDown => write!(f, "pan-down"),
+            TouchAction::Gestures(ges) => write!(f, "{}", ges),
         }
+    }
+}
+
+impl fmt::Display for TouchActionGestures {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self { pan_left, pan_right, pan_up, pan_down } = self;
+        let pan_x = if *pan_left && *pan_right {
+            "pan-x"
+        } else if *pan_left {
+            "pan-left"
+        } else if *pan_right {
+            "pan-right"
+        } else {
+            ""
+        };
+        let pan_y = if *pan_up && *pan_down {
+            "pan-y"
+        } else if *pan_up {
+            "pan-up"
+        } else if *pan_down {
+            "pan-down"
+        } else {
+            ""
+        };
+        let s: Vec<_> = [pan_x, pan_y].into_iter().filter(|x| !x.is_empty()).collect();
+        write!(f, "{}", s.join(" "))
     }
 }
