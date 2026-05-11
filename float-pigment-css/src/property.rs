@@ -174,7 +174,7 @@ property_list! (PropertyValueWithGlobal, {
     0xa9 GridAutoRows: GridAutoType as Initial default GridAuto::List(vec![TrackSize::Length(Length::Auto)].into());
     0xaa GridAutoColumns: GridAutoType as Initial default GridAuto::List(vec![TrackSize::Length(Length::Auto)].into());
 
-
+    // misc
     0xd0 ListStyleType: ListStyleTypeType as Inherit default ListStyleType::Disc;
     0xd1 ListStyleImage: ListStyleImageType as Inherit default ListStyleImage::None;
     0xd2 ListStylePosition: ListStylePositionType as Inherit default ListStylePosition::Outside;
@@ -185,6 +185,7 @@ property_list! (PropertyValueWithGlobal, {
     0xd7 AspectRatio: AspectRatioType as Initial default AspectRatio::Auto;
     0xd8 Contain: ContainType as Initial default Contain::None;
     0xd9 Content: ContentType as Initial default Content::None;
+    0xda TouchAction: TouchActionType as Initial default TouchAction::Auto;
 
     // wx-spec special properties
     0xe0 WxScrollbarX: ScrollbarType as Initial default Scrollbar::Auto;
@@ -1729,6 +1730,17 @@ property_value_format! (PropertyValueWithGlobal, {
         };
     }};
 
+    touch_action: {{ TouchAction
+        = "auto" => TouchActionType::Auto
+        | "none" => TouchActionType::None
+        | "pan-x" => TouchActionType::PanX
+        | "pan-y" => TouchActionType::PanY
+        | "manipulation" => TouchActionType::Manipulation
+        | "pan-left" => TouchActionType::PanLeft
+        | "pan-right" => TouchActionType::PanRight
+        | "pan-up" => TouchActionType::PanUp
+        | "pan-down" => TouchActionType::PanDown
+    }}
 });
 
 pub(crate) fn split_hv<T: Clone>(x: Vec<T>) -> (T, T) {

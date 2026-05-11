@@ -7289,6 +7289,20 @@ mod other {
             )
         );
     }
+
+    // 0xda
+    #[test]
+    fn touch_action() {
+        test_parse_property!(touch_action, "touch-action", "auto", TouchAction::Auto);
+        test_parse_property!(touch_action, "touch-action", "none", TouchAction::None);
+        test_parse_property!(touch_action, "touch-action", "pan-x", TouchAction::PanX);
+        test_parse_property!(touch_action, "touch-action", "pan-y", TouchAction::PanY);
+        test_parse_property!(touch_action, "touch-action", "manipulation", TouchAction::Manipulation);
+        test_parse_property!(touch_action, "touch-action", "pan-left", TouchAction::PanLeft);
+        test_parse_property!(touch_action, "touch-action", "pan-right", TouchAction::PanRight);
+        test_parse_property!(touch_action, "touch-action", "pan-up", TouchAction::PanUp);
+        test_parse_property!(touch_action, "touch-action", "pan-down", TouchAction::PanDown);
+    }
 }
 
 mod wx_special {

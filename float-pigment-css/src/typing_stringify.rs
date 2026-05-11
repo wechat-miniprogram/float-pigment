@@ -2434,3 +2434,19 @@ impl fmt::Display for GridAuto {
         }
     }
 }
+
+impl fmt::Display for TouchAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TouchAction::Auto => write!(f, "auto"),
+            TouchAction::None => write!(f, "none"),
+            TouchAction::PanX => write!(f, "pan-x"),
+            TouchAction::PanY => write!(f, "pan-y"),
+            TouchAction::Manipulation => write!(f, "manipulation"),
+            TouchAction::PanLeft => write!(f, "pan-left"),
+            TouchAction::PanRight => write!(f, "pan-right"),
+            TouchAction::PanUp => write!(f, "pan-up"),
+            TouchAction::PanDown => write!(f, "pan-down"),
+        }
+    }
+}
