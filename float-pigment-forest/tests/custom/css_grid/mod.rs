@@ -5,6 +5,7 @@
 // - Grid items are placed into cells according to the grid auto-placement algorithm
 // - `auto` track sizing allows tracks to size based on content
 
+mod available_grid_space;
 mod gap;
 
 use crate::*;
