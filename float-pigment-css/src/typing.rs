@@ -1905,3 +1905,32 @@ pub enum GridAutoFlow {
 pub enum GridAuto {
     List(Array<TrackSize>),
 }
+
+#[allow(missing_docs)]
+#[repr(C)]
+#[property_value_type(PropertyValueWithGlobal for TouchActionType)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ResolveFontSize)]
+#[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
+pub enum TouchAction {
+    Auto,
+    None,
+    Manipulation,
+    Gestures(TouchActionGestures),
+}
+
+#[allow(missing_docs)]
+#[repr(C)]
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[cfg_attr(debug_assertions, derive(CompatibilityStructCheck))]
+pub struct TouchActionGestures {
+    pub pan_left: bool,
+    pub pan_right: bool,
+    pub pan_up: bool,
+    pub pan_down: bool,
+}
+
+impl ResolveFontSize for TouchActionGestures {
+    fn resolve_font_size(&mut self, _: f32) {
+        // empty
+    }
+}

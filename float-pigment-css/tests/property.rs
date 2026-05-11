@@ -7289,6 +7289,20 @@ mod other {
             )
         );
     }
+
+    // 0xda
+    #[test]
+    fn touch_action() {
+        test_parse_property!(touch_action, "touch-action", "auto", TouchAction::Auto);
+        test_parse_property!(touch_action, "touch-action", "none", TouchAction::None);
+        test_parse_property!(touch_action, "touch-action", "manipulation", TouchAction::Manipulation);
+        test_parse_property!(touch_action, "touch-action", "pan-x", TouchAction::Gestures(TouchActionGestures { pan_left: true, pan_right: true, pan_up: false, pan_down: false }));
+        test_parse_property!(touch_action, "touch-action", "pan-y", TouchAction::Gestures(TouchActionGestures { pan_left: false, pan_right: false, pan_up: true, pan_down: true }));
+        test_parse_property!(touch_action, "touch-action", "pan-left", TouchAction::Gestures(TouchActionGestures { pan_left: true, pan_right: false, pan_up: false, pan_down: false }));
+        test_parse_property!(touch_action, "touch-action", "pan-right", TouchAction::Gestures(TouchActionGestures { pan_left: false, pan_right: true, pan_up: false, pan_down: false }));
+        test_parse_property!(touch_action, "touch-action", "pan-up", TouchAction::Gestures(TouchActionGestures { pan_left: false, pan_right: false, pan_up: true, pan_down: false }));
+        test_parse_property!(touch_action, "touch-action", "pan-down", TouchAction::Gestures(TouchActionGestures { pan_left: false, pan_right: false, pan_up: false, pan_down: true }));
+    }
 }
 
 mod wx_special {
