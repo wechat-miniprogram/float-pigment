@@ -164,10 +164,18 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
             requested_size.width - padding_border.horizontal(),
             requested_size.height - padding_border.vertical(),
         ));
-
+        // CSS Grid §11.3 "available grid space" (per dimension):
+        //   - Definite container size => use its content box.
+        //   - Under a min-/max-content constraint => use that constraint
+        //     (still indefinite).
+        //   - Otherwise => indefinite.
+        let available_grid_space_source = match request.sizing_mode {
+            SizingMode::Normal => *requested_size,
+            SizingMode::MinContent | SizingMode::MaxContent => *request.max_content,
+        };
         let mut available_grid_space = OptionSize::new(
-            requested_size.width.or(request.max_content.width) - padding_border.horizontal(),
-            requested_size.height.or(request.max_content.height) - padding_border.vertical(),
+            available_grid_space_source.width - padding_border.horizontal(),
+            available_grid_space_source.height - padding_border.vertical(),
         );
 
         // ═══════════════════════════════════════════════════════════════════════
