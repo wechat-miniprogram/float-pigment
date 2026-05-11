@@ -2448,7 +2448,12 @@ impl fmt::Display for TouchAction {
 
 impl fmt::Display for TouchActionGestures {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self { pan_left, pan_right, pan_up, pan_down } = self;
+        let Self {
+            pan_left,
+            pan_right,
+            pan_up,
+            pan_down,
+        } = self;
         let pan_x = if *pan_left && *pan_right {
             "pan-x"
         } else if *pan_left {
@@ -2467,7 +2472,10 @@ impl fmt::Display for TouchActionGestures {
         } else {
             ""
         };
-        let s: Vec<_> = [pan_x, pan_y].into_iter().filter(|x| !x.is_empty()).collect();
+        let s: Vec<_> = [pan_x, pan_y]
+            .into_iter()
+            .filter(|x| !x.is_empty())
+            .collect();
         write!(f, "{}", s.join(" "))
     }
 }
