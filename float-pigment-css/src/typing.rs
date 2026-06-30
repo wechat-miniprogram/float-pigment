@@ -941,7 +941,6 @@ pub enum TransitionPropertyItem {
     Color,
     TextDecorationColor,
     TextDecorationThickness,
-    TextUnderlineOffset,
     FontSize,
     FontWeight,
     LetterSpacing,
@@ -957,6 +956,7 @@ pub enum TransitionPropertyItem {
     MaskPositionX,
     MaskPositionY,
     MaskPosition,
+    TextUnderlineOffset,
 }
 
 /// A helper type for `transition-timing-function`.
