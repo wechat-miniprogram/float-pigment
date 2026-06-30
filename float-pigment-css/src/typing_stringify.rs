@@ -938,6 +938,7 @@ impl fmt::Display for TransitionPropertyItem {
                 TransitionPropertyItem::Color => "color",
                 TransitionPropertyItem::TextDecorationColor => "text-decoration-color",
                 TransitionPropertyItem::TextDecorationThickness => "text-decoration-thickness",
+                TransitionPropertyItem::TextUnderlineOffset => "text-underline-offset",
                 TransitionPropertyItem::FontSize => "font-size",
                 TransitionPropertyItem::FontWeight => "font-weight",
                 TransitionPropertyItem::LetterSpacing => "letter-spacing",
@@ -1889,6 +1890,22 @@ impl fmt::Display for TextDecorationThickness {
                 TextDecorationThickness::Auto => "auto",
                 TextDecorationThickness::FromFont => "from-font",
                 TextDecorationThickness::Length(len) => {
+                    x = len.to_string();
+                    &x
+                }
+            }
+        )
+    }
+}
+impl fmt::Display for TextUnderlineOffset {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let x;
+        write!(
+            f,
+            "{}",
+            match self {
+                TextUnderlineOffset::Auto => "auto",
+                TextUnderlineOffset::Length(len) => {
                     x = len.to_string();
                     &x
                 }

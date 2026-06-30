@@ -941,6 +941,7 @@ pub enum TransitionPropertyItem {
     Color,
     TextDecorationColor,
     TextDecorationThickness,
+    TextUnderlineOffset,
     FontSize,
     FontWeight,
     LetterSpacing,
@@ -1474,6 +1475,17 @@ pub enum TextDecorationStyle {
 pub enum TextDecorationThickness {
     Auto,
     FromFont,
+    #[resolve_font_size(Length::resolve_em_and_ratio)]
+    Length(Length),
+}
+
+#[allow(missing_docs)]
+#[repr(C)]
+#[property_value_type(PropertyValueWithGlobal for TextUnderlineOffsetType)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ResolveFontSize)]
+#[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
+pub enum TextUnderlineOffset {
+    Auto,
     #[resolve_font_size(Length::resolve_em_and_ratio)]
     Length(Length),
 }

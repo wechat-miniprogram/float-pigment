@@ -173,6 +173,7 @@ property_list! (PropertyValueWithGlobal, {
     0xa8 JustifySelf: JustifySelfType as Initial default JustifySelf::Auto;
     0xa9 GridAutoRows: GridAutoType as Initial default GridAuto::List(vec![TrackSize::Length(Length::Auto)].into());
     0xaa GridAutoColumns: GridAutoType as Initial default GridAuto::List(vec![TrackSize::Length(Length::Auto)].into());
+    0xab TextUnderlineOffset: TextUnderlineOffsetType as Initial default TextUnderlineOffset::Auto;
 
     // misc
     0xd0 ListStyleType: ListStyleTypeType as Inherit default ListStyleType::Disc;
@@ -1081,6 +1082,7 @@ property_value_format! (PropertyValueWithGlobal, {
         | "color" => TransitionPropertyItem::Color
         | "text-decoration-color" => TransitionPropertyItem::TextDecorationColor
         | "text-decoration-thickness" => TransitionPropertyItem::TextDecorationThickness
+        | "text-underline-offset" => TransitionPropertyItem::TextUnderlineOffset
         | "font-size" => TransitionPropertyItem::FontSize
         | "font-weight" => TransitionPropertyItem::FontWeight
         | "letter-spacing" => TransitionPropertyItem::LetterSpacing
@@ -1473,6 +1475,10 @@ property_value_format! (PropertyValueWithGlobal, {
     text_decoration_thickness: {{ TextDecorationThickness
         = "from-font" => TextDecorationThicknessType::FromFont
         | <length_percentage_auto> -> |x: Length| { TextDecorationThicknessType::Length(x)};
+    }};
+    text_underline_offset: {{ TextUnderlineOffset
+        = "auto" => TextUnderlineOffsetType::Auto
+        | <length_percentage> -> |x: Length| { TextUnderlineOffsetType::Length(x)};
     }};
     text_decoration: <text_decoration_style> || <text_decoration_color> || <text_decoration_thickness> || <text_decoration_line>;
     font_feature_settings: {{ FontFeatureSettings
