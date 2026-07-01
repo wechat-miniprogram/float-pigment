@@ -1828,6 +1828,22 @@ fn text_decoration_thickness() {
 }
 
 #[test]
+fn text_underline_offset() {
+    &[test_parse_stringify!(
+        text_underline_offset,
+        "text-underline-offset",
+        "3px",
+        TextUnderlineOffset::Length(Length::Px(3.))
+    )];
+    &[test_parse_stringify!(
+        text_underline_offset,
+        "text-underline-offset",
+        "10%",
+        TextUnderlineOffset::Length(Length::Px(1.6))
+    )];
+}
+
+#[test]
 fn letter_spacing() {
     &[test_parse_stringify!(
         letter_spacing,

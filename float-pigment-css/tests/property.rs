@@ -6302,6 +6302,40 @@ mod typography {
         );
     }
 
+    // 0xab
+    #[test]
+    fn text_underline_offset() {
+        let mut ssg = StyleSheetGroup::new();
+        let ss = StyleSheet::from_str(
+            r#"
+                .a {
+                    text-underline-offset: auto;
+                }
+                .b {
+                    text-underline-offset: 10%;
+                }
+                .c {
+                    text-underline-offset: 3px;
+                }
+            "#,
+        );
+        ssg.append(ss);
+        let np = query(&ssg, "", "", ["a"], []);
+        assert_eq!(np.text_underline_offset(), TextUnderlineOffset::Auto);
+        let np = query(&ssg, "", "", ["b"], []);
+        assert_eq!(
+            np.text_underline_offset(),
+            TextUnderlineOffset::Length(Length::Px(1.6))
+        );
+        let np = query(&ssg, "", "", ["c"], []);
+        assert_eq!(
+            np.text_underline_offset(),
+            TextUnderlineOffset::Length(Length::Px(3.))
+        );
+        let np = query(&ssg, "", "", [""], []);
+        assert_eq!(np.text_underline_offset(), TextUnderlineOffset::Auto);
+    }
+
     #[test]
     fn text_decoration() {
         let mut ssg = StyleSheetGroup::new();
