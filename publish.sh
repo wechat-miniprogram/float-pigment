@@ -1,11 +1,22 @@
 #!/bin/bash
 
 if [ "$1" == "" ]; then
-    echo "Missing version. Usage: $0 [VERSION]"
+    echo "Missing version. Usage: $0 [VERSION] [--skip-napi]"
     exit -1
 fi
 
 VERSION="$1"
+shift
+
+# --skip-napi: only publish crates + wasm, do not sync/tag float-pigment-css-napi
+SKIP_NAPI=0
+for arg in "$@"; do
+    case "$arg" in
+        --skip-napi) SKIP_NAPI=1 ;;
+        *) echo "Unknown option: $arg"; exit -1 ;;
+    esac
+done
+
 PROJECTS=$(egrep '^[ \t]*"(.+)",$' Cargo.toml | sed -E 's/^[ \t]*"(.+)",$/\1/g')
 
 # run tests
@@ -80,6 +91,21 @@ if [ -z "$(git status --porcelain)" ]; then
         exit -1
     fi
 
+    # sync the float-pigment-css-napi npm version to match the workspace.
+    # Rust side follows automatically via `version.workspace = true`, but the
+    # npm package.json + per-platform npm/* sub-packages are versioned
+    # separately and must be kept in lock-step here.
+    if [ "$SKIP_NAPI" == "1" ]; then
+        echo 'Skipping float-pigment-css-napi version sync (--skip-napi).'
+    elif (cd float-pigment-css-napi \
+        && npm version "${VERSION}" --no-git-tag-version --allow-same-version \
+        && npx --no-install napi version); then
+        echo 'Synced float-pigment-css-napi npm version.'
+    else
+        echo 'Failed to sync napi npm version! Abort.'
+        exit -1
+    fi
+
     # run cargo check again to update cargo lock
     if cargo check; then
         echo 'Cargo check done.'
@@ -89,7 +115,9 @@ if [ -z "$(git status --porcelain)" ]; then
     fi
 
     # generate a new commit and tag it
-    if git add Cargo.toml Cargo.lock float-pigment-css/compile_cache && git commit -m "chore: update version to publish"; then
+    NAPI_PATHS="float-pigment-css-napi/package.json float-pigment-css-napi/npm"
+    [ "$SKIP_NAPI" == "1" ] && NAPI_PATHS=""
+    if git add Cargo.toml Cargo.lock float-pigment-css/compile_cache $NAPI_PATHS && git commit -m "chore: update version to publish"; then
         echo 'Generated a new version commit.'
     else
         echo 'Failed to commit! Abort.'
@@ -99,6 +127,16 @@ if [ -z "$(git status --porcelain)" ]; then
         echo 'Git tag done.'
     else
         echo 'Git tag failed! Abort.'
+        exit -1
+    fi
+    # also tag napi-v* to trigger the float-pigment-css-napi CI, which builds
+    # all platforms and publishes the npm packages (see .github/workflows/napi.yml)
+    if [ "$SKIP_NAPI" == "1" ]; then
+        echo 'Skipping napi-v tag (--skip-napi).'
+    elif git tag "napi-v${VERSION}"; then
+        echo 'Git napi tag done.'
+    else
+        echo 'Git napi tag failed! Abort.'
         exit -1
     fi
 

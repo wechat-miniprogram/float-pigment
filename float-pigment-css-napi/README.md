@@ -9,56 +9,35 @@ Node.js N-API binding for [float-pigment-css](https://github.com/wechat-miniprog
 - Async compilation via libuv thread pool (non-blocking)
 - Sync compilation for simple use cases
 - Output formats: `bincode` (binary, production), `json` (readable, debug), `none` (validation only)
-- Cross-platform prebuilds: macOS (arm64/x64), Windows (x64/x86)
+- Cross-platform prebuilds: macOS (arm64/x64), Windows (x64/x86), Linux (x64/arm64, glibc & musl)
 
 ## Installation
 
-Build from source (not yet published to npm):
-
 ```bash
-cd float-pigment-css-napi
-npm install
-npm run build
+npm install float-pigment-css-napi
 ```
 
-This builds all 4 supported platforms in one command:
-- `darwin-arm64` (macOS Apple Silicon)
-- `darwin-x64` (macOS Intel)
-- `win32-x64` (Windows 64-bit)
-- `win32-x32` (Windows 32-bit)
+The native binary for your platform is delivered automatically via
+`optionalDependencies` — npm/pnpm resolves the matching
+`float-pigment-css-napi-<platform>` package based on `os`/`cpu`/`libc`, so you
+only download the binary you actually need.
 
-After build, the directory structure is:
+Supported platforms:
 
-```
-prebuilds/
-├── darwin-arm64/node.napi.node
-├── darwin-x64/node.napi.node
-├── win32-x32/node.napi.node
-└── win32-x64/node.napi.node
-index.js          ← platform loader
-type.d.ts         ← TypeScript declarations
-```
-
-### Integrating into your project
-
-```bash
-# Option 1: Copy artifacts directly
-cp -r prebuilds index.js type.d.ts /path/to/your-project/deps/float-pigment-css-napi/
-
-# Option 2: Use file: reference (suitable for monorepo)
-# In your project's package.json:
-#   "dependencies": {
-#     "float-pigment-css-napi": "file:../float-pigment-css-napi"
-#   }
-```
+| Platform | Package |
+|----------|---------|
+| macOS arm64 | `float-pigment-css-napi-darwin-arm64` |
+| macOS x64 | `float-pigment-css-napi-darwin-x64` |
+| Windows x64 | `float-pigment-css-napi-win32-x64-msvc` |
+| Windows x86 | `float-pigment-css-napi-win32-ia32-msvc` |
+| Linux x64 (glibc) | `float-pigment-css-napi-linux-x64-gnu` |
+| Linux x64 (musl) | `float-pigment-css-napi-linux-x64-musl` |
+| Linux arm64 (glibc) | `float-pigment-css-napi-linux-arm64-gnu` |
+| Linux arm64 (musl) | `float-pigment-css-napi-linux-arm64-musl` |
 
 Then in your code:
 
 ```javascript
-// Option 1: copied into project
-const { compile, compileSync } = require('./deps/float-pigment-css-napi')
-
-// Option 2: file: reference
 const { compile, compileSync } = require('float-pigment-css-napi')
 ```
 
@@ -173,32 +152,35 @@ interface CompileWarning {
 
 - Rust toolchain (1.92.0+)
 - Node.js 16+
-- npm or pnpm
-- Cross-compile dependencies (for Windows targets from macOS):
-  ```bash
-  rustup target add x86_64-pc-windows-msvc i686-pc-windows-msvc
-  cargo install cargo-xwin
-  ```
+- pnpm
 
-### Build scripts
+### Build & test
 
 | Command | Description |
 |---------|-------------|
-| `npm run build` | Build all 4 platforms (darwin-arm64, darwin-x64, win32-x64, win32-x32) |
-| `npm run build:current` | Build for current platform only |
-| `npm run build:debug` | Build current platform in debug mode |
-| `npm run build:target <triple>` | Build for a specific Rust target triple |
+| `pnpm install` | Install dev dependencies (`@napi-rs/cli`) |
+| `npm run build` | Build the native addon for the current platform (release) |
+| `npm run build:debug` | Build for the current platform in debug mode |
+| `npm test` | Run the smoke tests against the freshly built addon |
+
+`npm run build` emits `float-pigment-css-napi.<triple>.node` plus the generated
+`index.js` loader and `index.d.ts` types. Cross-platform artifacts are produced
+by CI (`.github/workflows/napi.yml`) on native runners — no local
+cross-compilation toolchain is required.
 
 ### Verify build
 
 ```bash
-# Check prebuilds structure
-ls prebuilds/*/node.napi.node
-
-# Test loading
 node -e "const m = require('./'); console.log(Object.keys(m))"
-# Expected: [ 'compile', 'compileSync', 'compileSingle', 'compileSingleSync', ... ]
+# Expected: [ 'OutputType', 'compileSync', 'compileSingleSync', 'compile', 'compileSingle' ]
 ```
+
+## Publishing
+
+Releases are driven by CI. Push a `napi-v*` tag; the workflow builds all eight
+targets on native runners, collects the artifacts with `napi artifacts`, and
+publishes the per-platform packages plus the main package to npm (requires the
+`NPM_TOKEN` repository secret).
 
 ## Runtime Compatibility
 

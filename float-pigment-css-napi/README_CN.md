@@ -9,56 +9,34 @@
 - 异步编译通过 libuv 线程池执行（不阻塞主线程）
 - 同步编译用于简单场景
 - 输出格式：`bincode`（二进制，生产环境）、`json`（可读，调试用）、`none`（仅校验）
-- 跨平台预编译：macOS (arm64/x64)、Windows (x64/x86)
+- 跨平台预编译：macOS (arm64/x64)、Windows (x64/x86)、Linux (x64/arm64，glibc 与 musl)
 
 ## 安装
 
-从源码构建（尚未发布到 npm）：
-
 ```bash
-cd float-pigment-css-napi
-npm install
-npm run build
+npm install float-pigment-css-napi
 ```
 
-一条命令编译全部 4 个平台：
-- `darwin-arm64`（macOS Apple Silicon）
-- `darwin-x64`（macOS Intel）
-- `win32-x64`（Windows 64 位）
-- `win32-x32`（Windows 32 位）
+对应平台的原生二进制通过 `optionalDependencies` 自动分发 — npm/pnpm 会根据
+`os`/`cpu`/`libc` 解析出匹配的 `float-pigment-css-napi-<平台>` 子包，因此你只会
+下载自己平台真正需要的那个二进制。
 
-构建后目录结构：
+支持的平台：
 
-```
-prebuilds/
-├── darwin-arm64/node.napi.node
-├── darwin-x64/node.napi.node
-├── win32-x32/node.napi.node
-└── win32-x64/node.napi.node
-index.js          ← 平台加载器
-type.d.ts         ← TypeScript 类型声明
-```
-
-### 集成到你的项目
-
-```bash
-# 方式一：直接拷贝产物
-cp -r prebuilds index.js type.d.ts /path/to/your-project/deps/float-pigment-css-napi/
-
-# 方式二：通过 file: 相对路径引用（适合 monorepo）
-# 在项目 package.json 中：
-#   "dependencies": {
-#     "float-pigment-css-napi": "file:../float-pigment-css-napi"
-#   }
-```
+| 平台 | 子包 |
+|------|------|
+| macOS arm64 | `float-pigment-css-napi-darwin-arm64` |
+| macOS x64 | `float-pigment-css-napi-darwin-x64` |
+| Windows x64 | `float-pigment-css-napi-win32-x64-msvc` |
+| Windows x86 | `float-pigment-css-napi-win32-ia32-msvc` |
+| Linux x64 (glibc) | `float-pigment-css-napi-linux-x64-gnu` |
+| Linux x64 (musl) | `float-pigment-css-napi-linux-x64-musl` |
+| Linux arm64 (glibc) | `float-pigment-css-napi-linux-arm64-gnu` |
+| Linux arm64 (musl) | `float-pigment-css-napi-linux-arm64-musl` |
 
 然后在代码中：
 
 ```javascript
-// 方式一：拷贝到项目内
-const { compile, compileSync } = require('./deps/float-pigment-css-napi')
-
-// 方式二：file: 引用
 const { compile, compileSync } = require('float-pigment-css-napi')
 ```
 
@@ -173,32 +151,34 @@ interface CompileWarning {
 
 - Rust 工具链 (1.92.0+)
 - Node.js 16+
-- npm 或 pnpm
-- 交叉编译依赖（从 macOS 编译 Windows 目标）：
-  ```bash
-  rustup target add x86_64-pc-windows-msvc i686-pc-windows-msvc
-  cargo install cargo-xwin
-  ```
+- pnpm
 
-### 构建脚本
+### 构建与测试
 
 | 命令 | 说明 |
 |------|------|
-| `npm run build` | 编译全部 4 个平台 (darwin-arm64, darwin-x64, win32-x64, win32-x32) |
-| `npm run build:current` | 仅编译当前平台 |
-| `npm run build:debug` | 当前平台 debug 模式 |
-| `npm run build:target <triple>` | 编译指定 Rust target triple |
+| `pnpm install` | 安装开发依赖（`@napi-rs/cli`） |
+| `npm run build` | 为当前平台构建原生模块（release） |
+| `npm run build:debug` | 当前平台 debug 模式构建 |
+| `npm test` | 针对刚构建出的原生模块跑冒烟测试 |
+
+`npm run build` 会产出 `float-pigment-css-napi.<triple>.node`，以及自动生成的
+`index.js` 加载器和 `index.d.ts` 类型声明。跨平台产物由 CI
+（`.github/workflows/napi.yml`）在各自的原生 runner 上构建 — 本地无需交叉编译
+工具链。
 
 ### 验证构建
 
 ```bash
-# 检查 prebuilds 结构
-ls prebuilds/*/node.napi.node
-
-# 测试加载
 node -e "const m = require('./'); console.log(Object.keys(m))"
-# 期望输出: [ 'compile', 'compileSync', 'compileSingle', 'compileSingleSync', ... ]
+# 期望输出: [ 'OutputType', 'compileSync', 'compileSingleSync', 'compile', 'compileSingle' ]
 ```
+
+## 发布
+
+发布由 CI 驱动。推送 `napi-v*` tag 后，工作流会在原生 runner 上构建全部 8 个
+目标平台，用 `napi artifacts` 收集产物，然后将各平台子包与主包一并发布到 npm
+（需要仓库配置 `NPM_TOKEN` secret）。
 
 ## 运行时兼容性
 

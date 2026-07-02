@@ -11,8 +11,8 @@ description = "Node.js N-API binding for float-pigment-css"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = { version = "2", features = ["async", "napi6"] }
-napi-derive = "2"
+napi = { version = "3", features = ["async", "napi6"] }
+napi-derive = "3"
 float-pigment-css = { workspace = true, features = ["std", "serialize", "serialize_json"] }
 
 [build-dependencies]

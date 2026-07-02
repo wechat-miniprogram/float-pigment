@@ -99,6 +99,11 @@ fn serialize_sheet(
     path: &str,
     output_type: &OutputType,
 ) -> Option<Buffer> {
+    // Serializes the *unlinked* single style sheet for `path` (i.e. `@import`
+    // is not expanded here; linking happens on the consumer side). `None` is
+    // returned when `output_type` is `None`, or when `path` is not present in
+    // the resource — for the compile flows below the path is always the one we
+    // just added, so `None` here effectively means "no output requested".
     match output_type {
         OutputType::Bincode => resource.serialize_bincode(path).map(Buffer::from),
         OutputType::Json => resource
@@ -135,6 +140,9 @@ fn do_compile(args: CompileArgument) -> Result<CompileResult> {
         let warnings = resource.add_source(&entry.path, source);
         resource.add_tag_name_prefix(&entry.path, &tag_prefix);
 
+        // Serialize each sheet as an independent, unlinked unit. `import_index`
+        // (built after the loop, once all sources are present) carries the
+        // cross-file `@import` graph; linking is performed by the consumer.
         let content = serialize_sheet(&resource, &entry.path, &output_type);
 
         file_entries.push(FileEntry {
