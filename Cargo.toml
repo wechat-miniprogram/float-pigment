@@ -5,6 +5,7 @@ members = [
     "float-pigment-mlp",
     "float-pigment-css-macro",
     "float-pigment-css",
+    "float-pigment-css-napi",
     "float-pigment-layout",
     "float-pigment-forest-macro",
     "float-pigment-forest",

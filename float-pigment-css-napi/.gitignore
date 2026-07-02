@@ -1,0 +1,5 @@
+node_modules/
+target/
+# Ignore .node files in root (napi-rs build intermediates)
+# but NOT in prebuilds/ (those are tracked as release artifacts)
+/*.node

@@ -1,0 +1,34 @@
+{
+  "name": "float-pigment-css-napi",
+  "version": "0.9.0",
+  "description": "Node.js N-API binding for float-pigment-css",
+  "main": "index.js",
+  "types": "type.d.ts",
+  "napi": {
+    "name": "float-pigment-css",
+    "triples": {
+      "defaults": true,
+      "additional": [
+        "aarch64-apple-darwin",
+        "x86_64-apple-darwin",
+        "x86_64-pc-windows-msvc",
+        "i686-pc-windows-msvc"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build-all.js",
+    "build:current": "node scripts/build-current.js",
+    "build:debug": "node scripts/build-current.js --debug",
+    "build:target": "node scripts/build-target.js"
+  },
+  "files": [
+    "index.js",
+    "type.d.ts",
+    "prebuilds/**/node.napi.node"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@napi-rs/cli": "^2"
+  }
+}
