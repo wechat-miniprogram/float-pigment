@@ -11,7 +11,7 @@
   "description": "Node.js N-API binding for float-pigment-css",
   "license": "MIT",
   "engines": {
-    "node": ">= 10"
+    "node": ">= 16"
   },
   "os": [
     "win32"

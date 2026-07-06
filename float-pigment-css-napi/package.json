@@ -33,7 +33,7 @@
   ],
   "license": "MIT",
   "engines": {
-    "node": ">= 10"
+    "node": ">= 16"
   },
   "packageManager": "pnpm@8.15.9",
   "devDependencies": {
