@@ -107,8 +107,10 @@ jobs:
         shell: bash
 
       - name: Test
-        # Only run tests on natively-runnable, host-arch targets.
-        if: ${{ matrix.settings.target == 'x86_64-unknown-linux-gnu' || startsWith(matrix.settings.host, 'macos') || matrix.settings.target == 'x86_64-pc-windows-msvc' }}
+        # Only run tests where the built artifact's arch matches the runner's:
+        # macos-latest=arm64, ubuntu-latest=x64, windows-latest=x64.
+        # The other targets are cross-compiled and can't be loaded here.
+        if: ${{ matrix.settings.target == 'aarch64-apple-darwin' || matrix.settings.target == 'x86_64-unknown-linux-gnu' || matrix.settings.target == 'x86_64-pc-windows-msvc' }}
         run: pnpm test
         shell: bash
 
