@@ -4,6 +4,10 @@ on:
   push:
     branches: ['master']
     tags: ['napi-v*']
+    # Note: path filters are NOT evaluated for tag pushes (per GitHub docs:
+    # "Path filters are not evaluated for pushes of tags"), so a napi-v* tag
+    # always triggers this workflow regardless of the paths filter below.
+    # The paths filter only scopes branch pushes to master.
     paths:
       - 'float-pigment-css-napi/**'
       - 'float-pigment-css/**'
