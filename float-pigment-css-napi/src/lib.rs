@@ -207,6 +207,11 @@ pub struct CompileTask {
     args: Option<CompileArgument>,
 }
 
+// `#[napi]` on the `impl Task` block registers the CompileTask -> CompileResult
+// type mapping so the generated d.ts is `Promise<CompileResult>` rather than
+// `Promise<unknown>`. It does NOT export CompileTask as a JS symbol (that would
+// require `#[napi]` on the struct itself).
+#[napi]
 impl Task for CompileTask {
     type Output = CompileResult;
     type JsValue = CompileResult;
@@ -232,6 +237,7 @@ pub struct CompileSingleTask {
     args: Option<CompileSingleArgument>,
 }
 
+#[napi]
 impl Task for CompileSingleTask {
     type Output = FileResult;
     type JsValue = FileResult;
