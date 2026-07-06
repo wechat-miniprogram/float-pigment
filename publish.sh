@@ -92,14 +92,14 @@ if [ -z "$(git status --porcelain)" ]; then
     fi
 
     # sync the float-pigment-css-napi npm version to match the workspace.
-    # Rust side follows automatically via `version.workspace = true`, but the
-    # npm package.json + per-platform npm/* sub-packages are versioned
-    # separately and must be kept in lock-step here.
+    # Rust side follows automatically via `version.workspace = true`. On the npm
+    # side, `npm version` bumps package.json and triggers the "version" lifecycle
+    # script (`napi version`), which propagates the bump to the per-platform
+    # npm/* sub-packages. No explicit `napi version` call is needed here.
     if [ "$SKIP_NAPI" == "1" ]; then
         echo 'Skipping float-pigment-css-napi version sync (--skip-napi).'
     elif (cd float-pigment-css-napi \
-        && npm version "${VERSION}" --no-git-tag-version --allow-same-version \
-        && npx --no-install napi version); then
+        && npm version "${VERSION}" --no-git-tag-version --allow-same-version); then
         echo 'Synced float-pigment-css-napi npm version.'
     else
         echo 'Failed to sync napi npm version! Abort.'
