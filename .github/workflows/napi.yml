@@ -69,8 +69,11 @@ jobs:
           node-version: 20
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        # Pin to the toolchain in the repo-root rust-toolchain.toml so the
+        # cross-compile targets get added to the toolchain that actually builds.
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: '1.92.0'
           targets: ${{ matrix.settings.target }}
 
       - name: Rust cache
