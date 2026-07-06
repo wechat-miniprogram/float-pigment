@@ -207,7 +207,6 @@ pub struct CompileTask {
     args: Option<CompileArgument>,
 }
 
-#[napi]
 impl Task for CompileTask {
     type Output = CompileResult;
     type JsValue = CompileResult;
@@ -233,7 +232,6 @@ pub struct CompileSingleTask {
     args: Option<CompileSingleArgument>,
 }
 
-#[napi]
 impl Task for CompileSingleTask {
     type Output = FileResult;
     type JsValue = FileResult;
