@@ -14,12 +14,20 @@ enum BlockOrInlineSeries<'a, T: LayoutTreeNode> {
 /// If there is no border, padding, inline part, block formatting context created,
 /// or clearance to separate the margin-top of a block from the margin-top of one or more of its descendant blocks,
 /// then those margins collapse. The collapsed margin ends up outside the parent.
+///
+/// `isolated` short-circuits to false. It is true when the parent establishes
+/// margin isolation. Currently only the root element (CSS 2.1 §8.3.1) is
+/// covered here; overflow/float/inline-block/absolute/flow-root are TODO.
+/// (Note: the reverse direction — a child that establishes a BFC also should
+/// not collapse with its parent — is not yet implemented; see cross_flex
+/// tests marked #[ignore].)
 #[inline]
 pub(crate) fn is_margin_start_collapsible<L: LengthNum>(
+    isolated: bool,
     parent_is_block: bool,
     padding_border_start: L,
 ) -> bool {
-    if !parent_is_block || !padding_border_start.is_zero() {
+    if isolated || !parent_is_block || !padding_border_start.is_zero() {
         return false;
     }
     true
@@ -29,8 +37,11 @@ pub(crate) fn is_margin_start_collapsible<L: LengthNum>(
 /// or no border, padding, inline content, height,
 /// or min-height to separate the margin-bottom of a block from the margin-bottom of one or more of its descendant blocks,
 /// then those margins collapse. The collapsed margin ends up outside the parent.
+///
+/// `isolated` short-circuits to false (see `is_margin_start_collapsible`).
 #[inline]
 pub(crate) fn is_margin_end_collapsible<L: LengthNum>(
+    isolated: bool,
     axis_info: AxisInfo,
     parent_is_block: bool,
     padding_border: Edge<L>,
@@ -38,6 +49,9 @@ pub(crate) fn is_margin_end_collapsible<L: LengthNum>(
     max_main_size: OptionNum<L>,
     total_inner_main_size: L,
 ) -> bool {
+    if isolated {
+        return false;
+    }
     if !parent_is_block
         || !padding_border
             .main_axis_end(axis_info.dir, axis_info.main_dir_rev)
@@ -342,7 +356,16 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
         let mut first_baseline_ascent_option = None;
         let mut last_baseline_ascent_option = None;
 
+        // CSS 2.1 §8.3.1: root element (no parent) margins do not collapse.
+        // The layout-entry node plays the root role in this engine.
+        // TODO: BFC blocking for flex/inline-flex/overflow/float/inline-block/
+        // absolute/flow-root/grid — a child that establishes a BFC also should
+        // not margin-collapse with its parent (Flexbox §3, etc.). Not implemented
+        // in this pass; see docs/margin-collapse-w3c-audit-zh_CN.md.
+        let isolated = node.tree_visitor().parent().is_none();
+
         let parent_margin_start_collapsible = is_margin_start_collapsible(
+            isolated,
             request.parent_is_block,
             padding_border.main_axis_start(axis_info.dir, axis_info.main_dir_rev),
         );
@@ -800,6 +823,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
         });
 
         let parent_margin_end_collapsible = is_margin_end_collapsible(
+            isolated,
             axis_info,
             request.parent_is_block,
             padding_border,

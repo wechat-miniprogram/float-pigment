@@ -5,7 +5,7 @@
 use crate::*;
 
 use float_pigment_forest::{convert_node_ref_to_ptr, ChildOperation, Node, StyleSetter};
-use float_pigment_layout::{DefLength, LayoutTreeNode, OptionNum, OptionSize, Size};
+use float_pigment_layout::{DefLength, OptionNum, OptionSize, Size};
 
 unsafe fn as_ref<'a>(node: *mut Node) -> &'a Node {
     &*node
