@@ -8,6 +8,7 @@ mod css_box_sizing;
 mod css_height;
 mod css_inline;
 mod css_margin;
+mod css_margin_collapse;
 mod css_min_height;
 mod css_padding;
 mod css_position;
