@@ -239,18 +239,17 @@ fn margin_not_collapse_if_padding_exists_2() {
 }
 
 // Case: Margin collapse with min-height (min-height < total content)
-// Spec points:
-// - min-height allows content to overflow
-// - Margins still collapse normally
-// In this test:
-// - Parent with min-height=30px, children total more than that
-// - Margin collapse continues past min-height
+// Spec: CSS 2.1 §8.3.1 relation (c) — only `height` (not min-height) gates
+// parent-末子 bottom collapse. min-height=30 does NOT block the末子's
+// margin-bottom:50 from collapsing into the parent, so the parent absorbs it
+// (parent.height = content 20+20 + collapsed 50 = 90, but min-height=30 is
+// satisfied by content alone).
 #[test]
 fn margin_collapse_min_height() {
     assert_xml!(
         r#"
         <div style="width: 100px;" expect_height="120">
-            <div style="min-height: 30px;" expect_height="40">
+            <div style="min-height: 30px;" expect_height="90">
                 <div style="height: 20px;" expect_height="20"></div>
                 <div style="height: 20px; margin-bottom: 50px;" expect_height="20"></div>
             </div>
@@ -261,12 +260,9 @@ fn margin_collapse_min_height() {
 }
 
 // Case: Margin collapse with min-height (min-height > total content)
-// Spec points:
-// - min-height expands element beyond content
-// - Margins collapse up to the min-height boundary
-// In this test:
-// - Parent with min-height=50px > content height
-// - Parent expands to accommodate margin-bottom
+// Spec: as above — min-height does not block collapse. Parent absorbs末子's
+// margin-bottom:50, parent.height = content 20+20 + collapsed 50 = 90
+// (min-height=50 satisfied).
 #[test]
 fn margin_collapse_min_height_2() {
     assert_xml!(
@@ -283,44 +279,41 @@ fn margin_collapse_min_height_2() {
 }
 
 // Case: Margin collapse with max-height
-// Spec points:
-// - max-height=0 clips the element's height but overflow exists
-// - Margins collapse from the visible edge
-// In this test:
-// - max-height=0 clips first container
-// - Second container positioned at top=0 due to collapse
+// Spec: CSS 2.1 §8.3.1 relation (c) — only `height` (not max-height) gates
+// parent-末子 bottom collapse. max-height=0 clips the box visually but does
+// NOT block the末子's margin-bottom:20 from collapsing into the parent.
+// The collapsed margin (20) then propagates to the parent's bottom and
+// collapses with the next sibling (h:30), giving sibling.top = 20.
 #[test]
 fn margin_collapse_max_height() {
     assert_xml!(
         r#"
-            <div style="width: 100px;" expect_height="30">
+            <div style="width: 100px;" expect_height="50">
                 <div style="max-height: 0px" expect_height="0">
                     <div style="height: 20px;" expect_height="20"></div>
                     <div style="height: 20px; margin-bottom: 20px;" expect_height="20"></div>
                 </div>
-                <div style="height: 30px;" expect_height="30" expect_top="0"></div>
+                <div style="height: 30px;" expect_height="30" expect_top="20"></div>
             </div>
         "#
     )
 }
 
 // Case: Margin collapse with max-height and external margin
-// Spec points:
-// - Margin on clipped element still participates in collapse
-// In this test:
-// - First element: max-height=0, margin-bottom=10px, child margin-bottom=50px
-// - Collapsed margin = max(10, 50) = 50px... but collapses with next sibling
-// - Second child at top=10 after collapse
+// Spec: max-height does not block collapse. Parent (max-h:0, mb:10) has
+// 末子 mb:50; collapsed into parent.bottom = max(10, 50) = 50. The parent's
+// own margin (10) and末子's (50) are already collapsed; sibling (h:30) sits
+// at parent.bottom + collapsed = 0 + 50 = 50.
 #[test]
 fn margin_collapse_max_height_2() {
     assert_xml!(
         r#"
-            <div expect_height="40">
+            <div expect_height="80">
                 <div style="max-height: 0px; margin-bottom: 10px;" expect_height="0">
                     <div style="height: 20px;" expect_height="20"></div>
                     <div style="height: 20px; margin-bottom: 50px;" expect_height="20"></div>
                 </div>
-                <div style="height: 30px;" expect_top="10" expect_height="30"></div>
+                <div style="height: 30px;" expect_top="50" expect_height="30"></div>
             </div>
         "#
     )

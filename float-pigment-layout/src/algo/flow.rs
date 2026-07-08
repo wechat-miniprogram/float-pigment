@@ -39,17 +39,23 @@ pub(crate) fn is_margin_start_collapsible<L: LengthNum>(
 /// then those margins collapse. The collapsed margin ends up outside the parent.
 ///
 /// `isolated` short-circuits to false (see `is_margin_start_collapsible`).
+///
+/// CSS 2.1 §8.3.1 relation (c): parent-末子 bottom collapse requires the
+/// parent's height to be `auto`. `height_is_auto` is false for any explicit
+/// height (Points/Percent/Custom), blocking the collapse.
 #[inline]
 pub(crate) fn is_margin_end_collapsible<L: LengthNum>(
     isolated: bool,
+    height_is_auto: bool,
     axis_info: AxisInfo,
     parent_is_block: bool,
     padding_border: Edge<L>,
     min_main_size: L,
-    max_main_size: OptionNum<L>,
-    total_inner_main_size: L,
 ) -> bool {
     if isolated {
+        return false;
+    }
+    if !height_is_auto {
         return false;
     }
     if !parent_is_block
@@ -57,18 +63,7 @@ pub(crate) fn is_margin_end_collapsible<L: LengthNum>(
             .main_axis_end(axis_info.dir, axis_info.main_dir_rev)
             .is_zero()
         || !min_main_size.is_zero()
-        || !total_inner_main_size.is_zero()
     {
-        let total_main_size = total_inner_main_size + padding_border.main_axis_sum(axis_info.dir);
-        let max_main_size = if let Some(max) = max_main_size.val() {
-            max
-        } else {
-            L::max_value()
-        };
-        if min_main_size <= total_main_size && total_main_size <= max_main_size {
-            return true;
-        }
-
         return false;
     }
     true
@@ -899,14 +894,20 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
             }
         });
 
+        // CSS 2.1 §8.3.1 relation (c): parent-末子 bottom collapse requires
+        // the parent's height to be auto. DefLength::Undefined is the
+        // #[default] variant (height not specified), equivalent to auto.
+        let height_is_auto = matches!(
+            node.style().height(),
+            DefLength::Auto | DefLength::Undefined
+        );
         let parent_margin_end_collapsible = is_margin_end_collapsible(
             isolated,
+            height_is_auto,
             axis_info,
             request.parent_is_block,
             padding_border,
             min_max_limit.min_main_size(axis_info.dir),
-            min_max_limit.max_main_size(axis_info.dir),
-            total_main_size,
         );
 
         let mut parent_collapsed_margin_end = CollapsedMargin::new(
