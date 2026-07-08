@@ -95,6 +95,43 @@ pub(crate) fn is_empty_block<L: LengthNum>(
     true
 }
 
+/// Whether `node` establishes a block formatting context (BFC).
+///
+/// A BFC-establishing box's margins do NOT collapse with its parent (from the
+/// child side) nor with its in-flow children (from the parent side).
+///
+/// Covers what the current `LayoutStyle` accessors can detect:
+/// - Root element (no parent, per CSS 2.1 §8.3.1)
+/// - flex / inline-flex containers (CSS Flexbox §3)
+/// - grid / inline-grid containers (CSS Grid Layout §3)
+/// - inline-block
+/// - `position: absolute | fixed` (out-of-flow)
+/// - `display: flow-root` (dedicated BFC marker)
+///
+/// TODO: overflow != visible, float — require new accessors on LayoutStyle.
+#[inline]
+pub(crate) fn establishes_bfc<T: LayoutTreeNode>(node: &T) -> bool {
+    if node.tree_visitor().parent().is_none() {
+        return true;
+    }
+    let style = node.style();
+    if matches!(
+        style.display(),
+        Display::Flex
+            | Display::InlineFlex
+            | Display::Grid
+            | Display::InlineGrid
+            | Display::InlineBlock
+            | Display::FlowRoot
+    ) {
+        return true;
+    }
+    if matches!(style.position(), Position::Absolute | Position::Fixed) {
+        return true;
+    }
+    false
+}
+
 fn for_each_block_or_inline_series<T: LayoutTreeNode>(
     env: &mut T::Env,
     node: &T,
@@ -356,13 +393,11 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
         let mut first_baseline_ascent_option = None;
         let mut last_baseline_ascent_option = None;
 
-        // CSS 2.1 §8.3.1: root element (no parent) margins do not collapse.
-        // The layout-entry node plays the root role in this engine.
-        // TODO: BFC blocking for flex/inline-flex/overflow/float/inline-block/
-        // absolute/flow-root/grid — a child that establishes a BFC also should
-        // not margin-collapse with its parent (Flexbox §3, etc.). Not implemented
-        // in this pass; see docs/margin-collapse-w3c-audit-zh_CN.md.
-        let isolated = node.tree_visitor().parent().is_none();
+        // The parent-side of BFC-based margin isolation: a BFC-establishing
+        // parent does not collapse with its in-flow children. See
+        // `establishes_bfc` for what counts as BFC in this engine.
+        // TODO: overflow != visible, float (need new LayoutStyle accessors).
+        let isolated = establishes_bfc::<T>(node);
 
         let parent_margin_start_collapsible = is_margin_start_collapsible(
             isolated,
@@ -505,8 +540,42 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                     let mut main_offset = padding_border
                         .main_axis_start(axis_info.dir, axis_info.main_dir_rev)
                         + total_main_size;
-                    // margin collapse between sibling
-                    if let Some((prev_sibling_margin, prev_sibling_collapsed_through)) =
+                    // A BFC-establishing child does NOT margin-collapse with
+                    // its parent or its siblings (CSS 2.1 §8.3.1 adjoining
+                    // requires same BFC). Settle any pending sibling-collapse
+                    // chain first, then place the BFC child using its solved
+                    // margins as direct offsets, and reset the chain.
+                    let child_establishes_bfc = establishes_bfc::<T>(child_node);
+                    if child_establishes_bfc {
+                        // 1) Settle prior sibling collapse chain into offsets.
+                        if let Some((prev_sibling_margin, prev_sibling_collapsed_through)) =
+                            prev_sibling_collapsed_margin
+                        {
+                            let prev_solved = prev_sibling_margin.solve();
+                            if prev_sibling_collapsed_through {
+                                // For a collapsed-through prev sibling, its
+                                // solved margin was added to both main_offset
+                                // and total_main_size during the previous
+                                // iteration. Undo that transiently — we want
+                                // this to become a plain offset (not adjoined
+                                // to anything on either side).
+                                main_offset -= prev_solved;
+                                total_main_size -= prev_solved;
+                            }
+                            main_offset += prev_solved;
+                            total_main_size += prev_solved;
+                        }
+                        // 2) BFC child's start & end margins as direct offsets
+                        //    (no adjoin). Size is added by the common tail
+                        //    (`total_main_size += child_res.size` below).
+                        let start_offset = child_res.collapsed_margin.start.solve();
+                        let end_offset = child_res.collapsed_margin.end.solve();
+                        main_offset += start_offset;
+                        total_main_size += start_offset + end_offset;
+                        // 3) Reset chain — BFC child's end margin is already
+                        //    baked into total_main_size and does not adjoin.
+                        prev_sibling_collapsed_margin = None;
+                    } else if let Some((prev_sibling_margin, prev_sibling_collapsed_through)) =
                         prev_sibling_collapsed_margin
                     {
                         // ┌───────┐
