@@ -333,16 +333,16 @@ fn margin_collapse_max_height_2() {
 // In this test:
 // - Flex column container with block children
 // - Block children's margins collapse internally
-// TODO: flex BFC blocking not yet implemented — a flex child does not
-// currently prevent its margin from collapsing with the parent block. Ignored
-// until we implement "child establishes BFC → skip parent-child collapse".
-// See docs/margin-collapse-w3c-audit-zh_CN.md.
+// Case: flex container as first child of a non-flex parent (Fragment root)
+// Spec: Flexbox §3 — a flex container establishes a new formatting context
+// and its margins do NOT collapse with its parent. Fragment (layout root, no
+// parent) also does not collapse (CSS 2.1 §8.3.1). So the flex's margin-top
+// (100) applies as a direct offset from Fragment's content origin.
 #[test]
-#[ignore]
 fn margin_collapse_cross_flex() {
     assert_xml!(
         r#"
-            <div style="margin-top: 100px; display: flex; flex-direction: column" expect_top="0">
+            <div style="margin-top: 100px; display: flex; flex-direction: column" expect_top="100">
                 <div style="margin-top: 200px;" expect_top="200">
                     <div style="display: flex; margin-top: 250px; height: 50px;" expect_top="250"></div>
                 </div>
@@ -354,16 +354,23 @@ fn margin_collapse_cross_flex() {
 // Case: Margin collapse cross flex (nested case 2)
 // Spec points:
 // - Block children within flex items can have margin collapse
-// TODO: flex BFC blocking not yet implemented (see margin_collapse_cross_flex).
+// Case: block parent with a flex descendant; verifies BFC blocking.
+// Layout: Fragment (root, no collapse) → outer div (no margin) → two siblings:
+// - first block(h:10, mt:10): its mt:10 collapses INTO outer div (no
+//   border/padding); Fragment does not absorb it, so outer.top=10.
+// - second block(mt:10) contains a flex(mt:20). Flex establishes a BFC, so
+//   its mt:20 does NOT collapse into the second block. Sibling collapse
+//   between first(mb:0) and second(mt:10) = max(0,10)=10, so second sits at
+//   first.bottom(10) + collapsed(10) = 20 relative to outer. Flex descendant
+//   sits at 20 (its own mt) relative to its parent (second block).
 #[test]
-#[ignore]
 fn margin_collapse_cross_flex_2() {
     assert_xml!(
         r#"
-            <div expect_top="0">
+            <div expect_top="10">
                 <div style="height: 10px; margin-top: 10px;" expect_top="0"></div>
-                <div style="margin-top: 10px;"  expect_top="30">
-                    <div style="margin-top: 20px; display: flex; height: 100px;" expect_top="0"></div>
+                <div style="margin-top: 10px;"  expect_top="20">
+                    <div style="margin-top: 20px; display: flex; height: 100px;" expect_top="20"></div>
                 </div>
             </div>
         "#
@@ -390,13 +397,9 @@ fn margin_collapse_cross_flex_3() {
 // Case: Margin collapse cross flex (deeply nested)
 // Spec points:
 // - Complex nesting with flex and block contexts
-// TODO: assertions here fixate the pre-BFC-blocking behaviour where a flex
-// child's margin used to collapse into its non-flex parent. Standard behavior
-// is that flex containers do NOT margin-collapse with their siblings/parent
-// (Flexbox §3), which our new implementation enforces. The expected values
-// below need re-evaluation against real browsers/WPT. Ignored for now.
+// - Innermost flex(mt:40) does NOT collapse into its non-flex parent (flex
+//   establishes a BFC), so it sits at top=40 relative to its parent.
 #[test]
-#[ignore]
 fn margin_collapse_cross_flex_4() {
     assert_xml!(
         r#"
@@ -405,7 +408,7 @@ fn margin_collapse_cross_flex_4() {
                     <div style="margin-top: 10px" expect_top="10">
                         <div style="margin-top: 80px;" expect_top="90">
                             <div style="margin-top: 90px;" expect_top="0">
-                                <div style="display: flex; flex-direction: column; margin-top: 40px; height: 50px;" expect_top="0"></div>
+                                <div style="display: flex; flex-direction: column; margin-top: 40px; height: 50px;" expect_top="40"></div>
                             </div>
                         </div>
                     </div>
@@ -416,19 +419,17 @@ fn margin_collapse_cross_flex_4() {
 }
 
 // Case: Margin collapse cross flex (variation 5)
-// TODO: same as margin_collapse_cross_flex_4 — assertions assume old
-// flex-collapse behavior. Standard says flex does not collapse.
+// Spec: flex establishes a BFC and does not collapse into its non-flex parent.
 #[test]
-#[ignore]
 fn margin_collapse_cross_flex_5() {
     assert_xml!(
         r#"
             <div>
-                <div style="display: flex; flex-direction: column; margin-top: 10px;" expect_top="0">
+                <div style="display: flex; flex-direction: column; margin-top: 10px;" expect_top="10">
                     <div style="margin-top: 10px" expect_top="10">
                         <div style="margin-top: 80px;" expect_top="90">
                             <div style="margin-top: 90px;" expect_top="0">
-                                <div style="display: flex; flex-direction: column; margin-top: 40px; height: 50px;" expect_top="0"></div>
+                                <div style="display: flex; flex-direction: column; margin-top: 40px; height: 50px;" expect_top="40"></div>
                             </div>
                         </div>
                     </div>
@@ -439,15 +440,19 @@ fn margin_collapse_cross_flex_5() {
 }
 
 // Case: Margin collapse cross flex (variation 6)
-// TODO: flex BFC blocking not yet implemented (see margin_collapse_cross_flex).
+// Case: block > block(mt:10) > flex(mt:20). Spec:
+// - inner block(mt:10) collapses into outer block; outer.margin.top=10;
+//   Fragment (root) does not absorb it, so outer.top=10.
+// - inner block relative to outer = 0 (its margin absorbed by outer).
+// - flex(mt:20) establishes a BFC and does NOT collapse into inner block;
+//   flex.top = inner block content origin (0) + flex.margin-top (20) = 20.
 #[test]
-#[ignore]
 fn margin_collapse_cross_flex_6() {
     assert_xml!(
         r#"
-            <div expect_top="0">
+            <div expect_top="10">
                 <div style="margin-top: 10px" expect_top="0">
-                    <div style="display: flex; flex-direction: column; margin-top: 20px; height: 100px;" expect_top="0"></div>
+                    <div style="display: flex; flex-direction: column; margin-top: 20px; height: 100px;" expect_top="20"></div>
                 </div>
             </div>
         "#
