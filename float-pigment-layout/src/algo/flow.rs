@@ -78,13 +78,21 @@ pub(crate) fn is_margin_end_collapsible<L: LengthNum>(
 /// If there is no border, padding, inline content, height,
 /// or min-height to separate a block's margin-top from its margin-bottom,
 /// then its top and bottom margins collapse.
+///
+/// CSS 2.1 §8.3.1 relation (d): the box must also NOT establish a new BFC.
+/// `isolated` short-circuits to false so a BFC-establishing box (root, flex,
+/// inline-block, abs-positioned, etc.) never collapses through even when empty.
 #[inline]
 pub(crate) fn is_empty_block<L: LengthNum>(
+    isolated: bool,
     padding_border_main_axis: L,
     min_main_size: L,
     node_inner_main_size: L,
     main_size: OptionNum<L>,
 ) -> bool {
+    if isolated {
+        return false;
+    }
     if !padding_border_main_axis.is_zero()
         || !min_main_size.is_zero()
         || !node_inner_main_size.is_zero()
@@ -923,6 +931,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
             parent_collapsed_margin_end,
         );
         if is_empty_block(
+            isolated,
             padding_border.main_axis_sum(axis_info.dir),
             min_max_limit.min_main_size(axis_info.dir),
             total_main_size,
