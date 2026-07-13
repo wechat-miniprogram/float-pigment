@@ -240,7 +240,7 @@ fn margin_not_collapse_if_padding_exists_2() {
 
 // Case: Margin collapse with min-height (min-height < total content)
 // Spec: CSS 2.1 §8.3.1 relation (c) — only `height` (not min-height) gates
-// parent-末子 bottom collapse. min-height=30 does NOT block the末子's
+// parent-last-child bottom collapse. min-height=30 does NOT block the last child's
 // margin-bottom:50 from collapsing into the parent, so the parent absorbs it
 // (parent.height = content 20+20 + collapsed 50 = 90, but min-height=30 is
 // satisfied by content alone).
@@ -260,7 +260,7 @@ fn margin_collapse_min_height() {
 }
 
 // Case: Margin collapse with min-height (min-height > total content)
-// Spec: as above — min-height does not block collapse. Parent absorbs末子's
+// Spec: as above — min-height does not block collapse. Parent absorbs the last child's
 // margin-bottom:50, parent.height = content 20+20 + collapsed 50 = 90
 // (min-height=50 satisfied).
 #[test]
@@ -280,8 +280,8 @@ fn margin_collapse_min_height_2() {
 
 // Case: Margin collapse with max-height
 // Spec: CSS 2.1 §8.3.1 relation (c) — only `height` (not max-height) gates
-// parent-末子 bottom collapse. max-height=0 clips the box visually but does
-// NOT block the末子's margin-bottom:20 from collapsing into the parent.
+// parent-last-child bottom collapse. max-height=0 clips the box visually but does
+// NOT block the last child's margin-bottom:20 from collapsing into the parent.
 // The collapsed margin (20) then propagates to the parent's bottom and
 // collapses with the next sibling (h:30), giving sibling.top = 20.
 #[test]
@@ -301,8 +301,8 @@ fn margin_collapse_max_height() {
 
 // Case: Margin collapse with max-height and external margin
 // Spec: max-height does not block collapse. Parent (max-h:0, mb:10) has
-// 末子 mb:50; collapsed into parent.bottom = max(10, 50) = 50. The parent's
-// own margin (10) and末子's (50) are already collapsed; sibling (h:30) sits
+// last child mb:50; collapsed into parent.bottom = max(10, 50) = 50. The parent's
+// own margin (10) and the last child's (50) are already collapsed; sibling (h:30) sits
 // at parent.bottom + collapsed = 0 + 50 = 50.
 #[test]
 fn margin_collapse_max_height_2() {

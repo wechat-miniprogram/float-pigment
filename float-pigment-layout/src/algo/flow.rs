@@ -38,7 +38,7 @@ pub(crate) fn is_margin_start_collapsible<L: LengthNum>(
 ///
 /// `isolated` short-circuits to false (see `is_margin_start_collapsible`).
 ///
-/// CSS 2.1 §8.3.1 relation (c): parent-末子 bottom collapse requires the
+/// CSS 2.1 §8.3.1 relation (c): parent-last-child bottom collapse requires the
 /// parent's height to be `auto`. `height_is_auto` is false for any explicit
 /// height (Points/Percent/Custom), blocking the collapse.
 #[inline]
@@ -890,7 +890,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
             }
         });
 
-        // CSS 2.1 §8.3.1 relation (c): parent-末子 bottom collapse requires
+        // CSS 2.1 §8.3.1 relation (c): parent-last-child bottom collapse requires
         // the parent's height to be auto. DefLength::Undefined is the
         // #[default] variant (height not specified), equivalent to auto.
         let height_is_auto = matches!(
