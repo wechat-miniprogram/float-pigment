@@ -93,3 +93,49 @@ fn block_bfc_block_sequence_no_propagation() {
         "#
     )
 }
+
+// display: flow-root — CSS Display Module Level 3 §2.7:
+// "block container box, lays out contents using flow layout, always
+// establishes a new BFC".
+// Behaviorally identical to display:block except it builds a BFC.
+//
+// As parent: flow-root's margin does NOT collapse with its child's margin.
+#[test]
+fn flow_root_as_parent_no_collapse() {
+    assert_xml!(
+        r#"
+        <div>
+          <div style="display: flow-root; margin-top: 30px;">
+            <div style="margin-top: 20px; height: 50px;" expect_top="20"></div>
+          </div>
+        </div>
+        "#
+    )
+}
+
+// As child: flow-root's margin does NOT collapse with its parent's margin.
+#[test]
+fn flow_root_as_child_no_collapse() {
+    assert_xml!(
+        r#"
+        <div>
+          <div style="margin-top: 30px;">
+            <div style="display: flow-root; margin-top: 20px; height: 50px;" expect_top="20"></div>
+          </div>
+        </div>
+        "#
+    )
+}
+
+// flow-root as sibling: its margin does not collapse with adjacent block siblings.
+#[test]
+fn flow_root_as_sibling_no_collapse() {
+    assert_xml!(
+        r#"
+        <div>
+          <div style="margin-bottom: 40px; height: 10px;"></div>
+          <div style="display: flow-root; margin-top: 30px; height: 50px;" expect_top="80"></div>
+        </div>
+        "#
+    )
+}

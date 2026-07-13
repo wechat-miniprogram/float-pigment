@@ -164,7 +164,10 @@ fn for_each_block_or_inline_series<T: LayoutTreeNode>(
                 Display::InlineBlock | Display::InlineFlex | Display::InlineGrid => {
                     end_nodes.push(child_node);
                 }
-                Display::Block | Display::Flex | Display::Grid => {
+                // CSS Display 3 §2.7: flow-root is block-level (block
+                // container box) and participates in block flow like Block.
+                // Its BFC semantics are handled by establishes_bfc().
+                Display::Block | Display::Flex | Display::Grid | Display::FlowRoot => {
                     if !end_nodes.is_empty() {
                         f(
                             env,
@@ -177,7 +180,6 @@ fn for_each_block_or_inline_series<T: LayoutTreeNode>(
                     f(env, BlockOrInlineSeries::Block(child_node));
                 }
                 Display::None => unreachable!(),
-                Display::FlowRoot => todo!(),
             }
         });
     }
