@@ -155,7 +155,7 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
             Display::Grid | Display::InlineGrid => LayoutAlgorithm::Grid,
             // CSS Display 3 §2.7: flow-root is a block container that lays
             // out contents using flow layout and always establishes a BFC.
-            // The BFC behavior is handled by establishes_bfc() + isolated
+            // The BFC behavior is handled by establishes_bfc() + bfc_established
             // short-circuit; the layout path is identical to Block.
             Display::FlowRoot => LayoutAlgorithm::Block,
         };

@@ -46,11 +46,11 @@ CSS §8.3.1 requires adjoining margins to belong to the **same BFC**. Margins cr
 - **Parent side**: a BFC container does not collapse with its child's margins (e.g., flex container vs. flex item)
 - **Child side**: a BFC child does not collapse with its parent/siblings (e.g., a flex child inside a regular block parent)
 
-### Signal Propagation: `isolated` Computed Locally
+### Signal Propagation: `bfc_established` Computed Locally
 
-The BFC-blocking signal `isolated` is a **node-intrinsic property** (display / position / has-parent), computed locally at the top of `compute_block_or_inline_series` and reused at three call sites (start / end / empty-block checks).
+The BFC-blocking signal `bfc_established` is a **node-intrinsic property** (display / position / has-parent), computed locally at the top of `compute_block_or_inline_series` and reused at three call sites (start / end / empty-block checks).
 
-**It is not propagated through `ComputeRequest`** — this keeps BFC blocking confined to the block-flow path. flex/grid layouts go through their own `Flex::compute` / `Grid::compute` and never read `isolated`, so they are unaffected.
+**It is not propagated through `ComputeRequest`** — this keeps BFC blocking confined to the block-flow path. flex/grid layouts go through their own `Flex::compute` / `Grid::compute` and never read `bfc_established`, so they are unaffected.
 
 ---
 
@@ -77,13 +77,13 @@ Two margins are **adjoining** (collapsible) if and only if:
 │              float-pigment Margin Collapse Flow                   │
 │                                                                   │
 │  ┌─────────────────────────────────────────────────────────────┐  │
-│  │  STEP 1  isolated = establishes_bfc(node)                   │  │
+│  │  STEP 1  bfc_established = establishes_bfc(node)                   │  │
 │  │  Does this node establish a BFC? (no collapse with children)│  │
 │  └──────────────────────────┬──────────────────────────────────┘  │
 │                             ▼                                     │
 │  ┌─────────────────────────────────────────────────────────────┐  │
 │  │  STEP 2  parent_margin_start_collapsible =                  │  │
-│  │    is_margin_start_collapsible(isolated, parent_is_block,   │  │
+│  │    is_margin_start_collapsible(bfc_established, parent_is_block,   │  │
 │  │                                 padding_border_start)       │  │
 │  │  §8.3.1 relation (a)                                        │  │
 │  └──────────────────────────┬──────────────────────────────────┘  │
@@ -112,7 +112,7 @@ Two margins are **adjoining** (collapsible) if and only if:
 │  │  STEP 4  height_is_auto = matches!(node.style().height(),  │  │
 │  │            DefLength::Auto | DefLength::Undefined)          │  │
 │  │          parent_margin_end_collapsible =                    │  │
-│  │    is_margin_end_collapsible(isolated, height_is_auto, ...) │  │
+│  │    is_margin_end_collapsible(bfc_established, height_is_auto, ...) │  │
 │  │  §8.3.1 relation (c)                                        │  │
 │  └──────────────────────────┬──────────────────────────────────┘  │
 │                             ▼                                     │
@@ -123,7 +123,7 @@ Two margins are **adjoining** (collapsible) if and only if:
 │                             ▼                                     │
 │  ┌─────────────────────────────────────────────────────────────┐  │
 │  │  STEP 6  collapsed_through =                                │  │
-│  │    is_empty_block(isolated, ...)                            │  │
+│  │    is_empty_block(bfc_established, ...)                            │  │
 │  │  §8.3.1 relation (d) (BFC containers do not collapse through)│  │
 │  └──────────────────────────┬──────────────────────────────────┘  │
 │                             ▼                                     │
@@ -155,10 +155,10 @@ This guarantees both margins of a BFC child act independently and do not collaps
 
 | # | Item | Standard | Status | Evidence |
 |---|------|:---:|:---:|----------|
-| 1 | (a) parent–first-child top | blocked by border/padding + BFC + clearance | ⚠️ partial | `is_margin_start_collapsible`: border/padding ✓, isolated ✓; **clearance missing** (needs `clear()` accessor) |
+| 1 | (a) parent–first-child top | blocked by border/padding + BFC + clearance | ⚠️ partial | `is_margin_start_collapsible`: border/padding ✓, bfc_established ✓; **clearance missing** (needs `clear()` accessor) |
 | 2 | (b) sibling bottom–top | blocked by clearance on latter | ⚠️ partial | `flow.rs` sibling branch algorithm correct; **clearance missing** |
 | 3 | (c) parent–last-child bottom | height:auto + min-height:0 + no pb/border + clearance | ✅ | `is_margin_end_collapsible`: directly checks `node.style().height()` for Auto/Undefined |
-| 4 | (d) empty-block collapsed-through | no BFC + min:0 + h:0\|auto + no children | ✅ | `is_empty_block`: includes `isolated` short-circuit (BFC containers do not collapse through) |
+| 4 | (d) empty-block collapsed-through | no BFC + min:0 + h:0\|auto + no children | ✅ | `is_empty_block`: includes `bfc_established` short-circuit (BFC containers do not collapse through) |
 | 5 | root element | absolute rule | ✅ | `establishes_bfc`: `parent().is_none()` |
 | 6 | BFC (overflow) | overflow≠visible | ⚠️ partial | display-based ✓; **overflow-based needs `overflow()` accessor** |
 | 7 | float | float≠none | ❌ | **needs `float()` accessor** |
@@ -166,7 +166,7 @@ This guarantees both margins of a BFC child act independently and do not collaps
 | 9 | inline-block | inline-block | ✅ | `establishes_bfc`: InlineBlock |
 | 10 | horizontal margins | never collapse | ✅ | collapse only on main axis (`flow.rs:345-355`) |
 | 11 | positive/negative margins | max/min/sum | ✅ | `CollapsedMargin` splits positive/negative; `adjoin` max/min; `solve` sums |
-| 12 | same-BFC precondition | cross-BFC does not collapse | ✅ | parent-side `isolated` + child-side BFC branch, two-way blocking (within current accessor coverage) |
+| 12 | same-BFC precondition | cross-BFC does not collapse | ✅ | parent-side `bfc_established` + child-side BFC branch, two-way blocking (within current accessor coverage) |
 
 **Additional coverage** (display-based BFC): `Flex` / `InlineFlex` / `Grid` / `InlineGrid` / `FlowRoot` — all routed through `establishes_bfc`, conforming to Flexbox §3 / Grid §3.
 

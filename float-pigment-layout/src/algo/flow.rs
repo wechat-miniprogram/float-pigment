@@ -15,17 +15,17 @@ enum BlockOrInlineSeries<'a, T: LayoutTreeNode> {
 /// or clearance to separate the margin-top of a block from the margin-top of one or more of its descendant blocks,
 /// then those margins collapse. The collapsed margin ends up outside the parent.
 ///
-/// `isolated` short-circuits to false. It is true when the parent establishes
+/// `bfc_established` short-circuits to false. It is true when the parent establishes
 /// a BFC (root element per CSS 2.1 §8.3.1, or flex/grid/inline-block/absolute/
 /// fixed/flow-root — see `establishes_bfc`). TODO: overflow≠visible, float
 /// (need LayoutStyle accessors).
 #[inline]
 pub(crate) fn is_margin_start_collapsible<L: LengthNum>(
-    isolated: bool,
+    bfc_established: bool,
     parent_is_block: bool,
     padding_border_start: L,
 ) -> bool {
-    if isolated || !parent_is_block || !padding_border_start.is_zero() {
+    if bfc_established || !parent_is_block || !padding_border_start.is_zero() {
         return false;
     }
     true
@@ -36,21 +36,21 @@ pub(crate) fn is_margin_start_collapsible<L: LengthNum>(
 /// or min-height to separate the margin-bottom of a block from the margin-bottom of one or more of its descendant blocks,
 /// then those margins collapse. The collapsed margin ends up outside the parent.
 ///
-/// `isolated` short-circuits to false (see `is_margin_start_collapsible`).
+/// `bfc_established` short-circuits to false (see `is_margin_start_collapsible`).
 ///
 /// CSS 2.1 §8.3.1 relation (c): parent-last-child bottom collapse requires the
 /// parent's height to be `auto`. `height_is_auto` is false for any explicit
 /// height (Points/Percent/Custom), blocking the collapse.
 #[inline]
 pub(crate) fn is_margin_end_collapsible<L: LengthNum>(
-    isolated: bool,
+    bfc_established: bool,
     height_is_auto: bool,
     axis_info: AxisInfo,
     parent_is_block: bool,
     padding_border: Edge<L>,
     min_main_size: L,
 ) -> bool {
-    if isolated {
+    if bfc_established {
         return false;
     }
     if !height_is_auto {
@@ -73,17 +73,17 @@ pub(crate) fn is_margin_end_collapsible<L: LengthNum>(
 /// then its top and bottom margins collapse.
 ///
 /// CSS 2.1 §8.3.1 relation (d): the box must also NOT establish a new BFC.
-/// `isolated` short-circuits to false so a BFC-establishing box (root, flex,
+/// `bfc_established` short-circuits to false so a BFC-establishing box (root, flex,
 /// inline-block, abs-positioned, etc.) never collapses through even when empty.
 #[inline]
 pub(crate) fn is_empty_block<L: LengthNum>(
-    isolated: bool,
+    bfc_established: bool,
     padding_border_main_axis: L,
     min_main_size: L,
     node_inner_main_size: L,
     main_size: OptionNum<L>,
 ) -> bool {
-    if isolated {
+    if bfc_established {
         return false;
     }
     if !padding_border_main_axis.is_zero()
@@ -400,10 +400,10 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
         // parent does not collapse with its in-flow children. See
         // `establishes_bfc` for what counts as BFC in this engine.
         // TODO: overflow != visible, float (need new LayoutStyle accessors).
-        let isolated = establishes_bfc::<T>(node);
+        let bfc_established = establishes_bfc::<T>(node);
 
         let parent_margin_start_collapsible = is_margin_start_collapsible(
-            isolated,
+            bfc_established,
             request.parent_is_block,
             padding_border.main_axis_start(axis_info.dir, axis_info.main_dir_rev),
         );
@@ -898,7 +898,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
             DefLength::Auto | DefLength::Undefined
         );
         let parent_margin_end_collapsible = is_margin_end_collapsible(
-            isolated,
+            bfc_established,
             height_is_auto,
             axis_info,
             request.parent_is_block,
@@ -928,7 +928,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
             parent_collapsed_margin_end,
         );
         if is_empty_block(
-            isolated,
+            bfc_established,
             padding_border.main_axis_sum(axis_info.dir),
             min_max_limit.min_main_size(axis_info.dir),
             total_main_size,
