@@ -221,7 +221,6 @@ impl CollapsedMargin {
 | medium | #7 float does not collapse | depends on `float()` accessor |
 | medium | #6 overflow≠visible establishes BFC | depends on `overflow()` accessor |
 | medium | #1/#2 clearance blocking (relations a/b/c/d) | depends on `clear()` accessor |
-| low | `Display::FlowRoot` layout path | `flow.rs:128` is `todo!()`, independent layout algorithm |
 
 Adding the accessors is a separate engineering effort touching 5 places:
 1. `LayoutStyle` trait methods

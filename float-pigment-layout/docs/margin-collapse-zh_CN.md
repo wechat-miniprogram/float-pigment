@@ -221,7 +221,6 @@ impl CollapsedMargin {
 | 中 | #7 float 不合并 | 依赖 `float()` accessor |
 | 中 | #6 overflow≠visible 建 BFC | 依赖 `overflow()` accessor |
 | 中 | #1/#2 clearance 阻断（关系 a/b/c/d） | 依赖 `clear()` accessor |
-| 低 | `Display::FlowRoot` 布局路径 | `flow.rs:128` 是 `todo!()`，独立布局算法 |
 
 加 accessor 是独立工程，涉及 5 处改动：
 1. `LayoutStyle` trait 加方法
