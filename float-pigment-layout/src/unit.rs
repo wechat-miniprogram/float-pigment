@@ -153,7 +153,11 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
             Display::Block | Display::InlineBlock | Display::Inline => LayoutAlgorithm::Block,
             Display::Flex | Display::InlineFlex => LayoutAlgorithm::Flex,
             Display::Grid | Display::InlineGrid => LayoutAlgorithm::Grid,
-            Display::FlowRoot => todo!(),
+            // CSS Display 3 §2.7: flow-root is a block container that lays
+            // out contents using flow layout and always establishes a BFC.
+            // The BFC behavior is handled by establishes_bfc() + bfc_established
+            // short-circuit; the layout path is identical to Block.
+            Display::FlowRoot => LayoutAlgorithm::Block,
         };
 
         let ret = if let Some(r) = self.cache.read(node, &request) {

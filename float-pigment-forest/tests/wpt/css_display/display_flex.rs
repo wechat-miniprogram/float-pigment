@@ -42,14 +42,15 @@ fn display_flex_auto_width() {
 // Case: `display: flex` with margin on the flex container
 // Spec / engine behavior:
 // - margin shifts the flex container within its parent
-// - we assert the container's own width/height and its left offset (10px from the parent due to margin-left:10)
+// - the flex container is a BFC, so its margin-top:10 does NOT collapse into
+//   its non-flex parent — the container sits at top=10 (Flexbox §3).
 // - the inner flex item is laid out at left=0 inside the flex container
 #[test]
 fn display_flex_with_margin() {
     assert_xml!(
         r#"
         <div style="width: 200px; height: 100px;">
-            <div style="display: flex; width: 150px; height: 80px; margin: 10px;" expect_width="150" expect_height="80" expect_top="0" expect_left="10">
+            <div style="display: flex; width: 150px; height: 80px; margin: 10px;" expect_width="150" expect_height="80" expect_top="10" expect_left="10">
                 <div style="width: 50px; height: 50px;" expect_width="50" expect_height="50" expect_left="0"></div>
             </div>
         </div>

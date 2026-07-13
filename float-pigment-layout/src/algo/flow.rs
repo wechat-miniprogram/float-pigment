@@ -14,12 +14,18 @@ enum BlockOrInlineSeries<'a, T: LayoutTreeNode> {
 /// If there is no border, padding, inline part, block formatting context created,
 /// or clearance to separate the margin-top of a block from the margin-top of one or more of its descendant blocks,
 /// then those margins collapse. The collapsed margin ends up outside the parent.
+///
+/// `bfc_established` short-circuits to false. It is true when the parent establishes
+/// a BFC (root element per CSS 2.1 §8.3.1, or flex/grid/inline-block/absolute/
+/// fixed/flow-root — see `establishes_bfc`). TODO: overflow≠visible, float
+/// (need LayoutStyle accessors).
 #[inline]
 pub(crate) fn is_margin_start_collapsible<L: LengthNum>(
+    bfc_established: bool,
     parent_is_block: bool,
     padding_border_start: L,
 ) -> bool {
-    if !parent_is_block || !padding_border_start.is_zero() {
+    if bfc_established || !parent_is_block || !padding_border_start.is_zero() {
         return false;
     }
     true
@@ -29,32 +35,33 @@ pub(crate) fn is_margin_start_collapsible<L: LengthNum>(
 /// or no border, padding, inline content, height,
 /// or min-height to separate the margin-bottom of a block from the margin-bottom of one or more of its descendant blocks,
 /// then those margins collapse. The collapsed margin ends up outside the parent.
+///
+/// `bfc_established` short-circuits to false (see `is_margin_start_collapsible`).
+///
+/// CSS 2.1 §8.3.1 relation (c): parent-last-child bottom collapse requires the
+/// parent's height to be `auto`. `height_is_auto` is false for any explicit
+/// height (Points/Percent/Custom), blocking the collapse.
 #[inline]
 pub(crate) fn is_margin_end_collapsible<L: LengthNum>(
+    bfc_established: bool,
+    height_is_auto: bool,
     axis_info: AxisInfo,
     parent_is_block: bool,
     padding_border: Edge<L>,
     min_main_size: L,
-    max_main_size: OptionNum<L>,
-    total_inner_main_size: L,
 ) -> bool {
+    if bfc_established {
+        return false;
+    }
+    if !height_is_auto {
+        return false;
+    }
     if !parent_is_block
         || !padding_border
             .main_axis_end(axis_info.dir, axis_info.main_dir_rev)
             .is_zero()
         || !min_main_size.is_zero()
-        || !total_inner_main_size.is_zero()
     {
-        let total_main_size = total_inner_main_size + padding_border.main_axis_sum(axis_info.dir);
-        let max_main_size = if let Some(max) = max_main_size.val() {
-            max
-        } else {
-            L::max_value()
-        };
-        if min_main_size <= total_main_size && total_main_size <= max_main_size {
-            return true;
-        }
-
         return false;
     }
     true
@@ -64,13 +71,21 @@ pub(crate) fn is_margin_end_collapsible<L: LengthNum>(
 /// If there is no border, padding, inline content, height,
 /// or min-height to separate a block's margin-top from its margin-bottom,
 /// then its top and bottom margins collapse.
+///
+/// CSS 2.1 §8.3.1 relation (d): the box must also NOT establish a new BFC.
+/// `bfc_established` short-circuits to false so a BFC-establishing box (root, flex,
+/// inline-block, abs-positioned, etc.) never collapses through even when empty.
 #[inline]
 pub(crate) fn is_empty_block<L: LengthNum>(
+    bfc_established: bool,
     padding_border_main_axis: L,
     min_main_size: L,
     node_inner_main_size: L,
     main_size: OptionNum<L>,
 ) -> bool {
+    if bfc_established {
+        return false;
+    }
     if !padding_border_main_axis.is_zero()
         || !min_main_size.is_zero()
         || !node_inner_main_size.is_zero()
@@ -79,6 +94,43 @@ pub(crate) fn is_empty_block<L: LengthNum>(
         return false;
     }
     true
+}
+
+/// Whether `node` establishes a block formatting context (BFC).
+///
+/// A BFC-establishing box's margins do NOT collapse with its parent (from the
+/// child side) nor with its in-flow children (from the parent side).
+///
+/// Covers what the current `LayoutStyle` accessors can detect:
+/// - Root element (no parent, per CSS 2.1 §8.3.1)
+/// - flex / inline-flex containers (CSS Flexbox §3)
+/// - grid / inline-grid containers (CSS Grid Layout §3)
+/// - inline-block
+/// - `position: absolute | fixed` (out-of-flow)
+/// - `display: flow-root` (dedicated BFC marker)
+///
+/// TODO: overflow != visible, float — require new accessors on LayoutStyle.
+#[inline]
+pub(crate) fn establishes_bfc<T: LayoutTreeNode>(node: &T) -> bool {
+    if node.tree_visitor().parent().is_none() {
+        return true;
+    }
+    let style = node.style();
+    if matches!(
+        style.display(),
+        Display::Flex
+            | Display::InlineFlex
+            | Display::Grid
+            | Display::InlineGrid
+            | Display::InlineBlock
+            | Display::FlowRoot
+    ) {
+        return true;
+    }
+    if matches!(style.position(), Position::Absolute | Position::Fixed) {
+        return true;
+    }
+    false
 }
 
 fn for_each_block_or_inline_series<T: LayoutTreeNode>(
@@ -112,7 +164,10 @@ fn for_each_block_or_inline_series<T: LayoutTreeNode>(
                 Display::InlineBlock | Display::InlineFlex | Display::InlineGrid => {
                     end_nodes.push(child_node);
                 }
-                Display::Block | Display::Flex | Display::Grid => {
+                // CSS Display 3 §2.7: flow-root is block-level (block
+                // container box) and participates in block flow like Block.
+                // Its BFC semantics are handled by establishes_bfc().
+                Display::Block | Display::Flex | Display::Grid | Display::FlowRoot => {
                     if !end_nodes.is_empty() {
                         f(
                             env,
@@ -125,7 +180,6 @@ fn for_each_block_or_inline_series<T: LayoutTreeNode>(
                     f(env, BlockOrInlineSeries::Block(child_node));
                 }
                 Display::None => unreachable!(),
-                Display::FlowRoot => todo!(),
             }
         });
     }
@@ -342,7 +396,14 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
         let mut first_baseline_ascent_option = None;
         let mut last_baseline_ascent_option = None;
 
+        // The parent-side of BFC-based margin isolation: a BFC-establishing
+        // parent does not collapse with its in-flow children. See
+        // `establishes_bfc` for what counts as BFC in this engine.
+        // TODO: overflow != visible, float (need new LayoutStyle accessors).
+        let bfc_established = establishes_bfc::<T>(node);
+
         let parent_margin_start_collapsible = is_margin_start_collapsible(
+            bfc_established,
             request.parent_is_block,
             padding_border.main_axis_start(axis_info.dir, axis_info.main_dir_rev),
         );
@@ -482,8 +543,38 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                     let mut main_offset = padding_border
                         .main_axis_start(axis_info.dir, axis_info.main_dir_rev)
                         + total_main_size;
-                    // margin collapse between sibling
-                    if let Some((prev_sibling_margin, prev_sibling_collapsed_through)) =
+                    // A BFC-establishing child does NOT margin-collapse with
+                    // its parent or its siblings (CSS 2.1 §8.3.1 adjoining
+                    // requires same BFC). Settle any pending sibling-collapse
+                    // chain first, then place the BFC child using its solved
+                    // margins as direct offsets, and seed the chain with a
+                    // zero sentinel so the next non-BFC sibling takes the
+                    // sibling-collapse branch (not the first-child branch).
+                    let child_establishes_bfc = establishes_bfc::<T>(child_node);
+                    if child_establishes_bfc {
+                        // 1) Settle prior sibling collapse chain into offsets.
+                        if let Some((prev_sibling_margin, _prev_sibling_collapsed_through)) =
+                            prev_sibling_collapsed_margin
+                        {
+                            let prev_solved = prev_sibling_margin.solve();
+                            main_offset += prev_solved;
+                            total_main_size += prev_solved;
+                        }
+                        // 2) BFC child's start & end margins as direct offsets
+                        //    (no adjoin). Size is added by the common tail
+                        //    (`total_main_size += child_res.size` below).
+                        let start_offset = child_res.collapsed_margin.start.solve();
+                        let end_offset = child_res.collapsed_margin.end.solve();
+                        main_offset += start_offset;
+                        total_main_size += start_offset + end_offset;
+                        // 3) Seed a zero sentinel (non-collapsed-through) so
+                        //    the next non-BFC sibling routes through the
+                        //    sibling-collapse branch — its top margin then
+                        //    acts as its own offset and does NOT propagate to
+                        //    parent_collapsed_margin_start. adjoin(zero, x) = x.
+                        prev_sibling_collapsed_margin =
+                            Some((CollapsedMargin::zero(), false));
+                    } else if let Some((prev_sibling_margin, prev_sibling_collapsed_through)) =
                         prev_sibling_collapsed_margin
                     {
                         // ┌───────┐
@@ -799,13 +890,20 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
             }
         });
 
+        // CSS 2.1 §8.3.1 relation (c): parent-last-child bottom collapse requires
+        // the parent's height to be auto. DefLength::Undefined is the
+        // #[default] variant (height not specified), equivalent to auto.
+        let height_is_auto = matches!(
+            node.style().height(),
+            DefLength::Auto | DefLength::Undefined
+        );
         let parent_margin_end_collapsible = is_margin_end_collapsible(
+            bfc_established,
+            height_is_auto,
             axis_info,
             request.parent_is_block,
             padding_border,
             min_max_limit.min_main_size(axis_info.dir),
-            min_max_limit.max_main_size(axis_info.dir),
-            total_main_size,
         );
 
         let mut parent_collapsed_margin_end = CollapsedMargin::new(
@@ -830,6 +928,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
             parent_collapsed_margin_end,
         );
         if is_empty_block(
+            bfc_established,
             padding_border.main_axis_sum(axis_info.dir),
             min_max_limit.min_main_size(axis_info.dir),
             total_main_size,
