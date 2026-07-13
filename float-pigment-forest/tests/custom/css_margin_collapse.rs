@@ -65,3 +65,31 @@ fn non_entry_parent_collapses_with_first_child() {
         assert_eq!(child.layout_position().top, 0.);
     }
 }
+
+// Edge case: [block, BFC, block] sequence. The third child (non-BFC) comes
+// after a BFC sibling. Its margin should NOT propagate up to the parent's
+// collapsed_margin_start — the BFC broke the collapse chain, so the third
+// child's top margin acts as its own offset.
+//
+// Layout: container(root) > parent(no margin) > [a(h:10,mb:20), b(flex,mt:30,h:40), c(mt:50,h:60)]
+// Standard:
+//   - parent.top = 0 (no own margin, container does not collapse with it)
+//   - a.top = 0 (first child, no mt)
+//   - b.top = 10(a height) + 20(a mb, not collapsed with BFC b) + 30(b mt) = 60
+//   - c.top = 60(b top) + 40(b height) + 50(c mt, not collapsed with BFC b) = 150
+// If the implementation wrongly treats c as "first child" after BFC reset,
+// c.mt:50 would propagate to parent_collapsed_margin_start, making parent.top=50.
+#[test]
+fn block_bfc_block_sequence_no_propagation() {
+    assert_xml!(
+        r#"
+        <div>
+          <div>
+            <div style="height: 10px; margin-bottom: 20px;" expect_top="0"></div>
+            <div style="display: flex; margin-top: 30px; height: 40px;" expect_top="60"></div>
+            <div style="margin-top: 50px; height: 60px;" expect_top="150"></div>
+          </div>
+        </div>
+        "#
+    )
+}

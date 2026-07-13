@@ -16,11 +16,9 @@ enum BlockOrInlineSeries<'a, T: LayoutTreeNode> {
 /// then those margins collapse. The collapsed margin ends up outside the parent.
 ///
 /// `isolated` short-circuits to false. It is true when the parent establishes
-/// margin isolation. Currently only the root element (CSS 2.1 §8.3.1) is
-/// covered here; overflow/float/inline-block/absolute/flow-root are TODO.
-/// (Note: the reverse direction — a child that establishes a BFC also should
-/// not collapse with its parent — is not yet implemented; see cross_flex
-/// tests marked #[ignore].)
+/// a BFC (root element per CSS 2.1 §8.3.1, or flex/grid/inline-block/absolute/
+/// fixed/flow-root — see `establishes_bfc`). TODO: overflow≠visible, float
+/// (need LayoutStyle accessors).
 #[inline]
 pub(crate) fn is_margin_start_collapsible<L: LengthNum>(
     isolated: bool,
@@ -547,24 +545,16 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                     // its parent or its siblings (CSS 2.1 §8.3.1 adjoining
                     // requires same BFC). Settle any pending sibling-collapse
                     // chain first, then place the BFC child using its solved
-                    // margins as direct offsets, and reset the chain.
+                    // margins as direct offsets, and seed the chain with a
+                    // zero sentinel so the next non-BFC sibling takes the
+                    // sibling-collapse branch (not the first-child branch).
                     let child_establishes_bfc = establishes_bfc::<T>(child_node);
                     if child_establishes_bfc {
                         // 1) Settle prior sibling collapse chain into offsets.
-                        if let Some((prev_sibling_margin, prev_sibling_collapsed_through)) =
+                        if let Some((prev_sibling_margin, _prev_sibling_collapsed_through)) =
                             prev_sibling_collapsed_margin
                         {
                             let prev_solved = prev_sibling_margin.solve();
-                            if prev_sibling_collapsed_through {
-                                // For a collapsed-through prev sibling, its
-                                // solved margin was added to both main_offset
-                                // and total_main_size during the previous
-                                // iteration. Undo that transiently — we want
-                                // this to become a plain offset (not adjoined
-                                // to anything on either side).
-                                main_offset -= prev_solved;
-                                total_main_size -= prev_solved;
-                            }
                             main_offset += prev_solved;
                             total_main_size += prev_solved;
                         }
@@ -575,9 +565,13 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                         let end_offset = child_res.collapsed_margin.end.solve();
                         main_offset += start_offset;
                         total_main_size += start_offset + end_offset;
-                        // 3) Reset chain — BFC child's end margin is already
-                        //    baked into total_main_size and does not adjoin.
-                        prev_sibling_collapsed_margin = None;
+                        // 3) Seed a zero sentinel (non-collapsed-through) so
+                        //    the next non-BFC sibling routes through the
+                        //    sibling-collapse branch — its top margin then
+                        //    acts as its own offset and does NOT propagate to
+                        //    parent_collapsed_margin_start. adjoin(zero, x) = x.
+                        prev_sibling_collapsed_margin =
+                            Some((CollapsedMargin::zero(), false));
                     } else if let Some((prev_sibling_margin, prev_sibling_collapsed_through)) =
                         prev_sibling_collapsed_margin
                     {
