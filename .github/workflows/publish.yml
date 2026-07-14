@@ -1,0 +1,252 @@
+name: publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+env:
+  APP_NAME: float-pigment-css-napi
+  MACOSX_DEPLOYMENT_TARGET: '10.13'
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────
+  # Job 1: Build napi binaries on 8 platforms (parallel with crates/wasm)
+  # ─────────────────────────────────────────────────────────────────────
+  build-napi:
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - host: macos-latest
+            target: aarch64-apple-darwin
+            build: pnpm run build --target aarch64-apple-darwin
+          - host: macos-latest
+            target: x86_64-apple-darwin
+            build: pnpm run build --target x86_64-apple-darwin
+          - host: windows-latest
+            target: x86_64-pc-windows-msvc
+            build: pnpm run build --target x86_64-pc-windows-msvc
+          - host: windows-latest
+            target: i686-pc-windows-msvc
+            build: pnpm run build --target i686-pc-windows-msvc
+          - host: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            build: pnpm run build --target x86_64-unknown-linux-gnu --use-napi-cross
+          - host: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            build: pnpm run build --target x86_64-unknown-linux-musl -x
+          - host: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            build: pnpm run build --target aarch64-unknown-linux-gnu --use-napi-cross
+          - host: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            build: pnpm run build --target aarch64-unknown-linux-musl -x
+    name: build-napi - ${{ matrix.settings.target }}
+    runs-on: ${{ matrix.settings.host }}
+    defaults:
+      run:
+        working-directory: float-pigment-css-napi
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.92.0'
+          targets: ${{ matrix.settings.target }}
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: 'float-pigment-css-napi -> ../target'
+
+      - name: Setup zig
+        if: ${{ contains(matrix.settings.target, 'musl') }}
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.14.1
+
+      - name: Install cargo-zigbuild
+        if: ${{ contains(matrix.settings.target, 'musl') }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-zigbuild
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: ${{ matrix.settings.build }}
+        shell: bash
+
+      - name: Test
+        if: ${{ matrix.settings.target == 'aarch64-apple-darwin' || matrix.settings.target == 'x86_64-unknown-linux-gnu' || matrix.settings.target == 'x86_64-pc-windows-msvc' }}
+        run: pnpm test
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bindings-${{ matrix.settings.target }}
+          path: float-pigment-css-napi/${{ env.APP_NAME }}.*.node
+          if-no-files-found: error
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Job 2: Publish Rust crates to crates.io + wasm to npm
+  # (runs in parallel with build-napi)
+  # ─────────────────────────────────────────────────────────────────────
+  publish-crates-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Error: tag must be vX.Y.Z format, got: $GITHUB_REF"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check workspace version matches tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ACTUAL=$(grep -m1 '^version = ' Cargo.toml | sed -E 's/^version = "([^"]*)".*/\1/')
+          if [ "$ACTUAL" != "$VERSION" ]; then
+            echo "Error: Cargo.toml workspace version is $ACTUAL but tag is v$VERSION"
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.92.0'
+          targets: wasm32-unknown-unknown
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Setup wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: 'v0.13.1'
+
+      - name: Verify (test + clippy + fmt)
+        run: |
+          cargo test
+          cargo clippy -- -D warnings
+          cargo clippy --no-default-features -- -D warnings
+          cargo clippy --all-features -- -D warnings
+          cargo fmt --check
+
+      - name: Build wasm package
+        run: wasm-pack build float-pigment-css --target nodejs --features nodejs-package
+
+      - name: Get crates.io OIDC token
+        id: crates-auth
+        uses: rust-lang/crates-io-auth-action@v1
+
+      - name: Publish Rust crates to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates-auth.outputs.token }}
+        run: |
+          # Publish in dependency order (leaves first).
+          cargo publish -p float-pigment-consistent-bincode
+          cargo publish -p float-pigment-mlp
+          cargo publish -p float-pigment-css-macro
+          cargo publish -p float-pigment-forest-macro
+          cargo publish -p float-pigment-css
+          cargo publish -p float-pigment-layout
+          cargo publish -p float-pigment-forest
+          cargo publish -p float-pigment
+
+      - name: Publish wasm package to npm
+        run: |
+          cd float-pigment-css/pkg
+          npm publish --provenance --access public
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Job 3: Publish napi packages to npm (needs build-napi)
+  # ─────────────────────────────────────────────────────────────────────
+  publish-napi:
+    needs: build-napi
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: float-pigment-css-napi
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check napi package.json version matches tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ACTUAL=$(node -p "require('./package.json').version")
+          if [ "$ACTUAL" != "$VERSION" ]; then
+            echo "Error: float-pigment-css-napi/package.json version is $ACTUAL but tag is v$VERSION"
+            exit 1
+          fi
+          echo "OK: napi package.json version = $ACTUAL"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create npm dirs
+        run: pnpm exec napi create-npm-dirs
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: float-pigment-css-napi/artifacts
+
+      - name: Move artifacts into per-platform npm dirs
+        run: pnpm run artifacts
+
+      - name: Publish
+        run: |
+          npm config set provenance true
+          npm publish --access public

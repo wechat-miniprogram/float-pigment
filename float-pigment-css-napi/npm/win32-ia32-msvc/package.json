@@ -1,0 +1,23 @@
+{
+  "name": "float-pigment-css-napi-win32-ia32-msvc",
+  "version": "0.9.0",
+  "cpu": [
+    "ia32"
+  ],
+  "main": "float-pigment-css-napi.win32-ia32-msvc.node",
+  "files": [
+    "float-pigment-css-napi.win32-ia32-msvc.node"
+  ],
+  "description": "Node.js N-API binding for float-pigment-css",
+  "license": "MIT",
+  "engines": {
+    "node": ">= 16"
+  },
+  "os": [
+    "win32"
+  ],
+  "collaborators": [
+    "LastLeaf <bqfu@163.com>",
+    "TtTRz <romc1224@gmail.com>"
+  ]
+}

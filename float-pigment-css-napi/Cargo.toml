@@ -1,0 +1,22 @@
+[package]
+name = "float-pigment-css-napi"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Node.js N-API binding for float-pigment-css"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "3", features = ["async", "napi6"] }
+napi-derive = "3"
+float-pigment-css = { workspace = true, features = ["std", "serialize", "serialize_json"] }
+
+[build-dependencies]
+napi-build = "2"
+
+[lints]
+workspace = true

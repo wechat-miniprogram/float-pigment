@@ -1,0 +1,23 @@
+{
+  "name": "float-pigment-css-napi-darwin-arm64",
+  "version": "0.9.0",
+  "cpu": [
+    "arm64"
+  ],
+  "main": "float-pigment-css-napi.darwin-arm64.node",
+  "files": [
+    "float-pigment-css-napi.darwin-arm64.node"
+  ],
+  "description": "Node.js N-API binding for float-pigment-css",
+  "license": "MIT",
+  "engines": {
+    "node": ">= 16"
+  },
+  "os": [
+    "darwin"
+  ],
+  "collaborators": [
+    "LastLeaf <bqfu@163.com>",
+    "TtTRz <romc1224@gmail.com>"
+  ]
+}

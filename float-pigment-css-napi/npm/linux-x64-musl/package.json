@@ -1,0 +1,26 @@
+{
+  "name": "float-pigment-css-napi-linux-x64-musl",
+  "version": "0.9.0",
+  "cpu": [
+    "x64"
+  ],
+  "main": "float-pigment-css-napi.linux-x64-musl.node",
+  "files": [
+    "float-pigment-css-napi.linux-x64-musl.node"
+  ],
+  "description": "Node.js N-API binding for float-pigment-css",
+  "license": "MIT",
+  "engines": {
+    "node": ">= 16"
+  },
+  "os": [
+    "linux"
+  ],
+  "libc": [
+    "musl"
+  ],
+  "collaborators": [
+    "LastLeaf <bqfu@163.com>",
+    "TtTRz <romc1224@gmail.com>"
+  ]
+}

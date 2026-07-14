@@ -7,7 +7,16 @@ use float_pigment_css::{
 mod utils;
 use utils::*;
 
-#[cfg(all(feature = "serialize_json", feature = "serialize"))]
+// The JSON roundtrip block below needs `compile_style_sheet_to_json`
+// (serialize + serialize_json) *and* `StyleSheetResource::add_json`
+// (deserialize + deserialize_json). Feature flags carry no implicit deps, so
+// gate on all four to keep the gates consistent with what the block uses.
+#[cfg(all(
+    feature = "serialize",
+    feature = "serialize_json",
+    feature = "deserialize",
+    feature = "deserialize_json"
+))]
 use float_pigment_css::compile_style_sheet_to_json;
 #[cfg(feature = "serialize")]
 fn for_each_serialize_format(s: &str, mut f: impl FnMut(StyleSheetGroup)) {
@@ -17,7 +26,12 @@ fn for_each_serialize_format(s: &str, mut f: impl FnMut(StyleSheetGroup)) {
         ssg.append(ss);
         f(ssg);
     }
-    #[cfg(feature = "serialize_json")]
+    #[cfg(all(
+        feature = "serialize",
+        feature = "serialize_json",
+        feature = "deserialize",
+        feature = "deserialize_json"
+    ))]
     {
         let mut ssg = StyleSheetGroup::new();
         let buf = compile_style_sheet_to_json("", s);

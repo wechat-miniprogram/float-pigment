@@ -6,7 +6,6 @@ if [ "$1" == "" ]; then
 fi
 
 VERSION="$1"
-PROJECTS=$(egrep '^[ \t]*"(.+)",$' Cargo.toml | sed -E 's/^[ \t]*"(.+)",$/\1/g')
 
 # run tests
 if cargo test; then
@@ -80,6 +79,19 @@ if [ -z "$(git status --porcelain)" ]; then
         exit -1
     fi
 
+    # sync the float-pigment-css-napi npm version to match the workspace.
+    # Rust side follows automatically via `version.workspace = true`. On the npm
+    # side, `npm version` bumps package.json and triggers the "version" lifecycle
+    # script (`napi version`), which propagates the bump to the per-platform
+    # npm/* sub-packages. No explicit `napi version` call is needed here.
+    if (cd float-pigment-css-napi \
+        && npm version "${VERSION}" --no-git-tag-version --allow-same-version); then
+        echo 'Synced float-pigment-css-napi npm version.'
+    else
+        echo 'Failed to sync napi npm version! Abort.'
+        exit -1
+    fi
+
     # run cargo check again to update cargo lock
     if cargo check; then
         echo 'Cargo check done.'
@@ -89,7 +101,9 @@ if [ -z "$(git status --porcelain)" ]; then
     fi
 
     # generate a new commit and tag it
-    if git add Cargo.toml Cargo.lock float-pigment-css/compile_cache && git commit -m "chore: update version to publish"; then
+    if git add Cargo.toml Cargo.lock float-pigment-css/compile_cache \
+        float-pigment-css-napi/package.json float-pigment-css-napi/npm \
+        && git commit -m "chore: update version to publish"; then
         echo 'Generated a new version commit.'
     else
         echo 'Failed to commit! Abort.'
@@ -114,24 +128,7 @@ else
     exit -1
 fi
 
-# run wasm-pack again to update package version
-if wasm-pack build float-pigment-css --target nodejs --features nodejs-package; then
-    echo 'WebAssembly built for float-pigment-css.'
-else
-    echo 'Failed to build WebAssembly package for float-pigment-css! Abort.'
-    exit -1
-fi
-
-# cargo publish
-echo "Ready to publish version ${VERSION}."
-for PROJECT in $PROJECTS; do
-    echo ""
-    echo "Publishing ${PROJECT}..."
-    cargo publish -p "${PROJECT}"
-done
-
-# npm publish
-cd float-pigment-css/pkg
-echo "Publishing NPM package for float-pigment-css..."
-npm publish --registry https://registry.npmjs.org
-cd ../..
+# Publishing is handled by GitHub Actions CI:
+# v${VERSION} tag triggers .github/workflows/publish.yml which publishes
+# crates.io (OIDC trusted publishing), wasm npm (OIDC), and napi npm (OIDC).
+echo "Tag v${VERSION} pushed. CI will publish to crates.io and npm."
