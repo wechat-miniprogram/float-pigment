@@ -126,7 +126,7 @@ if [ -z "$(git status --porcelain)" ]; then
     fi
 
     # push to origin
-    if git push && git push --tags; then
+    if git push && git push origin "v${VERSION}"; then
         echo 'Git tag pushed.'
     else
         echo 'Git tag push failed! Abort.'

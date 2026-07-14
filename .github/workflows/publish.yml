@@ -199,6 +199,9 @@ jobs:
   publish-napi:
     needs: build-napi
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
     defaults:
       run:
         working-directory: float-pigment-css-napi
@@ -247,6 +250,8 @@ jobs:
         run: pnpm run artifacts
 
       - name: Publish
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           npm config set provenance true
           npm publish --access public
