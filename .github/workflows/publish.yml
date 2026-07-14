@@ -250,9 +250,23 @@ jobs:
         run: pnpm run artifacts
 
       - name: Publish
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          npm config set provenance true
-          echo "git-checks=false" >> .npmrc
-          npm publish --access public
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json','utf8'));
+            const opt = {};
+            for (const dir of fs.readdirSync('npm')) {
+              const p = 'npm/' + dir + '/package.json';
+              if (fs.existsSync(p)) {
+                const sub = JSON.parse(fs.readFileSync(p,'utf8'));
+                opt[sub.name] = pkg.version;
+              }
+            }
+            pkg.optionalDependencies = opt;
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            console.log('synced optionalDependencies:', Object.keys(opt).length, 'packages');
+          "
+          for dir in npm/*/; do
+            (cd "$dir" && pnpm publish --provenance --no-git-checks --access public)
+          done
+          pnpm publish --provenance --no-git-checks --access public --ignore-scripts
