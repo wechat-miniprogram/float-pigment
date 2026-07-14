@@ -1,21 +1,11 @@
 #!/bin/bash
 
 if [ "$1" == "" ]; then
-    echo "Missing version. Usage: $0 [VERSION] [--skip-napi]"
+    echo "Missing version. Usage: $0 [VERSION]"
     exit -1
 fi
 
 VERSION="$1"
-shift
-
-# --skip-napi: only publish crates + wasm, do not sync/tag float-pigment-css-napi
-SKIP_NAPI=0
-for arg in "$@"; do
-    case "$arg" in
-        --skip-napi) SKIP_NAPI=1 ;;
-        *) echo "Unknown option: $arg"; exit -1 ;;
-    esac
-done
 
 PROJECTS=$(egrep '^[ \t]*"(.+)",$' Cargo.toml | sed -E 's/^[ \t]*"(.+)",$/\1/g')
 
@@ -96,9 +86,7 @@ if [ -z "$(git status --porcelain)" ]; then
     # side, `npm version` bumps package.json and triggers the "version" lifecycle
     # script (`napi version`), which propagates the bump to the per-platform
     # npm/* sub-packages. No explicit `napi version` call is needed here.
-    if [ "$SKIP_NAPI" == "1" ]; then
-        echo 'Skipping float-pigment-css-napi version sync (--skip-napi).'
-    elif (cd float-pigment-css-napi \
+    if (cd float-pigment-css-napi \
         && npm version "${VERSION}" --no-git-tag-version --allow-same-version); then
         echo 'Synced float-pigment-css-napi npm version.'
     else
@@ -129,16 +117,6 @@ if [ -z "$(git status --porcelain)" ]; then
         echo 'Git tag failed! Abort.'
         exit -1
     fi
-    # also tag napi-v* to trigger the float-pigment-css-napi CI, which builds
-    # all platforms and publishes the npm packages (see .github/workflows/napi.yml)
-    if [ "$SKIP_NAPI" == "1" ]; then
-        echo 'Skipping napi-v tag (--skip-napi).'
-    elif git tag "napi-v${VERSION}"; then
-        echo 'Git napi tag done.'
-    else
-        echo 'Git napi tag failed! Abort.'
-        exit -1
-    fi
 
     # push to origin
     if git push && git push --tags; then
@@ -153,6 +131,6 @@ else
 fi
 
 # Publishing is handled by GitHub Actions CI:
-# - v${VERSION} tag triggers .github/workflows/publish.yml (crates.io + wasm npm)
-# - napi-v${VERSION} tag triggers .github/workflows/napi.yml (napi npm)
-echo "Tags v${VERSION} and napi-v${VERSION} pushed. CI will publish to crates.io and npm."
+# v${VERSION} tag triggers .github/workflows/publish.yml which publishes
+# crates.io (OIDC trusted publishing), wasm npm (OIDC), and napi npm (OIDC).
+echo "Tag v${VERSION} pushed. CI will publish to crates.io and npm."
