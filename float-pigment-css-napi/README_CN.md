@@ -56,7 +56,7 @@ const result = compileSingleSync({
 
 ### 发布
 
-发布由 CI 驱动。推送 `napi-v*` tag 后，工作流会在原生 runner 上构建全部 8 个目标平台，用 `napi artifacts` 收集产物，然后将各平台子包与主包一并发布到 npm。
+发布由 CI 驱动。推送 `v*` tag 后，`publish.yml` 工作流会在原生 runner 上构建全部 8 个 napi 目标平台，用 `napi artifacts` 收集产物，然后通过 OIDC trusted publishing（无需 npm token）将各平台子包与主包发布到 npm。同一个 `v*` tag 也会发布 Rust crate 和 wasm 包。
 
 ### 运行时兼容性
 

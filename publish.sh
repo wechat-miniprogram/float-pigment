@@ -7,8 +7,6 @@ fi
 
 VERSION="$1"
 
-PROJECTS=$(egrep '^[ \t]*"(.+)",$' Cargo.toml | sed -E 's/^[ \t]*"(.+)",$/\1/g')
-
 # run tests
 if cargo test; then
     echo 'Cargo test done.'
@@ -103,9 +101,9 @@ if [ -z "$(git status --porcelain)" ]; then
     fi
 
     # generate a new commit and tag it
-    NAPI_PATHS="float-pigment-css-napi/package.json float-pigment-css-napi/npm"
-    [ "$SKIP_NAPI" == "1" ] && NAPI_PATHS=""
-    if git add Cargo.toml Cargo.lock float-pigment-css/compile_cache $NAPI_PATHS && git commit -m "chore: update version to publish"; then
+    if git add Cargo.toml Cargo.lock float-pigment-css/compile_cache \
+        float-pigment-css-napi/package.json float-pigment-css-napi/npm \
+        && git commit -m "chore: update version to publish"; then
         echo 'Generated a new version commit.'
     else
         echo 'Failed to commit! Abort.'
