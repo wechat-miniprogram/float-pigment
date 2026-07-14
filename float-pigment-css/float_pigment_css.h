@@ -170,6 +170,7 @@ enum class PseudoElementsType {
   Invalid,
   Before,
   After,
+  Selection,
 };
 
 /// A helper type for `transition-timing-function`.
@@ -275,6 +276,7 @@ enum class TransitionPropertyItem {
   MaskPositionX,
   MaskPositionY,
   MaskPosition,
+  TextUnderlineOffset,
 };
 
 /// Warning kind.
@@ -422,6 +424,7 @@ struct DisplayType {
     Grid,
     FlowRoot,
     InlineFlex,
+    InlineGrid,
   };
 
   struct Var_Body {
@@ -817,7 +820,7 @@ struct LengthExpr {
   };
 };
 
-/// A length value or an expression that evaluates to a langth value.
+/// A length value or an expression that evaluates to a length value.
 struct Length {
   enum class Tag {
     Undefined,
@@ -863,7 +866,7 @@ struct Length {
   };
 
   struct Expr_Body {
-    LengthExpr _0;
+    Box<LengthExpr> _0;
   };
 
   struct Vmin_Body {
@@ -977,7 +980,7 @@ struct CalcExpr {
   };
 
   struct Length_Body {
-    Box<Length> _0;
+    Length _0;
   };
 
   struct Number_Body {
@@ -2458,6 +2461,7 @@ struct JustifyContentType {
     Right,
     Stretch,
     Baseline,
+    Normal,
   };
 
   struct Var_Body {
@@ -2476,7 +2480,7 @@ struct JustifyContentType {
   };
 };
 
-/// A length value or an expression that evaluates to a langth value.
+/// A length value or an expression that evaluates to a length value.
 struct LengthType {
   enum class Tag {
     Invalid,
@@ -2595,7 +2599,7 @@ struct LengthType {
   };
 
   struct Expr_Body {
-    LengthExpr _0;
+    Box<LengthExpr> _0;
   };
 
   struct Vmin_Body {
@@ -2699,6 +2703,7 @@ struct JustifyItemsType {
     SelfEnd,
     Left,
     Right,
+    Normal,
   };
 
   struct Var_Body {
@@ -2902,10 +2907,44 @@ struct GradientSize {
   };
 };
 
+struct GradientSpecifiedPos {
+  enum class Tag {
+    Left,
+    Right,
+    Top,
+    Bottom,
+  };
+
+  struct Left_Body {
+    Length _0;
+  };
+
+  struct Right_Body {
+    Length _0;
+  };
+
+  struct Top_Body {
+    Length _0;
+  };
+
+  struct Bottom_Body {
+    Length _0;
+  };
+
+  Tag tag;
+  union {
+    Left_Body left;
+    Right_Body right;
+    Top_Body top;
+    Bottom_Body bottom;
+  };
+};
+
 /// Gradient position types in image description.
 struct GradientPosition {
   enum class Tag {
     Pos,
+    SpecifiedPos,
   };
 
   struct Pos_Body {
@@ -2913,9 +2952,15 @@ struct GradientPosition {
     Length _1;
   };
 
+  struct SpecifiedPos_Body {
+    GradientSpecifiedPos _0;
+    GradientSpecifiedPos _1;
+  };
+
   Tag tag;
   union {
     Pos_Body pos;
+    SpecifiedPos_Body specified_pos;
   };
 };
 
@@ -6744,6 +6789,508 @@ struct FontFeatureSettingsType {
   };
 };
 
+struct TrackSize {
+  enum class Tag {
+    MinContent,
+    MaxContent,
+    Fr,
+    Length,
+  };
+
+  struct Fr_Body {
+    float _0;
+  };
+
+  struct Length_Body {
+    Length _0;
+  };
+
+  Tag tag;
+  union {
+    Fr_Body fr;
+    Length_Body length;
+  };
+};
+
+struct TrackListItem {
+  enum class Tag {
+    LineNames,
+    TrackSize,
+  };
+
+  struct LineNames_Body {
+    Array<StrRef> _0;
+  };
+
+  struct TrackSize_Body {
+    TrackSize _0;
+  };
+
+  Tag tag;
+  union {
+    LineNames_Body line_names;
+    TrackSize_Body track_size;
+  };
+};
+
+/// The `grid-template-rows` property defines the line names and track sizing functions of the grid rows.
+struct GridTemplateType {
+  enum class Tag {
+    Invalid,
+    Initial,
+    Inherit,
+    Unset,
+    Var,
+    VarInShorthand,
+    Invalid0,
+    Invalid7,
+    Invalid8,
+    Invalid9,
+    InvalidA,
+    InvalidB,
+    InvalidC,
+    InvalidD,
+    InvalidE,
+    InvalidF,
+    Invalid10,
+    Invalid11,
+    Invalid12,
+    Invalid13,
+    Invalid14,
+    Invalid15,
+    Invalid16,
+    Invalid17,
+    Invalid18,
+    Invalid19,
+    Invalid1A,
+    Invalid1B,
+    Invalid1C,
+    Invalid1D,
+    Invalid1E,
+    Invalid1F,
+    Invalid20,
+    Invalid21,
+    Invalid22,
+    Invalid23,
+    Invalid24,
+    Invalid25,
+    Invalid26,
+    Invalid27,
+    Invalid28,
+    Invalid29,
+    Invalid2A,
+    Invalid2B,
+    Invalid2C,
+    Invalid2D,
+    Invalid2E,
+    Invalid2F,
+    Invalid30,
+    Invalid31,
+    Invalid32,
+    Invalid33,
+    Invalid34,
+    Invalid35,
+    Invalid36,
+    Invalid37,
+    Invalid38,
+    Invalid39,
+    Invalid3A,
+    Invalid3B,
+    Invalid3C,
+    Invalid3D,
+    Invalid3E,
+    Invalid3F,
+    /// A keyword meaning that there is no explicit grid
+    None,
+    TrackList,
+  };
+
+  struct Var_Body {
+    Box<StrRef> _0;
+  };
+
+  struct VarInShorthand_Body {
+    Box<StrRef> _0;
+    Box<StrRef> _1;
+  };
+
+  struct TrackList_Body {
+    Array<TrackListItem> _0;
+  };
+
+  Tag tag;
+  union {
+    Var_Body var;
+    VarInShorthand_Body var_in_shorthand;
+    TrackList_Body track_list;
+  };
+};
+
+struct GridAutoFlowType {
+  enum class Tag {
+    Invalid,
+    Initial,
+    Inherit,
+    Unset,
+    Var,
+    VarInShorthand,
+    Invalid0,
+    Invalid7,
+    Invalid8,
+    Invalid9,
+    InvalidA,
+    InvalidB,
+    InvalidC,
+    InvalidD,
+    InvalidE,
+    InvalidF,
+    Invalid10,
+    Invalid11,
+    Invalid12,
+    Invalid13,
+    Invalid14,
+    Invalid15,
+    Invalid16,
+    Invalid17,
+    Invalid18,
+    Invalid19,
+    Invalid1A,
+    Invalid1B,
+    Invalid1C,
+    Invalid1D,
+    Invalid1E,
+    Invalid1F,
+    Invalid20,
+    Invalid21,
+    Invalid22,
+    Invalid23,
+    Invalid24,
+    Invalid25,
+    Invalid26,
+    Invalid27,
+    Invalid28,
+    Invalid29,
+    Invalid2A,
+    Invalid2B,
+    Invalid2C,
+    Invalid2D,
+    Invalid2E,
+    Invalid2F,
+    Invalid30,
+    Invalid31,
+    Invalid32,
+    Invalid33,
+    Invalid34,
+    Invalid35,
+    Invalid36,
+    Invalid37,
+    Invalid38,
+    Invalid39,
+    Invalid3A,
+    Invalid3B,
+    Invalid3C,
+    Invalid3D,
+    Invalid3E,
+    Invalid3F,
+    Row,
+    Column,
+    RowDense,
+    ColumnDense,
+  };
+
+  struct Var_Body {
+    Box<StrRef> _0;
+  };
+
+  struct VarInShorthand_Body {
+    Box<StrRef> _0;
+    Box<StrRef> _1;
+  };
+
+  Tag tag;
+  union {
+    Var_Body var;
+    VarInShorthand_Body var_in_shorthand;
+  };
+};
+
+struct JustifySelfType {
+  enum class Tag {
+    Invalid,
+    Initial,
+    Inherit,
+    Unset,
+    Var,
+    VarInShorthand,
+    Invalid0,
+    Invalid7,
+    Invalid8,
+    Invalid9,
+    InvalidA,
+    InvalidB,
+    InvalidC,
+    InvalidD,
+    InvalidE,
+    InvalidF,
+    Invalid10,
+    Invalid11,
+    Invalid12,
+    Invalid13,
+    Invalid14,
+    Invalid15,
+    Invalid16,
+    Invalid17,
+    Invalid18,
+    Invalid19,
+    Invalid1A,
+    Invalid1B,
+    Invalid1C,
+    Invalid1D,
+    Invalid1E,
+    Invalid1F,
+    Invalid20,
+    Invalid21,
+    Invalid22,
+    Invalid23,
+    Invalid24,
+    Invalid25,
+    Invalid26,
+    Invalid27,
+    Invalid28,
+    Invalid29,
+    Invalid2A,
+    Invalid2B,
+    Invalid2C,
+    Invalid2D,
+    Invalid2E,
+    Invalid2F,
+    Invalid30,
+    Invalid31,
+    Invalid32,
+    Invalid33,
+    Invalid34,
+    Invalid35,
+    Invalid36,
+    Invalid37,
+    Invalid38,
+    Invalid39,
+    Invalid3A,
+    Invalid3B,
+    Invalid3C,
+    Invalid3D,
+    Invalid3E,
+    Invalid3F,
+    Auto,
+    Normal,
+    Stretch,
+    Center,
+    Start,
+    End,
+    FlexStart,
+    FlexEnd,
+    SelfStart,
+    SelfEnd,
+    Left,
+    Right,
+  };
+
+  struct Var_Body {
+    Box<StrRef> _0;
+  };
+
+  struct VarInShorthand_Body {
+    Box<StrRef> _0;
+    Box<StrRef> _1;
+  };
+
+  Tag tag;
+  union {
+    Var_Body var;
+    VarInShorthand_Body var_in_shorthand;
+  };
+};
+
+struct GridAutoType {
+  enum class Tag {
+    Invalid,
+    Initial,
+    Inherit,
+    Unset,
+    Var,
+    VarInShorthand,
+    Invalid0,
+    Invalid7,
+    Invalid8,
+    Invalid9,
+    InvalidA,
+    InvalidB,
+    InvalidC,
+    InvalidD,
+    InvalidE,
+    InvalidF,
+    Invalid10,
+    Invalid11,
+    Invalid12,
+    Invalid13,
+    Invalid14,
+    Invalid15,
+    Invalid16,
+    Invalid17,
+    Invalid18,
+    Invalid19,
+    Invalid1A,
+    Invalid1B,
+    Invalid1C,
+    Invalid1D,
+    Invalid1E,
+    Invalid1F,
+    Invalid20,
+    Invalid21,
+    Invalid22,
+    Invalid23,
+    Invalid24,
+    Invalid25,
+    Invalid26,
+    Invalid27,
+    Invalid28,
+    Invalid29,
+    Invalid2A,
+    Invalid2B,
+    Invalid2C,
+    Invalid2D,
+    Invalid2E,
+    Invalid2F,
+    Invalid30,
+    Invalid31,
+    Invalid32,
+    Invalid33,
+    Invalid34,
+    Invalid35,
+    Invalid36,
+    Invalid37,
+    Invalid38,
+    Invalid39,
+    Invalid3A,
+    Invalid3B,
+    Invalid3C,
+    Invalid3D,
+    Invalid3E,
+    Invalid3F,
+    List,
+  };
+
+  struct Var_Body {
+    Box<StrRef> _0;
+  };
+
+  struct VarInShorthand_Body {
+    Box<StrRef> _0;
+    Box<StrRef> _1;
+  };
+
+  struct List_Body {
+    Array<TrackSize> _0;
+  };
+
+  Tag tag;
+  union {
+    Var_Body var;
+    VarInShorthand_Body var_in_shorthand;
+    List_Body list;
+  };
+};
+
+struct TextUnderlineOffsetType {
+  enum class Tag {
+    Invalid,
+    Initial,
+    Inherit,
+    Unset,
+    Var,
+    VarInShorthand,
+    Invalid0,
+    Invalid7,
+    Invalid8,
+    Invalid9,
+    InvalidA,
+    InvalidB,
+    InvalidC,
+    InvalidD,
+    InvalidE,
+    InvalidF,
+    Invalid10,
+    Invalid11,
+    Invalid12,
+    Invalid13,
+    Invalid14,
+    Invalid15,
+    Invalid16,
+    Invalid17,
+    Invalid18,
+    Invalid19,
+    Invalid1A,
+    Invalid1B,
+    Invalid1C,
+    Invalid1D,
+    Invalid1E,
+    Invalid1F,
+    Invalid20,
+    Invalid21,
+    Invalid22,
+    Invalid23,
+    Invalid24,
+    Invalid25,
+    Invalid26,
+    Invalid27,
+    Invalid28,
+    Invalid29,
+    Invalid2A,
+    Invalid2B,
+    Invalid2C,
+    Invalid2D,
+    Invalid2E,
+    Invalid2F,
+    Invalid30,
+    Invalid31,
+    Invalid32,
+    Invalid33,
+    Invalid34,
+    Invalid35,
+    Invalid36,
+    Invalid37,
+    Invalid38,
+    Invalid39,
+    Invalid3A,
+    Invalid3B,
+    Invalid3C,
+    Invalid3D,
+    Invalid3E,
+    Invalid3F,
+    Auto,
+    Length,
+  };
+
+  struct Var_Body {
+    Box<StrRef> _0;
+  };
+
+  struct VarInShorthand_Body {
+    Box<StrRef> _0;
+    Box<StrRef> _1;
+  };
+
+  struct Length_Body {
+    Length _0;
+  };
+
+  Tag tag;
+  union {
+    Var_Body var;
+    VarInShorthand_Body var_in_shorthand;
+    Length_Body length;
+  };
+};
+
 struct ListStyleTypeType {
   enum class Tag {
     Invalid,
@@ -7687,6 +8234,106 @@ struct ContentType {
   };
 };
 
+struct TouchActionGestures {
+  bool pan_left;
+  bool pan_right;
+  bool pan_up;
+  bool pan_down;
+};
+
+struct TouchActionType {
+  enum class Tag {
+    Invalid,
+    Initial,
+    Inherit,
+    Unset,
+    Var,
+    VarInShorthand,
+    Invalid0,
+    Invalid7,
+    Invalid8,
+    Invalid9,
+    InvalidA,
+    InvalidB,
+    InvalidC,
+    InvalidD,
+    InvalidE,
+    InvalidF,
+    Invalid10,
+    Invalid11,
+    Invalid12,
+    Invalid13,
+    Invalid14,
+    Invalid15,
+    Invalid16,
+    Invalid17,
+    Invalid18,
+    Invalid19,
+    Invalid1A,
+    Invalid1B,
+    Invalid1C,
+    Invalid1D,
+    Invalid1E,
+    Invalid1F,
+    Invalid20,
+    Invalid21,
+    Invalid22,
+    Invalid23,
+    Invalid24,
+    Invalid25,
+    Invalid26,
+    Invalid27,
+    Invalid28,
+    Invalid29,
+    Invalid2A,
+    Invalid2B,
+    Invalid2C,
+    Invalid2D,
+    Invalid2E,
+    Invalid2F,
+    Invalid30,
+    Invalid31,
+    Invalid32,
+    Invalid33,
+    Invalid34,
+    Invalid35,
+    Invalid36,
+    Invalid37,
+    Invalid38,
+    Invalid39,
+    Invalid3A,
+    Invalid3B,
+    Invalid3C,
+    Invalid3D,
+    Invalid3E,
+    Invalid3F,
+    Auto,
+    None,
+    Manipulation,
+    Gestures,
+  };
+
+  struct Var_Body {
+    Box<StrRef> _0;
+  };
+
+  struct VarInShorthand_Body {
+    Box<StrRef> _0;
+    Box<StrRef> _1;
+  };
+
+  struct Gestures_Body {
+    TouchActionGestures _0;
+  };
+
+  Tag tag;
+  union {
+    Var_Body var;
+    VarInShorthand_Body var_in_shorthand;
+    Gestures_Body gestures;
+  };
+};
+
 /// The scroll bar options.
 struct ScrollbarType {
   enum class Tag {
@@ -7898,7 +8545,7 @@ struct Property {
     Visibility,
     Color,
     Opacity,
-    Invalid14,
+    CaretColor,
     Invalid15,
     Invalid16,
     Invalid17,
@@ -8044,13 +8691,13 @@ struct Property {
     TextDecorationColor,
     TextDecorationThickness,
     FontFeatureSettings,
-    InvalidA6,
-    InvalidA7,
-    InvalidA8,
-    InvalidA9,
-    InvalidAA,
-    InvalidAB,
-    InvalidAC,
+    GridTemplateRows,
+    GridTemplateColumns,
+    GridAutoFlow,
+    JustifySelf,
+    GridAutoRows,
+    GridAutoColumns,
+    TextUnderlineOffset,
     InvalidAD,
     InvalidAE,
     InvalidAF,
@@ -8097,7 +8744,7 @@ struct Property {
     AspectRatio,
     Contain,
     Content,
-    InvalidDB,
+    TouchAction,
     InvalidDC,
     InvalidDD,
     InvalidDE,
@@ -8107,8 +8754,8 @@ struct Property {
     WxScrollbarXColor,
     WxScrollbarY,
     WxScrollbarYColor,
-    WxPaintingPixelRatio,
     WxContain,
+    InvalidE6,
     InvalidE7,
     InvalidE8,
     InvalidE9,
@@ -8202,6 +8849,10 @@ struct Property {
 
   struct Opacity_Body {
     NumberType _0;
+  };
+
+  struct CaretColor_Body {
+    ColorType _0;
   };
 
   struct FlexDirection_Body {
@@ -8604,6 +9255,34 @@ struct Property {
     FontFeatureSettingsType _0;
   };
 
+  struct GridTemplateRows_Body {
+    GridTemplateType _0;
+  };
+
+  struct GridTemplateColumns_Body {
+    GridTemplateType _0;
+  };
+
+  struct GridAutoFlow_Body {
+    GridAutoFlowType _0;
+  };
+
+  struct JustifySelf_Body {
+    JustifySelfType _0;
+  };
+
+  struct GridAutoRows_Body {
+    GridAutoType _0;
+  };
+
+  struct GridAutoColumns_Body {
+    GridAutoType _0;
+  };
+
+  struct TextUnderlineOffset_Body {
+    TextUnderlineOffsetType _0;
+  };
+
   struct ListStyleType_Body {
     ListStyleTypeType _0;
   };
@@ -8644,6 +9323,10 @@ struct Property {
     ContentType _0;
   };
 
+  struct TouchAction_Body {
+    TouchActionType _0;
+  };
+
   struct WxScrollbarX_Body {
     ScrollbarType _0;
   };
@@ -8658,10 +9341,6 @@ struct Property {
 
   struct WxScrollbarYColor_Body {
     ColorType _0;
-  };
-
-  struct WxPaintingPixelRatio_Body {
-    NumberType _0;
   };
 
   struct WxContain_Body {
@@ -8692,6 +9371,7 @@ struct Property {
     Visibility_Body visibility;
     Color_Body color;
     Opacity_Body opacity;
+    CaretColor_Body caret_color;
     FlexDirection_Body flex_direction;
     FlexWrap_Body flex_wrap;
     AlignItems_Body align_items;
@@ -8792,6 +9472,13 @@ struct Property {
     TextDecorationColor_Body text_decoration_color;
     TextDecorationThickness_Body text_decoration_thickness;
     FontFeatureSettings_Body font_feature_settings;
+    GridTemplateRows_Body grid_template_rows;
+    GridTemplateColumns_Body grid_template_columns;
+    GridAutoFlow_Body grid_auto_flow;
+    JustifySelf_Body justify_self;
+    GridAutoRows_Body grid_auto_rows;
+    GridAutoColumns_Body grid_auto_columns;
+    TextUnderlineOffset_Body text_underline_offset;
     ListStyleType_Body list_style_type;
     ListStyleImage_Body list_style_image;
     ListStylePosition_Body list_style_position;
@@ -8802,11 +9489,11 @@ struct Property {
     AspectRatio_Body aspect_ratio;
     Contain_Body contain;
     Content_Body content;
+    TouchAction_Body touch_action;
     WxScrollbarX_Body wx_scrollbar_x;
     WxScrollbarXColor_Body wx_scrollbar_x_color;
     WxScrollbarY_Body wx_scrollbar_y;
     WxScrollbarYColor_Body wx_scrollbar_y_color;
-    WxPaintingPixelRatio_Body wx_painting_pixel_ratio;
     WxContain_Body wx_contain;
     CustomProperty_Body custom_property;
   };

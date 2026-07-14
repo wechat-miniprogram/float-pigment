@@ -572,8 +572,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                         //    sibling-collapse branch — its top margin then
                         //    acts as its own offset and does NOT propagate to
                         //    parent_collapsed_margin_start. adjoin(zero, x) = x.
-                        prev_sibling_collapsed_margin =
-                            Some((CollapsedMargin::zero(), false));
+                        prev_sibling_collapsed_margin = Some((CollapsedMargin::zero(), false));
                     } else if let Some((prev_sibling_margin, prev_sibling_collapsed_through)) =
                         prev_sibling_collapsed_margin
                     {

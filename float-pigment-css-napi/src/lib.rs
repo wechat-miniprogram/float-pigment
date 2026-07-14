@@ -113,7 +113,10 @@ fn serialize_sheet(
     }
 }
 
-fn serialize_import_index(index: &StyleSheetImportIndex, output_type: &OutputType) -> Option<Buffer> {
+fn serialize_import_index(
+    index: &StyleSheetImportIndex,
+    output_type: &OutputType,
+) -> Option<Buffer> {
     match output_type {
         OutputType::Bincode => Some(Buffer::from(index.serialize_bincode())),
         OutputType::Json => Some(Buffer::from(index.serialize_json().into_bytes())),
