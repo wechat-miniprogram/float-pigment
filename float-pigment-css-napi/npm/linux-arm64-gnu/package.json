@@ -18,5 +18,9 @@
   ],
   "libc": [
     "glibc"
+  ],
+  "collaborators": [
+    "LastLeaf <bqfu@163.com>",
+    "TtTRz <romc1224@gmail.com>"
   ]
 }
