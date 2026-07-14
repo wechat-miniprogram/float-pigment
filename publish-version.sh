@@ -7,6 +7,15 @@ fi
 
 VERSION="$1"
 
+if [ ! -x float-pigment-css-napi/node_modules/.bin/napi ]; then
+    if (cd float-pigment-css-napi && pnpm install --frozen-lockfile); then
+        echo 'Installed float-pigment-css-napi dev dependencies.'
+    else
+        echo 'Failed to install float-pigment-css-napi dev dependencies! Abort.'
+        exit -1
+    fi
+fi
+
 # run tests
 if cargo test; then
     echo 'Cargo test done.'
