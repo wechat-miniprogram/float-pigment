@@ -254,4 +254,5 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           npm config set provenance true
+          npm config set git-checks false
           npm publish --access public
