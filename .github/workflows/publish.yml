@@ -205,6 +205,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check napi package.json version matches tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ACTUAL=$(node -p "require('./package.json').version")
+          if [ "$ACTUAL" != "$VERSION" ]; then
+            echo "Error: float-pigment-css-napi/package.json version is $ACTUAL but tag is v$VERSION"
+            exit 1
+          fi
+          echo "OK: napi package.json version = $ACTUAL"
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
