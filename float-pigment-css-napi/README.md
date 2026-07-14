@@ -1,6 +1,6 @@
 # float-pigment-css-napi
 
-Node.js N-API binding for [float-pigment-css](https://github.com/wechat-miniprogram/float-pigment) — compiles WXSS/CSS into bincode or JSON at native speed, via a pure-Rust addon built with [napi-rs](https://napi.rs/).
+Node.js N-API binding for [float-pigment-css](https://github.com/wechat-miniprogram/float-pigment).
 
 ## Usage
 
@@ -56,7 +56,7 @@ Prerequisites: Rust toolchain (1.92.0+), Node.js 16+, pnpm.
 
 ### Publishing
 
-Releases are driven by CI. Push a `v*` tag; the `publish.yml` workflow builds all eight napi targets on native runners, collects the artifacts with `napi artifacts`, and publishes the per-platform packages plus the main package to npm via OIDC trusted publishing (no npm token needed). The same `v*` tag also publishes the Rust crates and the wasm package.
+Push a `v*` tag and CI builds all eight napi targets on native runners, then publishes to npm. The same `v*` tag also publishes the Rust crates and the wasm package.
 
 ### Runtime Compatibility
 
