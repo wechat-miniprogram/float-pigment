@@ -152,24 +152,7 @@ else
     exit -1
 fi
 
-# run wasm-pack again to update package version
-if wasm-pack build float-pigment-css --target nodejs --features nodejs-package; then
-    echo 'WebAssembly built for float-pigment-css.'
-else
-    echo 'Failed to build WebAssembly package for float-pigment-css! Abort.'
-    exit -1
-fi
-
-# cargo publish
-echo "Ready to publish version ${VERSION}."
-for PROJECT in $PROJECTS; do
-    echo ""
-    echo "Publishing ${PROJECT}..."
-    cargo publish -p "${PROJECT}"
-done
-
-# npm publish
-cd float-pigment-css/pkg
-echo "Publishing NPM package for float-pigment-css..."
-npm publish --registry https://registry.npmjs.org
-cd ../..
+# Publishing is handled by GitHub Actions CI:
+# - v${VERSION} tag triggers .github/workflows/publish.yml (crates.io + wasm npm)
+# - napi-v${VERSION} tag triggers .github/workflows/napi.yml (napi npm)
+echo "Tags v${VERSION} and napi-v${VERSION} pushed. CI will publish to crates.io and npm."
