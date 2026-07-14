@@ -252,7 +252,7 @@ jobs:
       - name: Publish
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          npm_config_git_checks: 'false'
         run: |
           npm config set provenance true
+          echo "git-checks=false" >> .npmrc
           npm publish --access public
