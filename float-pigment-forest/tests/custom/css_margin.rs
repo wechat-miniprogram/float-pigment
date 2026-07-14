@@ -13,12 +13,18 @@ use crate::*;
 // - Element is offset from container edge by margin
 // In this test:
 // - Element: margin=10px, positioned at left=10
-// - Note: top margin collapses with parent, so expect_top=0 within parent
+// - Outer div is Fragment's first child. Fragment is the layout entry (no
+//   parent, playing the root role per CSS 2.1 §8.3.1), so its margins do not
+//   collapse with the outer div's margin. The outer div's own margin does
+//   collapse with its child's margin normally, but here the outer div itself
+//   has no margin — the child's `margin: 10px` propagates to the outer div's
+//   top edge as usual (child pushes outer down by 10 via ordinary block flow
+//   since outer has no border/padding).
 #[test]
 fn margin_fixed() {
     assert_xml!(
         r#"
-        <div style="height: 100px; width: 100px;" expect_top="0">
+        <div style="height: 100px; width: 100px;" expect_top="10">
           <div style="width: 10px; height: 10px; margin: 10px;" expect_width="10" expect_height="10" expect_left="10" expect_top="0"></div>
         </div>
     "#
@@ -35,7 +41,7 @@ fn margin_fixed() {
 fn margin_percentage() {
     assert_xml!(
         r#"
-        <div style="height: 100px; width: 100px;" expect_top="0">
+        <div style="height: 100px; width: 100px;" expect_top="10">
             <div style="width: 10px; height: 10px; margin: 10%;" expect_width="10" expect_height="10" expect_left="10" expect_top="0"></div>
         </div>
     "#
@@ -233,18 +239,17 @@ fn margin_not_collapse_if_padding_exists_2() {
 }
 
 // Case: Margin collapse with min-height (min-height < total content)
-// Spec points:
-// - min-height allows content to overflow
-// - Margins still collapse normally
-// In this test:
-// - Parent with min-height=30px, children total more than that
-// - Margin collapse continues past min-height
+// Spec: CSS 2.1 §8.3.1 relation (c) — only `height` (not min-height) gates
+// parent-last-child bottom collapse. min-height=30 does NOT block the last child's
+// margin-bottom:50 from collapsing into the parent, so the parent absorbs it
+// (parent.height = content 20+20 + collapsed 50 = 90, but min-height=30 is
+// satisfied by content alone).
 #[test]
 fn margin_collapse_min_height() {
     assert_xml!(
         r#"
         <div style="width: 100px;" expect_height="120">
-            <div style="min-height: 30px;" expect_height="40">
+            <div style="min-height: 30px;" expect_height="90">
                 <div style="height: 20px;" expect_height="20"></div>
                 <div style="height: 20px; margin-bottom: 50px;" expect_height="20"></div>
             </div>
@@ -255,12 +260,9 @@ fn margin_collapse_min_height() {
 }
 
 // Case: Margin collapse with min-height (min-height > total content)
-// Spec points:
-// - min-height expands element beyond content
-// - Margins collapse up to the min-height boundary
-// In this test:
-// - Parent with min-height=50px > content height
-// - Parent expands to accommodate margin-bottom
+// Spec: as above — min-height does not block collapse. Parent absorbs the last child's
+// margin-bottom:50, parent.height = content 20+20 + collapsed 50 = 90
+// (min-height=50 satisfied).
 #[test]
 fn margin_collapse_min_height_2() {
     assert_xml!(
@@ -277,44 +279,41 @@ fn margin_collapse_min_height_2() {
 }
 
 // Case: Margin collapse with max-height
-// Spec points:
-// - max-height=0 clips the element's height but overflow exists
-// - Margins collapse from the visible edge
-// In this test:
-// - max-height=0 clips first container
-// - Second container positioned at top=0 due to collapse
+// Spec: CSS 2.1 §8.3.1 relation (c) — only `height` (not max-height) gates
+// parent-last-child bottom collapse. max-height=0 clips the box visually but does
+// NOT block the last child's margin-bottom:20 from collapsing into the parent.
+// The collapsed margin (20) then propagates to the parent's bottom and
+// collapses with the next sibling (h:30), giving sibling.top = 20.
 #[test]
 fn margin_collapse_max_height() {
     assert_xml!(
         r#"
-            <div style="width: 100px;" expect_height="30">
+            <div style="width: 100px;" expect_height="50">
                 <div style="max-height: 0px" expect_height="0">
                     <div style="height: 20px;" expect_height="20"></div>
                     <div style="height: 20px; margin-bottom: 20px;" expect_height="20"></div>
                 </div>
-                <div style="height: 30px;" expect_height="30" expect_top="0"></div>
+                <div style="height: 30px;" expect_height="30" expect_top="20"></div>
             </div>
         "#
     )
 }
 
 // Case: Margin collapse with max-height and external margin
-// Spec points:
-// - Margin on clipped element still participates in collapse
-// In this test:
-// - First element: max-height=0, margin-bottom=10px, child margin-bottom=50px
-// - Collapsed margin = max(10, 50) = 50px... but collapses with next sibling
-// - Second child at top=10 after collapse
+// Spec: max-height does not block collapse. Parent (max-h:0, mb:10) has
+// last child mb:50; collapsed into parent.bottom = max(10, 50) = 50. The parent's
+// own margin (10) and the last child's (50) are already collapsed; sibling (h:30) sits
+// at parent.bottom + collapsed = 0 + 50 = 50.
 #[test]
 fn margin_collapse_max_height_2() {
     assert_xml!(
         r#"
-            <div expect_height="40">
+            <div expect_height="80">
                 <div style="max-height: 0px; margin-bottom: 10px;" expect_height="0">
                     <div style="height: 20px;" expect_height="20"></div>
                     <div style="height: 20px; margin-bottom: 50px;" expect_height="20"></div>
                 </div>
-                <div style="height: 30px;" expect_top="10" expect_height="30"></div>
+                <div style="height: 30px;" expect_top="50" expect_height="30"></div>
             </div>
         "#
     )
@@ -327,11 +326,16 @@ fn margin_collapse_max_height_2() {
 // In this test:
 // - Flex column container with block children
 // - Block children's margins collapse internally
+// Case: flex container as first child of a non-flex parent (Fragment root)
+// Spec: Flexbox §3 — a flex container establishes a new formatting context
+// and its margins do NOT collapse with its parent. Fragment (layout root, no
+// parent) also does not collapse (CSS 2.1 §8.3.1). So the flex's margin-top
+// (100) applies as a direct offset from Fragment's content origin.
 #[test]
 fn margin_collapse_cross_flex() {
     assert_xml!(
         r#"
-            <div style="margin-top: 100px; display: flex; flex-direction: column" expect_top="0">
+            <div style="margin-top: 100px; display: flex; flex-direction: column" expect_top="100">
                 <div style="margin-top: 200px;" expect_top="200">
                     <div style="display: flex; margin-top: 250px; height: 50px;" expect_top="250"></div>
                 </div>
@@ -343,14 +347,23 @@ fn margin_collapse_cross_flex() {
 // Case: Margin collapse cross flex (nested case 2)
 // Spec points:
 // - Block children within flex items can have margin collapse
+// Case: block parent with a flex descendant; verifies BFC blocking.
+// Layout: Fragment (root, no collapse) → outer div (no margin) → two siblings:
+// - first block(h:10, mt:10): its mt:10 collapses INTO outer div (no
+//   border/padding); Fragment does not absorb it, so outer.top=10.
+// - second block(mt:10) contains a flex(mt:20). Flex establishes a BFC, so
+//   its mt:20 does NOT collapse into the second block. Sibling collapse
+//   between first(mb:0) and second(mt:10) = max(0,10)=10, so second sits at
+//   first.bottom(10) + collapsed(10) = 20 relative to outer. Flex descendant
+//   sits at 20 (its own mt) relative to its parent (second block).
 #[test]
 fn margin_collapse_cross_flex_2() {
     assert_xml!(
         r#"
-            <div expect_top="0">
+            <div expect_top="10">
                 <div style="height: 10px; margin-top: 10px;" expect_top="0"></div>
-                <div style="margin-top: 10px;"  expect_top="30">
-                    <div style="margin-top: 20px; display: flex; height: 100px;" expect_top="0"></div>
+                <div style="margin-top: 10px;"  expect_top="20">
+                    <div style="margin-top: 20px; display: flex; height: 100px;" expect_top="20"></div>
                 </div>
             </div>
         "#
@@ -377,6 +390,8 @@ fn margin_collapse_cross_flex_3() {
 // Case: Margin collapse cross flex (deeply nested)
 // Spec points:
 // - Complex nesting with flex and block contexts
+// - Innermost flex(mt:40) does NOT collapse into its non-flex parent (flex
+//   establishes a BFC), so it sits at top=40 relative to its parent.
 #[test]
 fn margin_collapse_cross_flex_4() {
     assert_xml!(
@@ -386,7 +401,7 @@ fn margin_collapse_cross_flex_4() {
                     <div style="margin-top: 10px" expect_top="10">
                         <div style="margin-top: 80px;" expect_top="90">
                             <div style="margin-top: 90px;" expect_top="0">
-                                <div style="display: flex; flex-direction: column; margin-top: 40px; height: 50px;" expect_top="0"></div>
+                                <div style="display: flex; flex-direction: column; margin-top: 40px; height: 50px;" expect_top="40"></div>
                             </div>
                         </div>
                     </div>
@@ -397,16 +412,17 @@ fn margin_collapse_cross_flex_4() {
 }
 
 // Case: Margin collapse cross flex (variation 5)
+// Spec: flex establishes a BFC and does not collapse into its non-flex parent.
 #[test]
 fn margin_collapse_cross_flex_5() {
     assert_xml!(
         r#"
             <div>
-                <div style="display: flex; flex-direction: column; margin-top: 10px;" expect_top="0">
+                <div style="display: flex; flex-direction: column; margin-top: 10px;" expect_top="10">
                     <div style="margin-top: 10px" expect_top="10">
                         <div style="margin-top: 80px;" expect_top="90">
                             <div style="margin-top: 90px;" expect_top="0">
-                                <div style="display: flex; flex-direction: column; margin-top: 40px; height: 50px;" expect_top="0"></div>
+                                <div style="display: flex; flex-direction: column; margin-top: 40px; height: 50px;" expect_top="40"></div>
                             </div>
                         </div>
                     </div>
@@ -417,13 +433,19 @@ fn margin_collapse_cross_flex_5() {
 }
 
 // Case: Margin collapse cross flex (variation 6)
+// Case: block > block(mt:10) > flex(mt:20). Spec:
+// - inner block(mt:10) collapses into outer block; outer.margin.top=10;
+//   Fragment (root) does not absorb it, so outer.top=10.
+// - inner block relative to outer = 0 (its margin absorbed by outer).
+// - flex(mt:20) establishes a BFC and does NOT collapse into inner block;
+//   flex.top = inner block content origin (0) + flex.margin-top (20) = 20.
 #[test]
 fn margin_collapse_cross_flex_6() {
     assert_xml!(
         r#"
-            <div expect_top="0">
+            <div expect_top="10">
                 <div style="margin-top: 10px" expect_top="0">
-                    <div style="display: flex; flex-direction: column; margin-top: 20px; height: 100px;" expect_top="0"></div>
+                    <div style="display: flex; flex-direction: column; margin-top: 20px; height: 100px;" expect_top="20"></div>
                 </div>
             </div>
         "#
@@ -690,10 +712,11 @@ unsafe fn as_ref<'a>(node: *mut Node) -> &'a Node {
 }
 
 // Case: Margin on root element
-// Spec points:
-// - Root element margins apply relative to viewport
-// In this test:
-// - Root margins collapse with first child margins
+// Spec: CSS 2.1 §8.3.1 — root element margins do not collapse.
+// container is the layout entry (root role) and does not collapse with root.
+// root has no margin itself, but child.margin (10) collapses INTO root
+// normally (root has no border/padding), so root's outer margin.top becomes
+// 10 — and that 10 is NOT absorbed by container, so root.top = 10.
 #[test]
 pub fn margin_root() {
     unsafe {
@@ -710,7 +733,7 @@ pub fn margin_root() {
             OptionSize::new(OptionNum::some(Len::from_f32(375.)), OptionNum::none()),
             Size::new(Len::from_f32(0.), Len::from_f32(0.)),
         );
-        assert_eq!(root.layout_position().top, 0.);
+        assert_eq!(root.layout_position().top, 10.);
         assert_eq!(child.layout_position().top, 0.);
         assert_eq!(child.layout_position().height, 20.);
     }
@@ -739,8 +762,8 @@ pub fn margin_root_empty_block() {
 }
 
 // Case: Inline root element with margin on child
-// Spec points:
-// - Inline element's margin is determined by content
+// Spec: root is layout entry (no parent) — its margins do not collapse with
+// its child's, so child.margin (100) is NOT propagated to root.margin.bottom.
 #[test]
 pub fn margin_root_3() {
     unsafe {
@@ -755,15 +778,15 @@ pub fn margin_root_3() {
             OptionSize::new(OptionNum::some(Len::from_f32(375.)), OptionNum::none()),
             Size::new(Len::from_f32(0.), Len::from_f32(0.)),
         );
-        assert_eq!(root.layout_node().computed_style().margin.bottom, 100.);
-        assert_eq!(root.layout_position().height, 100.);
+        assert_eq!(root.layout_node().computed_style().margin.bottom, 0.);
+        assert_eq!(root.layout_position().height, 300.);
         assert_eq!(child.layout_position().height, 100.);
     }
 }
 
 // Case: Nested inline elements with margin
-// Spec points:
-// - Deeply nested inline margin propagation
+// Spec: root is layout entry (no parent) — its margins do not collapse with
+// child_child's margin, so it is not propagated up.
 #[test]
 pub fn margin_root_4() {
     unsafe {
@@ -783,8 +806,8 @@ pub fn margin_root_4() {
             OptionSize::new(OptionNum::some(Len::from_f32(375.)), OptionNum::none()),
             Size::new(Len::from_f32(0.), Len::from_f32(0.)),
         );
-        assert_eq!(root.layout_node().computed_style().margin.bottom, 100.);
-        assert_eq!(root.layout_position().height, 100.);
+        assert_eq!(root.layout_node().computed_style().margin.bottom, 0.);
+        assert_eq!(root.layout_position().height, 300.);
         assert_eq!(child.layout_position().height, 100.);
         assert_eq!(child_child.layout_position().height, 100.);
     }
