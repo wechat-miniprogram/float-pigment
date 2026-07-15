@@ -382,7 +382,7 @@ property_value_format! (PropertyValueWithGlobal, {
         = "auto" -> |_| (Number::F32(1.), Number::F32(1.), Length::Auto);
         | "none" -> |_| (Number::F32(0.), Number::F32(0.), Length::Auto);
         | [ <number> <number>? || <length_percentage_auto> ] -> |(gs, b): (Option<(Number, Option<Number>)>, Option<Length>)| -> _ {
-            let (g, s) = gs.unwrap_or((Number::F32(0.), None));
+            let (g, s) = gs.unwrap_or((Number::F32(1.), None));
             let s = s.unwrap_or(Number::F32(1.));
             let b = b.unwrap_or(Length::Ratio(0.));
             (g, s, b)
