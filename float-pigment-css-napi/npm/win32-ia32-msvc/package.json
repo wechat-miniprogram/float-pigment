@@ -1,6 +1,6 @@
 {
   "name": "float-pigment-css-napi-win32-ia32-msvc",
-  "version": "0.9.6",
+  "version": "0.9.7",
   "cpu": [
     "ia32"
   ],

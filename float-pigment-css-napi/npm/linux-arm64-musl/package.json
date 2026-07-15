@@ -1,6 +1,6 @@
 {
   "name": "float-pigment-css-napi-linux-arm64-musl",
-  "version": "0.9.6",
+  "version": "0.9.7",
   "cpu": [
     "arm64"
   ],
