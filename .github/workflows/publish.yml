@@ -249,6 +249,19 @@ jobs:
       - name: Move artifacts into per-platform npm dirs
         run: pnpm run artifacts
 
+      - name: Debug OIDC claims
+        run: |
+          OIDC=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm" | jq -r .value)
+          echo "=== OIDC claims (audience=npm) ==="
+          echo "$OIDC" | python3 -c "
+          import sys, base64, json
+          payload = sys.stdin.read().split('.')[1]
+          claims = json.loads(base64.urlsafe_b64decode(payload + '==='))
+          for k in ['repository_owner','repository','workflow','workflow_ref','job_workflow_ref','environment','ref','event_name','actor']:
+              print(f'{k}: {claims.get(k)}')
+          "
+
       - name: Publish
         run: |
           node -e "
