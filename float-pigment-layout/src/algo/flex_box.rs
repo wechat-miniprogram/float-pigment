@@ -962,7 +962,8 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
         if matches!(
             style.align_content(),
             AlignContent::Stretch | AlignContent::Normal
-        ) {
+        ) && requested_size.cross_size(dir).is_some()
+        {
             let requested_cross_size = requested_size.cross_size(dir).or_zero();
             let min_inner_cross =
                 self_min_max_limit.cross_size(requested_cross_size, dir) - padding_border_cross;
@@ -1052,7 +1053,16 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
 
                 let child_margin_cross = flex_child.margin.cross_axis_sum(dir);
                 match flex_child.early_positioning {
-                    EarlyPositioning::NoPositioning => {
+                    EarlyPositioning::AcceptChildCrossSize => {
+                        // Non-stretch (or stretch that can't apply): use hypothetical cross.
+                        flex_child.target_size.set_cross_size(
+                            dir,
+                            flex_child.hypothetical_inner_size.cross_size(dir),
+                        );
+                    }
+                    _ => {
+                        // NoPositioning or StretchedCrossSize: align-self stretch with auto
+                        // cross and no auto margin -> used cross = line cross clamped (§9.4 step 11).
                         flex_child.target_size.set_cross_size(
                             dir,
                             flex_child
@@ -1064,19 +1074,13 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                             env,
                             child_node,
                             ComputeRequest {
-                                size: Normalized(size), // main_size and cross_size is both normalized above
-                                parent_inner_size: inner_container_option_size, // main_size and cross_size is both normalized above
-                                max_content: Normalized(size), // main_size and cross_size is both normalized above
+                                size: Normalized(size),
+                                parent_inner_size: inner_container_option_size,
+                                max_content: Normalized(size),
                                 kind: ComputeRequestKind::Position,
                                 parent_is_block: false,
                                 sizing_mode: request.sizing_mode,
                             },
-                        );
-                    }
-                    _ => {
-                        flex_child.target_size.set_cross_size(
-                            dir,
-                            flex_child.hypothetical_inner_size.cross_size(dir),
                         );
                     }
                 }
