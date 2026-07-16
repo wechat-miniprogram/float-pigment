@@ -200,7 +200,7 @@ jobs:
     needs: build-napi
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       id-token: write
     defaults:
       run:
@@ -249,19 +249,6 @@ jobs:
       - name: Move artifacts into per-platform npm dirs
         run: pnpm run artifacts
 
-      - name: Debug OIDC claims
-        run: |
-          OIDC=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm" | jq -r .value)
-          echo "=== OIDC claims (audience=npm) ==="
-          echo "$OIDC" | python3 -c "
-          import sys, base64, json
-          payload = sys.stdin.read().split('.')[1]
-          claims = json.loads(base64.urlsafe_b64decode(payload + '==='))
-          for k in ['repository_owner','repository','workflow','workflow_ref','job_workflow_ref','environment','ref','event_name','actor']:
-              print(f'{k}: {claims.get(k)}')
-          "
-
       - name: Publish
         run: |
           node -e "
@@ -284,6 +271,6 @@ jobs:
             console.log('synced optionalDependencies:', Object.keys(opt).length, 'packages');
           "
           for dir in npm/*/; do
-            (cd "$dir" && pnpm publish --provenance --no-git-checks --access public)
+            (cd "$dir" && pnpm publish --provenance --no-git-checks)
           done
-          pnpm publish --provenance --no-git-checks --access public --ignore-scripts
+          pnpm publish --provenance --no-git-checks --ignore-scripts
