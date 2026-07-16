@@ -432,3 +432,24 @@ fn align_items_center_with_align_content_flex_start_with_min_height_with_wrap() 
         true
     )
 }
+
+// Case: align-items with auto cross-axis margins and overflow (outer >= line)
+// Spec points (§9.6 step 13):
+// - When both cross-axis margins are auto and the item's outer cross size is
+//   greater than or equal to the line's cross size, the cross-start margin is
+//   set to zero and the opposite margin absorbs the difference (so outer = line).
+// - The item is packed to the cross-start edge (top=0 here), not centered.
+// In this test:
+// - Container: 100px tall, item: 150px tall (overflows the line)
+// - margin-top: auto; margin-bottom: auto -> both auto, overflow
+// - Item packed to top=0 (not top=-25 as equal distribution would give)
+#[test]
+fn align_items_auto_margin_overflow() {
+    assert_xml!(
+        r#"
+        <div style="display: flex; align-items: flex-start; height: 100px; width: 100px;">
+            <div style="flex-shrink: 0; height: 150px; width: 50px; margin-top: auto; margin-bottom: auto;" expect_width="50" expect_height="150" expect_top="0"></div>
+        </div>
+    "#
+    )
+}

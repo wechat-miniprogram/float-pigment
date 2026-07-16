@@ -183,3 +183,58 @@ fn justify_content_space_evenly() {
     "#
     )
 }
+
+// Case: justify-content: space-around with overflow (negative free space)
+// Spec points:
+// - When items overflow the container, space-around degrades to flex-start:
+//   no extra spacing is inserted (spacing only applies to positive free space).
+// In this test:
+// - Container: 100px, items: 120px total (flex-shrink: 0, so they overflow)
+// - First at left=0, second at left=60 (packed, no spacing)
+#[test]
+fn justify_content_space_around_overflow() {
+    assert_xml!(
+        r#"
+        <div style="display: flex; width: 100px; justify-content: space-around">
+            <div style="flex-shrink: 0; height: 50px; width: 60px;" expect_width="60" expect_height="50" expect_left="0"></div>
+            <div style="flex-shrink: 0; height: 50px; width: 60px;" expect_width="60" expect_height="50" expect_left="60"></div>
+        </div>
+    "#
+    )
+}
+
+// Case: justify-content: space-evenly with overflow (negative free space)
+// Spec points:
+// - Same degradation as space-around: packed to flex-start, no spacing.
+// In this test:
+// - Container: 100px, items: 120px total (overflow)
+// - First at left=0, second at left=60
+#[test]
+fn justify_content_space_evenly_overflow() {
+    assert_xml!(
+        r#"
+        <div style="display: flex; width: 100px; justify-content: space-evenly">
+            <div style="flex-shrink: 0; height: 50px; width: 60px;" expect_width="60" expect_height="50" expect_left="0"></div>
+            <div style="flex-shrink: 0; height: 50px; width: 60px;" expect_width="60" expect_height="50" expect_left="60"></div>
+        </div>
+    "#
+    )
+}
+
+// Case: justify-content: space-between with overflow (negative free space)
+// Spec points:
+// - space-between also degrades to flex-start on overflow (no space to distribute).
+// In this test:
+// - Container: 100px, items: 120px total (overflow)
+// - First at left=0, second at left=60
+#[test]
+fn justify_content_space_between_overflow() {
+    assert_xml!(
+        r#"
+        <div style="display: flex; width: 100px; justify-content: space-between">
+            <div style="flex-shrink: 0; height: 50px; width: 60px;" expect_width="60" expect_height="50" expect_left="0"></div>
+            <div style="flex-shrink: 0; height: 50px; width: 60px;" expect_width="60" expect_height="50" expect_left="60"></div>
+        </div>
+    "#
+    )
+}

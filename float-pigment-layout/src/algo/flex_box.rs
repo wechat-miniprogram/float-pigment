@@ -332,7 +332,9 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
             // calculate the style-based size and use it as flex basis
             let mut size = flex_child.size;
             size.set_cross_size(dir, cross_size);
-            let size = flex_child.min_max_limit.normalized_size(size);
+            let size = flex_child
+                .min_max_limit
+                .normalized_size_keep_main(size, dir);
             let mut max_content = OptionSize::new(OptionNum::none(), OptionNum::none());
             max_content.set_cross_size(
                 dir,
@@ -495,7 +497,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                     let size = flex_child.min_max_limit.normalized_size(css_size);
                     let mut max_content = OptionSize::new(OptionNum::none(), OptionNum::none());
                     max_content.set_main_size(dir, OptionNum::zero());
-                    let max_content = flex_child.min_max_limit.normalized_size(max_content);
+                    let max_content = Normalized(max_content);
                     child
                         .compute_internal(
                             env,
@@ -684,11 +686,32 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                 //    - Negative
                 //        Freeze all the items with max violations.
 
+                // d. Fix min/max violations. Clamp each non-frozen item's target main size by
+                //    its used min and max main sizes. The per-item violation is (clamped - unclamped):
+                //    positive = min violation (made larger), negative = max violation (made smaller).
+                let zero = T::Length::zero();
+                let mut total_violation = zero;
+                let mut violations: Vec<T::Length> = Vec::with_capacity(unfrozen.len());
                 for flex_child in unfrozen.iter_mut() {
                     let cur = flex_child.target_size.main_size(dir);
                     let clamped = flex_child.min_max_limit.main_size(cur, dir);
                     flex_child.target_size.set_main_size(dir, clamped);
-                    if clamped != cur {
+                    let v = clamped - cur;
+                    total_violation = total_violation + v;
+                    violations.push(v);
+                }
+                // e. Freeze over-flexed items based on the sign of the total violation:
+                //    - Zero: freeze all. Positive: freeze min violations (v > 0).
+                //    - Negative: freeze max violations (v < 0).
+                for (flex_child, v) in unfrozen.iter_mut().zip(violations.iter()) {
+                    let freeze = if total_violation > zero {
+                        *v > zero
+                    } else if total_violation < zero {
+                        *v < zero
+                    } else {
+                        true
+                    };
+                    if freeze {
                         flex_child.frozen = true;
                         prev_free_space = None;
                     }
@@ -1152,14 +1175,14 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                                 if free_space >= T::Length::zero() {
                                     free_space.div_i32(num_items).div_i32(2)
                                 } else {
-                                    free_space.div_i32(2)
+                                    T::Length::zero()
                                 }
                             }
                             JustifyContent::SpaceEvenly => {
                                 if free_space >= T::Length::zero() {
                                     free_space.div_i32(num_items + 1)
                                 } else {
-                                    free_space.div_i32(2)
+                                    T::Length::zero()
                                 }
                             }
                         }
@@ -1208,16 +1231,31 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                         .cross_axis_end(dir, cross_dir_rev)
                         .is_none();
                 if is_cross_both_auto {
-                    flex_child.margin.set_cross_axis_start(
-                        dir,
-                        cross_dir_rev,
-                        OptionNum::some(free_space.div_i32(2)),
-                    );
-                    flex_child.margin.set_cross_axis_end(
-                        dir,
-                        cross_dir_rev,
-                        OptionNum::some(free_space.div_i32(2)),
-                    );
+                    if free_space > T::Length::zero() {
+                        flex_child.margin.set_cross_axis_start(
+                            dir,
+                            cross_dir_rev,
+                            OptionNum::some(free_space.div_i32(2)),
+                        );
+                        flex_child.margin.set_cross_axis_end(
+                            dir,
+                            cross_dir_rev,
+                            OptionNum::some(free_space.div_i32(2)),
+                        );
+                    } else {
+                        // Overflow (outer >= line): per spec, set the cross-start margin to zero
+                        // and the opposite margin so the outer cross size equals the line.
+                        flex_child.margin.set_cross_axis_start(
+                            dir,
+                            cross_dir_rev,
+                            OptionNum::some(T::Length::zero()),
+                        );
+                        flex_child.margin.set_cross_axis_end(
+                            dir,
+                            cross_dir_rev,
+                            OptionNum::some(free_space),
+                        );
+                    }
                 } else if flex_child
                     .margin
                     .cross_axis_start(dir, cross_dir_rev)

@@ -76,3 +76,28 @@ fn flex_shrink_1_0_2() {
     "#
     )
 }
+
+// Case: flex-shrink with max-width clamping the declared main size
+// Spec points (§9.2.3 vs §9.2.4):
+// - The flex base size uses the declared main size UNCLAMPED (§9.2.3).
+// - Clamping to min/max happens only at the hypothetical main size step (§9.2.4).
+// - Therefore the scaled flex shrink factor (§9.7, = flex-shrink × inner flex base
+//   size) uses the unclamped declared size, not the max-clamped size.
+// In this test:
+// - Container: 100px, both items width=200 max-width=100 (declared > max)
+// - flex-shrink 1 and 2 -> scaled factors 1*200=200 and 2*200=400 (sum 600)
+// - free space = 100 - (200+200) = -300
+// - item1 target = 200 + (-300)*(200/600) = 100, clamped to [0,100] = 100
+// - item2 target = 200 + (-300)*(400/600) = 0, clamped to [0,100] = 0
+// - (If flex base size were wrongly clamped to 100, targets would be ~66.67 and ~33.33.)
+#[test]
+fn flex_shrink_max_width_unclamped_basis() {
+    assert_xml!(
+        r#"
+        <div style="display: flex; width: 100px;">
+          <div style="flex-shrink: 1; max-width: 100px; height: 100px; width: 200px;" expect_width="100"></div>
+          <div style="flex-shrink: 2; max-width: 100px; height: 100px; width: 200px;" expect_width="0"></div>
+        </div>
+    "#
+    )
+}

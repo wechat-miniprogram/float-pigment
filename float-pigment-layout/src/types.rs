@@ -888,6 +888,29 @@ impl<L: LengthNum> MinMaxLimit<L> {
         ))
     }
 
+    /// Like `normalized_size`, but only clamps the cross axis; the main axis
+    /// keeps its declared value. Per CSS-FLEXBOX-1 §9.2.3 the flex base size
+    /// uses the declared main size unclamped — clamping to min/max happens
+    /// later at the hypothetical main size step (§9.2.4).
+    pub(crate) fn normalized_size_keep_main(
+        &self,
+        v: OptionSize<L>,
+        dir: AxisDirection,
+    ) -> Normalized<OptionSize<L>> {
+        match dir {
+            AxisDirection::Horizontal => Normalized(OptionSize::new(
+                v.width,
+                v.height
+                    .map(|x| x.maybe_min(self.max_height).max(self.min_height)),
+            )),
+            AxisDirection::Vertical => Normalized(OptionSize::new(
+                v.width
+                    .map(|x| x.maybe_min(self.max_width).max(self.min_width)),
+                v.height,
+            )),
+        }
+    }
+
     pub(crate) fn width(&self, x: L) -> L {
         x.maybe_min(self.max_width).max(self.min_width)
     }
