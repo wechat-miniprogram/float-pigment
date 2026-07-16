@@ -266,13 +266,17 @@ jobs:
         run: |
           node -e "
             const fs = require('fs');
+            const repo = { type: 'git', url: 'git+https://github.com/wechat-miniprogram/float-pigment.git' };
             const pkg = JSON.parse(fs.readFileSync('package.json','utf8'));
+            pkg.repository = repo;
             const opt = {};
             for (const dir of fs.readdirSync('npm')) {
               const p = 'npm/' + dir + '/package.json';
               if (fs.existsSync(p)) {
                 const sub = JSON.parse(fs.readFileSync(p,'utf8'));
                 opt[sub.name] = pkg.version;
+                sub.repository = repo;
+                fs.writeFileSync(p, JSON.stringify(sub, null, 2) + '\n');
               }
             }
             pkg.optionalDependencies = opt;

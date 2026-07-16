@@ -42,5 +42,9 @@
   "packageManager": "pnpm@8.15.9",
   "devDependencies": {
     "@napi-rs/cli": "^3.7.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wechat-miniprogram/float-pigment.git"
   }
 }

@@ -22,5 +22,9 @@
   "collaborators": [
     "LastLeaf <bqfu@163.com>",
     "TtTRz <romc1224@gmail.com>"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wechat-miniprogram/float-pigment.git"
+  }
 }
