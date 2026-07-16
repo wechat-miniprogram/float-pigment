@@ -888,18 +888,15 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
             flex_lines[0].cross_size = self_min_max_limit
                 .cross_size(requested_size.cross_size(dir).or_zero(), dir)
                 - padding_border_cross;
-            let max_baseline = flex_lines[0]
+            flex_lines[0].first_baseline_ascent = flex_lines[0]
                 .items
                 .iter()
+                .filter(|child| child.final_align_self == AlignSelf::Baseline)
                 .map(|child| {
-                    if child.final_align_self == AlignSelf::Baseline {
-                        child.first_baseline_ascent.cross_axis(dir)
-                    } else {
-                        T::Length::zero()
-                    }
+                    child.first_baseline_ascent.cross_axis(dir)
+                        + child.margin.cross_axis_start(dir, cross_dir_rev).or_zero()
                 })
                 .fold(T::Length::zero(), |acc, x| acc.max(x));
-            flex_lines[0].first_baseline_ascent = max_baseline;
         } else {
             for line in &mut flex_lines {
                 //    1. Collect all the flex items whose inline-axis is parallel to the main-axis, whose
@@ -914,32 +911,30 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                 //    3. The used cross-size of the flex line is the largest of the numbers found in the
                 //       previous two steps and zero.
 
-                let max_baseline: T::Length = line
-                    .items
-                    .iter()
-                    .map(|child| {
-                        if child.final_align_self == AlignSelf::Baseline {
-                            child.first_baseline_ascent.cross_axis(dir)
-                                + child.margin.cross_axis_start(dir, cross_dir_rev).or_zero()
-                        } else {
-                            T::Length::zero()
-                        }
-                    })
-                    .fold(T::Length::zero(), |acc, x| acc.max(x));
-                line.first_baseline_ascent = max_baseline;
-                line.cross_size = line
-                    .items
-                    .iter()
-                    .map(|child| {
-                        if child.final_align_self == AlignSelf::Baseline {
-                            max_baseline - child.first_baseline_ascent.cross_axis(dir)
-                                + child.hypothetical_outer_size.cross_size(dir)
-                                + child.margin.cross_axis_end(dir, cross_dir_rev).or_zero()
-                        } else {
-                            child.hypothetical_outer_size.cross_size(dir)
-                        }
-                    })
-                    .fold(T::Length::zero(), |acc, x| acc.max(x));
+                // 1. Baseline items: line cross gets max(baseline→cross-start) +
+                //    max(baseline→cross-end). Non-baseline items: max hypothetical
+                //    outer cross. Line cross = max of those and zero (§9.4 step 1-3).
+                //    start_dist = margin_start + first_baseline
+                //    end_dist   = hypothetical_outer - margin_start - first_baseline
+                let mut max_start_dist = T::Length::zero();
+                let mut max_end_dist = T::Length::zero();
+                let mut max_non_baseline = T::Length::zero();
+                for child in line.items.iter() {
+                    if child.final_align_self == AlignSelf::Baseline {
+                        let margin_start =
+                            child.margin.cross_axis_start(dir, cross_dir_rev).or_zero();
+                        let baseline = child.first_baseline_ascent.cross_axis(dir);
+                        max_start_dist = max_start_dist.max(margin_start + baseline);
+                        max_end_dist = max_end_dist.max(
+                            child.hypothetical_outer_size.cross_size(dir) - margin_start - baseline,
+                        );
+                    } else {
+                        max_non_baseline =
+                            max_non_baseline.max(child.hypothetical_outer_size.cross_size(dir));
+                    }
+                }
+                line.first_baseline_ascent = max_start_dist;
+                line.cross_size = (max_start_dist + max_end_dist).max(max_non_baseline);
             }
 
             //    If the flex container is single-line, then clamp the line’s cross-size to be within the container’s computed min
