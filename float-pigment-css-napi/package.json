@@ -1,6 +1,6 @@
 {
   "name": "float-pigment-css-napi",
-  "version": "0.9.8",
+  "version": "0.9.9",
   "description": "Node.js N-API binding for float-pigment-css",
   "collaborators": [
     "LastLeaf <bqfu@163.com>",
