@@ -467,15 +467,23 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
             let growing = used_flex_factor < requested_inner_size.main_size(dir).or_zero();
             let shrinking = !growing;
 
-            // if the main size is unlimited but the main max-content is limited,
-            // and the sum of hypothetical main sizes exceeds the max-content,
-            // the request size should be limited to the max-content (but no less than sum of the min-content).
-            let shrink_max_content = match requested_inner_size.main_size(dir).is_none() {
-                false => None,
-                true => inner_max_content
+            // §9.2 step 4 (container main size) + §9.9.1 (Flex Container Intrinsic
+            // Main Sizes) + css-sizing-3 intrinsic size floor:
+            // When main size is indefinite (auto) but a max-content constraint
+            // applies, container main = max(min-content size, min(max-content size,
+            // available)). max-content size = sum of hypothetical (used_flex_factor),
+            // available = the max-content constraint. When the sum of hypothetical
+            // exceeds the constraint, the container is floored at sum of min-content
+            // (sum_of_min_content) so items don't shrink below their min-content.
+            // (Computed here in §9.7 because it needs collected lines + hypothetical
+            // from §9.2.2; spec-wise it belongs to §9.2 step 4.)
+            let shrink_max_content = if requested_inner_size.main_size(dir).is_none() {
+                inner_max_content
                     .main_size(dir)
                     .val()
-                    .filter(|&max_content| used_flex_factor > max_content),
+                    .filter(|&max_content| used_flex_factor > max_content)
+            } else {
+                None
             };
             let target_len = if let Some(max_content) = shrink_max_content {
                 let sum_of_min_content = length_sum(line.items.iter().map(|flex_child| {
