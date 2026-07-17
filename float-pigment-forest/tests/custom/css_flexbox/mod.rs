@@ -3,6 +3,7 @@ mod align_self;
 mod flex_direction;
 mod flex_grow;
 mod flex_shrink;
+mod intrinsic_main_size;
 mod justify_content;
 mod order;
 

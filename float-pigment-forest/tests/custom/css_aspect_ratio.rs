@@ -114,8 +114,10 @@ pub fn aspect_ratio_with_flex_1() {
 // In this test:
 // - Container: flex column wrap, height=100px
 // - Child: height=50px, flex-grow=1, aspect-ratio=1/1
-// - With align-items=stretch, child grows to fill container
-// - Expected: 100x100 (stretched in both dimensions)
+// - With align-items=stretch, child stretches to container cross size (width 375);
+//   aspect-ratio does NOT override stretch for an auto cross size (stretch wins,
+//   per CSS Flexbox §9.4 step 11 + css-sizing-4 aspect-ratio)
+// - Expected: 375x100 (width stretched to container, height = container main)
 #[test]
 pub fn aspect_ratio_with_flex_wrap() {
     unsafe {
@@ -154,7 +156,7 @@ pub fn aspect_ratio_with_flex_wrap() {
             )
         );
 
-        assert_eq!(child_a.layout_position().width, 100.);
+        assert_eq!(child_a.layout_position().width, 375.);
         assert_eq!(child_a.layout_position().height, 100.);
     }
 }

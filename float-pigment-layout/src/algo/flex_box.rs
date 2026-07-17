@@ -143,6 +143,78 @@ struct FlexLine<'a, T: LayoutTreeNode> {
     total_gap: T::Length,
 }
 
+/// Compute the min-content main size of the flex container per §9.9.1.
+///
+/// - Single-line (§9.9.1.2): the sum of the min-content contributions of all
+///   non-collapsed flex items.
+/// - Multi-line (§9.9.1.3): the largest min-content contribution of all the
+///   non-collapsed flex items.
+///
+/// Each item's min-content contribution is computed by laying it out with
+/// `max_content.main = zero` (i.e. a min-content main constraint), matching
+/// the previous per-line `sum_of_min_content` body.
+///
+/// Borrows `flex_lines` immutably so it can be called before the `&mut
+/// flex_lines` §9.7 loop.
+#[allow(clippy::too_many_arguments)]
+fn compute_min_content_main_size<T: LayoutTreeNode>(
+    env: &mut T::Env,
+    node: &T,
+    flex_lines: &[FlexLine<T>],
+    dir: AxisDirection,
+    main_size_request_kind: ComputeRequestKind,
+    sizing_mode: SizingMode,
+    available_space: Normalized<OptionSize<T::Length>>,
+    single_line: bool,
+) -> T::Length {
+    let zero = T::Length::zero();
+    let mut acc = zero;
+    for line in flex_lines {
+        for flex_child in line.items.iter() {
+            let child_node = node
+                .tree_visitor()
+                .child_at(flex_child.child_index)
+                .unwrap();
+            let mut child = child_node.layout_node().unit();
+            let (_, child_border, child_padding_border) = child.margin_border_padding(
+                child_node,
+                OptionSize::new(OptionNum::none(), OptionNum::none()),
+            );
+            let css_size = child.css_border_box_size(
+                child_node,
+                OptionSize::new(OptionNum::none(), OptionNum::none()),
+                child_border,
+                child_padding_border,
+            );
+            let size = flex_child.min_max_limit.normalized_size(css_size);
+            let mut max_content = OptionSize::new(OptionNum::none(), OptionNum::none());
+            max_content.set_main_size(dir, OptionNum::zero());
+            let max_content = Normalized(max_content);
+            let contribution = child
+                .compute_internal(
+                    env,
+                    child_node,
+                    ComputeRequest {
+                        size,
+                        parent_inner_size: available_space,
+                        max_content,
+                        kind: main_size_request_kind.shift_to_all_size(),
+                        parent_is_block: false,
+                        sizing_mode,
+                    },
+                )
+                .size
+                .main_size(dir);
+            if single_line {
+                acc = acc + contribution;
+            } else {
+                acc = acc.max(contribution);
+            }
+        }
+    }
+    acc
+}
+
 pub(crate) trait FlexBox<T: LayoutTreeNode> {
     fn compute(
         &mut self,
@@ -441,6 +513,63 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
             lines
         };
 
+        // §9.2 step 4 (container main size) + §9.9.1 (Flex Container Intrinsic
+        // Main Sizes) + css-sizing-3 intrinsic size floor.
+        //
+        // Compute a single container inner main size here, before the §9.7
+        // per-line loop, so all lines share the same target. This is the
+        // spec-correct location (container-level, not per-line).
+        //
+        // - If the requested inner main size is definite, use it directly.
+        // - Otherwise (indefinite/auto):
+        //   * max-content size (§9.9.1.2) = sum of all items' max-content
+        //     contributions (hypothetical outer main sizes) + all main-axis
+        //     gaps across lines.
+        //   * available = the max-content constraint (`inner_max_content`).
+        //   * min-content size (§9.9.1.2 single-line / §9.9.1.3 multi-line) =
+        //     sum (single-line) or largest (multi-line) of items' min-content
+        //     contributions.
+        //   * css-sizing-3 floor: container main = max(min-content,
+        //     min(max-content, available)). When max-content <= available
+        //     (or available is indefinite), container main = max-content.
+        let single_line = flex_lines.len() <= 1;
+        let container_main_inner: T::Length = if let Some(requested) =
+            requested_inner_size.main_size(dir).val()
+        {
+            requested
+        } else {
+            let total_main_axis_gap_all_lines: T::Length = length_sum(
+                flex_lines
+                    .iter()
+                    .map(|l| sum_axis_gaps(
+                        main_axis_gap::<T>(dir, style, node, &requested_inner_size),
+                        l.items.len(),
+                    )),
+            );
+            let max_content_size: T::Length = total_main_axis_gap_all_lines
+                + length_sum(
+                    flex_lines
+                        .iter()
+                        .flat_map(|l| l.items.iter())
+                        .map(|child| child.hypothetical_outer_size.main_size(dir)),
+                );
+            let available = inner_max_content.main_size(dir).val();
+            let min_content_size = compute_min_content_main_size::<T>(
+                env,
+                node,
+                &flex_lines,
+                dir,
+                main_size_request_kind,
+                request.sizing_mode,
+                available_space,
+                single_line,
+            );
+            match available {
+                Some(avail) if max_content_size > avail => min_content_size.max(avail),
+                _ => max_content_size,
+            }
+        };
+
         // 6. Resolve the flexible lengths of all the flex items to find their used main size.
         //    See §9.7 Resolving Flexible Lengths.
         //
@@ -464,68 +593,14 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                         .iter()
                         .map(|child| child.hypothetical_outer_size.main_size(dir)),
                 );
-            let growing = used_flex_factor < requested_inner_size.main_size(dir).or_zero();
+            let growing = used_flex_factor < container_main_inner;
             let shrinking = !growing;
 
-            // §9.2 step 4 (container main size) + §9.9.1 (Flex Container Intrinsic
-            // Main Sizes) + css-sizing-3 intrinsic size floor:
-            // When main size is indefinite (auto) but a max-content constraint
-            // applies, container main = max(min-content size, min(max-content size,
-            // available)). max-content size = sum of hypothetical (used_flex_factor),
-            // available = the max-content constraint. When the sum of hypothetical
-            // exceeds the constraint, the container is floored at sum of min-content
-            // (sum_of_min_content) so items don't shrink below their min-content.
-            // (Computed here in §9.7 because it needs collected lines + hypothetical
-            // from §9.2.2; spec-wise it belongs to §9.2 step 4.)
-            let shrink_max_content = if requested_inner_size.main_size(dir).is_none() {
-                inner_max_content
-                    .main_size(dir)
-                    .val()
-                    .filter(|&max_content| used_flex_factor > max_content)
-            } else {
-                None
-            };
-            let target_len = if let Some(max_content) = shrink_max_content {
-                let sum_of_min_content = length_sum(line.items.iter().map(|flex_child| {
-                    let child_node = node
-                        .tree_visitor()
-                        .child_at(flex_child.child_index)
-                        .unwrap();
-                    let mut child = child_node.layout_node().unit();
-                    let (_, child_border, child_padding_border) = child.margin_border_padding(
-                        child_node,
-                        OptionSize::new(OptionNum::none(), OptionNum::none()),
-                    );
-                    let css_size = child.css_border_box_size(
-                        child_node,
-                        OptionSize::new(OptionNum::none(), OptionNum::none()),
-                        child_border,
-                        child_padding_border,
-                    );
-                    let size = flex_child.min_max_limit.normalized_size(css_size);
-                    let mut max_content = OptionSize::new(OptionNum::none(), OptionNum::none());
-                    max_content.set_main_size(dir, OptionNum::zero());
-                    let max_content = Normalized(max_content);
-                    child
-                        .compute_internal(
-                            env,
-                            child_node,
-                            ComputeRequest {
-                                size,
-                                parent_inner_size: available_space,
-                                max_content,
-                                kind: main_size_request_kind.shift_to_all_size(),
-                                parent_is_block: false,
-                                sizing_mode: request.sizing_mode,
-                            },
-                        )
-                        .size
-                        .main_size(dir)
-                }));
-                OptionNum::some(sum_of_min_content.max(max_content))
-            } else {
-                requested_inner_size.main_size(dir)
-            };
+            // §9.7 consumes the single container-level main size computed above
+            // (§9.9.1). The previous per-line `shrink_max_content` /
+            // `sum_of_min_content` / `target_len` block is replaced by this
+            // container-level value.
+            let target_len = OptionNum::some(container_main_inner);
 
             // 2. Size inflexible items. Freeze, setting its target main size to its hypothetical main size
             //    - Any item that has a flex factor of zero
@@ -736,23 +811,15 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
             }
         }
 
-        // Not part of the spec from what i can see but seems correct
+        // §9.2 step 4 / §9.9.1: the container main size reuses the
+        // container-level inner main size computed above (clamped by the
+        // container's own min/max and with padding+border added). The previous
+        // `longest_line` recompute is no longer needed.
         let container_main_size = self_min_max_limit.main_size(
-            requested_size.main_size(dir).val().unwrap_or_else(|| {
-                let longest_line = flex_lines.iter().fold(T::Length::zero(), |acc, line| {
-                    let length: T::Length = length_sum(
-                        line.items
-                            .iter()
-                            .map(|item| item.outer_target_size.main_size(dir)),
-                    ) + line.total_gap;
-                    acc.max(length)
-                });
-                let size = longest_line + padding_border.main_axis_sum(dir);
-                match available_space.main_size(dir).val() {
-                    Some(val) if flex_lines.len() > 1 && size < val => val,
-                    _ => size,
-                }
-            }),
+            requested_size
+                .main_size(dir)
+                .val()
+                .unwrap_or(container_main_inner + padding_border.main_axis_sum(dir)),
             dir,
         );
         container_size.set_main_size(dir, container_main_size);
