@@ -1,13 +1,1 @@
-mod align_items;
-mod align_self;
-mod flex_direction;
-mod flex_grow;
-mod flex_shrink;
-mod intrinsic_main_size;
-mod justify_content;
-mod order;
-
-mod align_content;
-
-mod flex_item_margin;
-mod gap;
+// All css_flexbox tests migrated to HTML cases (tests/cases/). See build.rs.

@@ -429,16 +429,28 @@ impl TestCtx {
 
     pub fn set_expect_layout_pos(&mut self, node_ptr: *const Node, attrs: &Attribute) {
         let mut pos = PartialLayoutPosition::default();
-        if let Some(v) = attrs.get("expect_width") {
+        if let Some(v) = attrs
+            .get("data-expect-width")
+            .or_else(|| attrs.get("expect_width"))
+        {
             pos.width = Some(v.parse::<f32>().unwrap())
         }
-        if let Some(v) = attrs.get("expect_height") {
+        if let Some(v) = attrs
+            .get("data-expect-height")
+            .or_else(|| attrs.get("expect_height"))
+        {
             pos.height = Some(v.parse::<f32>().unwrap())
         }
-        if let Some(v) = attrs.get("expect_top") {
+        if let Some(v) = attrs
+            .get("data-expect-top")
+            .or_else(|| attrs.get("expect_top"))
+        {
             pos.top = Some(v.parse::<f32>().unwrap())
         }
-        if let Some(v) = attrs.get("expect_left") {
+        if let Some(v) = attrs
+            .get("data-expect-left")
+            .or_else(|| attrs.get("expect_left"))
+        {
             pos.left = Some(v.parse::<f32>().unwrap())
         }
         self.expect_layout_pos.insert(node_ptr, pos);
@@ -667,6 +679,17 @@ macro_rules! assert_xml {
     }};
 }
 
+/// Run an HTML test case file: parse → layout → assert data-expect-*.
+#[macro_export]
+macro_rules! assert_html_case {
+    ($path:literal) => {{
+        let html = include_str!($path);
+        let mut ctx = $crate::TestCtx::from_str(html).expect("failed to parse HTML case");
+        ctx.layout(false);
+        ctx.assert();
+    }};
+}
+
 #[macro_export]
 #[cfg(target_os = "macos")]
 macro_rules! render_xml {
@@ -717,3 +740,5 @@ fn test_from_str() {
         }
     }
 }
+
+include!(concat!(env!("OUT_DIR"), "/html_tests.rs"));

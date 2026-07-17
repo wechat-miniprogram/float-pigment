@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<div style="width: 200px;" data-expect-width="200" data-expect-height="100" data-chrome="true">
+            <div style="display: inline-block" data-expect-width="0" data-expect-height="0">
+              <div style="position: absolute; width: 100%; height: 20px;" data-expect-height="20" data-expect-width="0"></div>
+              <div style="position: absolute; width: 100%; height: 100%;" data-expect-height="0" data-expect-width="0"></div>
+              <div style="position: absolute; width: 30px; height: 100%;" data-expect-height="0" data-expect-width="30"></div>            
+            </div>
+            <div style="display: inline-block; width: 100px; height: 100px; " data-expect-width="100" data-expect-height="100">
+              <div style="position: absolute; width: 100%; height: 20px;" data-expect-height="20" data-expect-width="100"></div>
+              <div style="position: absolute; width: 100%; height: 100%;" data-expect-height="100" data-expect-width="100"></div>
+              <div style="position: absolute; width: 30px; height: 100%;" data-expect-height="100" data-expect-width="30"></div>            
+            </div>
+          </div>
