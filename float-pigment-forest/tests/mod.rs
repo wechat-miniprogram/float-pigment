@@ -1,7 +1,5 @@
 #[cfg(test)]
 mod custom;
-#[cfg(test)]
-mod wpt;
 use euclid::num::Zero;
 pub use float_pigment_css::length_num::LengthNum;
 use float_pigment_css::{
