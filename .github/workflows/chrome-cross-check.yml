@@ -1,0 +1,28 @@
+name: chrome-cross-check
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+# Informational only while triage is ongoing (106 divergences pending).
+# Once triage converges to fail=0, remove continue-on-error to make it gating.
+jobs:
+  cross-check:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: scripts/pnpm-lock.yaml
+      - name: Install puppeteer
+        working-directory: scripts
+        run: pnpm install --frozen-lockfile
+      - name: Run Chrome cross-check
+        run: node scripts/chrome-cross-check.mjs

@@ -8,3 +8,5 @@
 build_stamp
 .cargo
 .history
+.codebuddy
+docs/superpowers

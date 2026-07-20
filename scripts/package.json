@@ -1,0 +1,11 @@
+{
+  "name": "float-pigment-chrome-cross-check",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "cross-check": "node chrome-cross-check.mjs"
+  },
+  "dependencies": {
+    "puppeteer": "^23.0.0"
+  }
+}
