@@ -100,19 +100,11 @@ fn translate_html(html: &str) -> String {
     out
 }
 
+#[derive(Default)]
 struct Counter {
     n: usize,
     t: usize,
     asserts: Vec<String>,
-}
-impl Default for Counter {
-    fn default() -> Self {
-        Self {
-            n: 0,
-            t: 0,
-            asserts: vec![],
-        }
-    }
 }
 
 /// Walk a DOM node, emit create_node/create_text + set_style + append, and
