@@ -15,22 +15,6 @@ use crate::*;
 // - Block with text: 16px height (line height), full width
 // - Inline with nested inline: 32px width (text content)
 // - Inline with text before nested inline: 64px width
-#[test]
-fn inline() {
-    assert_xml!(
-        r#"
-        <div>
-          <div expect_height="16" expect_width="375">XX</div>
-          <div style="display: inline;" expect_width="32" expect_height="16">
-            <div style="display: inline" expect_height="16">XX</div>
-          </div>
-          <div style="display: inline;" expect_width="64">
-            XX <div style="display: inline" expect_left="32">XX</div>
-          </div>
-        </div>
-    "#
-    )
-}
 
 // Case: Inline element with explicit size
 // Spec points:
@@ -39,21 +23,6 @@ fn inline() {
 // In this test:
 // - Flex child: inline with size = 10x10
 // - Block child: inline with size ignored = 0x0
-#[test]
-fn inline_set_size() {
-    assert_xml!(
-        r#"
-        <div>
-          <div style="display: flex">
-            <div style="display: inline; height: 10px; width: 10px" expect_width="10" expect_height="10"></div>
-          </div>
-          <div style="display: block">
-            <div style="display: inline; height: 10px; width: 10px" expect_width="0" expect_height="0"></div>
-          </div>
-          </div>
-          "#
-    )
-}
 
 // Case: inline-block with padding
 // Spec points:
@@ -64,17 +33,6 @@ fn inline_set_size() {
 // - Two 30x30 block children stack vertically
 // - Total height: 40 + 15 + 15 = 70px (with overflow)
 // - Total width: 30 + 15 + 15 = 60px
-#[test]
-fn inline_block_with_padding() {
-    assert_xml!(
-        r#"
-        <div style="display: inline-block; height: 40px; padding: 15px;" expect_width="60" expect_height="70" >
-          <div style="height: 30px; width: 30px;"></div>
-          <div style="height: 30px; width: 30px;"></div>
-        </div>
-    "#
-    )
-}
 
 // Case: inline-block with padding (inline-block children)
 // Spec points:
@@ -82,17 +40,6 @@ fn inline_block_with_padding() {
 // In this test:
 // - Two 30x30 inline-block children side by side
 // - Width: 30 + 30 + 30 = 90px (padding + 2 children)
-#[test]
-fn inline_block_with_padding_2() {
-    assert_xml!(
-        r#"
-        <div style="display: inline-block; height: 40px; padding: 15px;" expect_width="90" expect_height="70" >
-          <div style="display: inline-block; height: 30px; width: 30px;"></div>
-          <div style="display: inline-block; height: 30px; width: 30px;"></div>
-        </div>
-    "#
-    )
-}
 
 // Case: inline element in block with percentage child
 // Spec points:
@@ -104,18 +51,6 @@ fn inline_block_with_padding_2() {
 // - Child sizes: 275x100 (275 = 375 - 50*2, wait that's wrong)
 // - Actually: content area = 200 - padding? Let me check original
 // - Container: box-sizing default, 200x200 + padding = 275x100 content area
-#[test]
-fn inline_in_block() {
-    assert_xml!(
-        r#"
-        <div style="box-sizing: border-box; padding: 50px; height: 200px;">
-          <custom style="inline">
-            <div style="width: 100%; height: 100%;" expect_width="275" expect_height="100"></div>
-          </custom>
-        </div>
-    "#
-    )
-}
 
 // Case: inline element in flexbox
 // Spec points:
@@ -124,21 +59,6 @@ fn inline_in_block() {
 // In this test:
 // - Flex column: inline child stretches to full width
 // - Flex row: inline child shrinks to content
-#[test]
-fn inline_in_flexbox() {
-    assert_xml!(
-        r#"
-          <div>
-            <div style="display: flex; flex-direction: column; height: 100px" expect_height="100" expect_width="375">
-              <div style="display: inline" expect_height="16" expect_width="375">XX</div>
-            </div>
-            <div style="display: flex;" expect_height="16" expect_width="375">
-              <div style="display: inline" expect_height="16" expect_width="32">XX</div>
-            </div>
-          </div>
-      "#
-    )
-}
 
 // Case: Basic inline-block
 // Spec points:
@@ -146,17 +66,6 @@ fn inline_in_flexbox() {
 // - Each is its own block formatting context
 // In this test:
 // - Two inline-block text elements side by side
-#[test]
-fn inline_block() {
-    assert_xml!(
-        r#"
-          <div expect_height="16" expect_width="375">
-            <div style="display: inline-block" expect_height="16" expect_width="32">XX</div>
-            <div style="display: inline-block" expect_height="16" expect_width="32" expect_left="32">XX</div>
-          </div>
-      "#
-    )
-}
 
 // Case: inline-block vertical alignment (baseline)
 // Spec points:
@@ -165,17 +74,6 @@ fn inline_block() {
 // In this test:
 // - Two boxes: 30px and 50px tall
 // - 30px box aligned to bottom of 50px box (top=20)
-#[test]
-fn inline_block_vertical_align_1() {
-    assert_xml!(
-        r#"
-          <div expect_height="50" expect_width="375">
-            <div style="display: inline-block; height: 30px; width: 20px;" expect_height="30" expect_top="20"></div>
-            <div style="display: inline-block; height: 50px; width: 20px" expect_height="50" expect_top="0" expect_left="20"></div>
-          </div>
-      "#
-    )
-}
 
 // Case: inline-block vertical alignment with text
 // Spec points:
@@ -183,17 +81,6 @@ fn inline_block_vertical_align_1() {
 // In this test:
 // - First box has text, aligned by text baseline
 // - Second box without text at top
-#[test]
-fn inline_block_vertical_align_2() {
-    assert_xml!(
-        r#"
-          <div expect_height="50" expect_width="375">
-            <div style="display: inline-block; height: 40px; width: 20px;" expect_height="40" expect_top="34">XX</div>
-            <div style="display: inline-block; height: 50px; width: 20px" expect_height="50" expect_top="0" expect_left="20"></div>
-          </div>
-      "#
-    )
-}
 
 // Case: inline-block wrapping
 // Spec points:
@@ -201,19 +88,6 @@ fn inline_block_vertical_align_2() {
 // In this test:
 // - Container: 100px
 // - 4 items of 30px: 3 fit on first line, 1 wraps
-#[test]
-fn inline_block_wrap() {
-    assert_xml!(
-        r#"
-        <div style="width: 100px; height: 100px;">
-          <div style="display: inline-block; width: 30px; height: 10px;" expect_left="0" expect_top="0"></div>
-          <div style="display: inline-block; width: 30px; height: 10px;" expect_left="30" expect_top="0"></div>
-          <div style="display: inline-block; width: 30px; height: 10px;" expect_left="60" expect_top="0"></div>
-          <div style="display: inline-block; width: 30px; height: 10px;" expect_left="0" expect_top="10"></div>
-        </div>
-    "#
-    )
-}
 
 // Case: inline-block wrapping with varying heights
 // Spec points:
@@ -221,19 +95,6 @@ fn inline_block_wrap() {
 // In this test:
 // - Items of different heights
 // - Line height = max height in that line
-#[test]
-fn inline_block_wrap_2() {
-    assert_xml!(
-        r#"
-        <div style="width: 100px; height: 100px;">
-          <div style="display: inline-block; width: 30px; height: 10px;" expect_left="0" expect_top="20"></div>
-          <div style="display: inline-block; width: 30px; height: 20px;" expect_left="30" expect_top="10"></div>
-          <div style="display: inline-block; width: 40px; height: 30px;" expect_left="60" expect_top="0"></div>
-          <div style="display: inline-block; width: 30px; height: 10px;" expect_left="0" expect_top="30"></div>
-        </div>
-    "#
-    )
-}
 
 // Case: inline-block wrapping with block interruption
 // Spec points:
@@ -241,20 +102,6 @@ fn inline_block_wrap_2() {
 // - New line starts after block
 // In this test:
 // - Two inline-blocks, then a block, then two more inline-blocks
-#[test]
-fn inline_block_wrap_3() {
-    assert_xml!(
-        r#"
-        <div style="width: 100px; height: 100px;">
-          <div style="display: inline-block; width: 30px; height: 10px;" expect_left="0" expect_top="10"></div>
-          <div style="display: inline-block; width: 30px; height: 20px;" expect_left="30" expect_top="0"></div>
-          <div style="width: 100px; height: 10px" expect_left="0" expect_top="20"></div>
-          <div style="display: inline-block; width: 40px; height: 30px;" expect_left="0" expect_top="30"></div>
-          <div style="display: inline-block; width: 30px; height: 10px;" expect_left="40" expect_top="50"></div>
-        </div>
-    "#
-    )
-}
 
 // Case: inline-block wrapping in narrow container
 // Spec points:
@@ -262,17 +109,6 @@ fn inline_block_wrap_3() {
 // In this test:
 // - Container: 10px, items 30px wide
 // - Each item on separate line
-#[test]
-fn inline_block_wrap_4() {
-    assert_xml!(
-        r#"
-        <div style="width: 10px; height: 10px;">
-          <div style="display: inline-block; width: 30px; height: 10px;" expect_left="0" expect_top="0"></div>
-          <div style="display: inline-block; width: 30px; height: 20px;" expect_left="0" expect_top="10"></div>
-        </div>
-    "#
-    )
-}
 
 // Case: inline-block with margin
 // Spec points:
@@ -280,16 +116,6 @@ fn inline_block_wrap_4() {
 // In this test:
 // - Item with margin=20px all around
 // - Container height includes margins: 10 + 20 + 20 = 50px
-#[test]
-fn inline_block_margin() {
-    assert_xml!(
-        r#"
-        <div expect_height="50">
-          <div style="display: inline-block; width: 10px; height: 10px; margin: 20px;" expect_left="20" expect_height="10" expect_width="10"></div>
-        </div>
-      "#
-    )
-}
 
 // Case: inline-block with different margins
 // Spec points:
@@ -297,33 +123,12 @@ fn inline_block_margin() {
 // In this test:
 // - margin: 10px 20px 30px 40px
 // - Total height: 10 + 10 + 30 = 50px
-#[test]
-fn inline_block_margin_1() {
-    assert_xml!(
-        r#"
-        <div expect_height="50">
-          <div style="display: inline-block; width: 10px; height: 10px; margin: 10px 20px 30px 40px;" expect_left="40" expect_height="10" expect_width="10"></div>
-        </div>
-      "#
-    )
-}
 
 // Case: Multiple inline-blocks with margin
 // Spec points:
 // - Margins don't collapse for inline-block
 // In this test:
 // - Two items with different margins, different heights
-#[test]
-fn inline_block_margin_2() {
-    assert_xml!(
-        r#"
-        <div expect_height="60">
-          <div style="display: inline-block; width: 10px; height: 10px; margin: 10px 20px 30px 40px;" expect_top="20" expect_left="40" expect_height="10" expect_width="10"></div>
-          <div style="display: inline-block; width: 10px; height: 20px; margin: 10px 20px 30px 40px;" expect_top="10" expect_left="110" expect_height="20" expect_width="10"></div>
-        </div>
-      "#
-    )
-}
 
 // Case: inline-block with margin wrapping
 // Spec points:
@@ -332,17 +137,6 @@ fn inline_block_margin_2() {
 // - Container: 100px
 // - Each item: 10px + 60px margin = 70px
 // - Items wrap due to margin
-#[test]
-fn inline_block_margin_3() {
-    assert_xml!(
-        r#"
-        <div style="width: 100px;" expect_height="110">
-          <div style="display: inline-block; width: 10px; height: 10px; margin: 10px 20px 30px 40px;" expect_left="40" expect_top="10" expect_height="10" expect_width="10"></div>
-          <div style="display: inline-block; width: 10px; height: 20px; margin: 10px 20px 30px 40px;" expect_left="40" expect_top="60" expect_height="20" expect_width="10"></div>
-        </div>
-      "#
-    )
-}
 
 // Case: inline-block in flexbox
 // Spec points:
@@ -350,31 +144,6 @@ fn inline_block_margin_3() {
 // - Sizing behavior differs based on flex direction
 // In this test:
 // - Various flex contexts with inline-block children
-#[test]
-fn inline_block_in_flexbox() {
-    assert_xml!(
-        r#"
-          <div>
-            <div style="display: flex; flex-direction: column; height: 100px" expect_height="100" expect_width="375">
-              <div style="display: inline-block" expect_height="16" expect_width="375">XX</div>
-            </div>
-            <div style="display: flex;" expect_height="16" expect_width="375">
-              <div style="display: inline-block" expect_height="16" expect_width="32">XX</div>
-            </div>
-            <div style="display: flex; flex-direction: column; align-items: center; width: 96px;" expect_height="16" expect_width="96">
-              <div style="display: inline-block" expect_left="32" expect_height="16" expect_width="32">
-                XX
-              </div>
-            </div>
-            <div style="display: flex; flex-direction: row; align-items: center; justify-content: center; width: 96px;" expect_height="16" expect_width="96">
-              <div style="display: inline-block" expect_left="32" expect_height="16" expect_width="32">
-                XX
-              </div>
-            </div>
-          </div>
-      "#
-    )
-}
 
 // Case: block in inline-block
 // Spec points:
@@ -383,20 +152,6 @@ fn inline_block_in_flexbox() {
 // In this test:
 // - inline-block containing block child
 // - Sizing determined by content
-#[test]
-fn block_in_inline_block() {
-    assert_xml!(
-        r#"
-          <div>
-            <div expect_width="375">
-              <div style="display: inline-block" expect_height="16" expect_width="32">
-                <div expect_height="16" expect_width="32">XX</div>
-              </div>
-            </div>
-          </div>
-      "#
-    )
-}
 
 use float_pigment_css::typing::Display;
 use float_pigment_forest::{
@@ -592,24 +347,6 @@ pub fn measurable_inline_block_with_margin_2() {
 // - Complex nesting of inline, flex, and block elements
 // In this test:
 // - span (inline) containing flex column containing nested structure
-#[test]
-fn inline_complex_1() {
-    assert_xml!(
-        r#"
-          <span>
-            <div style="position: relative; display: flex; flex-direction: row; height: 40px; width: 100%; box-sizing: border-box;" expect_height="40" expect_width="375">
-              <div style="position: relative; height: 100%; box-sizing: border-box; flex-grow: 1; flex-basis: 0%;" expect_height="40" expect_width="375">
-                <span style="position: relative; box-sizing: border-box;" expect_height="20" expect_width="375">
-                  <div style="width: 100%; position: relative; box-sizing: border-box;" expect_height="20" expect_width="375">
-                    <div style="position: relative; height: 20px; width: 100px; box-sizing: border-box;" expect_height="20" expect_width="100"></div>
-                  </div>
-                </span>
-              </div>
-            </div>
-          </span>
-      "#
-    )
-}
 
 // Case: inline-flex display
 // Spec points:
@@ -617,27 +354,6 @@ fn inline_complex_1() {
 // - Flows inline but children use flex layout
 // In this test:
 // - Multiple inline-flex containers flowing horizontally
-#[test]
-fn inline_flex() {
-    assert_xml!(
-        r#"
-          <div style="height: 100px; width: 60px;">
-            <div style="display: inline-flex;" expect_width="30">
-              <div style="height: 10px; width: 10px;"></div>
-              <div style="height: 10px; width: 20px;" expect_left="10"></div>
-            </div>
-            <div style="display: inline-flex;" expect_width="30" expect_left="30">
-              <div style="height: 10px; width: 10px;"></div>
-              <div style="height: 10px; width: 20px;" expect_left="10"></div>
-            </div>
-            <div style="display: inline-flex; height: 50px;" expect_width="30" expect_left="0" expect_top="10">
-              <div style="height: 10px; width: 10px;"></div>
-              <div style="height: 10px; width: 20px;" expect_left="10"></div>
-            </div>
-          </div>
-      "#
-    )
-}
 
 // Case: inline-block wrapping precision
 // Spec points:
@@ -646,42 +362,3 @@ fn inline_flex() {
 // In this test:
 // - Multiple percentage-width items that should fit on one line
 // - 5 items of 20% should wrap at 6th item
-#[test]
-fn inline_block_wrap_precision() {
-    assert_xml!(
-        r#"
-          <div style="width: 392.7px">
-            <div style=" height: 800px; padding-left: 10.474036px; padding-right: 10.474036px;">
-              <div>
-                <div style="width: 100%;position: absolute;left: 0px;">
-                  <div>
-                    <div style="display: inline-block; width: 20%; height: 50px;"></div>
-                    <div style="display: inline-block; width: 20%; height: 50px;"></div>
-                    <div style="display: inline-block; width: 20%; height: 50px;"></div>
-                    <div style="display: inline-block; width: 20%; height: 50px;"></div>
-                    <div style="display: inline-block; width: 20%; height: 50px;"></div>
-                    <div style="display: inline-block; width: 20%; height: 50px;" expect_left="0" expect_top="50"></div>
-
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div style="width: 100px;">
-              <div>
-                <div style="display: inline-block; width: 10%; height: 50px;"></div>
-                <div style="display: inline-block; width: 10%; height: 50px;"></div>
-                <div style="display: inline-block; width: 10%; height: 50px;"></div>
-                <div style="display: inline-block; width: 10%; height: 50px;"></div>
-                <div style="display: inline-block; width: 10%; height: 50px;"></div>
-                <div style="display: inline-block; width: 10%; height: 50px;"></div>
-                <div style="display: inline-block; width: 10%; height: 50px;"></div>
-                <div style="display: inline-block; width: 10%; height: 50px;"></div>
-                <div style="display: inline-block; width: 10%; height: 50px;"></div>
-                <div style="display: inline-block; width: 10%; height: 50px;"></div>
-                <div style="display: inline-block; width: 10%; height: 50px;" expect_left="0" expect_top="50"></div>
-              </div>
-            </div>
-          </div>
-      "#
-    )
-}

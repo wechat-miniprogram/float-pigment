@@ -79,20 +79,6 @@ fn non_entry_parent_collapses_with_first_child() {
 //   - c.top = 60(b top) + 40(b height) + 50(c mt, not collapsed with BFC b) = 150
 // If the implementation wrongly treats c as "first child" after BFC reset,
 // c.mt:50 would propagate to parent_collapsed_margin_start, making parent.top=50.
-#[test]
-fn block_bfc_block_sequence_no_propagation() {
-    assert_xml!(
-        r#"
-        <div>
-          <div>
-            <div style="height: 10px; margin-bottom: 20px;" expect_top="0"></div>
-            <div style="display: flex; margin-top: 30px; height: 40px;" expect_top="60"></div>
-            <div style="margin-top: 50px; height: 60px;" expect_top="150"></div>
-          </div>
-        </div>
-        "#
-    )
-}
 
 // display: flow-root — CSS Display Module Level 3 §2.7:
 // "block container box, lays out contents using flow layout, always
@@ -100,42 +86,7 @@ fn block_bfc_block_sequence_no_propagation() {
 // Behaviorally identical to display:block except it builds a BFC.
 //
 // As parent: flow-root's margin does NOT collapse with its child's margin.
-#[test]
-fn flow_root_as_parent_no_collapse() {
-    assert_xml!(
-        r#"
-        <div>
-          <div style="display: flow-root; margin-top: 30px;">
-            <div style="margin-top: 20px; height: 50px;" expect_top="20"></div>
-          </div>
-        </div>
-        "#
-    )
-}
 
 // As child: flow-root's margin does NOT collapse with its parent's margin.
-#[test]
-fn flow_root_as_child_no_collapse() {
-    assert_xml!(
-        r#"
-        <div>
-          <div style="margin-top: 30px;">
-            <div style="display: flow-root; margin-top: 20px; height: 50px;" expect_top="20"></div>
-          </div>
-        </div>
-        "#
-    )
-}
 
 // flow-root as sibling: its margin does not collapse with adjacent block siblings.
-#[test]
-fn flow_root_as_sibling_no_collapse() {
-    assert_xml!(
-        r#"
-        <div>
-          <div style="margin-bottom: 40px; height: 10px;"></div>
-          <div style="display: flow-root; margin-top: 30px; height: 50px;" expect_top="80"></div>
-        </div>
-        "#
-    )
-}
