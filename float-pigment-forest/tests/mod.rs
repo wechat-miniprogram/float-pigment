@@ -12,6 +12,7 @@ pub use float_pigment_forest::Len;
 use float_pigment_forest::{layout::LayoutPosition, node::Length, *};
 use float_pigment_layout::{
     DefLength, LayoutGridAuto, LayoutGridTemplate, LayoutTrackListItem, LayoutTrackSize,
+    LayoutTreeNode,
 };
 use float_pigment_mlp::{
     context::{Context, Parse},
@@ -68,6 +69,15 @@ impl PartialEq<LayoutPosition> for PartialLayoutPosition {
         true
     }
 }
+
+#[derive(Debug, Default)]
+pub struct PartialComputedMargin {
+    pub top: Option<f32>,
+    pub right: Option<f32>,
+    pub bottom: Option<f32>,
+    pub left: Option<f32>,
+}
+
 type NodeId = usize;
 type PaintPos = FxHashMap<*const Node, (LayoutPosition, Color)>;
 
@@ -89,6 +99,7 @@ pub struct TestCtx {
     pub root: Option<NodePtr>,
     pub layout_pos: FxHashMap<*const Node, LayoutPosition>,
     pub expect_layout_pos: FxHashMap<*const Node, PartialLayoutPosition>,
+    pub expect_computed_margin: FxHashMap<*const Node, PartialComputedMargin>,
     pub paint_pos: PaintPos,
 }
 
@@ -227,6 +238,7 @@ impl TestCtx {
             root: None,
             layout_pos: FxHashMap::default(),
             expect_layout_pos: FxHashMap::default(),
+            expect_computed_margin: FxHashMap::default(),
             paint_pos: FxHashMap::default(),
         }
     }
@@ -317,8 +329,24 @@ impl TestCtx {
     pub fn assert(&mut self) {
         self.expect_layout_pos.iter().for_each(|(id, expect_pos)| {
             if let Some(layout_pos) = self.layout_pos.get(id) {
-                // println!("layout_pos {:?}, expect_pos {:?}", layout_pos, expect_pos);
                 assert_eq!(expect_pos, layout_pos);
+            }
+        });
+        self.expect_computed_margin.iter().for_each(|(id, expect_m)| {
+            unsafe {
+                let cs = (*(*id)).layout_node().computed_style();
+                if let Some(v) = expect_m.top {
+                    assert_eq!(cs.margin.top.to_f32().round(), v);
+                }
+                if let Some(v) = expect_m.right {
+                    assert_eq!(cs.margin.right.to_f32().round(), v);
+                }
+                if let Some(v) = expect_m.bottom {
+                    assert_eq!(cs.margin.bottom.to_f32().round(), v);
+                }
+                if let Some(v) = expect_m.left {
+                    assert_eq!(cs.margin.left.to_f32().round(), v);
+                }
             }
         });
     }
@@ -389,6 +417,7 @@ impl TestCtx {
                     }
                 }
                 self.set_expect_layout_pos(node, e.attributes());
+                self.set_expect_computed_margin(node, e.attributes());
 
                 if is_measure_text_slot(e.tag()) {
                     let text_len = e
@@ -452,6 +481,35 @@ impl TestCtx {
             pos.left = Some(v.parse::<f32>().unwrap())
         }
         self.expect_layout_pos.insert(node_ptr, pos);
+    }
+
+    pub fn set_expect_computed_margin(&mut self, node_ptr: *const Node, attrs: &Attribute) {
+        let mut m = PartialComputedMargin::default();
+        if let Some(v) = attrs
+            .get("data-expect-margin-top")
+            .or_else(|| attrs.get("expect_margin_top"))
+        {
+            m.top = Some(v.parse::<f32>().unwrap());
+        }
+        if let Some(v) = attrs
+            .get("data-expect-margin-right")
+            .or_else(|| attrs.get("expect_margin_right"))
+        {
+            m.right = Some(v.parse::<f32>().unwrap());
+        }
+        if let Some(v) = attrs
+            .get("data-expect-margin-bottom")
+            .or_else(|| attrs.get("expect_margin_bottom"))
+        {
+            m.bottom = Some(v.parse::<f32>().unwrap());
+        }
+        if let Some(v) = attrs
+            .get("data-expect-margin-left")
+            .or_else(|| attrs.get("expect_margin_left"))
+        {
+            m.left = Some(v.parse::<f32>().unwrap());
+        }
+        self.expect_computed_margin.insert(node_ptr, m);
     }
 
     // style
