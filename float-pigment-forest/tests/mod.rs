@@ -9,14 +9,10 @@ use float_pigment_css::{
     typing::{AspectRatio, Display, Gap, GridAuto, GridTemplate, TrackListItem, TrackSize},
 };
 pub use float_pigment_forest::Len;
-use float_pigment_forest::{layout::LayoutPosition, node::Length, *};
+use float_pigment_forest::{node::Length, *};
 use float_pigment_layout::{
     DefLength, LayoutGridAuto, LayoutGridTemplate, LayoutTrackListItem, LayoutTrackSize,
     LayoutTreeNode,
-};
-use float_pigment_mlp::{
-    context::{Context, Parse},
-    node::{attribute::Attribute, NodeType},
 };
 
 use rustc_hash::FxHashMap;
@@ -36,71 +32,17 @@ pub(crate) fn def_length(length: float_pigment_css::typing::Length) -> Length {
     }
 }
 
-#[derive(Default, Debug)]
-pub struct PartialLayoutPosition {
-    pub width: Option<f32>,
-    pub height: Option<f32>,
-    pub top: Option<f32>,
-    pub left: Option<f32>,
-}
-
-impl PartialEq<LayoutPosition> for PartialLayoutPosition {
-    fn eq(&self, other: &LayoutPosition) -> bool {
-        if let Some(width) = self.width {
-            if width != other.width.to_f32().round() {
-                return false;
-            }
-        }
-        if let Some(height) = self.height {
-            if height != other.height.to_f32().round() {
-                return false;
-            }
-        }
-        if let Some(top) = self.top {
-            if top != other.top.to_f32().round() {
-                return false;
-            }
-        }
-        if let Some(left) = self.left {
-            if left != other.left.to_f32().round() {
-                return false;
-            }
-        }
-        true
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct PartialComputedMargin {
-    pub top: Option<f32>,
-    pub right: Option<f32>,
-    pub bottom: Option<f32>,
-    pub left: Option<f32>,
-}
-
 type NodeId = usize;
-type PaintPos = FxHashMap<*const Node, (LayoutPosition, Color)>;
-
-#[derive(Debug)]
-pub enum Color {
-    Rgba(u8, u8, u8, u8),
-}
-
-impl Color {
-    fn rgba_to_tuple(&self) -> (u8, u8, u8, u8) {
-        match *self {
-            Self::Rgba(r, g, b, a) => (r, g, b, a),
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct TestCtx {
     pub root: Option<NodePtr>,
-    pub layout_pos: FxHashMap<*const Node, LayoutPosition>,
-    pub expect_layout_pos: FxHashMap<*const Node, PartialLayoutPosition>,
-    pub expect_computed_margin: FxHashMap<*const Node, PartialComputedMargin>,
-    pub paint_pos: PaintPos,
+    /// 命令式 codegen 录制的构建计划（Task 2: record-only，Task 3 在 layout 时消费）
+    build_nodes: Vec<BuildNode>,
+    /// Task 3: build_dfs 构建出的真实 Node 指针（按 build_nodes 索引）
+    imperative_built: Vec<*mut Node>,
+    /// Task 3: 命令式树根指针
+    imperative_root: Option<*mut Node>,
 }
 
 impl Default for TestCtx {
@@ -114,10 +56,6 @@ fn is_block_tag(tag: &str) -> bool {
     tag == "div" || tag == "view"
 }
 
-#[inline(always)]
-fn is_measure_text_slot(tag: &str) -> bool {
-    tag == "text-slot"
-}
 #[derive(Debug, Default, Clone)]
 struct TextInfo {
     font_size: f32,
@@ -232,14 +170,193 @@ fn prepare_measure_node(node: *mut Node, text_info: TextInfo) {
     )));
 }
 
+/// 测试中节点的安全句柄（ctx 内部 Vec 索引）
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct NodeHandle(pub usize);
+
+/// 构建计划：录制命令式调用，layout 时按拓扑构建真实 Node 树
+#[allow(dead_code)]
+#[derive(Debug)]
+enum BuildNode {
+    Element {
+        tag: String,
+        style: Option<String>,
+        parent: Option<NodeHandle>,
+        /// If Some, the element is a measure-text slot (mirrors the legacy
+        /// `is_measure_text_slot` branch of `create_node_recursive`):
+        /// `build_imperative_tree` will attach a TextInfo measure func with
+        /// the given text length and font size.
+        measure_text: Option<(usize, f32)>,
+    },
+    Text {
+        text: String,
+        parent: Option<NodeHandle>,
+    },
+}
+
+impl BuildNode {
+    fn set_parent(&mut self, p: NodeHandle) {
+        match self {
+            BuildNode::Element { parent, .. } => *parent = Some(p),
+            BuildNode::Text { parent, .. } => *parent = Some(p),
+        }
+    }
+}
+
 impl TestCtx {
     pub fn new() -> Self {
         Self {
             root: None,
-            layout_pos: FxHashMap::default(),
-            expect_layout_pos: FxHashMap::default(),
-            expect_computed_margin: FxHashMap::default(),
-            paint_pos: FxHashMap::default(),
+            build_nodes: Vec::new(),
+            imperative_built: Vec::new(),
+            imperative_root: None,
+        }
+    }
+
+    // ===== 高层命令式 API（命令式 codegen 用）=====
+
+    pub fn create_node(&mut self, tag: &str) -> NodeHandle {
+        let h = NodeHandle(self.build_nodes.len());
+        self.build_nodes.push(BuildNode::Element {
+            tag: tag.to_string(),
+            style: None,
+            parent: None,
+            measure_text: None,
+        });
+        h
+    }
+
+    pub fn create_text(&mut self, text: &str) -> NodeHandle {
+        let h = NodeHandle(self.build_nodes.len());
+        self.build_nodes.push(BuildNode::Text {
+            text: text.to_string(),
+            parent: None,
+        });
+        h
+    }
+
+    pub fn set_style(&mut self, n: NodeHandle, style: &str) {
+        if let BuildNode::Element { style: s, .. } = &mut self.build_nodes[n.0] {
+            // 非空才记录，空 style 省略（与 spec §7 一致）
+            if !style.is_empty() {
+                *s = Some(style.to_string());
+            }
+        }
+    }
+
+    /// Mark an element as a measure-text slot (mirrors the legacy
+    /// `is_measure_text_slot` / `prepare_measure_node` branch of
+    /// `create_node_recursive`). During `layout_imperative`, build_dfs will
+    /// attach a TextInfo measure func to the node so the layout engine can
+    /// compute intrinsic sizes from the synthetic text length.
+    pub fn set_measure_text(&mut self, n: NodeHandle, text_len: usize, font_size: f32) {
+        if let BuildNode::Element { measure_text, .. } = &mut self.build_nodes[n.0] {
+            *measure_text = Some((text_len, font_size));
+        }
+    }
+
+    pub fn append(&mut self, parent: NodeHandle, child: NodeHandle) {
+        if let Some(node) = self.build_nodes.get_mut(child.0) {
+            node.set_parent(parent);
+        }
+    }
+
+    /// 命令式 API 的 layout 前置：从构建计划递归构建真实 Node 树。
+    fn build_imperative_tree(&mut self) -> Option<*mut Node> {
+        let root_idx = self
+            .build_nodes
+            .iter()
+            .position(|n| matches!(n, BuildNode::Element { parent: None, .. }))?;
+        let mut children_map: FxHashMap<NodeHandle, Vec<NodeHandle>> = FxHashMap::default();
+        for (i, n) in self.build_nodes.iter().enumerate() {
+            let parent = match n {
+                BuildNode::Element { parent, .. } | BuildNode::Text { parent, .. } => *parent,
+            };
+            if let Some(p) = parent {
+                children_map.entry(p).or_default().push(NodeHandle(i));
+            }
+        }
+        self.imperative_built = vec![std::ptr::null_mut(); self.build_nodes.len()];
+        let root = unsafe {
+            build_dfs(
+                NodeHandle(root_idx),
+                None,
+                &self.build_nodes,
+                &children_map,
+                &mut self.imperative_built,
+            )
+        };
+        Some(root)
+    }
+
+    /// 命令式 API 的 layout：从构建计划构建树 → layout
+    pub fn layout_imperative(&mut self) {
+        if let Some(root) = self.build_imperative_tree() {
+            unsafe {
+                (*root).layout(
+                    OptionSize::new(
+                        OptionNum::some(Len::from_f32(375.)),
+                        OptionNum::some(Len::from_f32(750.)),
+                    ),
+                    Size::new(Len::from_f32(375.), Len::from_f32(750.)),
+                );
+                self.imperative_root = Some(root);
+            }
+        }
+    }
+
+    // ===== 命令式 getters（layout_imperative 之后读节点的尺寸/位置/margin）=====
+
+    pub fn width(&self, n: NodeHandle) -> f32 {
+        unsafe { (*self.imperative_built[n.0]).layout_position().width.to_f32() }
+    }
+    pub fn height(&self, n: NodeHandle) -> f32 {
+        unsafe { (*self.imperative_built[n.0]).layout_position().height.to_f32() }
+    }
+    pub fn left(&self, n: NodeHandle) -> f32 {
+        unsafe { (*self.imperative_built[n.0]).layout_position().left.to_f32() }
+    }
+    pub fn top(&self, n: NodeHandle) -> f32 {
+        unsafe { (*self.imperative_built[n.0]).layout_position().top.to_f32() }
+    }
+    pub fn margin_top(&self, n: NodeHandle) -> f32 {
+        unsafe {
+            (*self.imperative_built[n.0])
+                .layout_node()
+                .computed_style()
+                .margin
+                .top
+                .to_f32()
+        }
+    }
+    pub fn margin_right(&self, n: NodeHandle) -> f32 {
+        unsafe {
+            (*self.imperative_built[n.0])
+                .layout_node()
+                .computed_style()
+                .margin
+                .right
+                .to_f32()
+        }
+    }
+    pub fn margin_bottom(&self, n: NodeHandle) -> f32 {
+        unsafe {
+            (*self.imperative_built[n.0])
+                .layout_node()
+                .computed_style()
+                .margin
+                .bottom
+                .to_f32()
+        }
+    }
+    pub fn margin_left(&self, n: NodeHandle) -> f32 {
+        unsafe {
+            (*self.imperative_built[n.0])
+                .layout_node()
+                .computed_style()
+                .margin
+                .left
+                .to_f32()
         }
     }
     pub fn gen_node_id() -> NodeId {
@@ -247,52 +364,6 @@ impl TestCtx {
             x.replace(x.get() + 1);
             x.get()
         })
-    }
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(input: &str) -> Option<Self> {
-        let mut ctx = Self::new();
-        let mut parse_ctx = Context::create(None);
-        parse_ctx.parse(input);
-        if let Some(tree) = parse_ctx.tree() {
-            if let Some(root) = tree.root() {
-                unsafe {
-                    let root_node: *mut Node = ctx.create_node_recursive(root, None);
-                    ctx.root = Some(root_node);
-                    return Some(ctx);
-                }
-            }
-        }
-        None
-    }
-    pub fn update_layout_pos_recursive(&mut self, node: &Node, parent_offset: Option<(Len, Len)>) {
-        let position = node.layout_position();
-        self.layout_pos.insert(node as *const Node, position);
-        if let Some(offset) = parent_offset {
-            self.paint_pos.insert(
-                node as *const Node,
-                (
-                    LayoutPosition {
-                        width: position.width,
-                        height: position.height,
-                        left: offset.0 + position.left,
-                        top: offset.1 + position.top,
-                    },
-                    Color::Rgba(rand::random(), rand::random(), rand::random(), 1),
-                ),
-            );
-        }
-
-        unsafe {
-            node.for_each_child_node(|node, _| {
-                self.update_layout_pos_recursive(
-                    node,
-                    Some((
-                        parent_offset.unwrap_or((Len::zero(), Len::zero())).0 + position.left,
-                        parent_offset.unwrap_or((Len::zero(), Len::zero())).1 + position.top,
-                    )),
-                )
-            });
-        }
     }
     #[inline]
     pub fn layout(&mut self, dump_style: bool) {
@@ -305,7 +376,6 @@ impl TestCtx {
                     ),
                     Size::new(Len::from_f32(375.), Len::from_f32(750.)),
                 );
-                self.update_layout_pos_recursive(&*root, None);
 
                 println!(
                     "{}",
@@ -325,195 +395,8 @@ impl TestCtx {
             }
         }
     }
-    #[inline]
-    pub fn assert(&mut self) {
-        self.expect_layout_pos.iter().for_each(|(id, expect_pos)| {
-            if let Some(layout_pos) = self.layout_pos.get(id) {
-                assert_eq!(expect_pos, layout_pos);
-            }
-        });
-        self.expect_computed_margin.iter().for_each(|(id, expect_m)| {
-            unsafe {
-                let cs = (*(*id)).layout_node().computed_style();
-                if let Some(v) = expect_m.top {
-                    assert_eq!(cs.margin.top.to_f32().round(), v);
-                }
-                if let Some(v) = expect_m.right {
-                    assert_eq!(cs.margin.right.to_f32().round(), v);
-                }
-                if let Some(v) = expect_m.bottom {
-                    assert_eq!(cs.margin.bottom.to_f32().round(), v);
-                }
-                if let Some(v) = expect_m.left {
-                    assert_eq!(cs.margin.left.to_f32().round(), v);
-                }
-            }
-        });
-    }
-    #[cfg(target_os = "macos")]
-    pub fn render(&self) {
-        use piston_window::{
-            clear, EventLoop, EventSettings, Graphics, PistonWindow, Rectangle, WindowSettings,
-        };
-        let mut window_settings = WindowSettings::new("test", [375, 750]);
-        window_settings.set_resizable(false);
-        window_settings.set_exit_on_esc(false);
-        let mut window: PistonWindow = window_settings.samples(4).build().unwrap();
-        let mut event_settings = EventSettings::new();
-        event_settings.set_lazy(true);
-        window.set_event_settings(event_settings);
-        while let Some(e) = window.next() {
-            window.draw_2d(&e, |c, g, _| {
-                clear([1., 1., 1., 1.], g);
-                g.clear_stencil(0);
-                self.paint_pos.iter().for_each(|(_id, (rect, color))| {
-                    let rgba = color.rgba_to_tuple();
-                    Rectangle::new([rgba.0 as f32, rgba.1 as f32, rgba.2 as f32, rgba.3 as f32])
-                        .draw(
-                            [
-                                rect.left.to_f32() as f64,
-                                rect.top.to_f32() as f64,
-                                rect.width.to_f32() as f64,
-                                rect.height.to_f32() as f64,
-                            ],
-                            &c.draw_state,
-                            c.transform,
-                            g,
-                        );
-                });
-            });
-        }
-    }
-    /// # Safety
-    ///
-    pub unsafe fn create_node_recursive(
-        &mut self,
-        cur: &NodeType,
-        parent_node_props: Option<&NodeProperties>,
-    ) -> NodePtr {
-        match cur {
-            NodeType::Text(t) => {
-                let node = Node::new_ptr();
-                let mut text_info_builder = TextInfoBuilder::new().with_text_len(t.text().len());
-                if let Some(parent_node_props) = parent_node_props {
-                    let font_size = parent_node_props.font_size();
-                    if let float_pigment_css::typing::Length::Px(x) = font_size {
-                        text_info_builder.set_font_size(x);
-                    }
-                }
-                prepare_measure_node(node, text_info_builder.build());
-                node
-            }
-            NodeType::Element(e) => {
-                let node = Node::new_ptr();
-                if !is_block_tag(e.tag()) {
-                    (*node).set_display(float_pigment_css::typing::Display::Inline);
-                }
-
-                let mut node_props = NodeProperties::new(parent_node_props);
-                if let Some(style) = e.attributes().get("style") {
-                    unsafe {
-                        TestCtx::set_style(&*node, &style, &mut node_props, parent_node_props);
-                    }
-                }
-                self.set_expect_layout_pos(node, e.attributes());
-                self.set_expect_computed_margin(node, e.attributes());
-
-                if is_measure_text_slot(e.tag()) {
-                    let text_len = e
-                        .attributes()
-                        .get("len")
-                        .map(|v| v.parse::<usize>().unwrap())
-                        .unwrap_or(0);
-                    let font_size = e
-                        .attributes()
-                        .get("fontSize")
-                        .map(|v| v.parse::<f32>().unwrap())
-                        .unwrap_or(16.);
-                    let text_info = TextInfoBuilder::new()
-                        .with_text_len(text_len)
-                        .with_font_size(font_size)
-                        .build();
-                    prepare_measure_node(node, text_info);
-                }
-
-                e.children_mut().iter().for_each(|item| {
-                    let child = self.create_node_recursive(item, Some(&node_props));
-                    (*node).append_child(child);
-                });
-                node
-            }
-            NodeType::Fragment(e) => {
-                let node = Node::new_ptr();
-                e.children_mut().iter().for_each(|item| {
-                    let child = self.create_node_recursive(item, None);
-                    (*node).append_child(child);
-                });
-                node
-            }
-        }
-    }
-
-    pub fn set_expect_layout_pos(&mut self, node_ptr: *const Node, attrs: &Attribute) {
-        let mut pos = PartialLayoutPosition::default();
-        if let Some(v) = attrs
-            .get("data-expect-width")
-            .or_else(|| attrs.get("expect_width"))
-        {
-            pos.width = Some(v.parse::<f32>().unwrap())
-        }
-        if let Some(v) = attrs
-            .get("data-expect-height")
-            .or_else(|| attrs.get("expect_height"))
-        {
-            pos.height = Some(v.parse::<f32>().unwrap())
-        }
-        if let Some(v) = attrs
-            .get("data-expect-top")
-            .or_else(|| attrs.get("expect_top"))
-        {
-            pos.top = Some(v.parse::<f32>().unwrap())
-        }
-        if let Some(v) = attrs
-            .get("data-expect-left")
-            .or_else(|| attrs.get("expect_left"))
-        {
-            pos.left = Some(v.parse::<f32>().unwrap())
-        }
-        self.expect_layout_pos.insert(node_ptr, pos);
-    }
-
-    pub fn set_expect_computed_margin(&mut self, node_ptr: *const Node, attrs: &Attribute) {
-        let mut m = PartialComputedMargin::default();
-        if let Some(v) = attrs
-            .get("data-expect-margin-top")
-            .or_else(|| attrs.get("expect_margin_top"))
-        {
-            m.top = Some(v.parse::<f32>().unwrap());
-        }
-        if let Some(v) = attrs
-            .get("data-expect-margin-right")
-            .or_else(|| attrs.get("expect_margin_right"))
-        {
-            m.right = Some(v.parse::<f32>().unwrap());
-        }
-        if let Some(v) = attrs
-            .get("data-expect-margin-bottom")
-            .or_else(|| attrs.get("expect_margin_bottom"))
-        {
-            m.bottom = Some(v.parse::<f32>().unwrap());
-        }
-        if let Some(v) = attrs
-            .get("data-expect-margin-left")
-            .or_else(|| attrs.get("expect_margin_left"))
-        {
-            m.left = Some(v.parse::<f32>().unwrap());
-        }
-        self.expect_computed_margin.insert(node_ptr, m);
-    }
-
     // style
-    pub unsafe fn set_style(
+    pub unsafe fn apply_inline_style(
         node: &Node,
         style: &str,
         node_props: &mut NodeProperties,
@@ -683,6 +566,64 @@ impl TestCtx {
     }
 }
 
+/// DFS 构建真实 Node 树。自由函数避开 &self/&mut self 冲突。
+unsafe fn build_dfs(
+    handle: NodeHandle,
+    parent_props: Option<&NodeProperties>,
+    nodes: &[BuildNode],
+    children_map: &FxHashMap<NodeHandle, Vec<NodeHandle>>,
+    built: &mut [*mut Node],
+) -> *mut Node {
+    match &nodes[handle.0] {
+        BuildNode::Element {
+            tag,
+            style,
+            measure_text,
+            ..
+        } => {
+            let node = Node::new_ptr();
+            if !is_block_tag(tag) {
+                (*node).set_display(float_pigment_css::typing::Display::Inline);
+            }
+            let mut node_props = NodeProperties::new(parent_props);
+            if let Some(s) = style {
+                TestCtx::apply_inline_style(&*node, s, &mut node_props, parent_props);
+            }
+            // Measure-text slot: convert the node into a Text measure node
+            // (mirrors `prepare_measure_node` in the legacy
+            // `create_node_recursive`). Done after style so the final node
+            // type/display/measure/baseline funcs match the legacy path.
+            if let Some((text_len, font_size)) = measure_text {
+                let text_info = TextInfoBuilder::new()
+                    .with_text_len(*text_len)
+                    .with_font_size(*font_size)
+                    .build();
+                prepare_measure_node(node, text_info);
+            }
+            built[handle.0] = node;
+            if let Some(children) = children_map.get(&handle) {
+                for ch in children {
+                    let child_node = build_dfs(*ch, Some(&node_props), nodes, children_map, built);
+                    (*node).append_child(child_node);
+                }
+            }
+            node
+        }
+        BuildNode::Text { text, .. } => {
+            let node = Node::new_ptr();
+            let mut tib = TextInfoBuilder::new().with_text_len(text.len());
+            if let Some(pp) = parent_props {
+                if let float_pigment_css::typing::Length::Px(x) = pp.font_size() {
+                    tib.set_font_size(x);
+                }
+            }
+            prepare_measure_node(node, tib.build());
+            built[handle.0] = node;
+            node
+        }
+    }
+}
+
 fn convert_grid_template(grid_template: GridTemplate) -> LayoutGridTemplate<Len> {
     match grid_template {
         GridTemplate::None => LayoutGridTemplate::None,
@@ -721,80 +662,4 @@ fn convert_grid_auto(grid_auto: GridAuto) -> LayoutGridAuto<Len> {
     }
 }
 
-#[macro_export]
-macro_rules! assert_xml {
-    ($xml: expr) => {{
-        let mut ctx = TestCtx::from_str($xml).unwrap();
-        ctx.layout(false);
-        ctx.assert();
-    }};
-    ($xml: expr, $dump_style: expr) => {{
-        let mut ctx = TestCtx::from_str($xml).unwrap();
-        ctx.layout($dump_style);
-        ctx.assert();
-    }};
-}
-
-/// Run an HTML test case file: parse → layout → assert data-expect-*.
-#[macro_export]
-macro_rules! assert_html_case {
-    ($path:literal) => {{
-        let html = include_str!($path);
-        let mut ctx = $crate::TestCtx::from_str(html).expect("failed to parse HTML case");
-        ctx.layout(false);
-        ctx.assert();
-    }};
-}
-
-#[macro_export]
-#[cfg(target_os = "macos")]
-macro_rules! render_xml {
-    ($xml: expr) => {{
-        let mut ctx = TestCtx::from_str($xml).unwrap();
-        ctx.layout(false);
-        ctx.render();
-    }};
-}
-
-#[test]
-fn test_from_str() {
-    let input = r#"
-    <div id="1" style="width: 100px; height: 100px;">
-      <div id="2" style="display: inline">hello</div>
-    </div>
-  "#;
-    let ctx = TestCtx::from_str(input).unwrap();
-    if let Some(root) = ctx.root {
-        unsafe {
-            let root = &*root;
-            root.layout_with_containing_size(
-                OptionSize::new(
-                    OptionNum::some(Len::from_f32(375.)),
-                    OptionNum::some(Len::from_f32(750.)),
-                ),
-                Size::new(Len::from_f32(375.), Len::from_f32(750.)),
-                OptionSize::new(
-                    OptionNum::some(Len::from_f32(375.)),
-                    OptionNum::some(Len::from_f32(750.)),
-                ),
-            );
-            println!(
-                "{}",
-                (*root).dump_to_html(
-                    DumpOptions {
-                        recursive: true,
-                        layout: true,
-                        style: DumpStyleMode::None,
-                    },
-                    1,
-                )
-            );
-            assert_eq!(root.children_len(), 1);
-            let children = root.children();
-            let child = children.first().unwrap();
-            assert_eq!(child.children_len(), 1);
-        }
-    }
-}
-
-include!(concat!(env!("OUT_DIR"), "/html_tests.rs"));
+mod generated;
