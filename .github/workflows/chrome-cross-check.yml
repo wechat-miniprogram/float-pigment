@@ -24,5 +24,8 @@ jobs:
       - name: Install puppeteer
         working-directory: scripts
         run: pnpm install --frozen-lockfile
+      - name: Install Chrome for puppeteer
+        working-directory: scripts
+        run: pnpm exec puppeteer browsers install chrome
       - name: Run Chrome cross-check
         run: node scripts/chrome-cross-check.mjs
