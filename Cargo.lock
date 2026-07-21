@@ -722,7 +722,7 @@ dependencies = [
 
 [[package]]
 name = "float-pigment"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "float-pigment-css",
  "float-pigment-forest",
@@ -731,7 +731,7 @@ dependencies = [
 
 [[package]]
 name = "float-pigment-consistent-bincode"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "byteorder",
  "serde",
@@ -741,7 +741,7 @@ dependencies = [
 
 [[package]]
 name = "float-pigment-css"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "ahash 0.8.11",
  "az",
@@ -773,7 +773,7 @@ dependencies = [
 
 [[package]]
 name = "float-pigment-css-macro"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -786,7 +786,7 @@ dependencies = [
 
 [[package]]
 name = "float-pigment-css-napi"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "float-pigment-css",
  "napi",
@@ -796,7 +796,7 @@ dependencies = [
 
 [[package]]
 name = "float-pigment-forest"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "bit-vec",
  "cbindgen",
@@ -815,7 +815,7 @@ dependencies = [
 
 [[package]]
 name = "float-pigment-forest-macro"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -824,7 +824,7 @@ dependencies = [
 
 [[package]]
 name = "float-pigment-layout"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "euclid",
  "float-pigment-css",
@@ -836,7 +836,7 @@ dependencies = [
 
 [[package]]
 name = "float-pigment-mlp"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "htmlstream",
  "regex",
