@@ -206,7 +206,7 @@ fn compute_min_content_main_size<T: LayoutTreeNode>(
                 .size
                 .main_size(dir);
             if single_line {
-                acc = acc + contribution;
+                acc += contribution;
             } else {
                 acc = acc.max(contribution);
             }
@@ -780,7 +780,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                     let clamped = flex_child.min_max_limit.main_size(cur, dir);
                     flex_child.target_size.set_main_size(dir, clamped);
                     let v = clamped - cur;
-                    total_violation = total_violation + v;
+                    total_violation += v;
                     violations.push(v);
                 }
                 // e. Freeze over-flexed items based on the sign of the total violation:
