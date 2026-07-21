@@ -39,11 +39,7 @@ fn imperative_grid_equivalent_to_from_str() {
 
     // Helper: append a div with text content under parent. Returns the div
     // handle so we can assert against it.
-    fn append_div_with_text(
-        ctx: &mut TestCtx,
-        parent: NodeHandle,
-        text: &str,
-    ) -> NodeHandle {
+    fn append_div_with_text(ctx: &mut TestCtx, parent: NodeHandle, text: &str) -> NodeHandle {
         let div = ctx.create_node("div");
         let t = ctx.create_text(text);
         ctx.append(div, t);
@@ -58,7 +54,7 @@ fn imperative_grid_equivalent_to_from_str() {
 
     // Row 2 (template row height 40px)
     let n4 = append_div_with_text(&mut ctx, n0, "content1"); // left=0
-    // content2 has an explicit inline style overriding width/height.
+                                                             // content2 has an explicit inline style overriding width/height.
     let n5 = ctx.create_node("div");
     ctx.set_style(n5, "width: 23px; height: 23px");
     let t5 = ctx.create_text("content2");
@@ -84,7 +80,11 @@ fn imperative_grid_equivalent_to_from_str() {
     // Row 2 — 40px template row, except content2 which sets its own height.
     assert_eq!(ctx.height(n4), 40.0, "content1 height");
     assert_eq!(ctx.left(n4), 0.0, "content1 left");
-    assert_eq!(ctx.height(n5), 23.0, "content2 height (inline style override)");
+    assert_eq!(
+        ctx.height(n5),
+        23.0,
+        "content2 height (inline style override)"
+    );
     assert_eq!(ctx.left(n5), 250.0, "content2 left");
     assert_eq!(ctx.height(n6), 40.0, "content3 height");
     assert_eq!(ctx.left(n6), 350.0, "content3 left");

@@ -308,13 +308,28 @@ impl TestCtx {
     // ===== 命令式 getters（layout_imperative 之后读节点的尺寸/位置/margin）=====
 
     pub fn width(&self, n: NodeHandle) -> f32 {
-        unsafe { (*self.imperative_built[n.0]).layout_position().width.to_f32() }
+        unsafe {
+            (*self.imperative_built[n.0])
+                .layout_position()
+                .width
+                .to_f32()
+        }
     }
     pub fn height(&self, n: NodeHandle) -> f32 {
-        unsafe { (*self.imperative_built[n.0]).layout_position().height.to_f32() }
+        unsafe {
+            (*self.imperative_built[n.0])
+                .layout_position()
+                .height
+                .to_f32()
+        }
     }
     pub fn left(&self, n: NodeHandle) -> f32 {
-        unsafe { (*self.imperative_built[n.0]).layout_position().left.to_f32() }
+        unsafe {
+            (*self.imperative_built[n.0])
+                .layout_position()
+                .left
+                .to_f32()
+        }
     }
     pub fn top(&self, n: NodeHandle) -> f32 {
         unsafe { (*self.imperative_built[n.0]).layout_position().top.to_f32() }

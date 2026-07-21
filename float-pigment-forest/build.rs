@@ -42,7 +42,10 @@ fn main() {
             let html = fs::read_to_string(&abs).unwrap_or_default();
             let ignore = html.contains("data-ignore=\"true\"");
             let body = translate_html(&html);
-            by_topic.entry(topic).or_default().push((name, body, ignore));
+            by_topic
+                .entry(topic)
+                .or_default()
+                .push((name, body, ignore));
         }
     }
 

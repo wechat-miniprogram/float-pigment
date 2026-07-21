@@ -538,14 +538,12 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
         {
             requested
         } else {
-            let total_main_axis_gap_all_lines: T::Length = length_sum(
-                flex_lines
-                    .iter()
-                    .map(|l| sum_axis_gaps(
-                        main_axis_gap::<T>(dir, style, node, &requested_inner_size),
-                        l.items.len(),
-                    )),
-            );
+            let total_main_axis_gap_all_lines: T::Length = length_sum(flex_lines.iter().map(|l| {
+                sum_axis_gaps(
+                    main_axis_gap::<T>(dir, style, node, &requested_inner_size),
+                    l.items.len(),
+                )
+            }));
             let max_content_size: T::Length = total_main_axis_gap_all_lines
                 + length_sum(
                     flex_lines
