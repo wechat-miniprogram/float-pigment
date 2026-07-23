@@ -3,18 +3,21 @@
 // (create_node / create_text / set_style / append + layout_imperative +
 // getters).
 //
-// Output location depends on context:
-//   - Local builds (no CI env, not under target/package): writes
-//     tests/generated/<topic>/<case>.rs + nested mod tree, compiled by
-//     tests/mod.rs via `mod generated;`. Source tree, human-readable.
-//   - CI (CI=true) and cargo package/publish verify (CARGO_MANIFEST_DIR
-//     under target/package): writes OUT_DIR/generated/<topic>/<case>.rs +
-//     all.rs (which include!s each case), compiled by tests/mod.rs via
-//     `include!(OUT_DIR/generated/all.rs)`. Keeps the source tree untouched
-//     (publish verify forbids build.rs from writing outside OUT_DIR).
+// Output:
+//   - OUT_DIR/generated/<topic>/<case>.rs + OUT_DIR/generated/all.rs (all.rs
+//     does `include!("topic/case.rs")` for each case — paths resolve relative
+//     to all.rs). tests/mod.rs pulls all.rs in via
+//     `include!(OUT_DIR/generated/all.rs)`. This is what compiles. rustfmt
+//     does not parse include! macros, so `cargo fmt --check` is happy without
+//     the generated tree being present.
+//   - Local (non-CI, non-publish-verify) builds ALSO write the same tree
+//     under tests/generated/ for human review. CI (CI=true) and cargo
+//     package/publish verify (CARGO_MANIFEST_DIR under target/package) skip
+//     the mirror.
 //
-// build.rs emits `cargo:rustc-cfg=use_out_dir` in the OUT_DIR branch so
-// tests/mod.rs can switch between the two with #[cfg(use_out_dir)].
+// If tests/cases is absent (published crate excludes tests/ — see Cargo.toml
+// `exclude`), build.rs writes nothing: it also runs when a dependent crate
+// builds us (in the registry source dir), which must stay clean.
 //
 // The translator walks the parsed DOM and emits imperative calls in
 // document order. Layout assertions (data-expect-*) are collected during
@@ -34,94 +37,65 @@ use float_pigment_mlp::{
 fn main() {
     let manifest = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     let cases_dir = PathBuf::from(&manifest).join("tests/cases");
-    // Published crate excludes tests/ (Cargo.toml `exclude`), so there are no
-    // cases to translate — and we must not write anything: build.rs also runs
-    // when a dependent crate builds us (in the registry source dir), which
-    // must stay clean.
+    // Published crate excludes tests/ → no cases, and build.rs must not
+    // write anything (it runs in dependent crates' builds, in the registry
+    // source dir).
     if !cases_dir.exists() {
         return;
     }
-    let is_ci = std::env::var("CI").is_ok();
-    let is_publish_verify = manifest.contains("target/package");
-    let use_out_dir = is_ci || is_publish_verify;
+    let out = std::env::var("OUT_DIR").unwrap();
+    let out_gen = PathBuf::from(&out).join("generated");
 
     // topic -> Vec<(case_name, name_ident, body, ignore)>
     let mut by_topic: BTreeMap<String, Vec<(String, String, String, bool)>> = BTreeMap::new();
 
-    if cases_dir.exists() {
-        let mut entries = walk(&cases_dir, &cases_dir);
-        entries.sort();
-        for (rel, abs) in entries {
-            if abs.extension().and_then(|e| e.to_str()) != Some("html") {
-                continue;
-            }
-            let rel_str = rel.with_extension("").to_string_lossy().replace('\\', "/");
-            let mut parts = rel_str.split('/');
-            let topic = parts.next().unwrap_or("misc").to_string();
-            let name = parts.collect::<Vec<_>>().join("_");
-            let name_ident = name.replace('-', "_");
-            let html = fs::read_to_string(&abs).unwrap_or_default();
-            let ignore = html.contains("data-ignore=\"true\"");
-            let body = translate_html(&html);
-            by_topic
-                .entry(topic)
-                .or_default()
-                .push((name, name_ident, body, ignore));
+    let mut entries = walk(&cases_dir, &cases_dir);
+    entries.sort();
+    for (rel, abs) in entries {
+        if abs.extension().and_then(|e| e.to_str()) != Some("html") {
+            continue;
         }
+        let rel_str = rel.with_extension("").to_string_lossy().replace('\\', "/");
+        let mut parts = rel_str.split('/');
+        let topic = parts.next().unwrap_or("misc").to_string();
+        let name = parts.collect::<Vec<_>>().join("_");
+        let name_ident = name.replace('-', "_");
+        let html = fs::read_to_string(&abs).unwrap_or_default();
+        let ignore = html.contains("data-ignore=\"true\"");
+        let body = translate_html(&html);
+        by_topic
+            .entry(topic)
+            .or_default()
+            .push((name, name_ident, body, ignore));
     }
 
-    if use_out_dir {
-        let out = std::env::var("OUT_DIR").unwrap();
-        let out_gen = PathBuf::from(&out).join("generated");
-        write_out_dir_tree(&out_gen, &by_topic);
-        // Switch tests/mod.rs to include!(OUT_DIR/generated/all.rs).
-        println!("cargo:rustc-cfg=use_out_dir");
-    } else {
+    // OUT_DIR/generated: per-case .rs + all.rs (compiled). all.rs is always
+    // emitted here; mod.rs/ tree is also emitted (harmless, aids browsing).
+    write_cases_tree(&out_gen, &by_topic, true);
+
+    // Local mirror under tests/generated for human review.
+    let is_ci = std::env::var("CI").is_ok();
+    let is_publish_verify = manifest.contains("target/package");
+    if !is_ci && !is_publish_verify {
         let gen_dir = PathBuf::from(&manifest).join("tests/generated");
-        write_source_tree(&gen_dir, &by_topic);
+        write_cases_tree(&gen_dir, &by_topic, false);
     }
 
     println!("cargo:rerun-if-changed=tests/cases");
     println!("cargo:rerun-if-changed=build.rs");
 }
 
-/// OUT_DIR branch: per-case .rs + all.rs. all.rs does
-/// `include!("topic/case.rs")` for each case (paths resolve relative to
-/// all.rs). tests/mod.rs include!s all.rs. Each fn has `use crate::TestCtx`
-/// inside the body so all.rs's flat include! does not duplicate the use.
-fn write_out_dir_tree(
+/// Write per-case .rs under `<gen_dir>/<topic>/<case>.rs` plus a nested
+/// `mod.rs` tree (browsing aid) and, when `emit_all_rs`, an `all.rs` that
+/// `include!`s every case — that all.rs is what tests/mod.rs compiles.
+fn write_cases_tree(
     gen_dir: &Path,
     by_topic: &BTreeMap<String, Vec<(String, String, String, bool)>>,
+    emit_all_rs: bool,
 ) {
     let _ = fs::remove_dir_all(gen_dir);
     fs::create_dir_all(gen_dir).unwrap();
     let mut all_rs = String::from("// AUTO-GENERATED by build.rs. Do not edit.\n\n");
-    for (topic, cases) in by_topic {
-        let topic_dir = gen_dir.join(topic);
-        fs::create_dir_all(&topic_dir).unwrap();
-        let topic_ident = topic.replace('-', "_");
-        for (name, name_ident, body, ignore) in cases {
-            let fn_name = format!("html_{}_{}", topic_ident, name_ident);
-            let ignore_attr = if *ignore { "#[ignore]\n" } else { "" };
-            let case_rs = format!(
-                "// AUTO-GENERATED from tests/cases/{topic}/{name}.html. Do not edit.\n\n{ignore_attr}#[rustfmt::skip]\n#[test]\nfn {fn_name}() {{\n    use crate::TestCtx;\n{body}}}\n"
-            );
-            fs::write(topic_dir.join(format!("{name}.rs")), &case_rs).unwrap();
-            all_rs.push_str(&format!("include!(\"{topic}/{name}.rs\");\n"));
-        }
-    }
-    fs::write(gen_dir.join("all.rs"), all_rs).unwrap();
-}
-
-/// Source-tree branch: per-case .rs + nested mod.rs tree under tests/generated.
-/// tests/mod.rs compiles it via `mod generated;`. Each case is its own mod,
-/// so file-level `use crate::TestCtx;` is fine.
-fn write_source_tree(
-    gen_dir: &Path,
-    by_topic: &BTreeMap<String, Vec<(String, String, String, bool)>>,
-) {
-    let _ = fs::remove_dir_all(gen_dir);
-    fs::create_dir_all(gen_dir).unwrap();
     let mut top_mod = String::from("// AUTO-GENERATED by build.rs. Do not edit.\n\n");
     for (topic, cases) in by_topic {
         let topic_dir = gen_dir.join(topic);
@@ -131,16 +105,24 @@ fn write_source_tree(
         for (name, name_ident, body, ignore) in cases {
             let fn_name = format!("html_{}_{}", topic_ident, name_ident);
             let ignore_attr = if *ignore { "#[ignore]\n" } else { "" };
+            // `use crate::TestCtx;` inside the fn so all.rs's flat include!
+            // does not trip "duplicate use".
             let case_rs = format!(
-                "// AUTO-GENERATED from tests/cases/{topic}/{name}.html. Do not edit.\nuse crate::TestCtx;\n\n{ignore_attr}#[rustfmt::skip]\n#[test]\nfn {fn_name}() {{\n{body}}}\n"
+                "// AUTO-GENERATED from tests/cases/{topic}/{name}.html. Do not edit.\n\n{ignore_attr}#[rustfmt::skip]\n#[test]\nfn {fn_name}() {{\n    use crate::TestCtx;\n{body}}}\n"
             );
             fs::write(topic_dir.join(format!("{name}.rs")), &case_rs).unwrap();
+            // all.rs includes each case; path is relative to all.rs (gen_dir),
+            // which sits next to <topic>/, so "<topic>/<case>.rs" resolves.
+            all_rs.push_str(&format!("include!(\"{topic}/{name}.rs\");\n"));
             topic_mod.push_str(&format!("mod {name_ident};\n"));
         }
         fs::write(topic_dir.join("mod.rs"), topic_mod).unwrap();
         top_mod.push_str(&format!("mod {topic_ident};\n"));
     }
-    fs::write(gen_dir.join("mod.rs"), top_mod).unwrap()
+    fs::write(gen_dir.join("mod.rs"), top_mod).unwrap();
+    if emit_all_rs {
+        fs::write(gen_dir.join("all.rs"), all_rs).unwrap();
+    }
 }
 
 /// Parse the HTML and emit imperative TestCtx calls.
