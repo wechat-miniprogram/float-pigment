@@ -61,10 +61,10 @@ fn main() {
         let mut topic_mod = String::from("// AUTO-GENERATED. Do not edit.\n\n");
         for (name, body, ignore) in cases {
             let name_ident = name.replace('-', "_");
-            let fn_name = format!("html__{}_{}", topic_ident, name_ident);
+            let fn_name = format!("html_{}_{}", topic_ident, name_ident);
             let ignore_attr = if *ignore { "#[ignore]\n" } else { "" };
             let case_rs = format!(
-                "// AUTO-GENERATED from tests/cases/{topic}/{name}.html. Do not edit.\nuse crate::TestCtx;\n\n{ignore_attr}#[test]\nfn {fn_name}() {{\n{body}}}\n"
+                "#![rustfmt::skip]\n// AUTO-GENERATED from tests/cases/{topic}/{name}.html. Do not edit.\nuse crate::TestCtx;\n\n{ignore_attr}#[test]\nfn {fn_name}() {{\n{body}}}\n"
             );
             fs::write(topic_dir.join(format!("{name}.rs")), case_rs).unwrap();
             topic_mod.push_str(&format!("mod {name_ident};\n"));

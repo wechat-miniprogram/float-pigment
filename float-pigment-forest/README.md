@@ -57,7 +57,7 @@ Each case compiles to an imperative test under `tests/generated/` (gitignored, r
 use crate::TestCtx;
 
 #[test]
-fn html__<topic>_<name>() {
+fn html_<topic>_<name>() {
     let mut ctx = TestCtx::new();
     let n0 = ctx.create_node("div");
     ctx.set_style(n0, "display: flex; width: 200px; ...");
@@ -68,7 +68,7 @@ fn html__<topic>_<name>() {
 }
 ```
 
-- **Test fn name**: `html__<topic>_<name>` (path separators and `-` → `_`). Filter with `cargo test html__<keyword>`.
+- **Test fn name**: `html_<topic>_<name>` (path separators and `-` → `_`). Filter with `cargo test html_<keyword>`.
 - **Edit a case** → `cargo test` regenerates automatically (`rerun-if-changed=tests/cases`).
 - **`tests/generated/` is gitignored** — HTML cases are the source of truth, generated code is a build artifact.
 
