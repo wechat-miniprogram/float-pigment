@@ -23,7 +23,11 @@
 // document order. Layout assertions (data-expect-*) are collected during
 // the walk and emitted after `ctx.layout_imperative()` so they read back
 // computed values.
-use std::{collections::BTreeMap, fs, path::{Path, PathBuf}};
+use std::{
+    collections::BTreeMap,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use float_pigment_mlp::{
     context::{Context, Parse},
