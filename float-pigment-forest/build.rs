@@ -64,7 +64,7 @@ fn main() {
             let fn_name = format!("html_{}_{}", topic_ident, name_ident);
             let ignore_attr = if *ignore { "#[ignore]\n" } else { "" };
             let case_rs = format!(
-                "#![rustfmt::skip]\n// AUTO-GENERATED from tests/cases/{topic}/{name}.html. Do not edit.\nuse crate::TestCtx;\n\n{ignore_attr}#[test]\nfn {fn_name}() {{\n{body}}}\n"
+                "// AUTO-GENERATED from tests/cases/{topic}/{name}.html. Do not edit.\nuse crate::TestCtx;\n\n{ignore_attr}#[rustfmt::skip]\n#[test]\nfn {fn_name}() {{\n{body}}}\n"
             );
             fs::write(topic_dir.join(format!("{name}.rs")), case_rs).unwrap();
             topic_mod.push_str(&format!("mod {name_ident};\n"));
