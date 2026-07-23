@@ -10,6 +10,7 @@ keywords.workspace = true
 license.workspace = true
 repository.workspace = true
 build = "build.rs"
+exclude = ["tests"]
 
 [lib]
 name = "float_pigment_forest"

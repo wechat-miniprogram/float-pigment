@@ -677,4 +677,7 @@ fn convert_grid_auto(grid_auto: GridAuto) -> LayoutGridAuto<Len> {
     }
 }
 
+#[cfg(use_out_dir)]
 include!(concat!(env!("OUT_DIR"), "/generated/all.rs"));
+#[cfg(not(use_out_dir))]
+mod generated;
