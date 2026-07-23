@@ -677,4 +677,4 @@ fn convert_grid_auto(grid_auto: GridAuto) -> LayoutGridAuto<Len> {
     }
 }
 
-mod generated;
+include!(concat!(env!("OUT_DIR"), "/html_tests.rs"));
