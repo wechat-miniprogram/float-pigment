@@ -39,3 +39,16 @@ pub fn env() {
         )))
     );
 }
+
+#[test]
+pub fn env_function_name_case_insensitive() {
+    test_parse_property!(
+        margin_left,
+        "margin-left",
+        "ENV(safe-area-inset-bottom, 10px)",
+        Length::Expr(Box::new(LengthExpr::Env(
+            "safe-area-inset-bottom".into(),
+            Box::new(Length::Px(10.))
+        )))
+    );
+}

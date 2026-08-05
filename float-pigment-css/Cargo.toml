@@ -30,6 +30,10 @@ path = "tests/compatibility/main.rs"
 required-features = ["compatibility_test"]
 test = false
 
+[[test]]
+name = "property"
+path = "tests/property/mod.rs"
+
 [[bench]]
 name = "parse"
 harness = false

@@ -616,3 +616,9 @@ pub fn math_function_errors() {
     // clamp arity != 3 -> parse fails
     test_parse_property!(width, "width", "clamp(10px, 20px)", Length::Auto);
 }
+
+#[test]
+pub fn calc_function_name_case_insensitive() {
+    // CSS function names are ASCII case-insensitive.
+    test_parse_property!(width, "width", "CALC(10px + 10px)", Length::Px(20.));
+}

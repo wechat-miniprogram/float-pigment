@@ -168,6 +168,46 @@ pub(crate) fn env_default_value<'a, 't: 'a, 'i: 't>(
     len
 }
 
+/// Match a length unit ASCII case-insensitively; `None` for unknown units.
+#[inline(always)]
+fn parse_length_unit(unit: &str, value: f32) -> Option<Length> {
+    if unit.eq_ignore_ascii_case("px") {
+        Some(Length::Px(value))
+    } else if unit.eq_ignore_ascii_case("vw") {
+        Some(Length::Vw(value))
+    } else if unit.eq_ignore_ascii_case("vh") {
+        Some(Length::Vh(value))
+    } else if unit.eq_ignore_ascii_case("rem") {
+        Some(Length::Rem(value))
+    } else if unit.eq_ignore_ascii_case("rpx") {
+        Some(Length::Rpx(value))
+    } else if unit.eq_ignore_ascii_case("em") {
+        Some(Length::Em(value))
+    } else if unit.eq_ignore_ascii_case("vmin") {
+        Some(Length::Vmin(value))
+    } else if unit.eq_ignore_ascii_case("vmax") {
+        Some(Length::Vmax(value))
+    } else {
+        None
+    }
+}
+
+/// Match an angle unit ASCII case-insensitively; `None` for unknown units.
+#[inline(always)]
+fn parse_angle_unit(unit: &str, value: f32) -> Option<Angle> {
+    if unit.eq_ignore_ascii_case("deg") {
+        Some(Angle::Deg(value))
+    } else if unit.eq_ignore_ascii_case("grad") {
+        Some(Angle::Grad(value))
+    } else if unit.eq_ignore_ascii_case("rad") {
+        Some(Angle::Rad(value))
+    } else if unit.eq_ignore_ascii_case("turn") {
+        Some(Angle::Turn(value))
+    } else {
+        None
+    }
+}
+
 /// Unified internal length parsing function.
 /// - `allow_percentage`: whether `<percentage>` is accepted
 /// - `allow_negative`: whether negative values are accepted
@@ -197,18 +237,8 @@ fn parse_length_inner<'a, 't: 'a, 'i: 't>(
             if !allow_negative && *value < 0. {
                 return Err(parser.new_unexpected_token_error(next));
             }
-            // CSS dimension units are ASCII case-insensitive.
-            let unit: &str = unit;
-            match unit {
-                u if u.eq_ignore_ascii_case("px") => return Ok(Length::Px(*value)),
-                u if u.eq_ignore_ascii_case("vw") => return Ok(Length::Vw(*value)),
-                u if u.eq_ignore_ascii_case("vh") => return Ok(Length::Vh(*value)),
-                u if u.eq_ignore_ascii_case("rem") => return Ok(Length::Rem(*value)),
-                u if u.eq_ignore_ascii_case("rpx") => return Ok(Length::Rpx(*value)),
-                u if u.eq_ignore_ascii_case("em") => return Ok(Length::Em(*value)),
-                u if u.eq_ignore_ascii_case("vmin") => return Ok(Length::Vmin(*value)),
-                u if u.eq_ignore_ascii_case("vmax") => return Ok(Length::Vmax(*value)),
-                _ => {}
+            if let Some(length) = parse_length_unit(unit, *value) {
+                return Ok(length);
             }
         }
         Token::Ident(ident) if allow_auto => {
@@ -218,7 +248,7 @@ fn parse_length_inner<'a, 't: 'a, 'i: 't>(
             }
         }
         Token::Function(name) => match &**name {
-            "env" => {
+            n if n.eq_ignore_ascii_case("env") => {
                 let (name, default_value) = parser.parse_nested_block(|parser| {
                     parse_env_inner(parser, st, |parser, st| {
                         env_default_value(parser, properties, st)
@@ -229,7 +259,7 @@ fn parse_length_inner<'a, 't: 'a, 'i: 't>(
                     Box::new(default_value.unwrap_or(Length::Undefined)),
                 ))));
             }
-            "calc" => {
+            n if n.eq_ignore_ascii_case("calc") => {
                 return parse_calc_inner(parser, properties, st, ExpectValueType::NumberAndLength)
                     .map(|ret| {
                         if let Some(r) = ComputeCalcExpr::<Length>::try_compute(&ret) {
@@ -344,18 +374,12 @@ pub(crate) fn angle<'a, 't: 'a, 'i: 't>(
             }
         }
         Token::Dimension { value, unit, .. } => {
-            // CSS dimension units are ASCII case-insensitive.
-            let unit: &str = unit;
-            match unit {
-                u if u.eq_ignore_ascii_case("deg") => return Ok(Angle::Deg(*value)),
-                u if u.eq_ignore_ascii_case("grad") => return Ok(Angle::Grad(*value)),
-                u if u.eq_ignore_ascii_case("rad") => return Ok(Angle::Rad(*value)),
-                u if u.eq_ignore_ascii_case("turn") => return Ok(Angle::Turn(*value)),
-                _ => {}
+            if let Some(angle) = parse_angle_unit(unit, *value) {
+                return Ok(angle);
             }
         }
         Token::Function(name) => {
-            if &**name == "calc" {
+            if name.eq_ignore_ascii_case("calc") {
                 return parse_calc_inner(parser, properties, st, ExpectValueType::AngleAndLength)
                     .map(|ret| {
                         if let Some(r) = ComputeCalcExpr::<Angle>::try_compute(&ret) {
@@ -425,7 +449,7 @@ pub(crate) fn percentage<'a, 't: 'a, 'i: 't>(
         }
         Token::Percentage { unit_value, .. } => return Ok(Length::Ratio(*unit_value)),
         Token::Function(name) => {
-            if &**name == "calc" {
+            if name.eq_ignore_ascii_case("calc") {
                 return parse_calc_inner(
                     parser,
                     properties,
@@ -488,7 +512,7 @@ pub(crate) fn number<'a, 't: 'a, 'i: 't>(
             return Ok(Number::F32(*value));
         }
         Token::Function(name) => {
-            if &**name == "calc" {
+            if name.eq_ignore_ascii_case("calc") {
                 return parse_calc_inner(parser, properties, st, ExpectValueType::Number).map(
                     |ret| {
                         if let Some(r) = ComputeCalcExpr::<Number>::try_compute(&ret) {
@@ -532,7 +556,7 @@ pub(crate) fn non_negative_number<'a, 't: 'a, 'i: 't>(
             }
         }
         Token::Function(name) => {
-            if &**name == "calc" {
+            if name.eq_ignore_ascii_case("calc") {
                 return parse_calc_inner(parser, properties, st, ExpectValueType::Number).map(
                     |ret| {
                         if let Some(r) = ComputeCalcExpr::<Number>::try_compute(&ret) {
@@ -590,8 +614,8 @@ pub(crate) fn time_u32_ms<'a, 't: 'a, 'i: 't>(
     if let Token::Dimension { value, unit, .. } = next {
         let unit: &str = unit;
         match unit {
-            "s" => return Ok((*value * 1000.) as u32),
-            "ms" => return Ok((*value) as u32),
+            u if u.eq_ignore_ascii_case("s") => return Ok((*value * 1000.) as u32),
+            u if u.eq_ignore_ascii_case("ms") => return Ok((*value) as u32),
             _ => {}
         }
     }
@@ -608,10 +632,9 @@ pub(crate) fn time_i32_ms<'a, 't: 'a, 'i: 't>(
     let next = parser.next()?;
     if let Token::Dimension { value, unit, .. } = next {
         let unit: &str = unit;
-        let unit: &str = &unit.to_lowercase();
         match unit {
-            "s" => return Ok((*value * 1000.) as i32),
-            "ms" => return Ok((*value) as i32),
+            u if u.eq_ignore_ascii_case("s") => return Ok((*value * 1000.) as i32),
+            u if u.eq_ignore_ascii_case("ms") => return Ok((*value) as i32),
             _ => {}
         }
     }
@@ -849,7 +872,7 @@ pub(crate) fn element_func_repr<'a, 't: 'a, 'i: 't>(
     parser.try_parse(|parser| {
         let fn_name = parser.expect_function()?.clone();
         match fn_name.to_string().as_str() {
-            "element" => parser.parse_nested_block(|parser| {
+            n if n.eq_ignore_ascii_case("element") => parser.parse_nested_block(|parser| {
                 let hash = hash_token_repr(parser)?;
                 Ok(BackgroundImageItem::Element(hash.into()))
             }),
@@ -880,7 +903,7 @@ pub(crate) fn image_func_repr<'a, 't: 'a, 'i: 't>(
     parser.try_parse(|parser| {
         let fn_name = parser.expect_function()?.clone();
         match fn_name.to_string().as_str() {
-            "image" => parser.parse_nested_block(|parser| {
+            n if n.eq_ignore_ascii_case("image") => parser.parse_nested_block(|parser| {
                 // image_tags
                 let mut image_tags = ImageTags::LTR;
                 let _ = parser.try_parse(|parser| {

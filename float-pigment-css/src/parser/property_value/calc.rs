@@ -152,6 +152,38 @@ pub(crate) struct ComputeCalcExpr<T> {
     _mark: PhantomData<*const T>,
 }
 
+/// Fold the extreme value (min/max) of a series of computable expressions.
+#[inline(never)]
+fn fold_extreme(
+    args: &Array<CalcExpr>,
+    mut compute: impl FnMut(&CalcExpr) -> Option<f32>,
+    is_min: bool,
+) -> Option<f32> {
+    let mut iter = args.iter();
+    let mut ret = compute(iter.next()?)?;
+    for arg in iter {
+        let v = compute(arg)?;
+        if (is_min && v < ret) || (!is_min && v > ret) {
+            ret = v;
+        }
+    }
+    Some(ret)
+}
+
+/// Fold `clamp(MIN, VAL, MAX)` as `max(MIN, min(VAL, MAX))`.
+#[inline(never)]
+fn fold_clamp(
+    min: &CalcExpr,
+    val: &CalcExpr,
+    max: &CalcExpr,
+    mut compute: impl FnMut(&CalcExpr) -> Option<f32>,
+) -> Option<f32> {
+    let mn = compute(min)?;
+    let v = compute(val)?;
+    let mx = compute(max)?;
+    Some(v.max(mn).min(mx))
+}
+
 impl ComputeCalcExpr<Angle> {
     pub fn try_compute(expr: &CalcExpr) -> Option<Angle> {
         match expr {
@@ -177,32 +209,16 @@ impl ComputeCalcExpr<Angle> {
             }
             CalcExpr::Length(Length::Ratio(ratio)) => Some(Angle::from_ratio(*ratio)),
             CalcExpr::Min(args) => {
-                let mut iter = args.iter();
-                let mut ret = Self::try_compute(iter.next()?)?.to_f32();
-                for arg in iter {
-                    let v = Self::try_compute(arg)?.to_f32();
-                    if v < ret {
-                        ret = v;
-                    }
-                }
-                Some(Angle::Rad(ret))
+                fold_extreme(args, |e| Self::try_compute(e).map(|a| a.to_f32()), true)
+                    .map(Angle::Rad)
             }
             CalcExpr::Max(args) => {
-                let mut iter = args.iter();
-                let mut ret = Self::try_compute(iter.next()?)?.to_f32();
-                for arg in iter {
-                    let v = Self::try_compute(arg)?.to_f32();
-                    if v > ret {
-                        ret = v;
-                    }
-                }
-                Some(Angle::Rad(ret))
+                fold_extreme(args, |e| Self::try_compute(e).map(|a| a.to_f32()), false)
+                    .map(Angle::Rad)
             }
             CalcExpr::Clamp(min, val, max) => {
-                let mn = Self::try_compute(min)?.to_f32();
-                let v = Self::try_compute(val)?.to_f32();
-                let mx = Self::try_compute(max)?.to_f32();
-                Some(Angle::Rad(v.max(mn).min(mx)))
+                fold_clamp(min, val, max, |e| Self::try_compute(e).map(|a| a.to_f32()))
+                    .map(Angle::Rad)
             }
             _ => None,
         }
@@ -228,32 +244,16 @@ impl ComputeCalcExpr<Number> {
                 }
             }
             CalcExpr::Min(args) => {
-                let mut iter = args.iter();
-                let mut ret = Self::try_compute(iter.next()?)?.to_f32();
-                for arg in iter {
-                    let v = Self::try_compute(arg)?.to_f32();
-                    if v < ret {
-                        ret = v;
-                    }
-                }
-                Some(Number::F32(ret))
+                fold_extreme(args, |e| Self::try_compute(e).map(|n| n.to_f32()), true)
+                    .map(Number::F32)
             }
             CalcExpr::Max(args) => {
-                let mut iter = args.iter();
-                let mut ret = Self::try_compute(iter.next()?)?.to_f32();
-                for arg in iter {
-                    let v = Self::try_compute(arg)?.to_f32();
-                    if v > ret {
-                        ret = v;
-                    }
-                }
-                Some(Number::F32(ret))
+                fold_extreme(args, |e| Self::try_compute(e).map(|n| n.to_f32()), false)
+                    .map(Number::F32)
             }
             CalcExpr::Clamp(min, val, max) => {
-                let mn = Self::try_compute(min)?.to_f32();
-                let v = Self::try_compute(val)?.to_f32();
-                let mx = Self::try_compute(max)?.to_f32();
-                Some(Number::F32(v.max(mn).min(mx)))
+                fold_clamp(min, val, max, |e| Self::try_compute(e).map(|n| n.to_f32()))
+                    .map(Number::F32)
             }
             _ => None,
         }
@@ -325,55 +325,9 @@ impl ComputeCalcExpr<Length> {
                 //
                 None
             }
-            CalcExpr::Min(args) => {
-                let mut iter = args.iter();
-                let first = Self::try_compute(iter.next()?)?;
-                let (unit, mut val) = Self::length_unit_value(&first);
-                if !unit.is_specified_unit() {
-                    return None;
-                }
-                for arg in iter {
-                    let (u, v) = Self::length_unit_value(&Self::try_compute(arg)?);
-                    if u != unit {
-                        return None;
-                    }
-                    if v < val {
-                        val = v;
-                    }
-                }
-                Some(LengthUnit::to_length(unit, val))
-            }
-            CalcExpr::Max(args) => {
-                let mut iter = args.iter();
-                let first = Self::try_compute(iter.next()?)?;
-                let (unit, mut val) = Self::length_unit_value(&first);
-                if !unit.is_specified_unit() {
-                    return None;
-                }
-                for arg in iter {
-                    let (u, v) = Self::length_unit_value(&Self::try_compute(arg)?);
-                    if u != unit {
-                        return None;
-                    }
-                    if v > val {
-                        val = v;
-                    }
-                }
-                Some(LengthUnit::to_length(unit, val))
-            }
-            CalcExpr::Clamp(min, val, max) => {
-                let min = Self::try_compute(min)?;
-                let val = Self::try_compute(val)?;
-                let max = Self::try_compute(max)?;
-                let (u, mn) = Self::length_unit_value(&min);
-                let (uu, vv) = Self::length_unit_value(&val);
-                let (uuu, mx) = Self::length_unit_value(&max);
-                if u == uu && uu == uuu && u.is_specified_unit() {
-                    Some(LengthUnit::to_length(u, vv.max(mn).min(mx)))
-                } else {
-                    None
-                }
-            }
+            CalcExpr::Min(args) => Self::fold_length_extreme(args, true),
+            CalcExpr::Max(args) => Self::fold_length_extreme(args, false),
+            CalcExpr::Clamp(min, val, max) => Self::fold_length_clamp(min, val, max),
             _ => None,
         }
     }
@@ -391,6 +345,41 @@ impl ComputeCalcExpr<Length> {
             Length::Undefined => (LengthUnit::Undefined, f32::NAN),
             Length::Auto => (LengthUnit::Auto, f32::NAN),
             Length::Expr(_) => (LengthUnit::Expr, f32::NAN),
+        }
+    }
+
+    /// Fold the extreme length (min/max); all args must share a specified unit.
+    fn fold_length_extreme(args: &Array<CalcExpr>, is_min: bool) -> Option<Length> {
+        let mut iter = args.iter();
+        let first = Self::try_compute(iter.next()?)?;
+        let (unit, mut val) = Self::length_unit_value(&first);
+        if !unit.is_specified_unit() {
+            return None;
+        }
+        for arg in iter {
+            let (u, v) = Self::length_unit_value(&Self::try_compute(arg)?);
+            if u != unit {
+                return None;
+            }
+            if (is_min && v < val) || (!is_min && v > val) {
+                val = v;
+            }
+        }
+        Some(LengthUnit::to_length(unit, val))
+    }
+
+    /// Fold `clamp(MIN, VAL, MAX)`; all args must share a specified unit.
+    fn fold_length_clamp(min: &CalcExpr, val: &CalcExpr, max: &CalcExpr) -> Option<Length> {
+        let min = Self::try_compute(min)?;
+        let val = Self::try_compute(val)?;
+        let max = Self::try_compute(max)?;
+        let (u, mn) = Self::length_unit_value(&min);
+        let (uu, vv) = Self::length_unit_value(&val);
+        let (uuu, mx) = Self::length_unit_value(&max);
+        if u == uu && uu == uuu && u.is_specified_unit() {
+            Some(LengthUnit::to_length(u, vv.max(mn).min(mx)))
+        } else {
+            None
         }
     }
 }
