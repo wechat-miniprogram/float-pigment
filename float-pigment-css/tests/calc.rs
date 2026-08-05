@@ -514,3 +514,16 @@ pub fn calc_operator_whitespace() {
     test_parse_property!(width, "width", "calc(3px /1)", Length::Px(3.));
     test_parse_property!(width, "width", "calc(3px/1)", Length::Px(3.));
 }
+
+#[test]
+pub fn calc_unit_case_insensitive() {
+    // CSS dimension units are ASCII case-insensitive (CSS Syntax L3 / CSS Values L4).
+    test_parse_property!(width, "width", "calc(10PX + 10px)", Length::Px(20.));
+    test_parse_property!(width, "width", "calc(10Px * 2)", Length::Px(20.));
+    test_parse_property!(
+        transform,
+        "transform",
+        "rotate(calc(45DEG + 45deg))",
+        Transform::Series(vec![TransformItem::Rotate2D(Angle::Rad(1.570_796_4))].into())
+    );
+}

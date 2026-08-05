@@ -197,16 +197,17 @@ fn parse_length_inner<'a, 't: 'a, 'i: 't>(
             if !allow_negative && *value < 0. {
                 return Err(parser.new_unexpected_token_error(next));
             }
+            // CSS dimension units are ASCII case-insensitive.
             let unit: &str = unit;
             match unit {
-                "px" => return Ok(Length::Px(*value)),
-                "vw" => return Ok(Length::Vw(*value)),
-                "vh" => return Ok(Length::Vh(*value)),
-                "rem" => return Ok(Length::Rem(*value)),
-                "rpx" => return Ok(Length::Rpx(*value)),
-                "em" => return Ok(Length::Em(*value)),
-                "vmin" => return Ok(Length::Vmin(*value)),
-                "vmax" => return Ok(Length::Vmax(*value)),
+                u if u.eq_ignore_ascii_case("px") => return Ok(Length::Px(*value)),
+                u if u.eq_ignore_ascii_case("vw") => return Ok(Length::Vw(*value)),
+                u if u.eq_ignore_ascii_case("vh") => return Ok(Length::Vh(*value)),
+                u if u.eq_ignore_ascii_case("rem") => return Ok(Length::Rem(*value)),
+                u if u.eq_ignore_ascii_case("rpx") => return Ok(Length::Rpx(*value)),
+                u if u.eq_ignore_ascii_case("em") => return Ok(Length::Em(*value)),
+                u if u.eq_ignore_ascii_case("vmin") => return Ok(Length::Vmin(*value)),
+                u if u.eq_ignore_ascii_case("vmax") => return Ok(Length::Vmax(*value)),
                 _ => {}
             }
         }
@@ -325,12 +326,13 @@ pub(crate) fn angle<'a, 't: 'a, 'i: 't>(
             }
         }
         Token::Dimension { value, unit, .. } => {
+            // CSS dimension units are ASCII case-insensitive.
             let unit: &str = unit;
             match unit {
-                "deg" => return Ok(Angle::Deg(*value)),
-                "grad" => return Ok(Angle::Grad(*value)),
-                "rad" => return Ok(Angle::Rad(*value)),
-                "turn" => return Ok(Angle::Turn(*value)),
+                u if u.eq_ignore_ascii_case("deg") => return Ok(Angle::Deg(*value)),
+                u if u.eq_ignore_ascii_case("grad") => return Ok(Angle::Grad(*value)),
+                u if u.eq_ignore_ascii_case("rad") => return Ok(Angle::Rad(*value)),
+                u if u.eq_ignore_ascii_case("turn") => return Ok(Angle::Turn(*value)),
                 _ => {}
             }
         }
