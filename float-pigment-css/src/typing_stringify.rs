@@ -29,6 +29,9 @@ impl fmt::Display for CalcExpr {
             Self::Mul(lhs, rhs) => write!(f, "{lhs}*{rhs}"),
             Self::Plus(lhs, rhs) => write!(f, "{lhs} + {rhs}"),
             Self::Sub(lhs, rhs) => write!(f, "{lhs} - {rhs}"),
+            Self::Min(arr) => write!(f, "min({})", generate_array_str(arr)),
+            Self::Max(arr) => write!(f, "max({})", generate_array_str(arr)),
+            Self::Clamp(min, val, max) => write!(f, "clamp({min}, {val}, {max})"),
         }
     }
 }
