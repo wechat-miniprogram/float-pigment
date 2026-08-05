@@ -176,6 +176,34 @@ impl ComputeCalcExpr<Angle> {
                 }
             }
             CalcExpr::Length(Length::Ratio(ratio)) => Some(Angle::from_ratio(*ratio)),
+            CalcExpr::Min(args) => {
+                let mut iter = args.iter();
+                let mut ret = Self::try_compute(iter.next()?)?.to_f32();
+                for arg in iter {
+                    let v = Self::try_compute(arg)?.to_f32();
+                    if v < ret {
+                        ret = v;
+                    }
+                }
+                Some(Angle::Rad(ret))
+            }
+            CalcExpr::Max(args) => {
+                let mut iter = args.iter();
+                let mut ret = Self::try_compute(iter.next()?)?.to_f32();
+                for arg in iter {
+                    let v = Self::try_compute(arg)?.to_f32();
+                    if v > ret {
+                        ret = v;
+                    }
+                }
+                Some(Angle::Rad(ret))
+            }
+            CalcExpr::Clamp(min, val, max) => {
+                let mn = Self::try_compute(min)?.to_f32();
+                let v = Self::try_compute(val)?.to_f32();
+                let mx = Self::try_compute(max)?.to_f32();
+                Some(Angle::Rad(v.max(mn).min(mx)))
+            }
             _ => None,
         }
     }
@@ -198,6 +226,34 @@ impl ComputeCalcExpr<Number> {
                     CalcExpr::Div(_, _) => Some(Number::F32(l.to_f32() / r.to_f32())),
                     _ => None,
                 }
+            }
+            CalcExpr::Min(args) => {
+                let mut iter = args.iter();
+                let mut ret = Self::try_compute(iter.next()?)?.to_f32();
+                for arg in iter {
+                    let v = Self::try_compute(arg)?.to_f32();
+                    if v < ret {
+                        ret = v;
+                    }
+                }
+                Some(Number::F32(ret))
+            }
+            CalcExpr::Max(args) => {
+                let mut iter = args.iter();
+                let mut ret = Self::try_compute(iter.next()?)?.to_f32();
+                for arg in iter {
+                    let v = Self::try_compute(arg)?.to_f32();
+                    if v > ret {
+                        ret = v;
+                    }
+                }
+                Some(Number::F32(ret))
+            }
+            CalcExpr::Clamp(min, val, max) => {
+                let mn = Self::try_compute(min)?.to_f32();
+                let v = Self::try_compute(val)?.to_f32();
+                let mx = Self::try_compute(max)?.to_f32();
+                Some(Number::F32(v.max(mn).min(mx)))
             }
             _ => None,
         }
@@ -268,6 +324,55 @@ impl ComputeCalcExpr<Length> {
                 }
                 //
                 None
+            }
+            CalcExpr::Min(args) => {
+                let mut iter = args.iter();
+                let first = Self::try_compute(iter.next()?)?;
+                let (unit, mut val) = Self::length_unit_value(&first);
+                if !unit.is_specified_unit() {
+                    return None;
+                }
+                for arg in iter {
+                    let (u, v) = Self::length_unit_value(&Self::try_compute(arg)?);
+                    if u != unit {
+                        return None;
+                    }
+                    if v < val {
+                        val = v;
+                    }
+                }
+                Some(LengthUnit::to_length(unit, val))
+            }
+            CalcExpr::Max(args) => {
+                let mut iter = args.iter();
+                let first = Self::try_compute(iter.next()?)?;
+                let (unit, mut val) = Self::length_unit_value(&first);
+                if !unit.is_specified_unit() {
+                    return None;
+                }
+                for arg in iter {
+                    let (u, v) = Self::length_unit_value(&Self::try_compute(arg)?);
+                    if u != unit {
+                        return None;
+                    }
+                    if v > val {
+                        val = v;
+                    }
+                }
+                Some(LengthUnit::to_length(unit, val))
+            }
+            CalcExpr::Clamp(min, val, max) => {
+                let min = Self::try_compute(min)?;
+                let val = Self::try_compute(val)?;
+                let max = Self::try_compute(max)?;
+                let (u, mn) = Self::length_unit_value(&min);
+                let (uu, vv) = Self::length_unit_value(&val);
+                let (uuu, mx) = Self::length_unit_value(&max);
+                if u == uu && uu == uuu && u.is_specified_unit() {
+                    Some(LengthUnit::to_length(u, vv.max(mn).min(mx)))
+                } else {
+                    None
+                }
             }
             _ => None,
         }
@@ -356,6 +461,52 @@ pub(crate) fn parse_calc_inner<'a, 't: 'a, 'i: 't>(
         let ret = parse_calc_sum_expr(parser, properties, st, expect_type)?;
         Ok(ret)
     })
+}
+
+// Parse the body of a math function (min/max/clamp) whose `Function` token has already
+// been consumed by the caller. `name` is matched ASCII case-insensitively.
+#[inline(never)]
+pub(crate) fn parse_math_function_body<'a, 't: 'a, 'i: 't>(
+    parser: &'a mut Parser<'i, 't>,
+    properties: &mut Vec<PropertyMeta>,
+    st: &mut ParseState,
+    expect_type: ExpectValueType,
+    name: &str,
+) -> Result<CalcExpr, ParseError<'i, CustomError>> {
+    match name.to_ascii_lowercase().as_str() {
+        "min" | "max" => {
+            let is_min = name.eq_ignore_ascii_case("min");
+            let args: Vec<CalcExpr> = parser.parse_nested_block(|parser| {
+                parse_comma_separated_without_important(parser, |p| {
+                    parse_calc_sum_expr(p, properties, st, expect_type)
+                })
+            })?;
+            let arr: Array<CalcExpr> = args.into();
+            Ok(if is_min {
+                CalcExpr::Min(arr)
+            } else {
+                CalcExpr::Max(arr)
+            })
+        }
+        "clamp" => {
+            let args: Vec<CalcExpr> = parser.parse_nested_block(|parser| {
+                parse_comma_separated_without_important(parser, |p| {
+                    parse_calc_sum_expr(p, properties, st, expect_type)
+                })
+            })?;
+            if args.len() != 3 {
+                return Err(parser.new_custom_error(CustomError::Reason(
+                    "clamp() requires exactly 3 arguments".to_string(),
+                )));
+            }
+            let mut it = args.into_iter();
+            let min = it.next().unwrap();
+            let val = it.next().unwrap();
+            let max = it.next().unwrap();
+            Ok(CalcExpr::Clamp(Box::new(min), Box::new(val), Box::new(max)))
+        }
+        _ => Err(parser.new_custom_error(CustomError::Unsupported)),
+    }
 }
 
 #[inline(never)]
@@ -503,6 +654,24 @@ fn parse_calc_value<'a, 't: 'a, 'i: 't>(
         {
             return Ok(CalcExpr::Angle(Box::new(angle)));
         }
+    }
+    // match min() / max() / clamp()
+    let func = parser.try_parse::<_, CalcExpr, ParseError<'_, CustomError>>(|parser| {
+        let next = parser.next()?.clone();
+        let name = match &next {
+            Token::Function(n) => n.to_string(),
+            _ => return Err(parser.new_unexpected_token_error(next)),
+        };
+        if !(name.eq_ignore_ascii_case("min")
+            || name.eq_ignore_ascii_case("max")
+            || name.eq_ignore_ascii_case("clamp"))
+        {
+            return Err(parser.new_unexpected_token_error(next));
+        }
+        parse_math_function_body(parser, properties, st, expect_type, &name)
+    });
+    if let Ok(expr) = func {
+        return Ok(expr);
     }
     Err(parser.new_custom_error(CustomError::Unmatched))
 }

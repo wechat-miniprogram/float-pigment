@@ -527,3 +527,92 @@ pub fn calc_unit_case_insensitive() {
         Transform::Series(vec![TransformItem::Rotate2D(Angle::Rad(1.570_796_4))].into())
     );
 }
+
+#[test]
+pub fn calc_min_max_length() {
+    // parse-time fold (same unit, literal)
+    test_parse_property!(width, "width", "calc(max(10px, 20px))", Length::Px(20.));
+    test_parse_property!(width, "width", "calc(min(10px, 20px))", Length::Px(10.));
+    // runtime resolve (contains viewport unit)
+    test_parse_property!(
+        width,
+        "width",
+        "calc(min(10px, 5vw))",
+        Length::new_calc_expr(Box::new(CalcExpr::Min(vec![
+            CalcExpr::Length(Length::Px(10.)),
+            CalcExpr::Length(Length::Vw(5.)),
+        ]
+        .into())))
+    );
+}
+
+#[test]
+pub fn calc_min_max_number_angle() {
+    // number, parse-time fold
+    test_parse_property!(flex_grow, "flex-grow", "calc(max(1, 2))", Number::F32(2.));
+    test_parse_property!(flex_grow, "flex-grow", "calc(min(3, 2, 1))", Number::F32(1.));
+    // angle, parse-time fold
+    test_parse_property!(
+        transform,
+        "transform",
+        "rotate(calc(max(45deg, 90deg)))",
+        Transform::Series(vec![TransformItem::Rotate2D(Angle::Rad(1.570_796_4))].into())
+    );
+}
+
+#[test]
+pub fn calc_clamp() {
+    // parse-time fold (all literals, same unit)
+    test_parse_property!(width, "width", "calc(clamp(10px, 50px, 100px))", Length::Px(50.));
+    test_parse_property!(width, "width", "calc(clamp(10px, 5px, 100px))", Length::Px(10.));
+    test_parse_property!(width, "width", "calc(clamp(10px, 500px, 100px))", Length::Px(100.));
+    // number
+    test_parse_property!(flex_grow, "flex-grow", "calc(clamp(0, 2, 1))", Number::F32(1.));
+    // runtime resolve (val contains vw)
+    test_parse_property!(
+        width,
+        "width",
+        "calc(clamp(10px, 50vw, 100px))",
+        Length::new_calc_expr(Box::new(CalcExpr::Clamp(
+            Box::new(CalcExpr::Length(Length::Px(10.))),
+            Box::new(CalcExpr::Length(Length::Vw(50.))),
+            Box::new(CalcExpr::Length(Length::Px(100.))),
+        )))
+    );
+}
+
+#[test]
+pub fn math_function_standalone() {
+    // standalone length (independent of calc())
+    test_parse_property!(
+        width,
+        "width",
+        "min(10px, 5vw)",
+        Length::new_calc_expr(Box::new(CalcExpr::Min(vec![
+            CalcExpr::Length(Length::Px(10.)),
+            CalcExpr::Length(Length::Vw(5.)),
+        ]
+        .into())))
+    );
+    test_parse_property!(width, "width", "max(10px, 20px)", Length::Px(20.));
+    // standalone number
+    test_parse_property!(flex_grow, "flex-grow", "max(1, 2)", Number::F32(2.));
+    // standalone angle
+    test_parse_property!(
+        transform,
+        "transform",
+        "rotate(max(45deg, 90deg))",
+        Transform::Series(vec![TransformItem::Rotate2D(Angle::Rad(1.570_796_4))].into())
+    );
+    // case-insensitive function name
+    test_parse_property!(width, "width", "MIN(10px, 20px)", Length::Px(10.));
+    test_parse_property!(width, "width", "Clamp(10px, 50px, 100px)", Length::Px(50.));
+}
+
+#[test]
+pub fn math_function_errors() {
+    // type mismatch: angle inside length min -> parse fails -> Length falls back
+    test_parse_property!(width, "width", "min(10px, 45deg)", Length::Auto);
+    // clamp arity != 3 -> parse fails
+    test_parse_property!(width, "width", "clamp(10px, 20px)", Length::Auto);
+}

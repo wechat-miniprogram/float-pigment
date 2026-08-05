@@ -238,6 +238,24 @@ fn parse_length_inner<'a, 't: 'a, 'i: 't>(
                         Length::Expr(Box::new(LengthExpr::Calc(Box::new(ret))))
                     });
             }
+            n if n.eq_ignore_ascii_case("min")
+                || n.eq_ignore_ascii_case("max")
+                || n.eq_ignore_ascii_case("clamp") =>
+            {
+                return parse_math_function_body(
+                    parser,
+                    properties,
+                    st,
+                    ExpectValueType::NumberAndLength,
+                    n,
+                )
+                .map(|ret| {
+                    if let Some(r) = ComputeCalcExpr::<Length>::try_compute(&ret) {
+                        return r;
+                    }
+                    Length::Expr(Box::new(LengthExpr::Calc(Box::new(ret))))
+                });
+            }
             _ => {}
         },
         _ => {}
@@ -318,8 +336,8 @@ pub(crate) fn angle<'a, 't: 'a, 'i: 't>(
     properties: &mut Vec<PropertyMeta>,
     st: &mut ParseState,
 ) -> Result<Angle, ParseError<'i, CustomError>> {
-    let next = parser.next()?;
-    match next {
+    let next = parser.next()?.clone();
+    match &next {
         Token::Number { value, .. } => {
             if *value == 0. {
                 return Ok(Angle::Deg(0.));
@@ -345,6 +363,25 @@ pub(crate) fn angle<'a, 't: 'a, 'i: 't>(
                         }
                         Angle::Calc(Box::new(ret))
                     });
+            }
+            let n = &**name;
+            if n.eq_ignore_ascii_case("min")
+                || n.eq_ignore_ascii_case("max")
+                || n.eq_ignore_ascii_case("clamp")
+            {
+                return parse_math_function_body(
+                    parser,
+                    properties,
+                    st,
+                    ExpectValueType::AngleAndLength,
+                    n,
+                )
+                .map(|ret| {
+                    if let Some(r) = ComputeCalcExpr::<Angle>::try_compute(&ret) {
+                        return r;
+                    }
+                    Angle::Calc(Box::new(ret))
+                });
             }
         }
         _ => {}
@@ -445,8 +482,8 @@ pub(crate) fn number<'a, 't: 'a, 'i: 't>(
     properties: &mut Vec<PropertyMeta>,
     st: &mut ParseState,
 ) -> Result<Number, ParseError<'i, CustomError>> {
-    let next = parser.next()?;
-    match next {
+    let next = parser.next()?.clone();
+    match &next {
         Token::Number { value, .. } => {
             return Ok(Number::F32(*value));
         }
@@ -460,6 +497,19 @@ pub(crate) fn number<'a, 't: 'a, 'i: 't>(
                         Number::Calc(Box::new(ret))
                     },
                 );
+            }
+            let n = &**name;
+            if n.eq_ignore_ascii_case("min")
+                || n.eq_ignore_ascii_case("max")
+                || n.eq_ignore_ascii_case("clamp")
+            {
+                return parse_math_function_body(parser, properties, st, ExpectValueType::Number, n)
+                    .map(|ret| {
+                        if let Some(r) = ComputeCalcExpr::<Number>::try_compute(&ret) {
+                            return r;
+                        }
+                        Number::Calc(Box::new(ret))
+                    });
             }
         }
         _ => {}

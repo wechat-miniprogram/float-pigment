@@ -54,6 +54,12 @@ pub enum CalcExpr {
     Mul(Box<CalcExpr>, Box<CalcExpr>),
     /// `/` expression.
     Div(Box<CalcExpr>, Box<CalcExpr>),
+    /// `min(...)` expression; comma-separated calc-sums.
+    Min(Array<CalcExpr>),
+    /// `max(...)` expression; comma-separated calc-sums.
+    Max(Array<CalcExpr>),
+    /// `clamp(MIN, VAL, MAX)` expression.
+    Clamp(Box<CalcExpr>, Box<CalcExpr>, Box<CalcExpr>),
 }
 
 impl Default for CalcExpr {
@@ -391,6 +397,62 @@ impl CalcExpr {
                     length_as_parent_font_size,
                 )?;
                 x / y
+            }
+            CalcExpr::Min(args) => {
+                let mut iter = args.iter();
+                let mut ret = iter.next()?.resolve_to_f32(
+                    media_query_status,
+                    relative_length,
+                    length_as_parent_font_size,
+                )?;
+                for arg in iter {
+                    let v = arg.resolve_to_f32(
+                        media_query_status,
+                        relative_length,
+                        length_as_parent_font_size,
+                    )?;
+                    if v < ret {
+                        ret = v;
+                    }
+                }
+                ret
+            }
+            CalcExpr::Max(args) => {
+                let mut iter = args.iter();
+                let mut ret = iter.next()?.resolve_to_f32(
+                    media_query_status,
+                    relative_length,
+                    length_as_parent_font_size,
+                )?;
+                for arg in iter {
+                    let v = arg.resolve_to_f32(
+                        media_query_status,
+                        relative_length,
+                        length_as_parent_font_size,
+                    )?;
+                    if v > ret {
+                        ret = v;
+                    }
+                }
+                ret
+            }
+            CalcExpr::Clamp(min, val, max) => {
+                let mn = min.resolve_to_f32(
+                    media_query_status,
+                    relative_length,
+                    length_as_parent_font_size,
+                )?;
+                let v = val.resolve_to_f32(
+                    media_query_status,
+                    relative_length,
+                    length_as_parent_font_size,
+                )?;
+                let mx = max.resolve_to_f32(
+                    media_query_status,
+                    relative_length,
+                    length_as_parent_font_size,
+                )?;
+                v.max(mn).min(mx)
             }
         };
         Some(ret)
