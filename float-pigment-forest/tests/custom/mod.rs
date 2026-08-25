@@ -3,3 +3,5 @@ mod css_inline;
 mod css_margin;
 mod css_margin_collapse;
 mod imperative_api_check;
+mod node_lifecycle;
+mod node_measurable;

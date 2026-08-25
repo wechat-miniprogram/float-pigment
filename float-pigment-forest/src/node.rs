@@ -10,10 +10,7 @@ use float_pigment_layout::{ComputedStyle, DefLength, LayoutNode};
 pub use float_pigment_layout::{OptionNum, OptionSize, Size};
 use lru::LruCache;
 
-use std::{
-    cell::{Cell, Ref, RefCell, RefMut, UnsafeCell},
-    ptr::{self},
-};
+use std::cell::{Cell, Ref, RefCell, RefMut, UnsafeCell};
 
 pub type Len = float_pigment_css::fixed::FixedI32<float_pigment_css::fixed::types::extra::U10>;
 pub type Length = DefLength<Len>;
@@ -57,6 +54,7 @@ pub(crate) type MeasureFn<L> = dyn Fn(
 pub(crate) type BaselineFn<L> = dyn Fn(NodePtr, L, L) -> L;
 pub(crate) type ResolveCalcFn<L> = dyn Fn(i32, L) -> L;
 pub(crate) type DirtyCallbackFn = dyn Fn(NodePtr);
+pub(crate) type FreeCalcHandleFn = dyn Fn(NodePtr, i32);
 
 pub(crate) type MeasureCacheKeyMinSize = OptionSize<<Len as LengthNum>::Hashable>;
 pub(crate) type MeasureCacheKeyMaxSize = OptionSize<<Len as LengthNum>::Hashable>;
@@ -117,7 +115,7 @@ impl DumpNode for Node {
             let mut children_str = String::new();
             children_str.push('\n');
             self.children().iter().for_each(|child| {
-                let child_str = child.dump_to_html(options, current_depth + 1);
+                let child_str = (**child).dump_to_html(options, current_depth + 1);
                 let tabs = (0..current_depth).map(|_| " ").collect::<String>();
                 children_str.push_str(&tabs);
                 children_str.push_str(&child_str);
@@ -189,10 +187,14 @@ pub enum NodeType {
 #[derive(Debug)]
 pub struct Node {
     node_type: Cell<NodeType>,
+    is_measurable: Cell<bool>,
     is_dirty: Cell<bool>,
     external_host: Cell<ExternalHostPtr>,
     parent: Cell<NodePtr>,
-    children: RefCell<Vec<NodePtr>>,
+    // Borrow contract (mirrors the skyline fork): tree-structure mutation
+    // is exclusive — no child-list reads may be outstanding while a mutation
+    // happens. Layout and traversal only read.
+    pub(crate) children: UnsafeCell<Vec<NodePtr>>,
     style_manager: RefCell<StyleManager>,
     pub(crate) layout_node: LayoutNode<Node>,
     measure_cache: UnsafeCell<Option<Box<MeasureCache>>>,
@@ -201,14 +203,40 @@ pub struct Node {
     measure_func: UnsafeCell<Option<Box<MeasureFn<Len>>>>,
     resolve_calc: UnsafeCell<Option<Box<ResolveCalcFn<Len>>>>,
     dirty_callback: UnsafeCell<Option<Box<DirtyCallbackFn>>>,
+    free_calc_handle: UnsafeCell<Option<Box<FreeCalcHandleFn>>>,
+    calc_handle_list: UnsafeCell<Vec<i32>>,
+}
+
+impl Drop for Node {
+    fn drop(&mut self) {
+        let ptr = convert_node_ref_to_ptr(self);
+        // Release in batches: the callback may re-enter `add_calc_handle`.
+        loop {
+            let batch = std::mem::take(self.calc_handle_list.get_mut());
+            if batch.is_empty() {
+                break;
+            }
+            if let Some(free_calc_handle) = (*self.free_calc_handle.get_mut()).as_deref() {
+                batch
+                    .iter()
+                    .for_each(|handle| free_calc_handle(ptr, *handle));
+            }
+        }
+        // Surviving children must not keep a dangling parent pointer.
+        self.children
+            .get_mut()
+            .drain(..)
+            .for_each(|child| unsafe { (*child).set_parent(None) });
+    }
 }
 
 impl Node {
     pub fn new() -> Self {
         Self {
             node_type: Cell::new(NodeType::Normal),
+            is_measurable: Cell::new(false),
             external_host: Cell::new(std::ptr::null_mut()),
-            children: RefCell::new(Vec::with_capacity(0)),
+            children: UnsafeCell::new(Vec::with_capacity(0)),
             parent: Cell::new(std::ptr::null_mut()),
             style_manager: RefCell::new(StyleManager::new()),
             layout_node: LayoutNode::new(),
@@ -217,13 +245,15 @@ impl Node {
             measure_func: UnsafeCell::new(None),
             resolve_calc: UnsafeCell::new(None),
             dirty_callback: UnsafeCell::new(None),
+            free_calc_handle: UnsafeCell::new(None),
+            calc_handle_list: UnsafeCell::new(Vec::new()),
             measure_cache: UnsafeCell::new(None),
             baseline_cache: UnsafeCell::new(None),
         }
     }
     pub fn new_typed(node_type: NodeType) -> Self {
         let ret = Self::new();
-        ret.node_type.set(node_type);
+        unsafe { ret.set_node_type(node_type) };
         ret
     }
     pub fn new_ptr() -> NodePtr {
@@ -251,15 +281,16 @@ impl Node {
             Some(self.parent.get())
         }
     }
-    pub unsafe fn children(&self) -> Vec<&Node> {
-        self.children
-            .borrow()
-            .iter()
-            .map(|node| &**node)
-            .collect::<Vec<_>>()
+    pub fn children(&self) -> &Vec<NodePtr> {
+        unsafe { &*self.children.get() }
     }
     pub fn children_len(&self) -> usize {
-        self.children.borrow().len()
+        self.children().len()
+    }
+    #[allow(clippy::mut_from_ref)]
+    #[inline(always)]
+    pub(crate) fn children_mut(&self) -> &mut Vec<NodePtr> {
+        unsafe { &mut *self.children.get() }
     }
     pub(crate) fn style_manager(&self) -> Ref<'_, StyleManager> {
         self.style_manager.borrow()
@@ -274,20 +305,39 @@ impl Node {
         let prev_type = self.node_type.get();
         if prev_type != node_type {
             if prev_type == NodeType::Text {
-                *self.measure_cache.get() = None;
-                *self.baseline_cache.get() = None;
+                self.set_measurable(false);
             }
             self.node_type.replace(node_type);
         }
         if node_type == NodeType::Text && node_type != prev_type {
-            *self.measure_cache.get() = Some(Box::new(LruCache::new(CACHE_SIZE)));
-            *self.baseline_cache.get() = Some(Box::new(LruCache::new(CACHE_SIZE)));
+            self.set_measurable(true);
+        }
+    }
+    #[inline(always)]
+    pub fn is_measurable(&self) -> bool {
+        self.is_measurable.get()
+    }
+    /// Toggles measure/baseline caching for this node. Text nodes get this
+    /// implicitly through `set_node_type`; other node kinds opt in explicitly.
+    pub fn set_measurable(&self, measurable: bool) {
+        if self.is_measurable.get() == measurable {
+            return;
+        }
+        self.is_measurable.set(measurable);
+        unsafe {
+            if measurable {
+                *self.measure_cache.get() = Some(Box::new(LruCache::new(CACHE_SIZE)));
+                *self.baseline_cache.get() = Some(Box::new(LruCache::new(CACHE_SIZE)));
+            } else {
+                *self.measure_cache.get() = None;
+                *self.baseline_cache.get() = None;
+            }
         }
     }
     #[allow(clippy::mut_from_ref)]
     #[inline(always)]
     pub(crate) unsafe fn measure_cache(&self) -> Option<&mut MeasureCache> {
-        if self.node_type() != NodeType::Text {
+        if !self.is_measurable.get() {
             return None;
         }
         (*self.measure_cache.get()).as_deref_mut()
@@ -302,7 +352,7 @@ impl Node {
     #[allow(clippy::mut_from_ref)]
     #[inline(always)]
     pub(crate) unsafe fn baseline_cache(&self) -> Option<&mut BaselineCache> {
-        if self.node_type() != NodeType::Text {
+        if !self.is_measurable.get() {
             return None;
         }
         (*self.baseline_cache.get()).as_deref_mut()
@@ -312,9 +362,6 @@ impl Node {
         if let Some(cache) = self.baseline_cache() {
             cache.clear();
         }
-    }
-    pub(crate) fn node_type(&self) -> NodeType {
-        self.node_type.get()
     }
     pub(crate) unsafe fn baseline_func(&self) -> Option<&BaselineFn<Len>> {
         (*self.baseline_func.get()).as_deref()
@@ -355,6 +402,20 @@ impl Node {
             dirty_callback,
         ));
     }
+    pub fn set_free_calc_handle(&self, free_calc_handle: Option<Box<FreeCalcHandleFn>>) {
+        drop(std::mem::replace(
+            unsafe { &mut *self.free_calc_handle.get() },
+            free_calc_handle,
+        ));
+    }
+    /// Tracks a calc handle owned by the C++ side so `Drop` can release it
+    /// through the free-calc-handle callback. Each registration yields one
+    /// release callback; registering the same handle value twice releases it
+    /// twice, and the C++ side must not free a handle early when overwriting
+    /// a property.
+    pub fn add_calc_handle(&self, calc_handle: i32) {
+        unsafe { (*self.calc_handle_list.get()).push(calc_handle) }
+    }
     pub fn has_dirty_callback(&self) -> bool {
         unsafe { (*self.dirty_callback.get()).is_some() }
     }
@@ -386,7 +447,7 @@ impl Node {
             self.clear_dirty();
             self.children()
                 .iter()
-                .for_each(|child| child.clear_dirty_recursive());
+                .for_each(|child| (**child).clear_dirty_recursive());
         }
     }
     pub unsafe fn mark_self_dirty(&self) {
@@ -394,7 +455,7 @@ impl Node {
             return;
         }
         self.is_dirty.set(true);
-        if self.node_type() == NodeType::Text {
+        if self.is_measurable.get() {
             self.clear_measure_cache();
             self.clear_baseline_cache();
         }
@@ -405,12 +466,9 @@ impl Node {
     }
     pub unsafe fn mark_dirty_propagate_to_descendants(&self) {
         self.mark_self_dirty();
-        unsafe {
-            self.children
-                .borrow()
-                .iter()
-                .for_each(|node| (**node).mark_dirty_propagate_to_descendants())
-        }
+        self.children()
+            .iter()
+            .for_each(|node| (**node).mark_dirty_propagate_to_descendants());
     }
     pub unsafe fn mark_dirty_propagate(&self) {
         if !self.is_dirty() {
@@ -505,15 +563,13 @@ pub trait ChildOperation {
 
 impl ChildOperation for Node {
     unsafe fn get_child_at(&self, idx: usize) -> Option<&Node> {
-        self.children().get(idx).copied()
+        self.children().get(idx).map(|ptr| &**ptr)
     }
     unsafe fn get_child_ptr_at(&self, idx: usize) -> Option<NodePtr> {
-        self.children.borrow().get(idx).copied()
+        self.children().get(idx).copied()
     }
     unsafe fn get_child_index(&self, child: NodePtr) -> Option<usize> {
-        self.children()
-            .iter()
-            .position(|node| ptr::eq(*node, child))
+        self.children().iter().position(|node| *node == child)
     }
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     unsafe fn append_child(&self, child: NodePtr) {
@@ -521,7 +577,7 @@ impl ChildOperation for Node {
             prev_parent.remove_child(child);
         }
         (*child).set_parent(Some(convert_node_ref_to_ptr(self)));
-        self.children.borrow_mut().push(child);
+        self.children_mut().push(child);
         self.mark_dirty_propagate()
     }
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
@@ -530,7 +586,7 @@ impl ChildOperation for Node {
             prev_parent.remove_child(child);
         }
         (*child).set_parent(Some(convert_node_ref_to_ptr(self)));
-        self.children.borrow_mut().insert(idx, child);
+        self.children_mut().insert(idx, child);
         self.mark_dirty_propagate()
     }
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
@@ -539,32 +595,21 @@ impl ChildOperation for Node {
             prev_parent.remove_child(child);
         }
         (*child).set_parent(Some(convert_node_ref_to_ptr(self)));
-        let idx = self
-            .children
-            .borrow()
-            .iter()
-            .position(|node| std::ptr::eq(*node, pivot));
+        let idx = self.children().iter().position(|node| *node == pivot);
         if let Some(idx) = idx {
-            self.children.borrow_mut().insert(idx, child)
+            self.children_mut().insert(idx, child)
         }
         self.mark_dirty_propagate();
     }
     unsafe fn remove_child(&self, child: NodePtr) {
-        if self.children_len() == 0 {
-            return;
-        }
-        let child_idx_opt = self
-            .children
-            .borrow()
-            .iter()
-            .position(|node| std::ptr::eq(*node, child));
-        if let Some(child_idx) = child_idx_opt {
-            let node = {
-                let mut children = self.children.borrow_mut();
-                let node = children[child_idx];
-                children.remove(child_idx);
-                node
-            };
+        let removed = {
+            let children = self.children_mut();
+            children
+                .iter()
+                .position(|node| *node == child)
+                .map(|idx| children.remove(idx))
+        };
+        if let Some(node) = removed {
             (*node).set_parent(None);
         }
 
@@ -575,17 +620,16 @@ impl ChildOperation for Node {
         if len == 0 || idx >= len {
             return;
         }
-        if let Some(node) = self.children.borrow().get(idx) {
-            (**node).set_parent(None);
+        if let Some(node) = self.children_mut().get(idx).copied() {
+            self.children_mut().remove(idx);
+            (*node).set_parent(None);
         }
-        self.children.borrow_mut().remove(idx);
         self.mark_dirty_propagate();
     }
     unsafe fn remove_all_children(&self) {
-        self.for_each_child_node(|node, _| {
-            (*node).set_parent(None);
-        });
-        self.children.borrow_mut().clear();
+        self.children_mut()
+            .drain(..)
+            .for_each(|node| (*node).set_parent(None));
         self.mark_dirty_propagate()
     }
     unsafe fn for_each_child_node<'a, 'b: 'a, F>(&'b self, func: F)
@@ -593,9 +637,8 @@ impl ChildOperation for Node {
         F: FnMut(&'a Self, usize),
     {
         let mut func = func;
-        self.children
-            .borrow_mut()
-            .iter_mut()
+        self.children()
+            .iter()
             .enumerate()
             .for_each(|(idx, node)| func(&**node, idx))
     }
