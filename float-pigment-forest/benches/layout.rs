@@ -39,6 +39,12 @@ fn criterion_benchmark(c: &mut Criterion) {
     let root = gen_tree();
     c.bench_function("layout", |b| b.iter(|| layout_test(root)));
     c.bench_function("layout second", |b| b.iter(|| layout_test(root)));
+    c.bench_function("layout dirty", |b| {
+        b.iter(|| {
+            unsafe { root.mark_dirty_propagate_to_descendants() };
+            layout_test(root);
+        })
+    });
     // println!(
     //     "{}",
     //     root.dump_to_html(

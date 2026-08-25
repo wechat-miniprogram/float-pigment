@@ -39,6 +39,7 @@ pub type MeasureFunc = unsafe extern "C" fn(
 pub type CalcHandle = i32;
 
 pub type ResolveCalc = unsafe extern "C" fn(CalcHandle, f32) -> f32;
+pub type FreeCalcHandle = unsafe extern "C" fn(NodePtr, CalcHandle);
 
 pub type DirtyCallback = unsafe extern "C" fn(NodePtr);
 
@@ -215,6 +216,26 @@ pub unsafe extern "C" fn NodeSetExternalHost(node: NodePtr, external_host: *mut 
 pub unsafe extern "C" fn NodeSetAsText(node: NodePtr) {
     let node = &*(node as *mut Node);
     node.set_node_type(NodeType::Text);
+}
+
+/// # Safety
+///
+/// Toggle the measurable capability of a node instance. Measurable nodes
+/// cache measure/baseline results; Text nodes are implicitly measurable.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `measurable` - Whether the node provides measure results
+///
+/// # Example
+///
+/// ```c
+/// NodeSetMeasurable(node, true);
+/// ```
+#[no_mangle]
+pub unsafe extern "C" fn NodeSetMeasurable(node: NodePtr, measurable: bool) {
+    let node = &*(node as *mut Node);
+    node.set_measurable(measurable);
 }
 
 /// # Safety
@@ -653,6 +674,32 @@ pub unsafe extern "C" fn NodeSetResolveCalc(node: NodePtr, resolve_calc: Resolve
     })));
 }
 
+/// # Safety
+///
+/// Set the callback used to release calc handles owned by the C++ side when
+/// the node is dropped. Every handle registered through the `*CalcHandle`
+/// style setters receives exactly one release callback at drop; registering
+/// the same handle value more than once yields multiple callbacks. The C++
+/// side must not free a handle early when overwriting a property.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `free_calc_handle` - Callback invoked with the node pointer and each
+///   calc handle registered through the `*CalcHandle` style setters
+///
+/// # Example
+///
+/// ```c
+/// NodeSetFreeCalcHandle(node, free_calc_handle);
+/// ```
+#[no_mangle]
+pub unsafe extern "C" fn NodeSetFreeCalcHandle(node: NodePtr, free_calc_handle: FreeCalcHandle) {
+    let node = &*(node as *mut Node);
+    node.set_free_calc_handle(Some(Box::new(move |node: crate::NodePtr, handle: i32| {
+        free_calc_handle(node as *mut (), handle)
+    })));
+}
+
 pub(crate) fn convert_len_max_to_infinity(v: Len) -> f32 {
     if v == Len::MAX {
         f32::INFINITY
@@ -1042,6 +1089,7 @@ pub unsafe extern "C" fn NodeStyleSetLeftAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetLeftCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_left(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -1131,6 +1179,7 @@ pub unsafe extern "C" fn NodeStyleSetRightAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetRightCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_right(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 /// # Safety
 ///
@@ -1219,6 +1268,7 @@ pub unsafe extern "C" fn NodeStyleSetTopAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetTopCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_top(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 /// # Safety
 ///
@@ -1307,6 +1357,7 @@ pub unsafe extern "C" fn NodeStyleSetBottomAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetBottomCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_bottom(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -1439,6 +1490,7 @@ pub unsafe extern "C" fn NodeStyleSetWidthAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetWidthCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_width(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -1529,6 +1581,7 @@ pub unsafe extern "C" fn NodeStyleSetHeightAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetHeightCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_height(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 /// # Safety
 ///
@@ -1616,6 +1669,7 @@ pub unsafe extern "C" fn NodeStyleSetMinWidthAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetMinWidthCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_min_width(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -1705,6 +1759,7 @@ pub unsafe extern "C" fn NodeStyleSetMinHeightAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetMinHeightCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_min_height(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -1794,6 +1849,7 @@ pub unsafe extern "C" fn NodeStyleSetMaxWidthAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetMaxWidthCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_max_width(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -1883,6 +1939,7 @@ pub unsafe extern "C" fn NodeStyleSetMaxHeightAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetMaxHeightCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_max_height(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -1972,6 +2029,7 @@ pub unsafe extern "C" fn NodeStyleSetMarginLeftAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetMarginLeftCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_margin_left(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -2061,6 +2119,7 @@ pub unsafe extern "C" fn NodeStyleSetMarginRightAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetMarginRightCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_margin_right(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -2150,6 +2209,7 @@ pub unsafe extern "C" fn NodeStyleSetMarginTopAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetMarginTopCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_margin_top(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -2238,6 +2298,7 @@ pub unsafe extern "C" fn NodeStyleSetMarginBottomAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetMarginBottomCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_margin_bottom(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -2327,6 +2388,7 @@ pub unsafe extern "C" fn NodeStyleSetPaddingLeftAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetPaddingLeftCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_padding_left(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -2418,6 +2480,7 @@ pub unsafe extern "C" fn NodeStyleSetPaddingRightAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetPaddingRightCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_padding_right(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -2507,6 +2570,7 @@ pub unsafe extern "C" fn NodeStyleSetPaddingTopAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetPaddingTopCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_padding_top(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -2596,6 +2660,7 @@ pub unsafe extern "C" fn NodeStyleSetPaddingBottomAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetPaddingBottomCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_padding_bottom(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -2686,6 +2751,7 @@ pub unsafe extern "C" fn NodeStyleSetBorderLeftAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetBorderLeftCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_border_left(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -2775,6 +2841,7 @@ pub unsafe extern "C" fn NodeStyleSetBorderRightAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetBorderRightCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_border_right(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -2864,6 +2931,7 @@ pub unsafe extern "C" fn NodeStyleSetBorderTopAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetBorderTopCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_border_top(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -2953,6 +3021,7 @@ pub unsafe extern "C" fn NodeStyleSetBorderBottomAuto(node: NodePtr) {
 pub unsafe extern "C" fn NodeStyleSetBorderBottomCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_border_bottom(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 /// # Safety
 ///
@@ -3079,6 +3148,7 @@ pub unsafe extern "C" fn NodeStyleSetFlexBasisPercentage(node: NodePtr, value: f
 pub unsafe extern "C" fn NodeStyleSetFlexBasisCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_flex_basis(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -3299,6 +3369,7 @@ pub unsafe extern "C" fn NodeStyleSetRowGapPercentage(node: NodePtr, value: f32)
 pub unsafe extern "C" fn NodeStyleSetRowGapCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_row_gap(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety
@@ -3374,6 +3445,7 @@ pub unsafe extern "C" fn NodeStyleSetColumnGapPercentage(node: NodePtr, value: f
 pub unsafe extern "C" fn NodeStyleSetColumnGapCalcHandle(node: NodePtr, calc_handle: i32) {
     let node = &*(node as *mut Node);
     node.set_column_gap(DefLength::Custom(calc_handle));
+    node.add_calc_handle(calc_handle);
 }
 
 /// # Safety

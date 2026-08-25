@@ -34,6 +34,10 @@ using BaselineFunc = Baseline(*)(NodePtr, Width, Height);
 
 using DirtyCallback = void(*)(NodePtr);
 
+using CalcHandle = int32_t;
+
+using FreeCalcHandle = void(*)(NodePtr, CalcHandle);
+
 struct Size {
   float width;
   float height;
@@ -60,8 +64,6 @@ using MeasureFunc = Size(*)(NodePtr,
                             MeasureMinHeight,
                             MeasureMaxContentWidth,
                             MeasureMaxContentHeight);
-
-using CalcHandle = int32_t;
 
 using ResolveCalc = float(*)(CalcHandle, float);
 
@@ -820,6 +822,42 @@ void NodeSetDirtyCallback(NodePtr node, DirtyCallback dirty_cb);
 /// NodeSetExternalHost(node, external_host);
 /// ```
 void NodeSetExternalHost(NodePtr node, void *external_host);
+
+/// # Safety
+///
+/// Set the callback used to release calc handles owned by the C++ side when
+/// the node is dropped. Every handle registered through the `*CalcHandle`
+/// style setters receives exactly one release callback at drop; registering
+/// the same handle value more than once yields multiple callbacks. The C++
+/// side must not free a handle early when overwriting a property.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `free_calc_handle` - Callback invoked with the node pointer and each
+///   calc handle registered through the `*CalcHandle` style setters
+///
+/// # Example
+///
+/// ```c
+/// NodeSetFreeCalcHandle(node, free_calc_handle);
+/// ```
+void NodeSetFreeCalcHandle(NodePtr node, FreeCalcHandle free_calc_handle);
+
+/// # Safety
+///
+/// Toggle the measurable capability of a node instance. Measurable nodes
+/// cache measure/baseline results; Text nodes are implicitly measurable.
+///
+/// # Arguments
+/// * `node` - Raw pointer to the Node instance
+/// * `measurable` - Whether the node provides measure results
+///
+/// # Example
+///
+/// ```c
+/// NodeSetMeasurable(node, true);
+/// ```
+void NodeSetMeasurable(NodePtr node, bool measurable);
 
 /// # Safety
 ///

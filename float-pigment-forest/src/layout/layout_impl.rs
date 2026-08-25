@@ -17,7 +17,7 @@ use crate::{convert_node_ref_to_ptr, LayoutGridAuto, LayoutGridTemplate, Length}
 use crate::{
     env::Env,
     node::{ChildOperation, Node},
-    Len, MeasureMode, NodeType,
+    Len, MeasureMode,
 };
 
 fn is_specified(x: Len) -> bool {
@@ -136,7 +136,7 @@ impl LayoutTreeNode for Node {
                     (min_height, max_height)
                 };
                 let mut size_from_cache = false;
-                if self.node_type() == NodeType::Text {
+                if self.is_measurable() {
                     if let Some(cache) = unsafe { self.measure_cache() }.as_mut() {
                         if let Some(size_cache) = cache.get(&(
                             OptionSize::new(
@@ -184,7 +184,7 @@ impl LayoutTreeNode for Node {
                         measure_size.width.clamp(min.width, max.width),
                         measure_size.height.clamp(min.height, max.height),
                     );
-                    if self.node_type() == NodeType::Text {
+                    if self.is_measurable() {
                         if let Some(cache) = unsafe { self.measure_cache() }.as_mut() {
                             cache.put(
                                 (
@@ -210,7 +210,7 @@ impl LayoutTreeNode for Node {
         }
         let mut baseline = size.to_vector();
         let mut baseline_from_cache = false;
-        if self.node_type() == NodeType::Text {
+        if self.is_measurable() {
             if let Some(cache) = unsafe { self.baseline_cache() }.as_mut() {
                 if let Some(baseline_cache) = cache.get(&Size::new(size.width, size.height)) {
                     baseline_from_cache = true;
@@ -278,7 +278,7 @@ impl LayoutTreeVisitor<Node> for Node {
     where
         Node: 'a,
     {
-        unsafe { self.children().into_iter() }
+        self.children().iter().map(|node| unsafe { &**node })
     }
 }
 #[derive(Debug, Clone)]
