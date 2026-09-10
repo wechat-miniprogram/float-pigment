@@ -1,18 +1,17 @@
 //! The CSS parser module.
 
 use alloc::{
-    borrow::ToOwned,
     boxed::Box,
     rc::Rc,
     string::{String, ToString},
     vec::Vec,
 };
 
-use cssparser::{
-    parse_important, Delimiter, ParseError, ParseErrorKind, Parser, ParserInput, SourceLocation,
-    SourcePosition, Token,
-};
 use cssparser::CowRcStr;
+use cssparser::{
+    match_ignore_ascii_case, parse_important, Delimiter, ParseError, ParseErrorKind, Parser,
+    ParserInput, SourceLocation, SourcePosition, Token,
+};
 
 use self::property_value::font::{font_display, font_face_src, font_family_name};
 use crate::property::*;
@@ -334,7 +333,6 @@ pub fn parse_property_value_string(
     (properties, state.warnings)
 }
 
-
 pub(crate) fn parse_media_expression_only(source: &str) -> Result<Media, Warning> {
     let mut parser_input = ParserInput::new(source);
     let mut parser = Parser::new(&mut parser_input);
@@ -472,10 +470,10 @@ fn parse_at_keyword_block<'a, 't: 'a, 'i: 't>(
     sheet: &mut CompiledStyleSheet,
     st: &mut ParseState,
 ) {
-    if !(key == "import" || key == "font-face") {
+    if !(key.eq_ignore_ascii_case("import") || key.eq_ignore_ascii_case("font-face")) {
         st.import_base_path = None;
     }
-    match key {
+    match_ignore_ascii_case! { key,
         "import" => {
             parser.skip_whitespace();
             let start = parser.current_source_location();
@@ -534,17 +532,17 @@ fn parse_at_keyword_block<'a, 't: 'a, 'i: 't>(
                     }
                 }
             }
-        }
+        },
         "media" => {
             parse_media_block(parser, sheet, st);
-        }
+        },
         // IDEA support @keyframes
         "keyframes" => {
             parse_keyframes_block(parser, sheet, st);
-        }
+        },
         "font-face" => {
             parse_font_face_block(parser, sheet, st);
-        }
+        },
         _ => {
             parser.skip_whitespace();
             let start = parser.current_source_location();
@@ -555,16 +553,16 @@ fn parse_at_keyword_block<'a, 't: 'a, 'i: 't>(
                 start,
                 parser.current_source_location(),
             );
-        }
+        },
     }
 }
-
 fn str_to_media_type(s: &str) -> Option<MediaType> {
-    let s = s.to_lowercase();
-    match s.as_str() {
-        "all" => Some(MediaType::All),
-        "screen" => Some(MediaType::Screen),
-        _ => None,
+    if s.eq_ignore_ascii_case("all") {
+        Some(MediaType::All)
+    } else if s.eq_ignore_ascii_case("screen") {
+        Some(MediaType::Screen)
+    } else {
+        None
     }
 }
 
@@ -611,22 +609,19 @@ fn parse_media_expression_series<'a, 't: 'a, 'i: 't>(
                 let next = parser.next()?.clone();
                 match &next {
                     Token::Ident(s) => {
-                        let s = s.to_owned().to_lowercase();
-                        match s.as_str() {
-                            "only" => {
-                                mq.set_decorator(MediaTypeDecorator::Only);
-                                let expr = parse_media_expression(parser, st)?;
-                                mq.add_media_expression(expr);
-                            }
-                            "not" => {
-                                mq.set_decorator(MediaTypeDecorator::Not);
-                                let expr = parse_media_expression(parser, st)?;
-                                mq.add_media_expression(expr);
-                            }
-                            _ => match str_to_media_type(&s) {
+                        if s.eq_ignore_ascii_case("only") {
+                            mq.set_decorator(MediaTypeDecorator::Only);
+                            let expr = parse_media_expression(parser, st)?;
+                            mq.add_media_expression(expr);
+                        } else if s.eq_ignore_ascii_case("not") {
+                            mq.set_decorator(MediaTypeDecorator::Not);
+                            let expr = parse_media_expression(parser, st)?;
+                            mq.add_media_expression(expr);
+                        } else {
+                            match str_to_media_type(s) {
                                 Some(mt) => mq.add_media_expression(MediaExpression::MediaType(mt)),
                                 None => mq.add_media_expression(MediaExpression::Unknown),
-                            },
+                            }
                         }
                     }
                     Token::ParenthesisBlock => {
@@ -644,8 +639,7 @@ fn parse_media_expression_series<'a, 't: 'a, 'i: 't>(
                         }
                         let next = parser.next()?;
                         if let Token::Ident(s) = next {
-                            let s = s.to_lowercase();
-                            if s.as_str() == "and" {
+                            if s.eq_ignore_ascii_case("and") {
                                 let expr = parse_media_expression(parser, st)?;
                                 mq.add_media_expression(expr);
                                 return Ok(());
@@ -687,6 +681,27 @@ fn parse_media_expression<'a, 't: 'a, 'i: 't>(
     }
 }
 
+// boolean context, e.g. `(width)`, `(orientation)`
+fn parse_boolean_context_feature(name: &str) -> MediaExpression {
+    if let Some(mt) = str_to_media_type(name) {
+        return MediaExpression::MediaType(mt);
+    }
+    if let Some(f) = SizedFeature::from_name(name) {
+        return match f {
+            SizedFeature::Width | SizedFeature::Height => MediaExpression::Boolean(f),
+            // min-/max- prefixed features are not allowed in boolean context
+            _ => MediaExpression::UnknownFeature,
+        };
+    }
+    match_ignore_ascii_case! { name,
+        "orientation" => MediaExpression::AlwaysTrue,
+        "prefers-color-scheme" => MediaExpression::AlwaysTrue,
+        "resolution" => MediaExpression::MinResolution(0.),
+        "device-pixel-ratio" => MediaExpression::MinResolution(0.),
+        _ => MediaExpression::UnknownFeature,
+    }
+}
+
 fn parse_media_expression_inner<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
     st: &mut ParseState,
@@ -695,39 +710,44 @@ fn parse_media_expression_inner<'a, 't: 'a, 'i: 't>(
         let token = parser.next()?.clone();
         if let Token::Ident(name) = &token {
             let expr = if parser.is_exhausted() {
-                match str_to_media_type(name) {
-                    Some(mt) => MediaExpression::MediaType(mt),
-                    None => MediaExpression::Unknown,
-                }
+                parse_boolean_context_feature(name)
             } else {
                 parser.expect_colon()?;
                 let name: &str = name;
-                match name {
+                match_ignore_ascii_case! { name,
                     "orientation" => {
                         let t = parser.expect_ident()?;
-                        let t: &str = t;
-                        match t {
-                            "portrait" => MediaExpression::Orientation(Orientation::Portrait),
-                            "landscape" => MediaExpression::Orientation(Orientation::Landscape),
-                            _ => MediaExpression::Orientation(Orientation::None),
+                        if t.eq_ignore_ascii_case("portrait") {
+                            MediaExpression::Orientation(Orientation::Portrait)
+                        } else if t.eq_ignore_ascii_case("landscape") {
+                            MediaExpression::Orientation(Orientation::Landscape)
+                        } else {
+                            MediaExpression::UnknownFeature
                         }
-                    }
-                    "width" => MediaExpression::Width(parse_px_length(parser, st)?),
-                    "min-width" => MediaExpression::MinWidth(parse_px_length(parser, st)?),
-                    "max-width" => MediaExpression::MaxWidth(parse_px_length(parser, st)?),
-                    "height" => MediaExpression::Height(parse_px_length(parser, st)?),
-                    "min-height" => MediaExpression::MinHeight(parse_px_length(parser, st)?),
-                    "max-height" => MediaExpression::MaxHeight(parse_px_length(parser, st)?),
+                    },
                     "prefers-color-scheme" => {
                         let t = parser.expect_ident()?;
-                        let t: &str = t;
-                        match t {
-                            "light" => MediaExpression::Theme(Theme::Light),
-                            "dark" => MediaExpression::Theme(Theme::Dark),
-                            _ => MediaExpression::Unknown,
+                        if t.eq_ignore_ascii_case("light") {
+                            MediaExpression::Theme(Theme::Light)
+                        } else if t.eq_ignore_ascii_case("dark") {
+                            MediaExpression::Theme(Theme::Dark)
+                        } else {
+                            MediaExpression::UnknownFeature
                         }
-                    }
-                    _ => MediaExpression::Unknown,
+                    },
+                    "resolution" => parse_resolution_arm(parser, st, false, MediaExpression::Resolution),
+                    "min-resolution" => parse_resolution_arm(parser, st, false, MediaExpression::MinResolution),
+                    "max-resolution" => parse_resolution_arm(parser, st, false, MediaExpression::MaxResolution),
+                    "device-pixel-ratio" => parse_resolution_arm(parser, st, true, MediaExpression::Resolution),
+                    "min-device-pixel-ratio" => parse_resolution_arm(parser, st, true, MediaExpression::MinResolution),
+                    "max-device-pixel-ratio" => parse_resolution_arm(parser, st, true, MediaExpression::MaxResolution),
+                    _ => {
+                        if let Some(f) = SizedFeature::from_name(name) {
+                            parse_sized_arm(parser, st, f)
+                        } else {
+                            MediaExpression::UnknownFeature
+                        }
+                    },
                 }
             };
             parse_to_paren_end(parser, true, st);
@@ -928,21 +948,113 @@ fn parse_font_face_block<'a, 't: 'a, 'i: 't>(
         sheet.add_font_face(font_face);
     }
 }
-fn parse_px_length<'a, 't: 'a, 'i: 't>(
+
+// Invalid values degrade to `UnknownFeature` instead of failing the whole media block.
+fn parse_sized_arm<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
-    _st: &mut ParseState,
-) -> Result<f32, ParseError<'i, CustomError>> {
+    st: &mut ParseState,
+    feature: SizedFeature,
+) -> MediaExpression {
+    let start = parser.current_source_location();
+    let len = match parser.try_parse(|p| parse_media_length(p)) {
+        Ok(len) => len,
+        Err(_) => {
+            st.add_warning(
+                WarningKind::InvalidMediaExpression,
+                start,
+                parser.current_source_location(),
+            );
+            return MediaExpression::UnknownFeature;
+        }
+    };
+    let negative = match &len {
+        Length::Px(x) | Length::Em(x) | Length::Rem(x) => *x < 0.,
+        _ => false,
+    };
+    if negative {
+        st.add_warning(
+            WarningKind::InvalidMediaExpression,
+            start,
+            parser.current_source_location(),
+        );
+        return MediaExpression::UnknownFeature;
+    }
+    feature.into_expression(len)
+}
+
+// `allow_bare_number` is only for the non-standard `device-pixel-ratio` aliases;
+// the standard `resolution` features require a unit per the CSS grammar.
+fn parse_resolution_arm<'a, 't: 'a, 'i: 't>(
+    parser: &'a mut Parser<'i, 't>,
+    st: &mut ParseState,
+    allow_bare_number: bool,
+    wrap: fn(f32) -> MediaExpression,
+) -> MediaExpression {
+    let start = parser.current_source_location();
+    match parser.try_parse(|p| parse_resolution(p, allow_bare_number)) {
+        Ok(v) => wrap(v),
+        Err(_) => {
+            st.add_warning(
+                WarningKind::InvalidMediaExpression,
+                start,
+                parser.current_source_location(),
+            );
+            MediaExpression::UnknownFeature
+        }
+    }
+}
+
+fn parse_media_length<'a, 't: 'a, 'i: 't>(
+    parser: &'a mut Parser<'i, 't>,
+) -> Result<Length, ParseError<'i, CustomError>> {
     let next = parser.next()?;
     match next {
         Token::Number { value, .. } => {
             if *value == 0. {
-                return Ok(0.);
+                return Ok(Length::Px(0.));
             }
         }
         Token::Dimension { value, unit, .. } => {
-            let unit: &str = unit;
-            if unit == "px" {
+            if unit.eq_ignore_ascii_case("px") {
+                return Ok(Length::Px(*value));
+            } else if unit.eq_ignore_ascii_case("em") {
+                return Ok(Length::Em(*value));
+            } else if unit.eq_ignore_ascii_case("rem") {
+                return Ok(Length::Rem(*value));
+            }
+        }
+        _ => {}
+    }
+    let next = next.clone();
+    Err(parser.new_unexpected_token_error(next))
+}
+
+// resolve to a `dppx` value, i.e. 96dpi = 1dppx = 37.8dpcm
+fn parse_resolution<'a, 't: 'a, 'i: 't>(
+    parser: &'a mut Parser<'i, 't>,
+    allow_bare_number: bool,
+) -> Result<f32, ParseError<'i, CustomError>> {
+    let next = parser.next()?;
+    match next {
+        Token::Number { value, .. } => {
+            if allow_bare_number && *value >= 0. {
                 return Ok(*value);
+            }
+        }
+        Token::Dimension { value, unit, .. } => {
+            if *value >= 0. {
+                if unit.eq_ignore_ascii_case("dppx") || unit.eq_ignore_ascii_case("x") {
+                    return Ok(*value);
+                } else if unit.eq_ignore_ascii_case("dpi") {
+                    return Ok(*value / 96.);
+                } else if unit.eq_ignore_ascii_case("dpcm") {
+                    return Ok(*value * 2.54 / 96.);
+                }
+            }
+        }
+        Token::Ident(s) => {
+            if s.eq_ignore_ascii_case("infinite") {
+                return Ok(f32::INFINITY);
             }
         }
         _ => {}
@@ -991,7 +1103,6 @@ fn parse_rule<'a, 't: 'a, 'i: 't>(
         }),
     }
 }
-
 
 #[inline(always)]
 fn parse_property_list<'a, 't: 'a, 'i: 't>(
