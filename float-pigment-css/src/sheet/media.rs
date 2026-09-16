@@ -1,8 +1,12 @@
 use alloc::{boxed::Box, rc::Rc, string::String, vec::Vec};
 
+use core::fmt;
 use cssparser::match_ignore_ascii_case;
+use serde::de::{DeserializeSeed, EnumAccess, Error, SeqAccess, VariantAccess, Visitor};
 
 use crate::{length_num::LengthNum, query::MediaQueryStatus, typing::Length};
+
+pub(crate) const MAX_MEDIA_EXPRESSION_DEPTH: usize = 64;
 
 #[cfg(debug_assertions)]
 use float_pigment_css_macro::CompatibilityEnumCheck;
@@ -20,7 +24,7 @@ pub(crate) struct MediaQuery {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 #[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
 pub(crate) enum MediaExpression {
     Unknown,
@@ -338,6 +342,22 @@ impl MediaQuery {
 }
 
 impl MediaExpression {
+    pub(crate) fn is_within_depth_limit(&self) -> bool {
+        fn check(expression: &MediaExpression, depth: usize) -> bool {
+            if depth > MAX_MEDIA_EXPRESSION_DEPTH {
+                return false;
+            }
+            match expression {
+                MediaExpression::Not(child) => check(child, depth + 1),
+                MediaExpression::And(children) | MediaExpression::Or(children) => {
+                    children.iter().all(|child| check(child, depth + 1))
+                }
+                _ => true,
+            }
+        }
+        check(self, 1)
+    }
+
     fn evaluate<L: LengthNum>(&self, mqs: &MediaQueryStatus<L>) -> Truth {
         let width = mqs.width.to_f32();
         let height = mqs.height.to_f32();
@@ -471,9 +491,259 @@ impl MediaExpression {
     }
 }
 
+impl<'de> serde::Deserialize<'de> for MediaExpression {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        ExpressionSeed(1).deserialize(deserializer)
+    }
+}
+
+struct ExpressionSeed(usize);
+
+impl<'de> DeserializeSeed<'de> for ExpressionSeed {
+    type Value = MediaExpression;
+
+    fn deserialize<D: serde::Deserializer<'de>>(
+        self,
+        deserializer: D,
+    ) -> Result<Self::Value, D::Error> {
+        if self.0 > MAX_MEDIA_EXPRESSION_DEPTH {
+            return Err(D::Error::custom(
+                "media expression nesting exceeds 64 levels",
+            ));
+        }
+        deserializer.deserialize_enum("MediaExpression", VARIANTS, self)
+    }
+}
+
+// Keep variant order and payload shapes identical to the derived wire format.
+const VARIANTS: &[&str] = &[
+    "Unknown",
+    "MediaType",
+    "Orientation",
+    "Width",
+    "MinWidth",
+    "MaxWidth",
+    "Height",
+    "MinHeight",
+    "MaxHeight",
+    "Theme",
+    "Resolution",
+    "MinResolution",
+    "MaxResolution",
+    "Sized",
+    "UnknownFeature",
+    "Boolean",
+    "AlwaysTrue",
+    "Not",
+    "And",
+    "Or",
+    "Range",
+    "ResolutionRange",
+    "InfiniteResolution",
+];
+
+#[derive(serde::Deserialize)]
+#[serde(field_identifier)]
+enum Kind {
+    Unknown,
+    MediaType,
+    Orientation,
+    Width,
+    MinWidth,
+    MaxWidth,
+    Height,
+    MinHeight,
+    MaxHeight,
+    Theme,
+    Resolution,
+    MinResolution,
+    MaxResolution,
+    Sized,
+    UnknownFeature,
+    Boolean,
+    AlwaysTrue,
+    Not,
+    And,
+    Or,
+    Range,
+    ResolutionRange,
+    InfiniteResolution,
+}
+
+impl<'de> Visitor<'de> for ExpressionSeed {
+    type Value = MediaExpression;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("a media expression")
+    }
+
+    fn visit_enum<A: EnumAccess<'de>>(self, data: A) -> Result<Self::Value, A::Error> {
+        let (kind, variant) = data.variant::<Kind>()?;
+        match kind {
+            Kind::Unknown => {
+                variant.unit_variant()?;
+                Ok(MediaExpression::Unknown)
+            }
+            Kind::MediaType => variant.newtype_variant().map(MediaExpression::MediaType),
+            Kind::Orientation => variant.newtype_variant().map(MediaExpression::Orientation),
+            Kind::Width => variant.newtype_variant().map(MediaExpression::Width),
+            Kind::MinWidth => variant.newtype_variant().map(MediaExpression::MinWidth),
+            Kind::MaxWidth => variant.newtype_variant().map(MediaExpression::MaxWidth),
+            Kind::Height => variant.newtype_variant().map(MediaExpression::Height),
+            Kind::MinHeight => variant.newtype_variant().map(MediaExpression::MinHeight),
+            Kind::MaxHeight => variant.newtype_variant().map(MediaExpression::MaxHeight),
+            Kind::Theme => variant.newtype_variant().map(MediaExpression::Theme),
+            Kind::Resolution => variant.newtype_variant().map(MediaExpression::Resolution),
+            Kind::MinResolution => variant
+                .newtype_variant()
+                .map(MediaExpression::MinResolution),
+            Kind::MaxResolution => variant
+                .newtype_variant()
+                .map(MediaExpression::MaxResolution),
+            Kind::Sized => {
+                let (value0, value1) = variant.tuple_variant(2, SizedVisitor)?;
+                Ok(MediaExpression::Sized(value0, value1))
+            }
+            Kind::UnknownFeature => {
+                variant.unit_variant()?;
+                Ok(MediaExpression::UnknownFeature)
+            }
+            Kind::Boolean => variant.newtype_variant().map(MediaExpression::Boolean),
+            Kind::AlwaysTrue => {
+                variant.unit_variant()?;
+                Ok(MediaExpression::AlwaysTrue)
+            }
+            Kind::Not => variant
+                .newtype_variant_seed(ExpressionSeed(self.0 + 1))
+                .map(|value| MediaExpression::Not(Box::new(value))),
+            Kind::And => variant
+                .newtype_variant_seed(ExpressionsSeed(self.0 + 1))
+                .map(MediaExpression::And),
+            Kind::Or => variant
+                .newtype_variant_seed(ExpressionsSeed(self.0 + 1))
+                .map(MediaExpression::Or),
+            Kind::Range => {
+                let (value0, value1, value2) = variant.tuple_variant(3, RangeVisitor)?;
+                Ok(MediaExpression::Range(value0, value1, value2))
+            }
+            Kind::ResolutionRange => {
+                let (value0, value1) = variant.tuple_variant(2, ResolutionRangeVisitor)?;
+                Ok(MediaExpression::ResolutionRange(value0, value1))
+            }
+            Kind::InfiniteResolution => variant
+                .newtype_variant()
+                .map(MediaExpression::InfiniteResolution),
+        }
+    }
+}
+
+struct ExpressionsSeed(usize);
+
+impl<'de> DeserializeSeed<'de> for ExpressionsSeed {
+    type Value = Vec<MediaExpression>;
+
+    fn deserialize<D: serde::Deserializer<'de>>(
+        self,
+        deserializer: D,
+    ) -> Result<Self::Value, D::Error> {
+        deserializer.deserialize_seq(self)
+    }
+}
+
+impl<'de> Visitor<'de> for ExpressionsSeed {
+    type Value = Vec<MediaExpression>;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("media expressions")
+    }
+
+    fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+        let mut expressions = Vec::new();
+        while let Some(expression) = seq.next_element_seed(ExpressionSeed(self.0))? {
+            expressions.push(expression);
+        }
+        Ok(expressions)
+    }
+}
+
+struct SizedVisitor;
+
+impl<'de> Visitor<'de> for SizedVisitor {
+    type Value = (SizedFeature, Length);
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("Sized fields")
+    }
+
+    fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+        Ok((
+            seq.next_element()?
+                .ok_or_else(|| A::Error::invalid_length(0, &self))?,
+            seq.next_element()?
+                .ok_or_else(|| A::Error::invalid_length(1, &self))?,
+        ))
+    }
+}
+
+struct RangeVisitor;
+
+impl<'de> Visitor<'de> for RangeVisitor {
+    type Value = (SizedFeature, MediaComparison, Length);
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("Range fields")
+    }
+
+    fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+        Ok((
+            seq.next_element()?
+                .ok_or_else(|| A::Error::invalid_length(0, &self))?,
+            seq.next_element()?
+                .ok_or_else(|| A::Error::invalid_length(1, &self))?,
+            seq.next_element()?
+                .ok_or_else(|| A::Error::invalid_length(2, &self))?,
+        ))
+    }
+}
+
+struct ResolutionRangeVisitor;
+
+impl<'de> Visitor<'de> for ResolutionRangeVisitor {
+    type Value = (MediaComparison, f32);
+
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("ResolutionRange fields")
+    }
+
+    fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+        Ok((
+            seq.next_element()?
+                .ok_or_else(|| A::Error::invalid_length(0, &self))?,
+            seq.next_element()?
+                .ok_or_else(|| A::Error::invalid_length(1, &self))?,
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use float_pigment_consistent_bincode::Options;
+
+    #[test]
+    fn media_expression_decode_depth_limit() {
+        use float_pigment_consistent_bincode::Options;
+        let mut expression = MediaExpression::Unknown;
+        for _ in 1..65 {
+            expression = MediaExpression::Not(Box::new(expression));
+        }
+        let bytes = float_pigment_consistent_bincode::DefaultOptions::new()
+            .serialize(&expression)
+            .unwrap();
+        let result = float_pigment_consistent_bincode::DefaultOptions::new()
+            .deserialize::<MediaExpression>(&bytes);
+        assert!(result.is_err(), "65 expression levels must be rejected");
+    }
 
     #[test]
     fn invalid_range_features_remain_unknown() {
@@ -491,4 +761,161 @@ mod tests {
         }
     }
 
+    fn chain(depth: usize, tags: &[u32]) -> MediaExpression {
+        let mut expression = MediaExpression::Unknown;
+        for level in 1..depth {
+            expression = match tags[(level - 1) % tags.len()] {
+                17 => MediaExpression::Not(Box::new(expression)),
+                18 => MediaExpression::And(alloc::vec![expression]),
+                19 => MediaExpression::Or(alloc::vec![expression]),
+                _ => unreachable!(),
+            };
+        }
+        expression
+    }
+
+    // Build hostile input without recursively serializing or dropping a hostile tree.
+    fn chain_bytes(depth: usize, tags: &[u32]) -> Vec<u8> {
+        let options = float_pigment_consistent_bincode::DefaultOptions::new();
+        let leaf = options.serialize(&MediaExpression::Unknown).unwrap();
+        let mut size = leaf.len();
+        let mut headers = Vec::new();
+        for level in 1..depth {
+            let tag = tags[(level - 1) % tags.len()];
+            let sequence = if tag == 17 {
+                Vec::new()
+            } else {
+                options.serialize(&1u64).unwrap()
+            };
+            let mut header = options.serialize(&tag).unwrap();
+            header.extend(
+                options
+                    .serialize(&((size + sequence.len()) as u32))
+                    .unwrap(),
+            );
+            header.extend(sequence);
+            size += header.len();
+            headers.push(header);
+        }
+        let mut bytes = Vec::with_capacity(size);
+        for header in headers.into_iter().rev() {
+            bytes.extend(header);
+        }
+        bytes.extend(leaf);
+        bytes
+    }
+
+    #[test]
+    fn wire_format_roundtrip() {
+        let expressions = alloc::vec![
+            MediaExpression::Unknown,
+            MediaExpression::MediaType(MediaType::Screen),
+            MediaExpression::Orientation(Orientation::Portrait),
+            MediaExpression::Width(1.),
+            MediaExpression::MinWidth(2.),
+            MediaExpression::MaxWidth(3.),
+            MediaExpression::Height(4.),
+            MediaExpression::MinHeight(5.),
+            MediaExpression::MaxHeight(6.),
+            MediaExpression::Theme(Theme::Dark),
+            MediaExpression::Resolution(1.),
+            MediaExpression::MinResolution(2.),
+            MediaExpression::MaxResolution(3.),
+            MediaExpression::Sized(SizedFeature::Width, Length::Em(2.)),
+            MediaExpression::UnknownFeature,
+            MediaExpression::Boolean(SizedFeature::Height),
+            MediaExpression::AlwaysTrue,
+            MediaExpression::Not(Box::new(MediaExpression::Unknown)),
+            MediaExpression::And(alloc::vec![MediaExpression::AlwaysTrue]),
+            MediaExpression::Or(alloc::vec![MediaExpression::UnknownFeature]),
+            MediaExpression::Range(
+                SizedFeature::Width,
+                MediaComparison::Greater,
+                Length::Px(20.)
+            ),
+            MediaExpression::ResolutionRange(MediaComparison::Less, 2.),
+            MediaExpression::InfiniteResolution(MediaComparison::Equal),
+        ];
+        let options = float_pigment_consistent_bincode::DefaultOptions::new();
+        for (tag, expression) in expressions.iter().enumerate() {
+            let bytes = options.serialize(expression).unwrap();
+            assert_eq!(bytes[0], tag as u8);
+            let decoded: MediaExpression = options.deserialize(&bytes).unwrap();
+            assert_eq!(options.serialize(&decoded).unwrap(), bytes);
+            let json = serde_json::to_string(expression).unwrap();
+            let decoded: MediaExpression = serde_json::from_str(&json).unwrap();
+            assert_eq!(serde_json::to_string(&decoded).unwrap(), json);
+        }
+        assert_eq!(
+            options.serialize(&expressions[17]).unwrap(),
+            alloc::vec![17, 2, 0, 0]
+        );
+    }
+
+    #[test]
+    fn depth_counts_paths_not_siblings() {
+        let options = float_pigment_consistent_bincode::DefaultOptions::new();
+        let expression = MediaExpression::And(alloc::vec![MediaExpression::AlwaysTrue; 1000]);
+        let bytes = options.serialize(&expression).unwrap();
+        let decoded: MediaExpression = options.deserialize(&bytes).unwrap();
+        assert!(decoded.evaluate(&MediaQueryStatus::<f32>::default_screen()) == Truth::True);
+
+        // A complete sibling must be safely dropped when decoding the next one fails.
+        let expression = MediaExpression::Or(alloc::vec![chain(63, &[17]), chain(64, &[17])]);
+        let bytes = options.serialize(&expression).unwrap();
+        assert!(options.deserialize::<MediaExpression>(&bytes).is_err());
+        let bytes = options.serialize(&MediaExpression::AlwaysTrue).unwrap();
+        assert!(options.deserialize::<MediaExpression>(&bytes).is_ok());
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn small_stack_depth_limit() {
+        const WORKER: &str = "FP_MEDIA_DEPTH_TEST_WORKER";
+        if std::env::var_os(WORKER).is_none() {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "sheet::media::tests::small_stack_depth_limit",
+                    "--nocapture",
+                ])
+                .env(WORKER, "1")
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "child failed: {}\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
+        std::thread::Builder::new()
+            .stack_size(512 * 1024)
+            .spawn(|| {
+                let options = float_pigment_consistent_bincode::DefaultOptions::new();
+                for tags in [&[17][..], &[18][..], &[19][..], &[17, 18, 19][..]] {
+                    let boundary = chain(64, tags);
+                    let bytes = chain_bytes(64, tags);
+                    assert_eq!(options.serialize(&boundary).unwrap(), bytes);
+                    let decoded: MediaExpression = options.deserialize(&bytes).unwrap();
+                    assert!(decoded.is_within_depth_limit());
+                    decoded.evaluate(&MediaQueryStatus::<f32>::default_screen());
+                    drop(decoded);
+                    for depth in [65, 50_000] {
+                        let bytes = chain_bytes(depth, tags);
+                        let error = options.deserialize::<MediaExpression>(&bytes).unwrap_err();
+                        assert!(
+                            error
+                                .to_string()
+                                .contains("media expression nesting exceeds 64 levels"),
+                            "{error}"
+                        );
+                    }
+                }
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
 }

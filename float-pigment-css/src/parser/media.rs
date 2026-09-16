@@ -1,4 +1,5 @@
 use super::*;
+use crate::sheet::MAX_MEDIA_EXPRESSION_DEPTH;
 
 pub(super) fn parse_media_expression_series<'i, 't>(
     parser: &mut Parser<'i, 't>,
@@ -64,6 +65,9 @@ fn parse_query<'i, 't>(
     if let Ok(condition) = try_media_parse(p, st, |p, st| {
         p.parse_entirely(|p| parse_condition(p, st, true, 0))
     }) {
+        if !condition.is_within_depth_limit() {
+            return Err(p.new_custom_error(CustomError::Unsupported));
+        }
         query.add_media_expression(condition);
         return Ok(query);
     }
@@ -86,7 +90,11 @@ fn parse_query<'i, 't>(
     );
     if !p.is_exhausted() {
         p.expect_ident_matching("and")?;
-        query.add_media_expression(parse_condition(p, st, false, 0)?);
+        let condition = parse_condition(p, st, false, 0)?;
+        if !condition.is_within_depth_limit() {
+            return Err(p.new_custom_error(CustomError::Unsupported));
+        }
+        query.add_media_expression(condition);
     }
     Ok(query)
 }
@@ -97,7 +105,7 @@ fn parse_condition<'i, 't>(
     allow_or: bool,
     depth: usize,
 ) -> Result<MediaExpression, ParseError<'i, CustomError>> {
-    if depth >= 64 {
+    if depth >= MAX_MEDIA_EXPRESSION_DEPTH {
         return Err(p.new_custom_error(CustomError::Unsupported));
     }
     if p.try_parse(|p| p.expect_ident_matching("not")).is_ok() {
@@ -171,7 +179,7 @@ fn consume_general_enclosed<'i, 't>(
     p: &mut Parser<'i, 't>,
     depth: usize,
 ) -> Result<(), ParseError<'i, CustomError>> {
-    if depth >= 128 {
+    if depth >= MAX_MEDIA_EXPRESSION_DEPTH {
         return Err(p.new_custom_error(CustomError::Unsupported));
     }
     while !p.is_exhausted() {

@@ -964,6 +964,21 @@ fn malformed_general_enclosed_and_depth_limit() {
 }
 
 #[test]
+fn media_expression_depth_boundary() {
+    let status = MediaQueryStatus::<f32>::default_screen();
+    for operator in ["and", "or"] {
+        let mut condition = "(width)".to_owned();
+        for _ in 1..64 {
+            condition = format!("(width) {operator} ({condition})");
+        }
+        assert_media_matches(&condition, true, &status);
+        let too_deep = format!("(width) {operator} ({condition})");
+        assert_media_matches(&too_deep, false, &status);
+        assert_media_matches(&format!("{too_deep}, screen"), true, &status);
+    }
+}
+
+#[test]
 fn invalid_media_values_report_warnings() {
     use float_pigment_css::parser::WarningKind;
     for condition in [
