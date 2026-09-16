@@ -1,6 +1,6 @@
 use float_pigment_css::{
     length_num::LengthNum, property::*, sheet::Theme, typing::*, MediaQueryStatus, StyleQuery,
-    StyleSheet, StyleSheetGroup,
+    StyleSheet, StyleSheetGroup, StyleSheetResource,
 };
 
 fn test_ss(ss: &str) -> StyleSheetGroup {
@@ -34,6 +34,32 @@ fn test_props<L: LengthNum>(
     let mut node_properties = NodeProperties::new(None);
     matched_rules.merge_node_properties(&mut node_properties, None, 16., &[]);
     node_properties
+}
+
+fn matches(group: &StyleSheetGroup, status: &MediaQueryStatus<f32>) -> bool {
+    let classes = vec![("a".into(), None)];
+    let query = [StyleQuery::single(None, None, None, "", "", &classes)];
+    !group.query_matched_rules(&query, status).rules.is_empty()
+}
+
+fn assert_media_matches(condition: &str, expected: bool, status: &MediaQueryStatus<f32>) {
+    let source = format!("@media {condition} {{ .a {{ width: 1px }} }}");
+    let group = test_ss(&source);
+    assert_eq!(matches(&group, status), expected, "{condition}");
+    let rule = float_pigment_css::sheet::Rule::from_parts_str([condition], ".a").unwrap();
+    let normalized = rule.get_media_query_string_list().join(", ");
+    let roundtrip = test_ss(&format!("@media {normalized} {{ .a {{ width: 1px }} }}"));
+    assert_eq!(
+        matches(&roundtrip, status),
+        expected,
+        "stringify: {condition} -> {normalized}"
+    );
+    let bytes = float_pigment_css::compile_style_sheet_to_bincode("a", &source);
+    let mut resource = StyleSheetResource::new();
+    assert!(resource.add_bincode("a", bytes).is_empty());
+    let mut decoded = StyleSheetGroup::new();
+    decoded.append_from_resource(&resource, "a", None);
+    assert_eq!(matches(&decoded, status), expected, "bincode: {condition}");
 }
 
 #[test]
@@ -563,7 +589,7 @@ fn case_insensitive() {
 
 #[test]
 fn not_unknown_feature() {
-    // an unknown feature makes the query `not all`; an unknown type just evaluates to false
+    // Negation preserves an unknown feature, but reverses an unknown media type.
     let ssg = test_ss(
         r#"
         @media not (unknown-feature: 1) {
@@ -781,4 +807,234 @@ fn em_rem_length() {
     );
     assert_eq!(node_properties.width(), Length::Px(2.));
     assert_eq!(node_properties.height(), Length::Auto);
+}
+
+// W3C Media Queries 4 §§2.4.3, 2.5, 3.1 and 3.2.
+#[test]
+fn mq4_conditions() {
+    let status = MediaQueryStatus::default_screen();
+    for condition in [
+        "not screen and (unknown: 1) and (min-width: 900px)",
+        "not screen and (min-width: 900px) and (unknown: 1)",
+        "(unknown: 1) or (width: 800px)",
+        "not ((unknown: 1) and (width: 900px))",
+        "screen and ((width: 800px) or (height: 900px))",
+        "screen and not (width: 900px)",
+        "(width >= 800px)",
+        "(800px <= width)",
+        "(799px < width <= 800px)",
+        "(801px > width >= 800px)",
+        "(800px = width)",
+        "(0dppx < resolution <= 1dppx)",
+        "(height = 600px)",
+        "(min-width: -1px)",
+        "(orientation: 1), screen",
+        "(prefers-color-scheme: 2), screen",
+        "&bad, screen",
+        "screen,",
+        ",screen",
+        "screen and, screen",
+        "(width: 800px bogus), screen",
+        "not unknown",
+        "(width: 50em)",
+        "(width: 50rem)",
+        "(width: 100vw)",
+        "(width >= 50em)",
+        "(25rem < width <= 50em)",
+        "(100vw >= width > 50vmin)",
+        "(width >= 8in)",
+        "(height <= 6.25in)",
+        "(height >= 450pt)",
+    ] {
+        assert_media_matches(condition, true, &status);
+    }
+    for condition in [
+        "not (unknown: 1)",
+        "not screen and (unknown: 1)",
+        "(unknown: 1) and (width: 800px)",
+        "(width: 900px) or (unknown: 1)",
+        "(width > 800px)",
+        "(width > 50em)",
+        "(width > 100vw)",
+        "(800px > width)",
+        "(800px < width < 900px)",
+        "(400px < width > 200px)",
+        "(width > = 799px)",
+        "(width: 800px) or (height: 600px) and (width)",
+        "not (width: 900px) and (height: 600px)",
+        "screen and (width: 900px) or (height: 600px)",
+        "only (width)",
+        "not and",
+        "not layer",
+        "(screen)",
+        "(resolution: 1dppx bogus)",
+        "not (resolution: 1dppx bogus)",
+        "(width: 800px bogus)",
+        "not (orientation: 1)",
+        "(resolution: 1)",
+        "(max-width: -1px)",
+        "(width: 800.0005px)",
+        "(resolution: 1.0005dppx)",
+    ] {
+        assert_media_matches(condition, false, &status);
+    }
+}
+
+#[test]
+fn resolution_zero_and_infinity() {
+    let mut status = MediaQueryStatus::default_screen();
+    status.pixel_ratio = 0.;
+    assert_media_matches("(resolution)", false, &status);
+    status.pixel_ratio = f32::INFINITY;
+    assert_media_matches("(resolution: infinite)", true, &status);
+    assert_media_matches("(resolution >= infinite)", true, &status);
+    assert_media_matches("(resolution > infinite)", false, &status);
+}
+
+#[test]
+fn range_boundaries_and_converted_units() {
+    for width in [799., 800., 801.] {
+        let status = MediaQueryStatus::default_screen_with_size(width, 600.);
+        for (condition, expected) in [
+            ("(width < 800px)", width < 800.),
+            ("(width <= 800px)", width <= 800.),
+            ("(width = 800px)", width == 800.),
+            ("(width >= 800px)", width >= 800.),
+            ("(width > 800px)", width > 800.),
+            ("(799px < width < 801px)", width == 800.),
+        ] {
+            assert_media_matches(condition, expected, &status);
+        }
+    }
+    let mut status = MediaQueryStatus::default_screen_with_size(4.2, 600.);
+    status.base_font_size = 14.;
+    status.pixel_ratio = 2.1;
+    for condition in [
+        "(width = 0.3em)",
+        "(width >= 0.3em)",
+        "(width <= 0.3em)",
+        "(resolution = 201.6dpi)",
+        "(resolution >= 201.6dpi)",
+        "(resolution <= 201.6dpi)",
+    ] {
+        assert_media_matches(condition, true, &status);
+    }
+    for condition in [
+        "(width < 0.3em)",
+        "(width > 0.3em)",
+        "(resolution < 201.6dpi)",
+        "(resolution > 201.6dpi)",
+    ] {
+        assert_media_matches(condition, false, &status);
+    }
+}
+
+#[test]
+fn nested_media_and_conditional_import() {
+    let mut resource = StyleSheetResource::new();
+    resource.add_source(
+        "child",
+        "@media not ((unknown: 1) and (height > 600px)) { .a { width: 1px } }",
+    );
+    resource.add_source(
+        "parent",
+        "@import \"child\" screen and (799px < width <= 800px);",
+    );
+    let mut group = StyleSheetGroup::new();
+    group.append_from_resource(&resource, "parent", None);
+    assert!(matches(&group, &MediaQueryStatus::default_screen()));
+    assert!(!matches(
+        &group,
+        &MediaQueryStatus::default_screen_with_size(799., 600.)
+    ));
+    assert!(!matches(
+        &group,
+        &MediaQueryStatus::default_screen_with_size(800., 601.)
+    ));
+}
+
+#[test]
+fn malformed_general_enclosed_and_depth_limit() {
+    let status = MediaQueryStatus::default_screen();
+    assert_media_matches("(width: \"bad\n) or (width: 800px)", false, &status);
+    assert_media_matches("(width: \"bad\n), screen", true, &status);
+    let deep = format!("{}width{}", "(".repeat(200), ")".repeat(200));
+    assert_media_matches(&deep, false, &status);
+    assert_media_matches(&format!("{deep}, screen"), true, &status);
+}
+
+#[test]
+fn invalid_media_values_report_warnings() {
+    use float_pigment_css::parser::WarningKind;
+    for condition in [
+        "(min-width: abc)",
+        "(width: 800px bogus)",
+        "screen and ((width: 800px bogus) or (height: 600px))",
+        "((width: abc) or (height) and (width))",
+        "(width: abc) and",
+        "(orientation: 1)",
+        "(resolution: 2)",
+        "not (resolution: -300dpi)",
+        "(min-resolution: -1dppx)",
+        "(prefers-color-scheme: bogus)",
+    ] {
+        let mut resource = StyleSheetResource::new();
+        let source = format!("@media {condition}, screen {{ .a {{ width: 1px }} }}");
+        let warnings = resource.add_source("warnings", &source);
+        assert_eq!(warnings.len(), 1, "{condition}: {warnings:?}");
+        assert_eq!(
+            warnings[0].kind,
+            WarningKind::InvalidMediaExpression,
+            "{condition}"
+        );
+        assert!(warnings[0].end_col > warnings[0].start_col, "{warnings:?}");
+        let mut group = StyleSheetGroup::new();
+        group.append_from_resource(&resource, "warnings", None);
+        assert!(matches(&group, &MediaQueryStatus::default_screen()));
+    }
+    for condition in [
+        "screen and (width: 800px)",
+        "screen and ((width >= 50em) or (height < 1px))",
+    ] {
+        let mut resource = StyleSheetResource::new();
+        assert!(
+            resource
+                .add_source(
+                    "valid",
+                    &format!("@media {condition} {{ .a {{ width: 1px }} }}")
+                )
+                .is_empty(),
+            "{condition}"
+        );
+    }
+}
+
+#[test]
+fn negative_resolution_values_are_rejected() {
+    let status = MediaQueryStatus::<f32>::default_screen();
+    for condition in [
+        "(min-resolution: -1dppx)",
+        "not (resolution: -300dpi)",
+        "(resolution > -1dppx)",
+        "(-1dpi < resolution)",
+        "(-1dppx < resolution < 2dppx)",
+        "(min-resolution: -1dpcm)",
+        "(min-resolution: -1x)",
+        "(min-resolution: -1e-44dpi)",
+        "(min-device-pixel-ratio: -1)",
+        "not (device-pixel-ratio: -1)",
+    ] {
+        assert_media_matches(condition, false, &status);
+        assert_media_matches(&format!("{condition}, screen"), true, &status);
+    }
+    for condition in [
+        "(min-width: -1px)",
+        "(height > -1px)",
+        "not (width: -1px)",
+        "(min-resolution: 0dppx)",
+        "(min-resolution: -0dpi)",
+        "(min-device-pixel-ratio: 0)",
+    ] {
+        assert_media_matches(condition, true, &status);
+    }
 }
