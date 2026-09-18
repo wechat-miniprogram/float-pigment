@@ -9,6 +9,7 @@ members = [
     "float-pigment-layout",
     "float-pigment-forest-macro",
     "float-pigment-forest",
+    "float-pigment-text/core",
     "float-pigment",
 ]
 

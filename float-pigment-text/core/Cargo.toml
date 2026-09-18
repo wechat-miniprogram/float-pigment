@@ -1,0 +1,36 @@
+[package]
+name = "float-pigment-text-layout"
+description = "A text layout engine: itemization, shaping, line breaking, and justification."
+version.workspace = true
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "float_pigment_text_layout"
+crate-type = ["rlib"]
+
+[features]
+default = ["std", "rust-font", "rust-raster"]
+std = ["float-pigment-css/std"]
+rust-font = ["dep:harfrust", "dep:skrifa", "dep:read-fonts"]
+rust-raster = ["rust-font", "dep:ab_glyph_rasterizer"]
+
+[dependencies]
+float-pigment-css = { workspace = true }
+euclid = { version = "0.22", default-features = false, features = ["libm"] }
+log = "0.4"
+unicode-bidi = "0.3"
+unicode-linebreak = "0.1"
+unicode-segmentation = "1.6"
+harfrust = { version = "0.13", optional = true }
+skrifa = { version = "0.47", optional = true, default-features = false, features = ["std"] }
+read-fonts = { version = "0.44", optional = true, default-features = false, features = ["std"] }
+ab_glyph_rasterizer = { version = "0.1", optional = true }
+
+[lints]
+workspace = true
