@@ -1,18 +1,17 @@
 //! The CSS parser module.
 
 use alloc::{
-    borrow::ToOwned,
     boxed::Box,
     rc::Rc,
     string::{String, ToString},
     vec::Vec,
 };
 
-use cssparser::{
-    parse_important, Delimiter, ParseError, ParseErrorKind, Parser, ParserInput, SourceLocation,
-    SourcePosition, Token,
-};
 use cssparser::CowRcStr;
+use cssparser::{
+    match_ignore_ascii_case, parse_important, Delimiter, ParseError, ParseErrorKind, Parser,
+    ParserInput, SourceLocation, SourcePosition, Token,
+};
 
 use self::property_value::font::{font_display, font_face_src, font_family_name};
 use crate::property::*;
@@ -20,6 +19,8 @@ use crate::sheet::*;
 use crate::typing::*;
 
 pub mod hooks;
+mod media;
+use media::parse_media_expression_series;
 pub(crate) mod property_value;
 pub(crate) mod selector;
 pub(crate) use selector::*;
@@ -334,7 +335,6 @@ pub fn parse_property_value_string(
     (properties, state.warnings)
 }
 
-
 pub(crate) fn parse_media_expression_only(source: &str) -> Result<Media, Warning> {
     let mut parser_input = ParserInput::new(source);
     let mut parser = Parser::new(&mut parser_input);
@@ -373,34 +373,6 @@ fn parse_segment<'a, 't: 'a, 'i: 't>(
 ) {
     while !parser.is_exhausted() {
         parse_block(parser, sheet, st);
-    }
-}
-
-fn parse_to_paren_end<'a, 't: 'a, 'i: 't>(
-    parser: &'a mut Parser<'i, 't>,
-    need_warning: bool,
-    st: &mut ParseState,
-) {
-    parser.skip_whitespace();
-    let start = parser.current_source_location();
-    let mut has_extra_chars = false;
-    loop {
-        let next = match parser.next() {
-            Ok(x) => x,
-            Err(_) => break,
-        };
-        match next {
-            Token::CloseParenthesis => {
-                break;
-            }
-            _ => {
-                has_extra_chars = true;
-            }
-        }
-    }
-    if need_warning && has_extra_chars {
-        let end = parser.current_source_location();
-        st.add_warning(WarningKind::UnsupportedSegment, start, end);
     }
 }
 
@@ -472,10 +444,10 @@ fn parse_at_keyword_block<'a, 't: 'a, 'i: 't>(
     sheet: &mut CompiledStyleSheet,
     st: &mut ParseState,
 ) {
-    if !(key == "import" || key == "font-face") {
+    if !(key.eq_ignore_ascii_case("import") || key.eq_ignore_ascii_case("font-face")) {
         st.import_base_path = None;
     }
-    match key {
+    match_ignore_ascii_case! { key,
         "import" => {
             parser.skip_whitespace();
             let start = parser.current_source_location();
@@ -534,17 +506,17 @@ fn parse_at_keyword_block<'a, 't: 'a, 'i: 't>(
                     }
                 }
             }
-        }
+        },
         "media" => {
             parse_media_block(parser, sheet, st);
-        }
+        },
         // IDEA support @keyframes
         "keyframes" => {
             parse_keyframes_block(parser, sheet, st);
-        }
+        },
         "font-face" => {
             parse_font_face_block(parser, sheet, st);
-        }
+        },
         _ => {
             parser.skip_whitespace();
             let start = parser.current_source_location();
@@ -555,16 +527,16 @@ fn parse_at_keyword_block<'a, 't: 'a, 'i: 't>(
                 start,
                 parser.current_source_location(),
             );
-        }
+        },
     }
 }
-
 fn str_to_media_type(s: &str) -> Option<MediaType> {
-    let s = s.to_lowercase();
-    match s.as_str() {
-        "all" => Some(MediaType::All),
-        "screen" => Some(MediaType::Screen),
-        _ => None,
+    if s.eq_ignore_ascii_case("all") {
+        Some(MediaType::All)
+    } else if s.eq_ignore_ascii_case("screen") {
+        Some(MediaType::Screen)
+    } else {
+        None
     }
 }
 
@@ -596,146 +568,6 @@ fn parse_media_block<'a, 't: 'a, 'i: 't>(
             }
         }
     }
-}
-
-fn parse_media_expression_series<'a, 't: 'a, 'i: 't>(
-    parser: &'a mut Parser<'i, 't>,
-    st: &mut ParseState,
-) -> Result<Media, ParseError<'i, CustomError>> {
-    let mut media = Media::new(st.media.clone());
-    parser.parse_until_before(
-        Delimiter::CurlyBracketBlock | Delimiter::Semicolon,
-        |parser| {
-            parser.parse_comma_separated(|parser| {
-                let mut mq = MediaQuery::new();
-                let next = parser.next()?.clone();
-                match &next {
-                    Token::Ident(s) => {
-                        let s = s.to_owned().to_lowercase();
-                        match s.as_str() {
-                            "only" => {
-                                mq.set_decorator(MediaTypeDecorator::Only);
-                                let expr = parse_media_expression(parser, st)?;
-                                mq.add_media_expression(expr);
-                            }
-                            "not" => {
-                                mq.set_decorator(MediaTypeDecorator::Not);
-                                let expr = parse_media_expression(parser, st)?;
-                                mq.add_media_expression(expr);
-                            }
-                            _ => match str_to_media_type(&s) {
-                                Some(mt) => mq.add_media_expression(MediaExpression::MediaType(mt)),
-                                None => mq.add_media_expression(MediaExpression::Unknown),
-                            },
-                        }
-                    }
-                    Token::ParenthesisBlock => {
-                        let expr = parse_media_expression_inner(parser, st)?;
-                        mq.add_media_expression(expr);
-                    }
-                    _ => {
-                        return Err(parser.new_unexpected_token_error(next));
-                    }
-                }
-                loop {
-                    match parser.try_parse(|parser| {
-                        if parser.is_exhausted() {
-                            return Err(parser.new_custom_error(CustomError::Unmatched));
-                        }
-                        let next = parser.next()?;
-                        if let Token::Ident(s) = next {
-                            let s = s.to_lowercase();
-                            if s.as_str() == "and" {
-                                let expr = parse_media_expression(parser, st)?;
-                                mq.add_media_expression(expr);
-                                return Ok(());
-                            }
-                        }
-                        Err(parser.new_custom_error(CustomError::Unmatched))
-                    }) {
-                        Ok(_) => {}
-                        Err(err) => {
-                            if let ParseErrorKind::Custom(err) = &err.kind {
-                                if CustomError::Unmatched == *err {
-                                    break;
-                                }
-                            }
-                            return Err(err);
-                        }
-                    };
-                }
-                media.add_media_query(mq);
-                Ok(())
-            })
-        },
-    )?;
-    Ok(media)
-}
-
-fn parse_media_expression<'a, 't: 'a, 'i: 't>(
-    parser: &'a mut Parser<'i, 't>,
-    st: &mut ParseState,
-) -> Result<MediaExpression, ParseError<'i, CustomError>> {
-    let token = parser.next()?.clone();
-    match token {
-        Token::Ident(s) => Ok(match str_to_media_type(&s) {
-            Some(mt) => MediaExpression::MediaType(mt),
-            None => MediaExpression::Unknown,
-        }),
-        Token::ParenthesisBlock => parse_media_expression_inner(parser, st),
-        _ => Err(parser.new_unexpected_token_error(token)),
-    }
-}
-
-fn parse_media_expression_inner<'a, 't: 'a, 'i: 't>(
-    parser: &'a mut Parser<'i, 't>,
-    st: &mut ParseState,
-) -> Result<MediaExpression, ParseError<'i, CustomError>> {
-    parser.parse_nested_block(|parser| {
-        let token = parser.next()?.clone();
-        if let Token::Ident(name) = &token {
-            let expr = if parser.is_exhausted() {
-                match str_to_media_type(name) {
-                    Some(mt) => MediaExpression::MediaType(mt),
-                    None => MediaExpression::Unknown,
-                }
-            } else {
-                parser.expect_colon()?;
-                let name: &str = name;
-                match name {
-                    "orientation" => {
-                        let t = parser.expect_ident()?;
-                        let t: &str = t;
-                        match t {
-                            "portrait" => MediaExpression::Orientation(Orientation::Portrait),
-                            "landscape" => MediaExpression::Orientation(Orientation::Landscape),
-                            _ => MediaExpression::Orientation(Orientation::None),
-                        }
-                    }
-                    "width" => MediaExpression::Width(parse_px_length(parser, st)?),
-                    "min-width" => MediaExpression::MinWidth(parse_px_length(parser, st)?),
-                    "max-width" => MediaExpression::MaxWidth(parse_px_length(parser, st)?),
-                    "height" => MediaExpression::Height(parse_px_length(parser, st)?),
-                    "min-height" => MediaExpression::MinHeight(parse_px_length(parser, st)?),
-                    "max-height" => MediaExpression::MaxHeight(parse_px_length(parser, st)?),
-                    "prefers-color-scheme" => {
-                        let t = parser.expect_ident()?;
-                        let t: &str = t;
-                        match t {
-                            "light" => MediaExpression::Theme(Theme::Light),
-                            "dark" => MediaExpression::Theme(Theme::Dark),
-                            _ => MediaExpression::Unknown,
-                        }
-                    }
-                    _ => MediaExpression::Unknown,
-                }
-            };
-            parse_to_paren_end(parser, true, st);
-            Ok(expr)
-        } else {
-            Err(parser.new_unexpected_token_error(token))
-        }
-    })
 }
 
 fn parse_keyframes_block<'a, 't: 'a, 'i: 't>(
@@ -928,28 +760,6 @@ fn parse_font_face_block<'a, 't: 'a, 'i: 't>(
         sheet.add_font_face(font_face);
     }
 }
-fn parse_px_length<'a, 't: 'a, 'i: 't>(
-    parser: &'a mut Parser<'i, 't>,
-    _st: &mut ParseState,
-) -> Result<f32, ParseError<'i, CustomError>> {
-    let next = parser.next()?;
-    match next {
-        Token::Number { value, .. } => {
-            if *value == 0. {
-                return Ok(0.);
-            }
-        }
-        Token::Dimension { value, unit, .. } => {
-            let unit: &str = unit;
-            if unit == "px" {
-                return Ok(*value);
-            }
-        }
-        _ => {}
-    }
-    let next = next.clone();
-    Err(parser.new_unexpected_token_error(next))
-}
 
 fn parse_rule<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
@@ -991,7 +801,6 @@ fn parse_rule<'a, 't: 'a, 'i: 't>(
         }),
     }
 }
-
 
 #[inline(always)]
 fn parse_property_list<'a, 't: 'a, 'i: 't>(
