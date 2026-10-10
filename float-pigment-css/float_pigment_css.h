@@ -147,6 +147,14 @@ enum class MaskModeItem {
   Luminance,
 };
 
+enum class MediaComparison {
+  Equal,
+  Less,
+  LessEqual,
+  Greater,
+  GreaterEqual,
+};
+
 enum class MediaType {
   None,
   All,
@@ -171,6 +179,16 @@ enum class PseudoElementsType {
   Before,
   After,
   Selection,
+};
+
+/// The sizing media features, i.e. `width` / `height` and their `min-` / `max-` variants.
+enum class SizedFeature {
+  Width,
+  MinWidth,
+  MaxWidth,
+  Height,
+  MinHeight,
+  MaxHeight,
 };
 
 /// A helper type for `transition-timing-function`.
@@ -977,6 +995,12 @@ struct CalcExpr {
     Mul,
     /// `/` expression.
     Div,
+    /// `min(...)` expression; comma-separated calc-sums.
+    Min,
+    /// `max(...)` expression; comma-separated calc-sums.
+    Max,
+    /// `clamp(MIN, VAL, MAX)` expression.
+    Clamp,
   };
 
   struct Length_Body {
@@ -1011,6 +1035,20 @@ struct CalcExpr {
     Box<CalcExpr> _1;
   };
 
+  struct Min_Body {
+    Array<CalcExpr> _0;
+  };
+
+  struct Max_Body {
+    Array<CalcExpr> _0;
+  };
+
+  struct Clamp_Body {
+    Box<CalcExpr> _0;
+    Box<CalcExpr> _1;
+    Box<CalcExpr> _2;
+  };
+
   Tag tag;
   union {
     Length_Body length;
@@ -1020,6 +1058,9 @@ struct CalcExpr {
     Sub_Body sub;
     Mul_Body mul;
     Div_Body div;
+    Min_Body min;
+    Max_Body max;
+    Clamp_Body clamp;
   };
 };
 
@@ -9653,6 +9694,22 @@ struct MediaExpression {
     MinHeight,
     MaxHeight,
     Theme,
+    Resolution,
+    MinResolution,
+    MaxResolution,
+    Sized,
+    /// A media feature that is not recognized, or whose value is invalid.
+    UnknownFeature,
+    /// A known sizing feature in boolean context, e.g. `(width)`.
+    Boolean,
+    /// A known discrete feature in boolean context, e.g. `(orientation)`.
+    AlwaysTrue,
+    Not,
+    And,
+    Or,
+    Range,
+    ResolutionRange,
+    InfiniteResolution,
   };
 
   struct MediaType_Body {
@@ -9691,6 +9748,54 @@ struct MediaExpression {
     Theme _0;
   };
 
+  struct Resolution_Body {
+    float _0;
+  };
+
+  struct MinResolution_Body {
+    float _0;
+  };
+
+  struct MaxResolution_Body {
+    float _0;
+  };
+
+  struct Sized_Body {
+    SizedFeature _0;
+    Length _1;
+  };
+
+  struct Boolean_Body {
+    SizedFeature _0;
+  };
+
+  struct Not_Body {
+    Box<MediaExpression> _0;
+  };
+
+  struct And_Body {
+    Array<MediaExpression> _0;
+  };
+
+  struct Or_Body {
+    Array<MediaExpression> _0;
+  };
+
+  struct Range_Body {
+    SizedFeature _0;
+    MediaComparison _1;
+    Length _2;
+  };
+
+  struct ResolutionRange_Body {
+    MediaComparison _0;
+    float _1;
+  };
+
+  struct InfiniteResolution_Body {
+    MediaComparison _0;
+  };
+
   Tag tag;
   union {
     MediaType_Body media_type;
@@ -9702,6 +9807,17 @@ struct MediaExpression {
     MinHeight_Body min_height;
     MaxHeight_Body max_height;
     Theme_Body theme;
+    Resolution_Body resolution;
+    MinResolution_Body min_resolution;
+    MaxResolution_Body max_resolution;
+    Sized_Body sized;
+    Boolean_Body boolean;
+    Not_Body not_;
+    And_Body and_;
+    Or_Body or_;
+    Range_Body range;
+    ResolutionRange_Body resolution_range;
+    InfiniteResolution_Body infinite_resolution;
   };
 };
 

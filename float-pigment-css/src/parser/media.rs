@@ -130,9 +130,9 @@ fn parse_condition<'i, 't>(
         expressions.push(parse_in_parens(p, st, depth + 1)?);
     }
     Ok(if is_and {
-        MediaExpression::And(expressions)
+        MediaExpression::And(expressions.into())
     } else {
-        MediaExpression::Or(expressions)
+        MediaExpression::Or(expressions.into())
     })
 }
 
@@ -245,10 +245,9 @@ fn parse_feature<'i, 't>(
     if !same_direction {
         return Err(p.new_custom_error(CustomError::Unsupported));
     }
-    Ok(MediaExpression::And(vec![
-        left,
-        range_value(p, &name, second)?,
-    ]))
+    Ok(MediaExpression::And(
+        vec![left, range_value(p, &name, second)?].into(),
+    ))
 }
 
 fn parse_named_feature<'i, 't>(

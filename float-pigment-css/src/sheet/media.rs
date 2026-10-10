@@ -4,6 +4,7 @@ use core::fmt;
 use cssparser::match_ignore_ascii_case;
 use serde::de::{DeserializeSeed, EnumAccess, Error, SeqAccess, VariantAccess, Visitor};
 
+use super::borrow::Array;
 use crate::{length_num::LengthNum, query::MediaQueryStatus, typing::Length};
 
 pub(crate) const MAX_MEDIA_EXPRESSION_DEPTH: usize = 64;
@@ -48,8 +49,8 @@ pub(crate) enum MediaExpression {
     /// A known discrete feature in boolean context, e.g. `(orientation)`.
     AlwaysTrue,
     Not(Box<MediaExpression>),
-    And(Vec<MediaExpression>),
-    Or(Vec<MediaExpression>),
+    And(#[serde(serialize_with = "serialize_expressions")] Array<MediaExpression>),
+    Or(#[serde(serialize_with = "serialize_expressions")] Array<MediaExpression>),
     Range(SizedFeature, MediaComparison, Length),
     ResolutionRange(MediaComparison, f32),
     InfiniteResolution(MediaComparison),
@@ -497,6 +498,13 @@ impl<'de> serde::Deserialize<'de> for MediaExpression {
     }
 }
 
+fn serialize_expressions<S: serde::Serializer>(
+    expressions: &Array<MediaExpression>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    serializer.collect_seq(expressions.iter())
+}
+
 struct ExpressionSeed(usize);
 
 impl<'de> DeserializeSeed<'de> for ExpressionSeed {
@@ -640,7 +648,7 @@ impl<'de> Visitor<'de> for ExpressionSeed {
 struct ExpressionsSeed(usize);
 
 impl<'de> DeserializeSeed<'de> for ExpressionsSeed {
-    type Value = Vec<MediaExpression>;
+    type Value = Array<MediaExpression>;
 
     fn deserialize<D: serde::Deserializer<'de>>(
         self,
@@ -651,7 +659,7 @@ impl<'de> DeserializeSeed<'de> for ExpressionsSeed {
 }
 
 impl<'de> Visitor<'de> for ExpressionsSeed {
-    type Value = Vec<MediaExpression>;
+    type Value = Array<MediaExpression>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str("media expressions")
@@ -662,7 +670,7 @@ impl<'de> Visitor<'de> for ExpressionsSeed {
         while let Some(expression) = seq.next_element_seed(ExpressionSeed(self.0))? {
             expressions.push(expression);
         }
-        Ok(expressions)
+        Ok(expressions.into())
     }
 }
 
@@ -766,8 +774,8 @@ mod tests {
         for level in 1..depth {
             expression = match tags[(level - 1) % tags.len()] {
                 17 => MediaExpression::Not(Box::new(expression)),
-                18 => MediaExpression::And(alloc::vec![expression]),
-                19 => MediaExpression::Or(alloc::vec![expression]),
+                18 => MediaExpression::And(alloc::vec![expression].into()),
+                19 => MediaExpression::Or(alloc::vec![expression].into()),
                 _ => unreachable!(),
             };
         }
@@ -826,8 +834,8 @@ mod tests {
             MediaExpression::Boolean(SizedFeature::Height),
             MediaExpression::AlwaysTrue,
             MediaExpression::Not(Box::new(MediaExpression::Unknown)),
-            MediaExpression::And(alloc::vec![MediaExpression::AlwaysTrue]),
-            MediaExpression::Or(alloc::vec![MediaExpression::UnknownFeature]),
+            MediaExpression::And(alloc::vec![MediaExpression::AlwaysTrue].into()),
+            MediaExpression::Or(alloc::vec![MediaExpression::UnknownFeature].into()),
             MediaExpression::Range(
                 SizedFeature::Width,
                 MediaComparison::Greater,
@@ -850,18 +858,36 @@ mod tests {
             options.serialize(&expressions[17]).unwrap(),
             alloc::vec![17, 2, 0, 0]
         );
+        assert_eq!(
+            options.serialize(&expressions[18]).unwrap(),
+            alloc::vec![18, 3, 1, 16, 0]
+        );
+        assert_eq!(
+            options.serialize(&expressions[19]).unwrap(),
+            alloc::vec![19, 3, 1, 14, 0]
+        );
+        assert_eq!(
+            serde_json::to_string(&expressions[18]).unwrap(),
+            r#"{"And":["AlwaysTrue"]}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&expressions[19]).unwrap(),
+            r#"{"Or":["UnknownFeature"]}"#
+        );
     }
 
     #[test]
     fn depth_counts_paths_not_siblings() {
         let options = float_pigment_consistent_bincode::DefaultOptions::new();
-        let expression = MediaExpression::And(alloc::vec![MediaExpression::AlwaysTrue; 1000]);
+        let expression =
+            MediaExpression::And(alloc::vec![MediaExpression::AlwaysTrue; 1000].into());
         let bytes = options.serialize(&expression).unwrap();
         let decoded: MediaExpression = options.deserialize(&bytes).unwrap();
         assert!(decoded.evaluate(&MediaQueryStatus::<f32>::default_screen()) == Truth::True);
 
         // A complete sibling must be safely dropped when decoding the next one fails.
-        let expression = MediaExpression::Or(alloc::vec![chain(63, &[17]), chain(64, &[17])]);
+        let expression =
+            MediaExpression::Or(alloc::vec![chain(63, &[17]), chain(64, &[17])].into());
         let bytes = options.serialize(&expression).unwrap();
         assert!(options.deserialize::<MediaExpression>(&bytes).is_err());
         let bytes = options.serialize(&MediaExpression::AlwaysTrue).unwrap();
