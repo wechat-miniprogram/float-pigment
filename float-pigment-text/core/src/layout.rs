@@ -100,14 +100,22 @@ pub struct LayoutResult<L: LengthNum, F: FontFace> {
 
 impl<L: LengthNum, F: FontFace> LayoutResult<L, F> {
     /// Resolve a `PositionedGlyph::glyph_ref` to the shared glyph data.
-    pub fn shaped_glyph(&self, _glyph_ref: u32) -> &ShapedGlyph {
-        todo!()
+    pub fn shaped_glyph(&self, glyph_ref: u32) -> &ShapedGlyph {
+        if glyph_ref & EXTRA_GLYPH_TAG != 0 {
+            &self.extra_glyphs[(glyph_ref & !EXTRA_GLYPH_TAG) as usize]
+        } else {
+            &self.shaped.glyphs()[glyph_ref as usize]
+        }
     }
 
     /// Map a flattened UTF-8 offset back to the source position,
     /// i.e. the `Inline::Text` index and the UTF-8 offset within it.
-    pub fn source_position(&self, _flattened_offset: u32) -> Option<(u32, u32)> {
-        todo!()
+    pub fn source_position(&self, flattened_offset: u32) -> Option<(u32, u32)> {
+        let texts = &self.shaped.texts;
+        let index = texts.partition_point(|text| text.flattened_range.end <= flattened_offset);
+        let text = texts.get(index)?;
+        (flattened_offset < text.flattened_range.end)
+            .then(|| (index as u32, flattened_offset - text.flattened_range.start))
     }
 
     /// Find the caret position nearest to the given physical point.

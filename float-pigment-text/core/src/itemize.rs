@@ -36,13 +36,26 @@ pub(crate) struct FlattenedText {
 }
 
 /// The itemization result.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub(crate) struct Itemized<L: LengthNum> {
     pub(crate) flattened: FlattenedText,
     /// The text items, sorted by flattened position.
     pub(crate) text_items: Vec<TextItem<L>>,
     /// The bidi level of each `Inline::Item`.
     pub(crate) item_levels: Vec<u8>,
+    /// The resolved base direction of the block.
+    pub(crate) base_direction: ResolvedDirection,
+}
+
+impl<L: LengthNum> Default for Itemized<L> {
+    fn default() -> Self {
+        Self {
+            flattened: FlattenedText::default(),
+            text_items: vec![],
+            item_levels: vec![],
+            base_direction: ResolvedDirection::LTR,
+        }
+    }
 }
 
 pub(crate) fn itemize<L: LengthNum>(block: &Block<L>) -> Itemized<L> {
@@ -118,6 +131,21 @@ pub(crate) fn itemize<L: LengthNum>(block: &Block<L>) -> Itemized<L> {
         });
     }
 
+    let base_direction = bidi_info
+        .paragraphs
+        .first()
+        .map(|para| {
+            if para.level.is_rtl() {
+                ResolvedDirection::RTL
+            } else {
+                ResolvedDirection::LTR
+            }
+        })
+        .unwrap_or(match block.property.direction {
+            Direction::RTL => ResolvedDirection::RTL,
+            _ => ResolvedDirection::LTR,
+        });
+
     Itemized {
         flattened: FlattenedText {
             text: text.into_boxed_str(),
@@ -126,5 +154,6 @@ pub(crate) fn itemize<L: LengthNum>(block: &Block<L>) -> Itemized<L> {
         },
         text_items,
         item_levels,
+        base_direction,
     }
 }

@@ -7,6 +7,8 @@ use std::sync::Arc;
 use float_pigment_css::length_num::LengthNum;
 use float_pigment_css::typing::WritingMode;
 
+use crate::model::TextOverflow;
+
 use crate::font::{FontFace, FontFaceId, FontProvider, FontQuery, ResolvedFontList};
 use crate::itemize::{itemize, TextItem};
 use crate::layout::LayoutResult;
@@ -14,6 +16,9 @@ use crate::model::{Block, BlockProperty, Inline, InlineItem, InlineProperty, Spa
 use crate::shaper::{GlyphFlags, GlyphRun, ResolvedDirection, ShapeOptions, ShapedGlyph, Shaper};
 
 /// A shaped text item (bidi- and style-uniform).
+///
+/// `flattened_range` and `direction` are used by hit testing and selection.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub(crate) struct ShapedTextItem {
     /// The UTF-8 byte range in the flattened text.
@@ -46,6 +51,8 @@ pub(crate) struct ShapedText<L: LengthNum> {
 pub(crate) struct PositionedInlineItem<L: LengthNum> {
     /// The bidi level resolved by UAX#9.
     pub(crate) bidi_level: u8,
+    /// The UTF-8 offset of the U+FFFC placeholder character in the flattened text.
+    pub(crate) flattened_offset: u32,
     /// The item content.
     pub(crate) item: InlineItem<L>,
 }
@@ -72,6 +79,11 @@ pub struct ShapedBlock<L: LengthNum, F: FontFace> {
     /// The flat glyph array of the whole block, in logical order,
     /// indexed by `PositionedGlyph::glyph_ref`.
     pub(crate) glyphs: Box<[ShapedGlyph]>,
+    /// The resolved base direction of the block.
+    pub(crate) base_direction: ResolvedDirection,
+    /// The shaped ellipsis glyphs (`…`), when `text_overflow` is `Ellipsis`.
+    /// Clusters are `u32::MAX` since they have no source text.
+    pub(crate) ellipsis_glyphs: Option<Box<[ShapedGlyph]>>,
 }
 
 /// Shape `text[range]`, driving font fallback through the provider.
@@ -202,7 +214,8 @@ impl<L: LengthNum, F: FontFace> ShapedBlock<L, F> {
     {
         let itemized = itemize(block);
         let flattened = itemized.flattened;
-        let vertical = !matches!(block.property.writing_mode, WritingMode::HorizontalTb);
+        let vertical = !matches!(block.property.writing_mode, WritingMode::HorizontalTb)
+            && !matches!(block.property.text_orientation, crate::model::TextOrientation::Sideways);
 
         let mut face_indexes: HashMap<FontFaceId, u16> = HashMap::new();
         let mut faces: Vec<F> = Vec::new();
@@ -314,11 +327,50 @@ impl<L: LengthNum, F: FontFace> ShapedBlock<L, F> {
                 Inline::Item(item) => Some(item),
             })
             .zip(itemized.item_levels.iter())
-            .map(|(item, bidi_level)| PositionedInlineItem {
+            .zip(flattened.item_positions.iter())
+            .map(|((item, bidi_level), (flattened_offset, _))| PositionedInlineItem {
                 bidi_level: *bidi_level,
+                flattened_offset: *flattened_offset,
                 item: item.clone(),
             })
             .collect();
+
+        let ellipsis_text: Option<Box<str>> = match &block.property.text_overflow {
+            TextOverflow::Clip => None,
+            TextOverflow::Ellipsis => Some("…".into()),
+            TextOverflow::Custom(text) => Some(text.clone()),
+        };
+        let ellipsis_glyphs = ellipsis_text.map(|ellipsis_text| {
+            let options = ShapeOptions {
+                size: block.property.font_size.to_f32(),
+                direction: itemized.base_direction,
+                script: block.property.script,
+                language: block.property.language,
+                vertical,
+            };
+            let mut runs = Vec::new();
+            let mut ellipsis_faces = provider.resolve(&block.property.font_query);
+            shape_with_fallback(
+                &ellipsis_text,
+                0..ellipsis_text.len(),
+                &mut ellipsis_faces,
+                0,
+                provider,
+                shaper,
+                &options,
+                &mut runs,
+            );
+            let mut ellipsis_glyphs: Vec<ShapedGlyph> = Vec::new();
+            for run in runs {
+                let face_index = dedup_face(&run.face, &mut face_indexes, &mut faces);
+                for mut glyph in run.glyphs {
+                    glyph.face_index = face_index;
+                    glyph.cluster = u32::MAX;
+                    ellipsis_glyphs.push(glyph);
+                }
+            }
+            ellipsis_glyphs.into_boxed_slice()
+        });
 
         Self {
             property: block.property.clone(),
@@ -327,12 +379,15 @@ impl<L: LengthNum, F: FontFace> ShapedBlock<L, F> {
             items,
             faces: faces.into_boxed_slice(),
             glyphs: glyphs.into_boxed_slice(),
+            base_direction: itemized.base_direction,
+            ellipsis_glyphs,
         }
     }
 
     /// Break lines and compute the final layout for the given inline size.
-    pub fn layout(self: &Arc<Self>, _inline_size: L) -> LayoutResult<L, F> {
-        todo!()
+    pub fn layout(self: &Arc<Self>, inline_size: L) -> LayoutResult<L, F> {
+        let lines = crate::line::break_lines(self, inline_size);
+        crate::line::justify(self, lines, inline_size)
     }
 
     /// The flat glyph array of the whole block, in logical order.

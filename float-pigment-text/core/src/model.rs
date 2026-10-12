@@ -4,11 +4,23 @@ use std::num::NonZeroU32;
 use std::sync::Arc;
 
 use float_pigment_css::length_num::LengthNum;
-use float_pigment_css::typing::{Direction, Overflow, TextAlign, TextOverflow, WhiteSpace, WordBreak, WritingMode};
+use float_pigment_css::typing::{Direction, Overflow, TextAlign, WhiteSpace, WordBreak, WritingMode};
 
 use crate::font::FontQuery;
 use crate::geometry::Size;
 use crate::shaper::{Language, Script};
+
+/// The behavior when text overflows the block in the inline direction.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum TextOverflow {
+    /// Clipped without any marker.
+    #[default]
+    Clip,
+    /// Truncated with an ellipsis (`…`).
+    Ellipsis,
+    /// Truncated with a custom marker text.
+    Custom(Box<str>),
+}
 
 /// The orientation of glyphs relative to the baseline.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
