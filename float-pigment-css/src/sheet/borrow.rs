@@ -49,11 +49,229 @@ pub struct StyleSheetV1 {
     pub version: Box<StrRef>,
     font_face: Array<FontFace>,
     keyframes: Array<KeyFrames>,
+    /// Grouped rules in source order; absent in legacy bincode data.
+    rule_tree: Nullable<Array<RuleTreeNode>>,
+}
+
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub enum RuleTreeNode {
+    Style(usize),
+    Media {
+        media_index: usize,
+        children: Array<RuleTreeNode>,
+    },
+    KeyFrames(usize),
+    FontFace(usize),
+    Import(usize),
+}
+
+// Keep the existing preorder encoding on the wire.
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(debug_assertions, derive(CompatibilityEnumCheck))]
+enum SerializedRuleTreeNode {
+    Style(usize),
+    Media(usize, usize),
+    KeyFrames(usize),
+    FontFace(usize),
+    Import(usize),
+}
+
+#[cfg(debug_assertions)]
+impl crate::CompatibilityCheck for RuleTreeNode {
+    fn check() {
+        <SerializedRuleTreeNode as crate::CompatibilityCheck>::check();
+    }
+}
+
+impl StyleSheetV1 {
+    fn validate(&self, tree: Option<&[SerializedRuleTreeNode]>) -> Result<(), String> {
+        fn index(value: &Nullable<usize>) -> Option<usize> {
+            match value {
+                Nullable::None => None,
+                Nullable::Some(index) => Some(*index),
+            }
+        }
+        let sheet = self;
+        let mut depths: Vec<usize> = Vec::with_capacity(sheet.media.len());
+        for media in sheet.media.iter() {
+            let depth = match index(&media.parent_index) {
+                None => 1,
+                Some(parent) => depths
+                    .get(parent)
+                    .map(|depth| depth + 1)
+                    .ok_or_else(|| "Invalid media parent index".to_string())?,
+            };
+            if depth > MAX_RULE_NESTING_DEPTH {
+                return Err("Media nesting limit exceeded".into());
+            }
+            depths.push(depth);
+        }
+        if sheet.imports.len() != sheet.imports_media.len() {
+            return Err("Invalid import media list".into());
+        }
+        for import in sheet.imports_media.iter() {
+            if let Nullable::Some(media) = import {
+                if index(&media.parent_index).is_some_and(|parent| parent >= sheet.media.len()) {
+                    return Err("Invalid import media parent index".into());
+                }
+            }
+        }
+        for rule in sheet.rules.iter() {
+            if index(&rule.media_index).is_some_and(|media| media >= sheet.media.len()) {
+                return Err("Invalid rule media index".into());
+            }
+        }
+        let Some(tree) = tree else {
+            return Ok(());
+        };
+        let lengths = [
+            sheet.rules.len(),
+            sheet.font_face.len(),
+            sheet.keyframes.len(),
+            sheet.imports.len(),
+        ];
+        let mut next = [0; 4];
+        let mut groups: Vec<(usize, usize)> = vec![];
+        for (position, node) in tree.iter().enumerate() {
+            let parent = groups.last().map(|(media, _)| *media);
+            let leaf = match node {
+                SerializedRuleTreeNode::Style(rule) => {
+                    let rules: &[Rule] = sheet.rules.as_ref();
+                    let rule_media = rules
+                        .get(*rule)
+                        .ok_or_else(|| "Invalid rule tree style index".to_string())?;
+                    if index(&rule_media.media_index) != parent {
+                        return Err("Invalid style rule media parent".into());
+                    }
+                    Some((0, *rule))
+                }
+                SerializedRuleTreeNode::FontFace(rule) => Some((1, *rule)),
+                SerializedRuleTreeNode::KeyFrames(rule) => Some((2, *rule)),
+                SerializedRuleTreeNode::Import(rule) => {
+                    if parent.is_some() {
+                        return Err("Import inside a media rule".into());
+                    }
+                    Some((3, *rule))
+                }
+                SerializedRuleTreeNode::Media(media, children) => {
+                    let media_list: &[Media] = sheet.media.as_ref();
+                    let condition = media_list
+                        .get(*media)
+                        .ok_or_else(|| "Invalid rule tree media index".to_string())?;
+                    if index(&condition.parent_index) != parent {
+                        return Err("Invalid rule tree media parent".into());
+                    }
+                    if groups.len() >= MAX_RULE_NESTING_DEPTH
+                        || *children > tree.len() - position - 1
+                    {
+                        return Err("Invalid rule tree nesting".into());
+                    }
+                    if let Some((_, remaining)) = groups.last_mut() {
+                        *remaining -= 1;
+                    }
+                    groups.push((*media, *children));
+                    None
+                }
+            };
+            if let Some((kind, rule)) = leaf {
+                if rule != next[kind] || rule >= lengths[kind] {
+                    return Err("Invalid rule tree order or index".into());
+                }
+                next[kind] += 1;
+                if let Some((_, remaining)) = groups.last_mut() {
+                    *remaining -= 1;
+                }
+            }
+            while groups.last().is_some_and(|(_, remaining)| *remaining == 0) {
+                groups.pop();
+            }
+        }
+        if !groups.is_empty() || next != lengths {
+            return Err("Incomplete rule tree".into());
+        }
+        Ok(())
+    }
+}
+
+fn flatten_rule_tree(tree: &[RuleTreeNode]) -> Vec<SerializedRuleTreeNode> {
+    let mut result = vec![];
+    let mut stack = vec![tree.iter()];
+    while let Some(iter) = stack.last_mut() {
+        match iter.next() {
+            Some(RuleTreeNode::Style(index)) => result.push(SerializedRuleTreeNode::Style(*index)),
+            Some(RuleTreeNode::Media {
+                media_index,
+                children,
+            }) => {
+                result.push(SerializedRuleTreeNode::Media(*media_index, children.len()));
+                stack.push(children.iter());
+            }
+            Some(RuleTreeNode::KeyFrames(index)) => {
+                result.push(SerializedRuleTreeNode::KeyFrames(*index))
+            }
+            Some(RuleTreeNode::FontFace(index)) => {
+                result.push(SerializedRuleTreeNode::FontFace(*index))
+            }
+            Some(RuleTreeNode::Import(index)) => {
+                result.push(SerializedRuleTreeNode::Import(*index))
+            }
+            None => {
+                stack.pop();
+            }
+        }
+    }
+    result
+}
+
+fn expand_rule_tree(tree: Vec<SerializedRuleTreeNode>) -> Array<RuleTreeNode> {
+    let mut result = vec![];
+    let mut groups: Vec<(usize, usize, Vec<RuleTreeNode>)> = vec![];
+    for node in tree {
+        let rule = match node {
+            SerializedRuleTreeNode::Media(media_index, children) => {
+                if let Some((_, remaining, _)) = groups.last_mut() {
+                    *remaining -= 1;
+                }
+                groups.push((media_index, children, vec![]));
+                None
+            }
+            SerializedRuleTreeNode::Style(index) => Some(RuleTreeNode::Style(index)),
+            SerializedRuleTreeNode::KeyFrames(index) => Some(RuleTreeNode::KeyFrames(index)),
+            SerializedRuleTreeNode::FontFace(index) => Some(RuleTreeNode::FontFace(index)),
+            SerializedRuleTreeNode::Import(index) => Some(RuleTreeNode::Import(index)),
+        };
+        if let Some(rule) = rule {
+            if let Some((_, remaining, children)) = groups.last_mut() {
+                *remaining -= 1;
+                children.push(rule);
+            } else {
+                result.push(rule);
+            }
+        }
+        while groups
+            .last()
+            .is_some_and(|(_, remaining, _)| *remaining == 0)
+        {
+            let (media_index, _, children) = groups.pop().unwrap();
+            let rule = RuleTreeNode::Media {
+                media_index,
+                children: children.into(),
+            };
+            groups
+                .last_mut()
+                .map_or(&mut result, |(_, _, rules)| rules)
+                .push(rule);
+        }
+    }
+    result.into()
 }
 
 impl StyleSheet {
     #[cfg(feature = "serialize")]
     pub(crate) fn from_sheet(sheet: &sheet::CompiledStyleSheet) -> Self {
+        let sheet = sheet.ss.borrow();
+        let index = &sheet.index;
         // collect media into a list
         fn collect_media(
             arr: &mut Vec<Media>,
@@ -73,44 +291,80 @@ impl StyleSheet {
         }
         let mut media_arr = vec![];
         let mut media_index_map = HashMap::default();
-        for rule in sheet.ss.borrow().rules.iter() {
+        for rule in index.rules.iter() {
             collect_media(&mut media_arr, &mut media_index_map, &rule.media);
         }
 
-        let (imports, imports_media) = sheet
+        let mut stack = vec![(None, sheet.rules.iter(), vec![])];
+        let (mut font_face, mut keyframes, mut import) = (0, 0, 0);
+        let rule_tree = loop {
+            let (_, iter, result) = stack.last_mut().unwrap();
+            match iter.next() {
+                Some(CssRule::Style(rule)) => result.push(RuleTreeNode::Style(rule.index as usize)),
+                Some(CssRule::Media(rule)) => {
+                    collect_media(
+                        &mut media_arr,
+                        &mut media_index_map,
+                        &Some(rule.media.clone()),
+                    );
+                    let media = media_index_map[&Rc::as_ptr(&rule.media)];
+                    stack.push((Some(media), rule.rules.iter(), vec![]));
+                }
+                Some(CssRule::KeyFrames(_)) => {
+                    result.push(RuleTreeNode::KeyFrames(keyframes));
+                    keyframes += 1;
+                }
+                Some(CssRule::FontFace(_)) => {
+                    result.push(RuleTreeNode::FontFace(font_face));
+                    font_face += 1;
+                }
+                Some(CssRule::Import(_)) => {
+                    result.push(RuleTreeNode::Import(import));
+                    import += 1;
+                }
+                None => {
+                    let (media_index, _, children) = stack.pop().unwrap();
+                    match media_index {
+                        None => break children,
+                        Some(media_index) => {
+                            stack.last_mut().unwrap().2.push(RuleTreeNode::Media {
+                                media_index,
+                                children: children.into(),
+                            });
+                        }
+                    }
+                }
+            }
+        };
+
+        let (imports, imports_media) = index
             .imports
             .iter()
-            .map(|(x, media)| {
+            .map(|rule| {
                 (
-                    StrRef::from(x.clone()),
-                    media
+                    StrRef::from(rule.path.clone()),
+                    rule.media
                         .as_ref()
                         .map(|media| Media::from_sheet(media, &media_index_map))
                         .into(),
                 )
             })
             .unzip::<_, _, Vec<StrRef>, Vec<Nullable<Media>>>();
-        let rules = sheet
-            .ss
-            .borrow()
+        let rules = index
             .rules
             .iter()
             .map(|x| Rule::from_sheet(x, &media_index_map))
             .collect::<Box<[_]>>();
         let version = Box::new(String::from(env!("CARGO_PKG_VERSION")).into());
-        let font_face = sheet
-            .ss
-            .borrow()
+        let font_face = index
             .font_face
             .iter()
             .map(|x| FontFace::from_sheet(x))
             .collect::<Box<[_]>>();
-        let keyframes = sheet
-            .ss
-            .borrow()
+        let keyframes = index
             .keyframes
             .iter()
-            .map(|x| KeyFrames::from_sheet(x))
+            .map(|(x, _)| KeyFrames::from_sheet(x))
             .collect::<Box<[_]>>();
         let mut str_store = StrBuffer::new();
         str_store.freeze();
@@ -123,13 +377,14 @@ impl StyleSheet {
             version,
             font_face: font_face.into(),
             keyframes: keyframes.into(),
+            rule_tree: Nullable::Some(rule_tree.into()),
         })
     }
 
     #[cfg(feature = "deserialize")]
-    pub(crate) fn into_sheet(self) -> sheet::CompiledStyleSheet {
+    pub(crate) fn into_sheet(self) -> Result<sheet::CompiledStyleSheet, String> {
         match self {
-            Self::None => sheet::CompiledStyleSheet::new(),
+            Self::None => Ok(sheet::CompiledStyleSheet::new()),
             Self::V1(StyleSheetV1 {
                 buf: _,
                 imports,
@@ -139,6 +394,7 @@ impl StyleSheet {
                 version: _,
                 font_face,
                 keyframes,
+                rule_tree,
             }) => {
                 let mut media_vec = Vec::with_capacity(media.arr.len());
                 for m in media.into_iter() {
@@ -157,7 +413,71 @@ impl StyleSheet {
                     .collect();
                 let font_face: Vec<_> = font_face.into_iter().map(|ff| ff.into_sheet()).collect();
                 let keyframes: Vec<_> = keyframes.into_iter().map(|kf| kf.into_sheet()).collect();
-                sheet::CompiledStyleSheet::new_with_config(imports, rules, font_face, keyframes)
+                match rule_tree {
+                    Nullable::None => Ok(sheet::CompiledStyleSheet::new_with_config(
+                        imports, rules, font_face, keyframes,
+                    )),
+                    Nullable::Some(tree) => {
+                        Ok(sheet::CompiledStyleSheet::from_rules(restore_rule_tree(
+                            tree.into_vec(),
+                            imports,
+                            rules,
+                            font_face,
+                            keyframes,
+                            media_vec,
+                        )))
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(feature = "deserialize")]
+fn restore_rule_tree(
+    tree: Vec<RuleTreeNode>,
+    imports: Vec<(String, Option<Rc<sheet::Media>>)>,
+    rules: Vec<Rc<sheet::Rule>>,
+    font_face: Vec<Rc<sheet::FontFace>>,
+    keyframes: Vec<Rc<sheet::KeyFrames>>,
+    media: Vec<Rc<sheet::Media>>,
+) -> Vec<CssRule> {
+    let mut imports = imports
+        .into_iter()
+        .map(|(path, media)| Rc::new(ImportRule { path, media }));
+    let mut rules = rules.into_iter();
+    let mut font_face = font_face.into_iter();
+    let mut keyframes = keyframes.into_iter();
+    let mut stack = vec![(None, tree.into_iter(), vec![])];
+    loop {
+        let (_, iter, result) = stack.last_mut().unwrap();
+        match iter.next() {
+            Some(RuleTreeNode::Media {
+                media_index,
+                children,
+            }) => stack.push((
+                Some(media[media_index].clone()),
+                children.into_iter(),
+                vec![],
+            )),
+            Some(RuleTreeNode::Style(_)) => result.push(CssRule::Style(rules.next().unwrap())),
+            Some(RuleTreeNode::KeyFrames(_)) => {
+                result.push(CssRule::KeyFrames(keyframes.next().unwrap()))
+            }
+            Some(RuleTreeNode::FontFace(_)) => {
+                result.push(CssRule::FontFace(font_face.next().unwrap()))
+            }
+            Some(RuleTreeNode::Import(_)) => result.push(CssRule::Import(imports.next().unwrap())),
+            None => {
+                let (media, _, rules) = stack.pop().unwrap();
+                match media {
+                    None => return rules,
+                    Some(media) => stack
+                        .last_mut()
+                        .unwrap()
+                        .2
+                        .push(CssRule::Media(Rc::new(MediaRule { media, rules }))),
+                }
             }
         }
     }
@@ -165,6 +485,23 @@ impl StyleSheet {
 
 impl Serialize for StyleSheetV1 {
     fn serialize<S>(&self, ser: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let tree = match &self.rule_tree {
+            Nullable::None => None,
+            Nullable::Some(tree) => Some(flatten_rule_tree(tree.arr.as_ref())),
+        };
+        self.serialize_with_rules(ser, tree.as_deref())
+    }
+}
+
+impl StyleSheetV1 {
+    fn serialize_with_rules<S>(
+        &self,
+        ser: S,
+        tree: Option<&[SerializedRuleTreeNode]>,
+    ) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -177,6 +514,7 @@ impl Serialize for StyleSheetV1 {
             version,
             font_face,
             keyframes,
+            rule_tree: _,
         } = self;
         str_buffer_ser_env(
             || {
@@ -192,7 +530,7 @@ impl Serialize for StyleSheetV1 {
             },
             |r, buf| match r {
                 Ok(_) => {
-                    let mut seq = ser.serialize_tuple(7)?;
+                    let mut seq = ser.serialize_tuple(if tree.is_some() { 10 } else { 8 })?;
                     seq.serialize_element(buf.whole_buffer())?;
                     seq.serialize_element(&imports)?;
                     seq.serialize_element(&imports_media)?;
@@ -201,6 +539,10 @@ impl Serialize for StyleSheetV1 {
                     seq.serialize_element(&version)?;
                     seq.serialize_element(&font_face)?;
                     seq.serialize_element(&keyframes)?;
+                    if let Some(tree) = tree {
+                        seq.serialize_element(&1u8)?;
+                        seq.serialize_element(tree)?;
+                    }
                     seq.end()
                 }
                 Err(_) => {
@@ -217,84 +559,97 @@ impl<'de> Deserialize<'de> for StyleSheetV1 {
     where
         D: serde::Deserializer<'de>,
     {
-        struct StyleSheetVisitor;
+        deserialize_style_sheet_v1(de)
+    }
+}
 
-        impl<'de> serde::de::Visitor<'de> for StyleSheetVisitor {
-            type Value = StyleSheetV1;
+fn deserialize_style_sheet_v1<'de, D>(de: D) -> Result<StyleSheetV1, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    struct StyleSheetVisitor {
+        zero_copy: bool,
+    }
 
-            fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
-                write!(formatter, "StyleSheet")
-            }
+    impl<'de> serde::de::Visitor<'de> for StyleSheetVisitor {
+        type Value = StyleSheetV1;
 
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-            where
-                A: de::SeqAccess<'de>,
-            {
-                let buf = SerdeThreadGlobalState::get_de_optional(|mut de| {
-                    if let Some(drop_callback) = de.as_mut().and_then(|de| de.zero_copy.take()) {
-                        seq.next_element::<&[u8]>()?
-                            .map(|x| {
-                                let ptr = x as *const [u8] as *mut [u8];
-                                unsafe { StrBuffer::new_static_borrowed(ptr, drop_callback) }
-                            })
-                            .ok_or_else(|| de::Error::invalid_length(0, &"StyleSheet"))
-                    } else {
-                        seq.next_element::<Vec<u8>>()?
-                            .map(StrBuffer::new_with_buf)
-                            .ok_or_else(|| de::Error::invalid_length(0, &"StyleSheet"))
-                    }
-                })?;
-                let (imports, imports_media, rules, media, version, font_face, keyframes) =
-                    str_buffer_de_env(&buf, || {
-                        let imports = seq
-                            .next_element::<Array<_>>()?
-                            .ok_or_else(|| de::Error::invalid_length(1, &"StyleSheet"))?;
-                        let imports_media = seq
-                            .next_element::<Array<_>>()?
-                            .ok_or_else(|| de::Error::invalid_length(2, &"StyleSheet"))?;
-                        let rules = seq
-                            .next_element::<Array<Rule>>()?
-                            .ok_or_else(|| de::Error::invalid_length(3, &"StyleSheet"))?;
-                        let media = seq
-                            .next_element::<Array<Media>>()?
-                            .ok_or_else(|| de::Error::invalid_length(4, &"StyleSheet"))?;
-                        let version = seq
-                            .next_element::<_>()
-                            .unwrap_or_default()
-                            .unwrap_or_default();
-                        let font_face = seq
-                            .next_element::<Array<FontFace>>()
-                            .unwrap_or_default()
-                            .unwrap_or_else(|| vec![].into());
-                        let keyframes = seq
-                            .next_element::<Array<KeyFrames>>()
-                            .unwrap_or_default()
-                            .unwrap_or_else(|| vec![].into());
-                        Ok((
-                            imports,
-                            imports_media,
-                            rules,
-                            media,
-                            version,
-                            font_face,
-                            keyframes,
-                        ))
-                    })?;
-                Ok(StyleSheetV1 {
-                    buf,
-                    imports,
-                    imports_media,
-                    rules,
-                    media,
-                    version,
-                    font_face,
-                    keyframes,
-                })
-            }
+        fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
+            write!(formatter, "StyleSheet")
         }
 
-        de.deserialize_tuple(8, StyleSheetVisitor)
+        fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where
+            A: de::SeqAccess<'de>,
+        {
+            let buf = deserialize_str_buffer(&mut seq, self.zero_copy)?;
+            let (imports, imports_media, rules, media, version, font_face, keyframes) =
+                str_buffer_de_env(&buf, || {
+                    let imports = seq
+                        .next_element::<Array<_>>()?
+                        .ok_or_else(|| de::Error::invalid_length(1, &"StyleSheet"))?;
+                    let imports_media = seq
+                        .next_element::<Array<_>>()?
+                        .ok_or_else(|| de::Error::invalid_length(2, &"StyleSheet"))?;
+                    let rules = seq
+                        .next_element::<Array<Rule>>()?
+                        .ok_or_else(|| de::Error::invalid_length(3, &"StyleSheet"))?;
+                    let media = seq
+                        .next_element::<Array<Media>>()?
+                        .ok_or_else(|| de::Error::invalid_length(4, &"StyleSheet"))?;
+                    let version = seq
+                        .next_element::<_>()
+                        .unwrap_or_default()
+                        .unwrap_or_default();
+                    let font_face = seq
+                        .next_element::<Array<FontFace>>()
+                        .unwrap_or_default()
+                        .unwrap_or_else(|| vec![].into());
+                    let keyframes = seq
+                        .next_element::<Array<KeyFrames>>()
+                        .unwrap_or_default()
+                        .unwrap_or_else(|| vec![].into());
+                    Ok((
+                        imports,
+                        imports_media,
+                        rules,
+                        media,
+                        version,
+                        font_face,
+                        keyframes,
+                    ))
+                })?;
+            let tree = match seq.next_element::<u8>()? {
+                None => None,
+                Some(1) => Some(
+                    seq.next_element::<Vec<SerializedRuleTreeNode>>()?
+                        .ok_or_else(|| de::Error::invalid_length(9, &"rule tree"))?,
+                ),
+                Some(_) => return Err(de::Error::custom("Unsupported rule tree version")),
+            };
+            let mut sheet = StyleSheetV1 {
+                buf,
+                imports,
+                imports_media,
+                rules,
+                media,
+                version,
+                font_face,
+                keyframes,
+                rule_tree: Nullable::None,
+            };
+            sheet.validate(tree.as_deref()).map_err(de::Error::custom)?;
+            if let Some(tree) = tree {
+                sheet.rule_tree = Nullable::Some(expand_rule_tree(tree));
+            }
+            Ok(sheet)
+        }
     }
+
+    let visitor = StyleSheetVisitor {
+        zero_copy: !de.is_human_readable(),
+    };
+    de.deserialize_tuple(10, visitor)
 }
 
 #[repr(C)]
@@ -1126,5 +1481,514 @@ impl<T> Index<usize> for Array<T> {
 impl<T> Default for Array<T> {
     fn default() -> Self {
         Self { arr: Box::new([]) }
+    }
+}
+
+#[cfg(all(test, feature = "serialize", feature = "deserialize"))]
+mod tests {
+    use super::*;
+    use float_pigment_consistent_bincode::{DefaultOptions, Options};
+
+    #[derive(Serialize)]
+    enum EncodedStyleSheet<'a> {
+        None,
+        V1(EncodedStyleSheetV1<'a>),
+    }
+
+    struct EncodedStyleSheetV1<'a> {
+        sheet: &'a StyleSheetV1,
+        tree: Option<&'a [SerializedRuleTreeNode]>,
+    }
+
+    impl Serialize for EncodedStyleSheetV1<'_> {
+        fn serialize<S>(&self, ser: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            self.sheet.serialize_with_rules(ser, self.tree)
+        }
+    }
+
+    #[test]
+    fn rule_tree_extension_preserves_legacy_fields() {
+        assert_eq!(
+            DefaultOptions::new()
+                .serialize(&EncodedStyleSheet::None)
+                .unwrap(),
+            DefaultOptions::new().serialize(&StyleSheet::None).unwrap(),
+        );
+        let (compiled, warnings) = crate::parser::parse_style_sheet(
+            "compat",
+            r#"
+            @media (min-width: 300px) {
+                @keyframes nested { to { opacity: 1; } }
+                @font-face { font-family: Nested; src: local(Nested); }
+                @media screen {}
+            }
+            .plain { width: 3px; }
+        "#,
+        );
+        assert!(warnings.is_empty());
+        let current = compiled.serialize_bincode();
+        let current: StyleSheet = DefaultOptions::new()
+            .allow_trailing_bytes()
+            .deserialize(&current)
+            .unwrap();
+        let StyleSheet::V1(current) = current else {
+            panic!("V1 body missing");
+        };
+        assert_eq!(current.rules.len(), 1);
+        assert_eq!(current.font_face.len(), 1);
+        assert_eq!(current.keyframes.len(), 1);
+        assert_eq!(current.media.len(), 2);
+        let Nullable::Some(tree) = &current.rule_tree else {
+            panic!("rule tree missing");
+        };
+        assert_eq!(
+            tree.arr.as_ref(),
+            &[
+                RuleTreeNode::Media {
+                    media_index: 0,
+                    children: vec![
+                        RuleTreeNode::KeyFrames(0),
+                        RuleTreeNode::FontFace(0),
+                        RuleTreeNode::Media {
+                            media_index: 1,
+                            children: Array::empty(),
+                        },
+                    ]
+                    .into(),
+                },
+                RuleTreeNode::Style(0),
+            ],
+        );
+
+        let old = DefaultOptions::new()
+            .serialize(&EncodedStyleSheet::V1(EncodedStyleSheetV1 {
+                sheet: &current,
+                tree: None,
+            }))
+            .unwrap();
+        let restored: StyleSheet = DefaultOptions::new().deserialize(&old).unwrap();
+        let StyleSheet::V1(data) = &restored else {
+            unreachable!();
+        };
+        assert!(matches!(data.rule_tree, Nullable::None));
+        let mut restored = restored.into_sheet().unwrap();
+        let (linked, _) = restored.link(&crate::StyleSheetResource::new(), None);
+        assert_eq!(linked.rules_count(None), Some(1));
+        let status = crate::MediaQueryStatus::<f32>::default_screen_with_size(100., 600.);
+        assert!(linked.search_keyframes(None, "nested", &status).is_some());
+        assert_eq!(linked.get_font_face_with_media(&status).len(), 1);
+    }
+
+    #[cfg(feature = "ffi")]
+    #[test]
+    fn ffi_exposes_rule_tree_from_source_and_bincode() {
+        use crate::ffi;
+        use alloc::ffi::CString;
+        use core::ptr::null_mut;
+
+        const SOURCE: &str = r#"
+            @import 'base.css' screen;
+            .root { width: 1px; }
+            @media screen {
+                @font-face { font-family: Nested; src: local(Nested); }
+                @keyframes anim { to { opacity: 1; } }
+                .inside { width: 2px; }
+                @media (min-width: 300px) { .nested { width: 3px; } }
+                @media (min-height: 200px) {}
+            }
+            .after { width: 4px; }
+            @keyframes anim { to { opacity: 0.5; } }
+        "#;
+
+        fn check(sheet: &StyleSheet) {
+            let StyleSheet::V1(sheet) = sheet else {
+                panic!("V1 body missing");
+            };
+            assert_eq!(sheet.rules.len(), 4);
+            assert_eq!(sheet.media.len(), 3);
+            assert_eq!(sheet.font_face.len(), 1);
+            assert_eq!(sheet.keyframes.len(), 2);
+            assert_eq!(sheet.imports.len(), 1);
+            let Nullable::Some(tree) = &sheet.rule_tree else {
+                panic!("rule tree missing");
+            };
+            assert_eq!(
+                tree.arr.as_ref(),
+                &[
+                    RuleTreeNode::Import(0),
+                    RuleTreeNode::Style(0),
+                    RuleTreeNode::Media {
+                        media_index: 0,
+                        children: vec![
+                            RuleTreeNode::FontFace(0),
+                            RuleTreeNode::KeyFrames(0),
+                            RuleTreeNode::Style(1),
+                            RuleTreeNode::Media {
+                                media_index: 1,
+                                children: vec![RuleTreeNode::Style(2)].into(),
+                            },
+                            RuleTreeNode::Media {
+                                media_index: 2,
+                                children: Array::empty(),
+                            },
+                        ]
+                        .into(),
+                    },
+                    RuleTreeNode::Style(3),
+                    RuleTreeNode::KeyFrames(1),
+                ],
+            );
+        }
+
+        unsafe extern "C" fn release(args: ffi::RawMutPtr) {
+            drop(Box::from_raw(args as *mut Vec<u8>));
+        }
+
+        unsafe {
+            let source = CString::new(SOURCE).unwrap();
+            let parsed = ffi::parse_style_sheet_from_string(source.as_ptr());
+            assert!(matches!(parsed.err, ffi::FfiErrorCode::None));
+            check(&*parsed.value);
+            ffi::style_sheet_free(parsed.value);
+
+            let mut bytes = Box::new(crate::compile_style_sheet_to_bincode("tree", SOURCE));
+            let buffer_ptr = bytes.as_mut_ptr();
+            let buffer_len = bytes.len();
+            let args = Box::into_raw(bytes) as ffi::RawMutPtr;
+            let index = ffi::style_sheet_import_index_new().value;
+            let path = CString::new("tree.css").unwrap();
+            let result = ffi::style_sheet_import_index_add_bincode(
+                index,
+                path.as_ptr(),
+                buffer_ptr,
+                buffer_len,
+                Some(release),
+                args,
+                null_mut(),
+            );
+            assert!(matches!(result.err, ffi::FfiErrorCode::None));
+            let restored = ffi::style_sheet_import_index_get_style_sheet(index, path.as_ptr());
+            assert!(matches!(restored.err, ffi::FfiErrorCode::None));
+            check(&*restored.value);
+            ffi::style_sheet_import_index_free(index);
+        }
+    }
+
+    #[test]
+    fn invalid_rule_tree_rejects_and_releases_zero_copy_buffer() {
+        let (compiled, _) = crate::parser::parse_style_sheet(
+            "invalid",
+            r#"
+            .first { width: 1px; }
+            @media screen { @keyframes nested { to { opacity: 1; } } .last { width: 2px; } }
+        "#,
+        );
+        for nodes in [
+            vec![],
+            vec![SerializedRuleTreeNode::Media(usize::MAX, 0)],
+            vec![
+                SerializedRuleTreeNode::Style(0),
+                SerializedRuleTreeNode::Style(0),
+            ],
+            vec![
+                SerializedRuleTreeNode::Style(0),
+                SerializedRuleTreeNode::Media(0, usize::MAX),
+            ],
+            vec![
+                SerializedRuleTreeNode::Style(0),
+                SerializedRuleTreeNode::Style(1),
+            ],
+        ] {
+            let data = StyleSheet::from_sheet(&compiled);
+            let StyleSheet::V1(body) = &data else {
+                unreachable!();
+            };
+            let bytes = DefaultOptions::new()
+                .serialize(&EncodedStyleSheet::V1(EncodedStyleSheetV1 {
+                    sheet: body,
+                    tree: Some(&nodes),
+                }))
+                .unwrap();
+            assert!(CompiledStyleSheet::deserialize_bincode(bytes.clone()).is_err());
+            let ptr = Box::into_raw(bytes.into_boxed_slice());
+            let released = Rc::new(core::cell::Cell::new(0));
+            let drop_count = released.clone();
+            let result = unsafe {
+                CompiledStyleSheet::deserialize_bincode_zero_copy(ptr, move || {
+                    drop_count.set(drop_count.get() + 1);
+                    drop(Box::from_raw(ptr));
+                })
+            };
+            assert!(result.is_err());
+            assert_eq!(released.get(), 1);
+        }
+    }
+
+    #[test]
+    fn rule_tree_rejects_overdeep_media_table_and_truncated_data() {
+        let (compiled, _) =
+            crate::parser::parse_style_sheet("deep", "@keyframes nested { to { opacity: 1; } }");
+        let mut data = StyleSheet::from_sheet(&compiled);
+        let depth = MAX_RULE_NESTING_DEPTH + 1;
+        let StyleSheet::V1(body) = &mut data else {
+            unreachable!();
+        };
+        body.media = (0..depth)
+            .map(|index| Media {
+                parent_index: index.checked_sub(1).into(),
+                media_queries: vec![].into(),
+            })
+            .collect::<Vec<_>>()
+            .into();
+        let mut nodes = (0..depth)
+            .map(|index| SerializedRuleTreeNode::Media(index, 1))
+            .collect::<Vec<_>>();
+        nodes.push(SerializedRuleTreeNode::KeyFrames(0));
+        let bytes = DefaultOptions::new()
+            .serialize(&EncodedStyleSheet::V1(EncodedStyleSheetV1 {
+                sheet: body,
+                tree: Some(&nodes),
+            }))
+            .unwrap();
+        assert!(CompiledStyleSheet::deserialize_bincode(bytes)
+            .unwrap_err()
+            .contains("Media nesting limit exceeded"));
+
+        let bytes = compiled.serialize_bincode();
+        for removed in [1, 2, 4] {
+            assert!(CompiledStyleSheet::deserialize_bincode(
+                bytes[..bytes.len() - removed].to_vec()
+            )
+            .is_err());
+        }
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn nested_rule_tree_depth_is_bounded_on_small_stack() {
+        std::thread::Builder::new()
+            .stack_size(512 * 1024)
+            .spawn(|| {
+                let (compiled, _) = crate::parser::parse_style_sheet(
+                    "depth",
+                    "@keyframes nested { to { opacity: 1; } }",
+                );
+                for depth in [MAX_RULE_NESTING_DEPTH, MAX_RULE_NESTING_DEPTH + 1] {
+                    let mut data = StyleSheet::from_sheet(&compiled);
+                    let StyleSheet::V1(body) = &mut data else {
+                        unreachable!();
+                    };
+                    body.media = (0..depth)
+                        .map(|index| Media {
+                            parent_index: index.checked_sub(1).into(),
+                            media_queries: Array::empty(),
+                        })
+                        .collect::<Vec<_>>()
+                        .into();
+                    let mut nodes = (0..depth)
+                        .map(|index| SerializedRuleTreeNode::Media(index, 1))
+                        .collect::<Vec<_>>();
+                    nodes.push(SerializedRuleTreeNode::KeyFrames(0));
+                    let bytes = DefaultOptions::new()
+                        .serialize(&EncodedStyleSheet::V1(EncodedStyleSheetV1 {
+                            sheet: body,
+                            tree: Some(&nodes),
+                        }))
+                        .unwrap();
+                    let restored = DefaultOptions::new().deserialize::<StyleSheet>(&bytes);
+                    if depth > MAX_RULE_NESTING_DEPTH {
+                        assert!(restored
+                            .unwrap_err()
+                            .to_string()
+                            .contains("Media nesting limit"));
+                    } else {
+                        let restored = restored.unwrap();
+                        let StyleSheet::V1(sheet) = &restored else {
+                            unreachable!();
+                        };
+                        let Nullable::Some(tree) = &sheet.rule_tree else {
+                            panic!("rule tree missing");
+                        };
+                        let mut level = tree;
+                        for index in 0..depth {
+                            assert_eq!(level.len(), 1);
+                            let RuleTreeNode::Media {
+                                media_index,
+                                children,
+                            } = &level[0]
+                            else {
+                                panic!("media node missing");
+                            };
+                            assert_eq!(*media_index, index);
+                            level = children;
+                        }
+                        assert_eq!(level.arr.as_ref(), &[RuleTreeNode::KeyFrames(0)]);
+                        assert_eq!(DefaultOptions::new().serialize(&restored).unwrap(), bytes);
+                        drop(restored);
+                    }
+
+                    let ptr = Box::into_raw(bytes.into_boxed_slice());
+                    let released = Rc::new(core::cell::Cell::new(0));
+                    let drop_count = released.clone();
+                    let restored = unsafe {
+                        CompiledStyleSheet::deserialize_bincode_zero_copy(ptr, move || {
+                            drop_count.set(drop_count.get() + 1);
+                            drop(Box::from_raw(ptr));
+                        })
+                    };
+                    assert_eq!(restored.is_ok(), depth <= MAX_RULE_NESTING_DEPTH);
+                    drop(restored);
+                    assert_eq!(released.get(), 1);
+                }
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn zero_copy_input_lives_until_its_last_string_reference() {
+        let (compiled, _) = crate::parser::parse_style_sheet(
+            "lifetime",
+            "@media screen { @font-face { font-family: Alive; src: local(Alive); } }",
+        );
+        let bytes = compiled.serialize_bincode().into_boxed_slice();
+        let expected = bytes.to_vec();
+        let start = bytes.as_ptr() as usize;
+        let end = start + bytes.len();
+        let ptr = Box::into_raw(bytes);
+        let released = Rc::new(core::cell::Cell::new(0));
+        let drop_count = released.clone();
+        let restored = unsafe {
+            CompiledStyleSheet::deserialize_bincode_zero_copy(ptr, move || {
+                drop_count.set(drop_count.get() + 1);
+                drop(Box::from_raw(ptr));
+            })
+        }
+        .unwrap();
+        assert_eq!(released.get(), 0);
+        assert_eq!(restored.serialize_bincode(), expected);
+        let font = restored.ss.borrow().font_face()[0].clone();
+        let FontFamilyName::Title(name) = &font.font_family else {
+            panic!("missing font family");
+        };
+        let name_ptr = name.as_slice().as_ptr() as usize;
+        assert!(name_ptr >= start && name_ptr + name.as_slice().len() <= end);
+        drop(restored);
+        assert_eq!(released.get(), 0);
+        assert_eq!(font.font_family, FontFamilyName::Title("Alive".into()));
+        drop(font);
+        assert_eq!(released.get(), 1);
+
+        for bytes in [
+            vec![],
+            DefaultOptions::new().serialize(&StyleSheet::None).unwrap(),
+        ] {
+            let ptr = Box::into_raw(bytes.into_boxed_slice());
+            let drop_count = released.clone();
+            let result = unsafe {
+                CompiledStyleSheet::deserialize_bincode_zero_copy(ptr, move || {
+                    drop_count.set(drop_count.get() + 1);
+                    drop(Box::from_raw(ptr));
+                })
+            };
+            drop(result);
+        }
+        assert_eq!(released.get(), 3);
+    }
+
+    #[cfg(feature = "ffi")]
+    #[test]
+    fn ffi_version_owns_its_string_after_input_is_freed() {
+        let mut bytes = crate::compile_style_sheet_to_bincode("version", ".a { width: 1px; }");
+        let result =
+            unsafe { crate::ffi::style_sheet_bincode_version(bytes.as_mut_ptr(), bytes.len()) };
+        assert!(matches!(result.err, crate::ffi::FfiErrorCode::None));
+        let version = unsafe { Box::from_raw(result.value) };
+        drop(bytes);
+        assert_eq!(version.as_str(), env!("CARGO_PKG_VERSION"));
+    }
+
+    #[cfg(feature = "ffi")]
+    #[test]
+    fn ffi_bincode_add_owns_path_when_input_is_released() {
+        use crate::ffi;
+        use core::cell::Cell;
+        use core::ptr::null_mut;
+
+        struct Input {
+            bytes: Box<[u8]>,
+            released: Rc<Cell<usize>>,
+        }
+
+        unsafe extern "C" fn release(args: ffi::RawMutPtr) {
+            let input = Box::from_raw(args as *mut Input);
+            input.released.set(input.released.get() + 1);
+            drop(input);
+        }
+
+        let path = b"shared.css\0";
+        for (import_index, bytes) in [
+            (false, crate::compile_style_sheet_to_bincode("shared", "")),
+            (
+                true,
+                DefaultOptions::new().serialize(&StyleSheet::None).unwrap(),
+            ),
+            (true, vec![255]),
+        ] {
+            let len = bytes.len();
+            let mut allocation = path.to_vec();
+            allocation.extend_from_slice(&bytes);
+            let released = Rc::new(Cell::new(0));
+            let mut input = Box::new(Input {
+                bytes: allocation.into_boxed_slice(),
+                released: released.clone(),
+            });
+            let path_ptr = input.bytes.as_ptr().cast();
+            let buffer = unsafe { input.bytes.as_mut_ptr().add(path.len()) };
+            let args = Box::into_raw(input).cast();
+
+            unsafe {
+                if import_index {
+                    let index = ffi::style_sheet_import_index_new().value;
+                    let result = ffi::style_sheet_import_index_add_bincode(
+                        index,
+                        path_ptr,
+                        buffer,
+                        len,
+                        Some(release),
+                        args,
+                        null_mut(),
+                    );
+                    assert!(matches!(result.err, ffi::FfiErrorCode::None));
+                    assert_eq!(released.get(), 1);
+                    let found =
+                        ffi::style_sheet_import_index_get_style_sheet(index, path.as_ptr().cast());
+                    assert!(matches!(found.err, ffi::FfiErrorCode::None));
+                    assert!(!found.value.is_null());
+                    ffi::style_sheet_import_index_free(index);
+                } else {
+                    let mut resource = crate::StyleSheetResource::new();
+                    let result = ffi::style_sheet_resource_add_bincode(
+                        (&mut resource as *mut crate::StyleSheetResource).cast(),
+                        path_ptr,
+                        buffer,
+                        len,
+                        Some(release),
+                        args,
+                        null_mut(),
+                    );
+                    assert!(matches!(result.err, ffi::FfiErrorCode::None));
+                    assert_eq!(released.get(), 1);
+                    let (linked, warnings) = resource.link("shared.css", None);
+                    assert!(warnings.is_empty());
+                    assert_eq!(linked.rules_count(None), Some(0));
+                }
+            }
+            assert_eq!(released.get(), 1);
+        }
     }
 }

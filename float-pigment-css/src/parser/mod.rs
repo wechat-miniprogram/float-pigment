@@ -1,18 +1,17 @@
 //! The CSS parser module.
 
 use alloc::{
-    borrow::ToOwned,
     boxed::Box,
     rc::Rc,
     string::{String, ToString},
     vec::Vec,
 };
 
-use cssparser::{
-    parse_important, Delimiter, ParseError, ParseErrorKind, Parser, ParserInput, SourceLocation,
-    SourcePosition, Token,
-};
 use cssparser::CowRcStr;
+use cssparser::{
+    match_ignore_ascii_case, parse_important, Delimiter, ParseError, ParseErrorKind, Parser,
+    ParserInput, SourceLocation, SourcePosition, Token,
+};
 
 use self::property_value::font::{font_display, font_face_src, font_family_name};
 use crate::property::*;
@@ -20,6 +19,8 @@ use crate::sheet::*;
 use crate::typing::*;
 
 pub mod hooks;
+mod media;
+use media::parse_media_expression_series;
 pub(crate) mod property_value;
 pub(crate) mod selector;
 pub(crate) use selector::*;
@@ -281,10 +282,10 @@ pub(crate) fn parse_style_sheet_with_hooks(
 ) -> (CompiledStyleSheet, Vec<Warning>) {
     let mut parser_input = ParserInput::new(source);
     let mut parser = Parser::new(&mut parser_input);
-    let mut sheet = CompiledStyleSheet::new();
+    let mut rules = vec![];
     let mut state = ParseState::new(Some(path.into()), StyleParsingDebugMode::None, hooks);
-    parse_segment(&mut parser, &mut sheet, &mut state);
-    (sheet, state.warnings)
+    parse_segment(&mut parser, &mut rules, &mut state);
+    (CompiledStyleSheet::from_rules(rules), state.warnings)
 }
 
 /// The debug mode used in style parsing.
@@ -334,7 +335,6 @@ pub fn parse_property_value_string(
     (properties, state.warnings)
 }
 
-
 pub(crate) fn parse_media_expression_only(source: &str) -> Result<Media, Warning> {
     let mut parser_input = ParserInput::new(source);
     let mut parser = Parser::new(&mut parser_input);
@@ -368,39 +368,11 @@ pub(crate) fn parse_color_to_rgba(source: &str) -> (u8, u8, u8, u8) {
 
 fn parse_segment<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
-    sheet: &mut CompiledStyleSheet,
+    rules: &mut Vec<CssRule>,
     st: &mut ParseState,
 ) {
     while !parser.is_exhausted() {
-        parse_block(parser, sheet, st);
-    }
-}
-
-fn parse_to_paren_end<'a, 't: 'a, 'i: 't>(
-    parser: &'a mut Parser<'i, 't>,
-    need_warning: bool,
-    st: &mut ParseState,
-) {
-    parser.skip_whitespace();
-    let start = parser.current_source_location();
-    let mut has_extra_chars = false;
-    loop {
-        let next = match parser.next() {
-            Ok(x) => x,
-            Err(_) => break,
-        };
-        match next {
-            Token::CloseParenthesis => {
-                break;
-            }
-            _ => {
-                has_extra_chars = true;
-            }
-        }
-    }
-    if need_warning && has_extra_chars {
-        let end = parser.current_source_location();
-        st.add_warning(WarningKind::UnsupportedSegment, start, end);
+        parse_block(parser, rules, st);
     }
 }
 
@@ -438,14 +410,14 @@ fn parse_to_block_end<'a, 't: 'a, 'i: 't>(
 
 fn parse_block<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
-    sheet: &mut CompiledStyleSheet,
+    rules: &mut Vec<CssRule>,
     st: &mut ParseState,
 ) {
     parser
         .try_parse(|parser| {
             // try parsing at keyword
             if let Token::AtKeyword(k) = parser.next()?.clone() {
-                parse_at_keyword_block(parser, &k, sheet, st);
+                parse_at_keyword_block(parser, &k, rules, st);
                 Ok(())
             } else {
                 Err(parser.new_custom_error(CustomError::Unmatched))
@@ -456,7 +428,7 @@ fn parse_block<'a, 't: 'a, 'i: 't>(
             if let ParseErrorKind::Custom(err) = err.kind {
                 if CustomError::Unmatched == err {
                     let rule = parse_rule(parser, st)?;
-                    sheet.add_rule(rule);
+                    rules.push(CssRule::Style(Rc::from(rule)));
                     return Ok(());
                 }
                 return Err(parser.new_custom_error(CustomError::Unmatched));
@@ -469,13 +441,13 @@ fn parse_block<'a, 't: 'a, 'i: 't>(
 fn parse_at_keyword_block<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
     key: &str,
-    sheet: &mut CompiledStyleSheet,
+    rules: &mut Vec<CssRule>,
     st: &mut ParseState,
 ) {
-    if !(key == "import" || key == "font-face") {
+    if !(key.eq_ignore_ascii_case("import") || key.eq_ignore_ascii_case("font-face")) {
         st.import_base_path = None;
     }
-    match key {
+    match_ignore_ascii_case! { key,
         "import" => {
             parser.skip_whitespace();
             let start = parser.current_source_location();
@@ -514,17 +486,17 @@ fn parse_at_keyword_block<'a, 't: 'a, 'i: 't>(
                         });
                     if let Some(base_path) = st.import_base_path.clone() {
                         let url: &str = &url;
-                        if is_url(url) {
-                            sheet.add_import(url.to_string(), media);
+                        let path = if is_url(url) {
+                            url.to_string()
                         } else {
-                            let path = resolve_relative_path(
+                            resolve_relative_path(
                                 base_path.as_str(),
                                 url,
                                 DEFAULT_INPUT_CSS_EXTENSION,
                                 DEFAULT_OUTPUT_CSS_EXTENSION,
-                            );
-                            sheet.add_import(path, media);
-                        }
+                            )
+                        };
+                        rules.push(CssRule::Import(Rc::new(ImportRule { path, media })));
                     } else {
                         st.add_warning(
                             WarningKind::ImportNotOnTop,
@@ -534,17 +506,16 @@ fn parse_at_keyword_block<'a, 't: 'a, 'i: 't>(
                     }
                 }
             }
-        }
+        },
         "media" => {
-            parse_media_block(parser, sheet, st);
-        }
-        // IDEA support @keyframes
+            parse_media_block(parser, rules, st);
+        },
         "keyframes" => {
-            parse_keyframes_block(parser, sheet, st);
-        }
+            parse_keyframes_block(parser, rules, st);
+        },
         "font-face" => {
-            parse_font_face_block(parser, sheet, st);
-        }
+            parse_font_face_block(parser, rules, st);
+        },
         _ => {
             parser.skip_whitespace();
             let start = parser.current_source_location();
@@ -555,24 +526,36 @@ fn parse_at_keyword_block<'a, 't: 'a, 'i: 't>(
                 start,
                 parser.current_source_location(),
             );
-        }
+        },
     }
 }
-
 fn str_to_media_type(s: &str) -> Option<MediaType> {
-    let s = s.to_lowercase();
-    match s.as_str() {
-        "all" => Some(MediaType::All),
-        "screen" => Some(MediaType::Screen),
-        _ => None,
+    if s.eq_ignore_ascii_case("all") {
+        Some(MediaType::All)
+    } else if s.eq_ignore_ascii_case("screen") {
+        Some(MediaType::Screen)
+    } else {
+        None
     }
 }
 
 fn parse_media_block<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
-    sheet: &mut CompiledStyleSheet,
+    rules: &mut Vec<CssRule>,
     st: &mut ParseState,
 ) {
+    let mut depth = 0;
+    let mut media = st.media.as_deref();
+    while let Some(parent) = media {
+        depth += 1;
+        media = parent.parent.as_deref();
+    }
+    if depth >= MAX_RULE_NESTING_DEPTH {
+        let location = parser.current_source_location();
+        parse_to_block_end(parser, false, st);
+        st.add_warning(WarningKind::UnsupportedMediaSyntax, location, location);
+        return;
+    }
     match parse_media_expression_series(parser, st) {
         Err(err) => {
             parse_to_block_end(parser, false, st);
@@ -584,163 +567,29 @@ fn parse_media_block<'a, 't: 'a, 'i: 't>(
         }
         Ok(media) => {
             if parser.expect_curly_bracket_block().is_ok() {
+                let media = Rc::new(media);
                 let old_media = st.media.take();
-                st.media = Some(Rc::new(media));
-                parser
+                st.media = Some(media.clone());
+                let children = parser
                     .parse_nested_block::<_, _, ParseError<'i, CustomError>>(|parser| {
-                        parse_segment(parser, sheet, st);
-                        Ok(())
+                        let mut children = vec![];
+                        parse_segment(parser, &mut children, st);
+                        Ok(children)
                     })
                     .unwrap();
                 st.media = old_media;
+                rules.push(CssRule::Media(Rc::new(MediaRule {
+                    media,
+                    rules: children,
+                })));
             }
         }
     }
 }
 
-fn parse_media_expression_series<'a, 't: 'a, 'i: 't>(
-    parser: &'a mut Parser<'i, 't>,
-    st: &mut ParseState,
-) -> Result<Media, ParseError<'i, CustomError>> {
-    let mut media = Media::new(st.media.clone());
-    parser.parse_until_before(
-        Delimiter::CurlyBracketBlock | Delimiter::Semicolon,
-        |parser| {
-            parser.parse_comma_separated(|parser| {
-                let mut mq = MediaQuery::new();
-                let next = parser.next()?.clone();
-                match &next {
-                    Token::Ident(s) => {
-                        let s = s.to_owned().to_lowercase();
-                        match s.as_str() {
-                            "only" => {
-                                mq.set_decorator(MediaTypeDecorator::Only);
-                                let expr = parse_media_expression(parser, st)?;
-                                mq.add_media_expression(expr);
-                            }
-                            "not" => {
-                                mq.set_decorator(MediaTypeDecorator::Not);
-                                let expr = parse_media_expression(parser, st)?;
-                                mq.add_media_expression(expr);
-                            }
-                            _ => match str_to_media_type(&s) {
-                                Some(mt) => mq.add_media_expression(MediaExpression::MediaType(mt)),
-                                None => mq.add_media_expression(MediaExpression::Unknown),
-                            },
-                        }
-                    }
-                    Token::ParenthesisBlock => {
-                        let expr = parse_media_expression_inner(parser, st)?;
-                        mq.add_media_expression(expr);
-                    }
-                    _ => {
-                        return Err(parser.new_unexpected_token_error(next));
-                    }
-                }
-                loop {
-                    match parser.try_parse(|parser| {
-                        if parser.is_exhausted() {
-                            return Err(parser.new_custom_error(CustomError::Unmatched));
-                        }
-                        let next = parser.next()?;
-                        if let Token::Ident(s) = next {
-                            let s = s.to_lowercase();
-                            if s.as_str() == "and" {
-                                let expr = parse_media_expression(parser, st)?;
-                                mq.add_media_expression(expr);
-                                return Ok(());
-                            }
-                        }
-                        Err(parser.new_custom_error(CustomError::Unmatched))
-                    }) {
-                        Ok(_) => {}
-                        Err(err) => {
-                            if let ParseErrorKind::Custom(err) = &err.kind {
-                                if CustomError::Unmatched == *err {
-                                    break;
-                                }
-                            }
-                            return Err(err);
-                        }
-                    };
-                }
-                media.add_media_query(mq);
-                Ok(())
-            })
-        },
-    )?;
-    Ok(media)
-}
-
-fn parse_media_expression<'a, 't: 'a, 'i: 't>(
-    parser: &'a mut Parser<'i, 't>,
-    st: &mut ParseState,
-) -> Result<MediaExpression, ParseError<'i, CustomError>> {
-    let token = parser.next()?.clone();
-    match token {
-        Token::Ident(s) => Ok(match str_to_media_type(&s) {
-            Some(mt) => MediaExpression::MediaType(mt),
-            None => MediaExpression::Unknown,
-        }),
-        Token::ParenthesisBlock => parse_media_expression_inner(parser, st),
-        _ => Err(parser.new_unexpected_token_error(token)),
-    }
-}
-
-fn parse_media_expression_inner<'a, 't: 'a, 'i: 't>(
-    parser: &'a mut Parser<'i, 't>,
-    st: &mut ParseState,
-) -> Result<MediaExpression, ParseError<'i, CustomError>> {
-    parser.parse_nested_block(|parser| {
-        let token = parser.next()?.clone();
-        if let Token::Ident(name) = &token {
-            let expr = if parser.is_exhausted() {
-                match str_to_media_type(name) {
-                    Some(mt) => MediaExpression::MediaType(mt),
-                    None => MediaExpression::Unknown,
-                }
-            } else {
-                parser.expect_colon()?;
-                let name: &str = name;
-                match name {
-                    "orientation" => {
-                        let t = parser.expect_ident()?;
-                        let t: &str = t;
-                        match t {
-                            "portrait" => MediaExpression::Orientation(Orientation::Portrait),
-                            "landscape" => MediaExpression::Orientation(Orientation::Landscape),
-                            _ => MediaExpression::Orientation(Orientation::None),
-                        }
-                    }
-                    "width" => MediaExpression::Width(parse_px_length(parser, st)?),
-                    "min-width" => MediaExpression::MinWidth(parse_px_length(parser, st)?),
-                    "max-width" => MediaExpression::MaxWidth(parse_px_length(parser, st)?),
-                    "height" => MediaExpression::Height(parse_px_length(parser, st)?),
-                    "min-height" => MediaExpression::MinHeight(parse_px_length(parser, st)?),
-                    "max-height" => MediaExpression::MaxHeight(parse_px_length(parser, st)?),
-                    "prefers-color-scheme" => {
-                        let t = parser.expect_ident()?;
-                        let t: &str = t;
-                        match t {
-                            "light" => MediaExpression::Theme(Theme::Light),
-                            "dark" => MediaExpression::Theme(Theme::Dark),
-                            _ => MediaExpression::Unknown,
-                        }
-                    }
-                    _ => MediaExpression::Unknown,
-                }
-            };
-            parse_to_paren_end(parser, true, st);
-            Ok(expr)
-        } else {
-            Err(parser.new_unexpected_token_error(token))
-        }
-    })
-}
-
 fn parse_keyframes_block<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
-    sheet: &mut CompiledStyleSheet,
+    rules: &mut Vec<CssRule>,
     st: &mut ParseState,
 ) {
     parser.skip_whitespace();
@@ -762,7 +611,9 @@ fn parse_keyframes_block<'a, 't: 'a, 'i: 't>(
             Ok(keyframes)
         });
         match keyframes {
-            Ok(keyframes) => sheet.add_keyframes(keyframes::KeyFrames::new(ident, keyframes)),
+            Ok(keyframes) => rules.push(CssRule::KeyFrames(Rc::new(keyframes::KeyFrames::new(
+                ident, keyframes,
+            )))),
             Err(err) => {
                 st.add_warning(
                     WarningKind::UnsupportedKeyframesSyntax,
@@ -844,7 +695,7 @@ fn parse_keyframes_ident<'a, 't: 'a, 'i: 't>(
 
 fn parse_font_face_block<'a, 't: 'a, 'i: 't>(
     parser: &'a mut Parser<'i, 't>,
-    sheet: &mut CompiledStyleSheet,
+    rules: &mut Vec<CssRule>,
     st: &mut ParseState,
 ) {
     if parser.expect_curly_bracket_block().is_ok() {
@@ -920,35 +771,8 @@ fn parse_font_face_block<'a, 't: 'a, 'i: 't>(
             }
             Ok(())
         });
-        // if let Some(ff) = st.font_face.as_mut() {
-        //     ff.push(font_face);
-        // } else {
-        //     st.font_face = Some(vec![font_face]);
-        // }
-        sheet.add_font_face(font_face);
+        rules.push(CssRule::FontFace(Rc::new(font_face)));
     }
-}
-fn parse_px_length<'a, 't: 'a, 'i: 't>(
-    parser: &'a mut Parser<'i, 't>,
-    _st: &mut ParseState,
-) -> Result<f32, ParseError<'i, CustomError>> {
-    let next = parser.next()?;
-    match next {
-        Token::Number { value, .. } => {
-            if *value == 0. {
-                return Ok(0.);
-            }
-        }
-        Token::Dimension { value, unit, .. } => {
-            let unit: &str = unit;
-            if unit == "px" {
-                return Ok(*value);
-            }
-        }
-        _ => {}
-    }
-    let next = next.clone();
-    Err(parser.new_unexpected_token_error(next))
 }
 
 fn parse_rule<'a, 't: 'a, 'i: 't>(
@@ -991,7 +815,6 @@ fn parse_rule<'a, 't: 'a, 'i: 't>(
         }),
     }
 }
-
 
 #[inline(always)]
 fn parse_property_list<'a, 't: 'a, 'i: 't>(
