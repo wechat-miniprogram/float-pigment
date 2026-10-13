@@ -28,27 +28,43 @@ pub struct Language {
 }
 
 impl Language {
-    /// Parse a BCP 47 language tag.
-    ///
-    /// Returns `None` if the tag is not ASCII or exceeds 15 bytes.
-    pub fn from_str(s: &str) -> Option<Self> {
-        if !s.is_ascii() || s.len() > 15 {
-            return None;
-        }
-        let mut buf = [0u8; 15];
-        buf[..s.len()].copy_from_slice(s.as_bytes());
-        Some(Self {
-            buf,
-            len: s.len() as u8,
-        })
-    }
-
     /// The tag as a string slice.
     pub fn as_str(&self) -> &str {
-        // SAFETY: `from_str` is the only constructor and the fields are
+        // SAFETY: `FromStr` is the only constructor and the fields are
         // private, so `len <= buf.len()` and `buf[..len]` always holds
         // ASCII bytes (thus valid UTF-8).
         unsafe { std::str::from_utf8_unchecked(&self.buf[..self.len as usize]) }
+    }
+}
+
+/// An error returned when parsing a BCP 47 language tag fails.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ParseLanguageError;
+
+impl std::fmt::Display for ParseLanguageError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("invalid BCP 47 language tag")
+    }
+}
+
+impl std::error::Error for ParseLanguageError {}
+
+impl std::str::FromStr for Language {
+    type Err = ParseLanguageError;
+
+    /// Parse a BCP 47 language tag.
+    ///
+    /// Fails if the tag is not ASCII or exceeds 15 bytes.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if !s.is_ascii() || s.len() > 15 {
+            return Err(ParseLanguageError);
+        }
+        let mut buf = [0u8; 15];
+        buf[..s.len()].copy_from_slice(s.as_bytes());
+        Ok(Self {
+            buf,
+            len: s.len() as u8,
+        })
     }
 }
 

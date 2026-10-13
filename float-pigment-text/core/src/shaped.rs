@@ -24,10 +24,7 @@ fn orientation_upright(c: char) -> bool {
 /// Split a text range into sub-ranges by orientation class
 /// (upright or sideways), for `text-orientation: mixed`.
 /// Returns `(range, vertical_shaping)` pairs.
-fn split_by_orientation_class(
-    range: Range<usize>,
-    text: &str,
-) -> Vec<(Range<usize>, bool)> {
+fn split_by_orientation_class(range: Range<usize>, text: &str) -> Vec<(Range<usize>, bool)> {
     let mut result = Vec::new();
     let mut start = range.start;
     let mut upright = None;
@@ -183,16 +180,25 @@ fn shape_with_fallback<F, P, S>(
             }
             faces.append_fallbacks(extra);
         }
-        shape_with_fallback(text, span, faces, face_at + 1, provider, shaper, options, out);
+        shape_with_fallback(
+            text,
+            span,
+            faces,
+            face_at + 1,
+            provider,
+            shaper,
+            options,
+            out,
+        );
     }
 
     let mut prev_found_cluster: Option<usize> = None;
     let mut missing_min: Option<usize> = None;
     let flush_missing = |out: &mut Vec<GlyphRun<F>>,
-                             missing_min: &mut Option<usize>,
-                             prev_found_cluster: Option<usize>,
-                             next_found_cluster: Option<usize>,
-                             faces: &mut ResolvedFontList<F>| {
+                         missing_min: &mut Option<usize>,
+                         prev_found_cluster: Option<usize>,
+                         next_found_cluster: Option<usize>,
+                         faces: &mut ResolvedFontList<F>| {
         let Some(start) = missing_min.take() else {
             return;
         };
@@ -201,7 +207,17 @@ fn shape_with_fallback<F, P, S>(
         } else {
             prev_found_cluster.unwrap_or(range.end)
         };
-        fallback_span(text, start..end, faces, face_at, provider, shaper, options, out, &face);
+        fallback_span(
+            text,
+            start..end,
+            faces,
+            face_at,
+            provider,
+            shaper,
+            options,
+            out,
+            &face,
+        );
     };
 
     for run in runs {
@@ -258,14 +274,13 @@ impl<L: LengthNum, F: FontFace> ShapedBlock<L, F> {
 
         let mut face_indexes: HashMap<FontFaceId, u16> = HashMap::new();
         let mut faces: Vec<F> = Vec::new();
-        let dedup_face = |face: &F,
-                              face_indexes: &mut HashMap<FontFaceId, u16>,
-                              faces: &mut Vec<F>| {
-            *face_indexes.entry(face.id()).or_insert_with(|| {
-                faces.push(face.clone());
-                (faces.len() - 1) as u16
-            })
-        };
+        let dedup_face =
+            |face: &F, face_indexes: &mut HashMap<FontFaceId, u16>, faces: &mut Vec<F>| {
+                *face_indexes.entry(face.id()).or_insert_with(|| {
+                    faces.push(face.clone());
+                    (faces.len() - 1) as u16
+                })
+            };
 
         let mut resolved_cache: Vec<(FontQuery, ResolvedFontList<F>)> = Vec::new();
         let mut glyphs: Vec<ShapedGlyph> = Vec::new();
@@ -314,7 +329,10 @@ impl<L: LengthNum, F: FontFace> ShapedBlock<L, F> {
                         &flattened.text,
                     )
                 } else {
-                    vec![(flattened_range.start as usize..flattened_range.end as usize, vertical)]
+                    vec![(
+                        flattened_range.start as usize..flattened_range.end as usize,
+                        vertical,
+                    )]
                 };
                 for (sub_range, sub_vertical) in sub_items {
                     let options = ShapeOptions {
@@ -383,11 +401,13 @@ impl<L: LengthNum, F: FontFace> ShapedBlock<L, F> {
             })
             .zip(itemized.item_levels.iter())
             .zip(flattened.item_positions.iter())
-            .map(|((item, bidi_level), (flattened_offset, _))| PositionedInlineItem {
-                bidi_level: *bidi_level,
-                flattened_offset: *flattened_offset,
-                item: item.clone(),
-            })
+            .map(
+                |((item, bidi_level), (flattened_offset, _))| PositionedInlineItem {
+                    bidi_level: *bidi_level,
+                    flattened_offset: *flattened_offset,
+                    item: item.clone(),
+                },
+            )
             .collect();
 
         let ellipsis_text: Option<Box<str>> = match &block.property.text_overflow {

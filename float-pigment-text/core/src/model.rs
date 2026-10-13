@@ -4,7 +4,9 @@ use std::num::NonZeroU32;
 use std::sync::Arc;
 
 use float_pigment_css::length_num::LengthNum;
-use float_pigment_css::typing::{Direction, Overflow, TextAlign, WhiteSpace, WordBreak, WritingMode};
+use float_pigment_css::typing::{
+    Direction, Overflow, TextAlign, WhiteSpace, WordBreak, WritingMode,
+};
 
 use crate::font::FontQuery;
 use crate::geometry::Size;
@@ -23,20 +25,15 @@ pub enum TextOverflow {
 }
 
 /// The orientation of glyphs relative to the baseline.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum TextOrientation {
     /// Horizontal scripts are upright; vertical scripts are sideways.
+    #[default]
     Mixed,
     /// All glyphs are upright.
     Upright,
     /// All glyphs are sideways.
     Sideways,
-}
-
-impl Default for TextOrientation {
-    fn default() -> Self {
-        Self::Mixed
-    }
 }
 
 /// Vertical align of an inline item relative to the line baseline.

@@ -8,7 +8,9 @@ use crate::model::TextOverflow;
 use crate::analyze::{break_points, grapheme_boundaries, word_boundaries, BreakKind};
 use crate::font::FontFace;
 use crate::geometry::{Point, Rect, Size};
-use crate::layout::{EXTRA_GLYPH_TAG, LayoutResult, LineLayout, PositionedGlyph, PositionedItemRect};
+use crate::layout::{
+    LayoutResult, LineLayout, PositionedGlyph, PositionedItemRect, EXTRA_GLYPH_TAG,
+};
 use crate::model::{TextOrientation, VerticalAlign};
 use crate::shaped::ShapedBlock;
 use crate::shaper::{ResolvedDirection, ShapedGlyph};
@@ -114,7 +116,10 @@ impl<'a, L: LengthNum, F: FontFace> AtomBuilder<'a, L, F> {
     fn text(&mut self, text_index: u32) {
         let text = &self.shaped.texts[text_index as usize];
         let property = &text.property;
-        let collapse = matches!(property.white_space, WhiteSpace::Normal | WhiteSpace::PreLine);
+        let collapse = matches!(
+            property.white_space,
+            WhiteSpace::Normal | WhiteSpace::PreLine
+        );
         let newline_breaks = !matches!(
             property.white_space,
             WhiteSpace::Normal | WhiteSpace::NoWrap
@@ -136,7 +141,10 @@ impl<'a, L: LengthNum, F: FontFace> AtomBuilder<'a, L, F> {
             .skip_while(|p| *p < range.start)
             .peekable();
 
-        self.spacing(text.spacing.inline_start, text.items.first().map(|i| i.bidi_level).unwrap_or(0));
+        self.spacing(
+            text.spacing.inline_start,
+            text.items.first().map(|i| i.bidi_level).unwrap_or(0),
+        );
         let mut prev_whitespace = false;
         let mut prev_cluster: Option<u32> = None;
         let mut pending_forced_break = false;
@@ -162,8 +170,8 @@ impl<'a, L: LengthNum, F: FontFace> AtomBuilder<'a, L, F> {
                 let mut allowed_before = false;
                 while let Some(point) = breaks.peek() {
                     if point.utf8_index >= cluster {
-                        allowed_before = point.utf8_index == cluster
-                            && point.kind == BreakKind::Allowed;
+                        allowed_before =
+                            point.utf8_index == cluster && point.kind == BreakKind::Allowed;
                         break;
                     }
                     breaks.next();
@@ -225,9 +233,9 @@ impl<'a, L: LengthNum, F: FontFace> AtomBuilder<'a, L, F> {
 
                 let mut advance = self.glyph_inline_advance(glyph_index);
                 if !first_glyph {
-                    advance = advance + property.letter_spacing;
+                    advance += property.letter_spacing;
                     if word_start {
-                        advance = advance + property.word_spacing;
+                        advance += property.word_spacing;
                     }
                 }
                 first_glyph = false;
@@ -255,7 +263,10 @@ impl<'a, L: LengthNum, F: FontFace> AtomBuilder<'a, L, F> {
                 trimmable: false,
             });
         }
-        self.spacing(text.spacing.inline_end, text.items.last().map(|i| i.bidi_level).unwrap_or(0));
+        self.spacing(
+            text.spacing.inline_end,
+            text.items.last().map(|i| i.bidi_level).unwrap_or(0),
+        );
     }
 
     fn item(&mut self, item_index: u32) {
@@ -342,7 +353,10 @@ fn build_atoms<L: LengthNum, F: FontFace>(shaped: &ShapedBlock<L, F>) -> Vec<Ato
 
 /// Breaks the shaped block into lines for the given inline size.
 #[allow(unused_assignments)] // flush! macro resets state after the final flush
-pub(crate) fn break_lines<L: LengthNum, F: FontFace>(shaped: &ShapedBlock<L, F>, inline_size: L) -> Vec<Line<L>> {
+pub(crate) fn break_lines<L: LengthNum, F: FontFace>(
+    shaped: &ShapedBlock<L, F>,
+    inline_size: L,
+) -> Vec<Line<L>> {
     let atoms = build_atoms(shaped);
     let ellipsis = {
         let clamped = shaped.property.line_clamp.is_some();
@@ -357,9 +371,7 @@ pub(crate) fn break_lines<L: LengthNum, F: FontFace>(shaped: &ShapedBlock<L, F>,
             let ellipsis_advance = shaped
                 .ellipsis_glyphs
                 .as_ref()
-                .map(|glyphs| {
-                    length_sum(glyphs.iter().map(|g| glyph_inline_advance(shaped, g)))
-                })
+                .map(|glyphs| length_sum(glyphs.iter().map(|g| glyph_inline_advance(shaped, g))))
                 .unwrap_or(L::zero());
             Some((line_index, ellipsis_advance))
         } else {
@@ -384,8 +396,8 @@ pub(crate) fn break_lines<L: LengthNum, F: FontFace>(shaped: &ShapedBlock<L, F>,
             // trim trailing whitespace
             while let Some(atom) = cur.last() {
                 if atom.trimmable {
-                    cur_width = cur_width - atom.advance;
-                    trailing_trim = trailing_trim - atom.advance;
+                    cur_width -= atom.advance;
+                    trailing_trim -= atom.advance;
                     cur.pop();
                 } else {
                     break;
@@ -420,8 +432,8 @@ pub(crate) fn break_lines<L: LengthNum, F: FontFace>(shaped: &ShapedBlock<L, F>,
                     // excluded from the content width
                     while let Some(atom) = cur.last() {
                         if atom.trimmable {
-                            trailing_trim = trailing_trim - atom.advance;
-                            cur_width = cur_width - atom.advance;
+                            trailing_trim -= atom.advance;
+                            cur_width -= atom.advance;
                             cur.pop();
                         } else {
                             break;
@@ -438,13 +450,13 @@ pub(crate) fn break_lines<L: LengthNum, F: FontFace>(shaped: &ShapedBlock<L, F>,
                         let Some(popped) = cur.pop() else {
                             break;
                         };
-                        width = width - popped.advance;
+                        width -= popped.advance;
                         // never cut inside a grapheme cluster:
                         // pop the remaining glyphs sharing the cluster
                         if let Some(cluster) = cluster_of(&popped) {
                             while let Some(last) = cur.last() {
                                 if cluster_of(last) == Some(cluster) {
-                                    width = width - last.advance;
+                                    width -= last.advance;
                                     cur.pop();
                                 } else {
                                     break;
@@ -490,7 +502,7 @@ pub(crate) fn break_lines<L: LengthNum, F: FontFace>(shaped: &ShapedBlock<L, F>,
                 trailing_trim = L::zero();
                 for a in tail.iter().rev() {
                     if a.trimmable {
-                        trailing_trim = trailing_trim + a.advance;
+                        trailing_trim += a.advance;
                     } else {
                         break;
                     }
@@ -514,9 +526,9 @@ pub(crate) fn break_lines<L: LengthNum, F: FontFace>(shaped: &ShapedBlock<L, F>,
         if atom.break_before && !cur.is_empty() {
             last_break = Some((cur.len(), cur_width, trailing_trim));
         }
-        cur_width = cur_width + atom.advance;
+        cur_width += atom.advance;
         if atom.trimmable {
-            trailing_trim = trailing_trim + atom.advance;
+            trailing_trim += atom.advance;
         } else {
             trailing_trim = L::zero();
         }
@@ -571,7 +583,7 @@ fn reorder_visual<L: LengthNum>(atoms: &mut Vec<Atom<L>>) {
         }
     }
     // rebuild atoms in the reordered run order
-    let original: Vec<Atom<L>> = atoms.drain(..).collect();
+    let original: Vec<Atom<L>> = std::mem::take(atoms);
     for (range, _) in runs {
         atoms.extend_from_slice(&original[range]);
     }
@@ -725,23 +737,29 @@ pub(crate) fn justify<L: LengthNum, F: FontFace>(
             match atom.content {
                 AtomContent::Glyph(glyph_ref) => {
                     if first_glyph_seen && atom.word_start {
-                        pen = pen + justify_space;
+                        pen += justify_space;
                     }
                     first_glyph_seen = true;
                     let glyph = &shaped.glyphs[glyph_ref as usize];
                     let origin = if horizontal {
-                        to_physical(pen + L::from_f32(glyph.offset.x), baseline - L::from_f32(glyph.offset.y))
+                        to_physical(
+                            pen + L::from_f32(glyph.offset.x),
+                            baseline - L::from_f32(glyph.offset.y),
+                        )
                     } else if glyph.flags.sideways() {
                         // shaped horizontally: offsets map to the inline axis
-                        to_physical(pen + L::from_f32(glyph.offset.x), baseline - L::from_f32(glyph.offset.y))
+                        to_physical(
+                            pen + L::from_f32(glyph.offset.x),
+                            baseline - L::from_f32(glyph.offset.y),
+                        )
                     } else {
-                        to_physical(pen + L::from_f32(glyph.offset.y), baseline + L::from_f32(glyph.offset.x))
+                        to_physical(
+                            pen + L::from_f32(glyph.offset.y),
+                            baseline + L::from_f32(glyph.offset.x),
+                        )
                     };
-                    glyphs_out.push(PositionedGlyph {
-                        origin,
-                        glyph_ref,
-                    });
-                    pen = pen + atom.advance;
+                    glyphs_out.push(PositionedGlyph { origin, glyph_ref });
+                    pen += atom.advance;
                 }
                 AtomContent::Item(item_index) => {
                     let item = &shaped.items[item_index as usize].item;
@@ -768,14 +786,11 @@ pub(crate) fn justify<L: LengthNum, F: FontFace>(
                     } else {
                         Rect::new(origin, Size::new(item.size.height, item.size.width))
                     };
-                    items_out.push(PositionedItemRect {
-                        rect,
-                        item_index,
-                    });
-                    pen = pen + atom.advance;
+                    items_out.push(PositionedItemRect { rect, item_index });
+                    pen += atom.advance;
                 }
                 AtomContent::Spacing => {
-                    pen = pen + atom.advance;
+                    pen += atom.advance;
                 }
                 AtomContent::ForcedBreak => {}
             }
@@ -786,15 +801,21 @@ pub(crate) fn justify<L: LengthNum, F: FontFace>(
             if let Some(ellipsis_glyphs) = shaped.ellipsis_glyphs.as_ref() {
                 for (i, glyph) in ellipsis_glyphs.iter().enumerate() {
                     let origin = if horizontal {
-                        to_physical(pen + L::from_f32(glyph.offset.x), baseline - L::from_f32(glyph.offset.y))
+                        to_physical(
+                            pen + L::from_f32(glyph.offset.x),
+                            baseline - L::from_f32(glyph.offset.y),
+                        )
                     } else {
-                        to_physical(pen + L::from_f32(glyph.offset.y), baseline + L::from_f32(glyph.offset.x))
+                        to_physical(
+                            pen + L::from_f32(glyph.offset.y),
+                            baseline + L::from_f32(glyph.offset.x),
+                        )
                     };
                     glyphs_out.push(PositionedGlyph {
                         origin,
                         glyph_ref: ellipsis_base | i as u32,
                     });
-                    pen = pen + glyph_inline_advance(shaped, glyph);
+                    pen += glyph_inline_advance(shaped, glyph);
                 }
             }
         }

@@ -6,6 +6,9 @@ use std::num::NonZeroU32;
 use std::sync::Arc;
 
 use common::{build_font, FontSpec};
+use float_pigment_css::typing::{
+    Direction, Overflow, TextAlign, WhiteSpace, WordBreak, WritingMode,
+};
 use float_pigment_text_layout::font::{FamilyName, FontProperties, FontQuery};
 use float_pigment_text_layout::layout::LayoutResult;
 use float_pigment_text_layout::model::{
@@ -15,7 +18,6 @@ use float_pigment_text_layout::model::{
 use float_pigment_text_layout::rust_font::{MemoryFontProvider, ParsedFont, RustShaper};
 use float_pigment_text_layout::shaper::{Language, Script};
 use float_pigment_text_layout::ShapedBlock;
-use float_pigment_css::typing::{Direction, Overflow, TextAlign, WhiteSpace, WordBreak, WritingMode};
 
 fn spec() -> FontSpec {
     // uniform 500-advance glyphs (8px at size 16), space 250 (4px)
@@ -40,7 +42,12 @@ fn setup() -> (MemoryFontProvider, RustShaper, FontQuery) {
     let mut provider = MemoryFontProvider::new();
     let data = Arc::new(build_font(&spec()));
     provider
-        .register(data, 0, Box::new([FamilyName::SansSerif]), Default::default())
+        .register(
+            data,
+            0,
+            Box::new([FamilyName::SansSerif]),
+            Default::default(),
+        )
         .expect("test font should parse");
     let query = FontQuery {
         families: Box::new([FamilyName::SansSerif]),
@@ -70,7 +77,9 @@ fn layout_text_with(
             spacing: Spacing::default(),
         })],
     };
-    let shaped = Arc::new(ShapedBlock::<f32, ParsedFont>::new(&block, provider, shaper));
+    let shaped = Arc::new(ShapedBlock::<f32, ParsedFont>::new(
+        &block, provider, shaper,
+    ));
     shaped.layout(width)
 }
 
@@ -82,7 +91,15 @@ fn layout_text(
     width: f32,
     property: BlockProperty<f32>,
 ) -> LayoutResult<f32, ParsedFont> {
-    layout_text_with(provider, shaper, query, content, width, property, InlineProperty::default())
+    layout_text_with(
+        provider,
+        shaper,
+        query,
+        content,
+        width,
+        property,
+        InlineProperty::default(),
+    )
 }
 
 fn assert_close(a: f32, b: f32) {
@@ -92,7 +109,14 @@ fn assert_close(a: f32, b: f32) {
 #[test]
 fn single_line_positions() {
     let (provider, shaper, query) = setup();
-    let result = layout_text(&provider, &shaper, &query, "A B", 1000.0, Default::default());
+    let result = layout_text(
+        &provider,
+        &shaper,
+        &query,
+        "A B",
+        1000.0,
+        Default::default(),
+    );
     assert_eq!(result.lines.len(), 1);
     assert_eq!(result.glyphs.len(), 3);
     // advances: A=8, space=4
@@ -109,7 +133,14 @@ fn single_line_positions() {
 fn wraps_at_space_and_trims() {
     let (provider, shaper, query) = setup();
     // "AA AA" = 8*4 + 4 = 36px; width 34px fits only "AA " (trimmed to 16)
-    let result = layout_text(&provider, &shaper, &query, "AA AA", 34.0, Default::default());
+    let result = layout_text(
+        &provider,
+        &shaper,
+        &query,
+        "AA AA",
+        34.0,
+        Default::default(),
+    );
     assert_eq!(result.lines.len(), 2);
     assert_eq!(result.lines[0].glyph_range.len(), 2);
     assert_eq!(result.lines[1].glyph_range.len(), 2);
@@ -121,8 +152,22 @@ fn wraps_at_space_and_trims() {
 #[test]
 fn collapsed_whitespace() {
     let (provider, shaper, query) = setup();
-    let single = layout_text(&provider, &shaper, &query, "A A", 1000.0, Default::default());
-    let double = layout_text(&provider, &shaper, &query, "A  A", 1000.0, Default::default());
+    let single = layout_text(
+        &provider,
+        &shaper,
+        &query,
+        "A A",
+        1000.0,
+        Default::default(),
+    );
+    let double = layout_text(
+        &provider,
+        &shaper,
+        &query,
+        "A  A",
+        1000.0,
+        Default::default(),
+    );
     assert_eq!(double.glyphs.len(), single.glyphs.len());
     assert_close(double.size.width, single.size.width);
 }
@@ -134,7 +179,15 @@ fn pre_keeps_whitespace_and_newline_breaks() {
         white_space: WhiteSpace::Pre,
         ..Default::default()
     };
-    let result = layout_text_with(&provider, &shaper, &query, "A  A\nB", 1000.0, Default::default(), inline_property);
+    let result = layout_text_with(
+        &provider,
+        &shaper,
+        &query,
+        "A  A\nB",
+        1000.0,
+        Default::default(),
+        inline_property,
+    );
     // note: Pre keeps both spaces, and \n forces a break
     assert_eq!(result.lines.len(), 2);
     assert!(result.lines[0].glyph_range.len() >= 4);
@@ -148,7 +201,15 @@ fn nowrap_never_wraps() {
         white_space: WhiteSpace::NoWrap,
         ..Default::default()
     };
-    let result = layout_text_with(&provider, &shaper, &query, "AA AA", 34.0, Default::default(), inline_property);
+    let result = layout_text_with(
+        &provider,
+        &shaper,
+        &query,
+        "AA AA",
+        34.0,
+        Default::default(),
+        inline_property,
+    );
     assert_eq!(result.lines.len(), 1);
     assert_close(result.size.width, 36.0);
 }
@@ -168,7 +229,10 @@ fn ellipsis_truncates() {
     assert_eq!(result.glyphs.len(), 3);
     assert_close(result.glyphs[2].origin.x, 16.0);
     // the last glyph is the ellipsis from extra glyphs
-    assert_eq!(result.shaped_glyph(result.glyphs[2].glyph_ref).glyph_id, spec().glyph_id_of('…'));
+    assert_eq!(
+        result.shaped_glyph(result.glyphs[2].glyph_ref).glyph_id,
+        spec().glyph_id_of('…')
+    );
 }
 
 #[test]
@@ -191,7 +255,14 @@ fn line_clamp_two_lines() {
 fn rtl_visual_order() {
     let (provider, shaper, query) = setup();
     // logical order: ה(0) ו(2) A(4); base direction RTL from the Hebrew
-    let result = layout_text(&provider, &shaper, &query, "\u{5D4}\u{5D5}A", 1000.0, Default::default());
+    let result = layout_text(
+        &provider,
+        &shaper,
+        &query,
+        "\u{5D4}\u{5D5}A",
+        1000.0,
+        Default::default(),
+    );
     assert_eq!(result.lines.len(), 1);
     assert_eq!(result.glyphs.len(), 3);
     // visual left-to-right: A, ו, ה — i.e. glyph_refs [2, 0, 1]
@@ -206,7 +277,14 @@ fn rtl_visual_order() {
 fn ltr_with_rtl_run_visual_order() {
     let (provider, shaper, query) = setup();
     // logical order: A(0) ה(1) ו(3); base direction LTR from the Latin
-    let result = layout_text(&provider, &shaper, &query, "A\u{5D4}\u{5D5}", 1000.0, Default::default());
+    let result = layout_text(
+        &provider,
+        &shaper,
+        &query,
+        "A\u{5D4}\u{5D5}",
+        1000.0,
+        Default::default(),
+    );
     assert_eq!(result.glyphs.len(), 3);
     // visual left-to-right: A, ו, ה — clusters [0, 3, 1]
     let clusters: Vec<u32> = result
@@ -247,11 +325,13 @@ fn inline_item_positioned() {
             }),
         ],
     };
-    let shaped = Arc::new(ShapedBlock::<f32, ParsedFont>::new(&block, &provider, &shaper));
+    let shaped = Arc::new(ShapedBlock::<f32, ParsedFont>::new(
+        &block, &provider, &shaper,
+    ));
     let result = shaped.layout(1000.0);
     assert_eq!(result.items.len(), 1);
     assert_close(result.items[0].rect.origin.x, 8.0); // after "A"
-    // glyph after the item
+                                                      // glyph after the item
     let last = result.glyphs.last().unwrap();
     assert_close(last.origin.x, 18.0);
     // item bottom aligned to baseline: baseline 12.8, height 20 → ascent extended
@@ -262,7 +342,11 @@ fn inline_item_positioned() {
 fn text_align_right_and_center() {
     let (provider, shaper, query) = setup();
     let right = layout_text(
-        &provider, &shaper, &query, "A", 100.0,
+        &provider,
+        &shaper,
+        &query,
+        "A",
+        100.0,
         BlockProperty {
             text_align: TextAlign::Right,
             ..Default::default()
@@ -270,7 +354,11 @@ fn text_align_right_and_center() {
     );
     assert_close(right.glyphs[0].origin.x, 92.0);
     let center = layout_text(
-        &provider, &shaper, &query, "A", 100.0,
+        &provider,
+        &shaper,
+        &query,
+        "A",
+        100.0,
         BlockProperty {
             text_align: TextAlign::Center,
             ..Default::default()
@@ -284,7 +372,11 @@ fn justify_stretches_word_gaps() {
     let (provider, shaper, query) = setup();
     // "AA AA" content 36px in 68px: one word gap absorbs 32px
     let result = layout_text(
-        &provider, &shaper, &query, "AA AA", 68.0,
+        &provider,
+        &shaper,
+        &query,
+        "AA AA",
+        68.0,
         BlockProperty {
             text_align: TextAlign::Justify,
             ..Default::default()
@@ -310,9 +402,15 @@ fn custom_ellipsis_text() {
     assert_eq!(result.lines.len(), 1);
     // "A" (8px) + "BB" (16px) = 24px
     assert_eq!(result.glyphs.len(), 3);
-    assert_eq!(result.shaped_glyph(result.glyphs[1].glyph_ref).glyph_id, spec().glyph_id_of('B'));
+    assert_eq!(
+        result.shaped_glyph(result.glyphs[1].glyph_ref).glyph_id,
+        spec().glyph_id_of('B')
+    );
     // ellipsis glyphs have no source cluster
-    assert_eq!(result.shaped_glyph(result.glyphs[1].glyph_ref).cluster, u32::MAX);
+    assert_eq!(
+        result.shaped_glyph(result.glyphs[1].glyph_ref).cluster,
+        u32::MAX
+    );
 }
 
 #[test]
@@ -337,7 +435,15 @@ fn white_space_pre_wrap() {
         ..Default::default()
     };
     // PreWrap: spaces kept, wrapping and newline breaks allowed
-    let result = layout_text_with(&provider, &shaper, &query, "A  A\nB", 20.0, Default::default(), inline_property);
+    let result = layout_text_with(
+        &provider,
+        &shaper,
+        &query,
+        "A  A\nB",
+        20.0,
+        Default::default(),
+        inline_property,
+    );
     // line 1: "A  " (16px, spaces kept), then "A" wraps, "B" after newline
     assert_eq!(result.lines.len(), 3);
     assert_eq!(result.lines[0].glyph_range.len(), 3);
@@ -353,10 +459,25 @@ fn white_space_pre_line() {
         ..Default::default()
     };
     // PreLine: spaces collapsed, newline breaks allowed
-    let collapsed = layout_text_with(&provider, &shaper, &query, "A  A\nB", 1000.0, Default::default(), inline_property.clone());
+    let collapsed = layout_text_with(
+        &provider,
+        &shaper,
+        &query,
+        "A  A\nB",
+        1000.0,
+        Default::default(),
+        inline_property.clone(),
+    );
     assert_eq!(collapsed.lines.len(), 2);
     assert_eq!(collapsed.lines[0].glyph_range.len(), 3); // "A A"
-    let single = layout_text(&provider, &shaper, &query, "A A", 1000.0, Default::default());
+    let single = layout_text(
+        &provider,
+        &shaper,
+        &query,
+        "A A",
+        1000.0,
+        Default::default(),
+    );
     assert_close(collapsed.lines[0].inline_end, single.lines[0].inline_end);
 }
 
@@ -368,7 +489,15 @@ fn white_space_wx_pre_edit() {
         ..Default::default()
     };
     // WxPreEdit behaves like PreWrap: spaces kept
-    let result = layout_text_with(&provider, &shaper, &query, "A  A", 1000.0, Default::default(), inline_property);
+    let result = layout_text_with(
+        &provider,
+        &shaper,
+        &query,
+        "A  A",
+        1000.0,
+        Default::default(),
+        inline_property,
+    );
     assert_eq!(result.lines.len(), 1);
     assert_eq!(result.lines[0].glyph_range.len(), 4);
     assert_close(result.size.width, 24.0);
@@ -382,7 +511,15 @@ fn word_break_break_all() {
         ..Default::default()
     };
     // BreakAll: breaks between any graphemes, even mid-word
-    let result = layout_text_with(&provider, &shaper, &query, "AAAA", 20.0, Default::default(), inline_property);
+    let result = layout_text_with(
+        &provider,
+        &shaper,
+        &query,
+        "AAAA",
+        20.0,
+        Default::default(),
+        inline_property,
+    );
     assert_eq!(result.lines.len(), 2);
     assert_eq!(result.lines[0].glyph_range.len(), 2);
     assert_eq!(result.lines[1].glyph_range.len(), 2);
@@ -396,11 +533,27 @@ fn word_break_keep_all() {
         ..Default::default()
     };
     // KeepAll: no breaks between letters, the content overflows
-    let result = layout_text_with(&provider, &shaper, &query, "AAAA", 20.0, Default::default(), inline_property.clone());
+    let result = layout_text_with(
+        &provider,
+        &shaper,
+        &query,
+        "AAAA",
+        20.0,
+        Default::default(),
+        inline_property.clone(),
+    );
     assert_eq!(result.lines.len(), 1);
     assert_close(result.size.width, 32.0);
     // but breaks at spaces are still allowed
-    let with_space = layout_text_with(&provider, &shaper, &query, "AA AA", 20.0, Default::default(), inline_property);
+    let with_space = layout_text_with(
+        &provider,
+        &shaper,
+        &query,
+        "AA AA",
+        20.0,
+        Default::default(),
+        inline_property,
+    );
     assert_eq!(with_space.lines.len(), 2);
 }
 
@@ -412,7 +565,15 @@ fn word_break_break_word_emergency() {
         ..Default::default()
     };
     // BreakWord: emergency breaks when no legal break point exists
-    let result = layout_text_with(&provider, &shaper, &query, "AAAA", 10.0, Default::default(), inline_property);
+    let result = layout_text_with(
+        &provider,
+        &shaper,
+        &query,
+        "AAAA",
+        10.0,
+        Default::default(),
+        inline_property,
+    );
     assert_eq!(result.lines.len(), 4);
 }
 
@@ -421,7 +582,11 @@ fn direction_combinations() {
     let (provider, shaper, query) = setup();
     let clusters_of = |direction: Direction, content: &str| {
         let result = layout_text(
-            &provider, &shaper, &query, content, 1000.0,
+            &provider,
+            &shaper,
+            &query,
+            content,
+            1000.0,
             BlockProperty {
                 direction,
                 ..Default::default()
@@ -442,7 +607,10 @@ fn direction_combinations() {
     // forced RTL with Latin: base direction RTL, visual order unchanged
     assert_eq!(clusters_of(Direction::RTL, "AB"), vec![0, 1]);
     // forced RTL with mixed content: level array [2,1,1] resolves to [ו,ה,A]
-    assert_eq!(clusters_of(Direction::RTL, "A\u{5D4}\u{5D5}"), vec![3, 1, 0]);
+    assert_eq!(
+        clusters_of(Direction::RTL, "A\u{5D4}\u{5D5}"),
+        vec![3, 1, 0]
+    );
 }
 
 #[test]
@@ -450,7 +618,11 @@ fn direction_affects_start_end_alignment() {
     let (provider, shaper, query) = setup();
     let start_x = |direction: Direction| {
         let result = layout_text(
-            &provider, &shaper, &query, "A", 100.0,
+            &provider,
+            &shaper,
+            &query,
+            "A",
+            100.0,
             BlockProperty {
                 direction,
                 text_align: TextAlign::Start,
@@ -463,7 +635,11 @@ fn direction_affects_start_end_alignment() {
     assert_close(start_x(Direction::RTL), 92.0);
     let end_x = |direction: Direction| {
         let result = layout_text(
-            &provider, &shaper, &query, "A", 100.0,
+            &provider,
+            &shaper,
+            &query,
+            "A",
+            100.0,
             BlockProperty {
                 direction,
                 text_align: TextAlign::End,
@@ -484,7 +660,15 @@ fn baselines_and_glyph_origins() {
         ..Default::default()
     };
     // two lines from a newline: baselines stack with line gap
-    let result = layout_text_with(&provider, &shaper, &query, "AA\nAA", 1000.0, Default::default(), inline_property);
+    let result = layout_text_with(
+        &provider,
+        &shaper,
+        &query,
+        "AA\nAA",
+        1000.0,
+        Default::default(),
+        inline_property,
+    );
     assert_eq!(result.lines.len(), 2);
     assert_close(result.lines[0].baseline_offset, 12.8);
     assert_close(result.lines[1].baseline_offset, 32.0);
@@ -506,7 +690,15 @@ fn line_height_half_leading() {
         line_height: Some(40.0),
         ..Default::default()
     };
-    let result = layout_text_with(&provider, &shaper, &query, "AA\nAA", 1000.0, property, inline_property);
+    let result = layout_text_with(
+        &provider,
+        &shaper,
+        &query,
+        "AA\nAA",
+        1000.0,
+        property,
+        inline_property,
+    );
     assert_eq!(result.lines.len(), 2);
     // half leading: (40 - 16) / 2 = 12 added above and below
     assert_close(result.lines[0].baseline_offset, 24.8);
@@ -520,7 +712,11 @@ fn writing_mode_and_orientation_combinations() {
     let (provider, shaper, query) = setup();
     let layout_with_mode = |writing_mode: WritingMode, text_orientation, direction: Direction| {
         layout_text(
-            &provider, &shaper, &query, "AA", 1000.0,
+            &provider,
+            &shaper,
+            &query,
+            "AA",
+            1000.0,
             BlockProperty {
                 writing_mode,
                 text_orientation,
@@ -530,13 +726,21 @@ fn writing_mode_and_orientation_combinations() {
         )
     };
     // horizontal: orientation does not affect the layout
-    let horizontal = layout_with_mode(WritingMode::HorizontalTb, TextOrientation::Upright, Direction::LTR);
+    let horizontal = layout_with_mode(
+        WritingMode::HorizontalTb,
+        TextOrientation::Upright,
+        Direction::LTR,
+    );
     assert_close(horizontal.size.width, 16.0);
     assert_close(horizontal.size.height, 16.0);
     // vertical-lr mixed with upright content: glyphs advance downward,
     // lines stack left-to-right
     let vlr = layout_text(
-        &provider, &shaper, &query, "中中", 1000.0,
+        &provider,
+        &shaper,
+        &query,
+        "中中",
+        1000.0,
         BlockProperty {
             writing_mode: WritingMode::VerticalLr,
             text_orientation: TextOrientation::Mixed,
@@ -550,7 +754,11 @@ fn writing_mode_and_orientation_combinations() {
     assert!(vlr.size.width > 0.0 && vlr.size.height > vlr.size.width);
     // vertical-rl mixed: the line is placed from the right edge
     let vrl = layout_text(
-        &provider, &shaper, &query, "中中", 1000.0,
+        &provider,
+        &shaper,
+        &query,
+        "中中",
+        1000.0,
         BlockProperty {
             writing_mode: WritingMode::VerticalRl,
             text_orientation: TextOrientation::Mixed,
@@ -559,23 +767,37 @@ fn writing_mode_and_orientation_combinations() {
         },
     );
     assert_eq!(vrl.lines.len(), 1);
-    assert_close(vrl.lines[0].baseline_offset, vrl.size.width - vlr.lines[0].baseline_offset);
+    assert_close(
+        vrl.lines[0].baseline_offset,
+        vrl.size.width - vlr.lines[0].baseline_offset,
+    );
     // vertical-lr sideways: horizontal shaping, advances go downward too
-    let sideways = layout_with_mode(WritingMode::VerticalLr, TextOrientation::Sideways, Direction::LTR);
+    let sideways = layout_with_mode(
+        WritingMode::VerticalLr,
+        TextOrientation::Sideways,
+        Direction::LTR,
+    );
     assert_eq!(sideways.glyphs.len(), 2);
     assert!(sideways.glyphs[1].origin.y > sideways.glyphs[0].origin.y);
     // upright behaves like mixed in the current implementation
-    let upright = layout_with_mode(WritingMode::VerticalLr, TextOrientation::Upright, Direction::LTR);
+    let upright = layout_with_mode(
+        WritingMode::VerticalLr,
+        TextOrientation::Upright,
+        Direction::LTR,
+    );
     assert_eq!(upright.glyphs.len(), vlr.glyphs.len());
 }
-
 
 #[test]
 fn neutral_text_direction_from_language_or_script() {
     let (provider, shaper, query) = setup();
     let start_x = |language: Option<Language>, script: Option<Script>| {
         let result = layout_text(
-            &provider, &shaper, &query, "1", 100.0,
+            &provider,
+            &shaper,
+            &query,
+            "1",
+            100.0,
             BlockProperty {
                 direction: Direction::Auto,
                 text_align: TextAlign::Start,
@@ -589,16 +811,20 @@ fn neutral_text_direction_from_language_or_script() {
     // neutral-only content (a digit) with no hint: LTR default
     assert_close(start_x(None, None), 0.0);
     // Arabic language/script hints imply RTL
-    assert_close(start_x(Language::from_str("ar"), None), 92.0);
+    assert_close(start_x("ar".parse().ok(), None), 92.0);
     assert_close(start_x(None, Some(Script(*b"Arab"))), 92.0);
     assert_close(start_x(None, Some(Script(*b"Hebr"))), 92.0);
     // strong content overrides the hint
     let strong = layout_text(
-        &provider, &shaper, &query, "A", 100.0,
+        &provider,
+        &shaper,
+        &query,
+        "A",
+        100.0,
         BlockProperty {
             direction: Direction::Auto,
             text_align: TextAlign::Start,
-            language: Language::from_str("ar"),
+            language: "ar".parse().ok(),
             ..Default::default()
         },
     );
@@ -609,7 +835,11 @@ fn neutral_text_direction_from_language_or_script() {
 fn mixed_orientation_splits_by_script() {
     let (provider, shaper, query) = setup();
     let result = layout_text(
-        &provider, &shaper, &query, "A中", 1000.0,
+        &provider,
+        &shaper,
+        &query,
+        "A中",
+        1000.0,
         BlockProperty {
             writing_mode: WritingMode::VerticalLr,
             text_orientation: TextOrientation::Mixed,

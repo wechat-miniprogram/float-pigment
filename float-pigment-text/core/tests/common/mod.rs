@@ -40,6 +40,7 @@ impl FontSpec {
     }
 
     /// The advance of a char at the given font size.
+    #[allow(dead_code)] // shared test helper, unused in some test binaries
     pub fn advance_of(&self, c: char, size: f32) -> f32 {
         let (_, advance) = self.glyphs.iter().find(|(ch, _)| *ch == c).unwrap();
         *advance as f32 * size / self.units_per_em as f32
@@ -242,7 +243,7 @@ fn build_cmap(spec: &FontSpec) -> Vec<u8> {
         u32be(&mut v, offset);
         offset += f4.len() as u32;
     }
-    if let Some(f12) = &format12 {
+    if let Some(_f12) = &format12 {
         u16be(&mut v, 3); // platformID: Windows
         u16be(&mut v, 10); // encodingID: Unicode full repertoire
         u32be(&mut v, offset);
@@ -394,7 +395,7 @@ pub fn build_font(spec: &FontSpec) -> Vec<u8> {
         u32be(&mut v, 0); // checksum (not verified by parsers)
         u32be(&mut v, offset);
         u32be(&mut v, data.len() as u32);
-        offset += (data.len() as u32 + 3) / 4 * 4;
+        offset += (data.len() as u32).div_ceil(4) * 4;
     }
     for (_, data) in &tables {
         v.extend(data);

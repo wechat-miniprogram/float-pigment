@@ -16,7 +16,9 @@ use crate::font::{
     FamilyName, FontFace, FontFaceId, FontMetrics, FontProperties, FontProvider, FontQuery,
     FontStyle, ResolvedFontList,
 };
-use crate::shaper::{GlyphFlags, GlyphRun, Language, ResolvedDirection, ShapeOptions, ShapedGlyph, Shaper};
+use crate::shaper::{
+    GlyphFlags, GlyphRun, Language, ResolvedDirection, ShapeOptions, ShapedGlyph, Shaper,
+};
 
 /// A font face parsed from in-memory font data (TTF/OTF/TTC/OTC).
 #[derive(Clone)]
@@ -193,7 +195,7 @@ fn read_design_languages(font: &skrifa::FontRef) -> Box<[Language]> {
     };
     tags.iter()
         .filter_map(|tag| tag.ok())
-        .filter_map(|tag| Language::from_str(tag.as_str()))
+        .filter_map(|tag| tag.as_str().parse::<Language>().ok())
         .collect()
 }
 
@@ -267,7 +269,10 @@ fn han_fallback_group(design_languages: &[Language], content: &Language) -> u8 {
         } else {
             match (content_variety, han_variety(language)) {
                 (Some(c), Some(f)) if c == f => 1,
-                (Some(HanVariety::Hans | HanVariety::Hant), Some(HanVariety::Hans | HanVariety::Hant)) => 2,
+                (
+                    Some(HanVariety::Hans | HanVariety::Hant),
+                    Some(HanVariety::Hans | HanVariety::Hant),
+                ) => 2,
                 (Some(_), Some(_)) => 3,
                 _ => continue,
             }
@@ -433,7 +438,8 @@ impl FontProvider for MemoryFontProvider {
             .collect();
         if let Some(language) = language {
             if is_han_char(sample) && han_variety(&language).is_some() {
-                covering.sort_by_key(|f| han_fallback_group(&f.font.inner.design_languages, &language));
+                covering
+                    .sort_by_key(|f| han_fallback_group(&f.font.inner.design_languages, &language));
             }
         }
         covering.into_iter().map(|f| f.font.clone()).collect()
@@ -477,7 +483,9 @@ impl RustShaper {
             }
         });
         if let Some(script) = options.script {
-            if let Ok(script) = harfrust::Script::from_str(std::str::from_utf8(&script.0).unwrap_or_default()) {
+            if let Ok(script) =
+                harfrust::Script::from_str(std::str::from_utf8(&script.0).unwrap_or_default())
+            {
                 buffer.set_script(script);
             }
         }
@@ -502,10 +510,7 @@ impl RustShaper {
                         pos.x_advance as f32 * scale,
                         pos.y_advance as f32 * scale,
                     ),
-                    offset: Vector2D::new(
-                        pos.x_offset as f32 * scale,
-                        pos.y_offset as f32 * scale,
-                    ),
+                    offset: Vector2D::new(pos.x_offset as f32 * scale, pos.y_offset as f32 * scale),
                     cluster: info.cluster + range.start as u32,
                     glyph_id: info.glyph_id as u16,
                     face_index: 0,
@@ -520,7 +525,6 @@ impl RustShaper {
             })
             .collect()
     }
-
 }
 
 impl Shaper for RustShaper {

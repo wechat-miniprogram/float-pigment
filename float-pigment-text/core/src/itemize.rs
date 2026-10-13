@@ -61,7 +61,11 @@ fn script_or_language_direction<L: LengthNum>(block: &Block<L>) -> ResolvedDirec
         "ar", "arc", "dv", "fa", "he", "ks", "nqo", "ps", "sd", "ug", "yi",
     ];
     if let Some(language) = block.property.language {
-        let primary = language.as_str().split(['-', ',']).next().unwrap_or_default();
+        let primary = language
+            .as_str()
+            .split(['-', ','])
+            .next()
+            .unwrap_or_default();
         if RTL_LANGUAGES.contains(&primary.to_ascii_lowercase().as_str()) {
             return ResolvedDirection::RTL;
         }
@@ -123,15 +127,23 @@ pub(crate) fn itemize<L: LengthNum>(block: &Block<L>) -> Itemized<L> {
         .collect();
 
     let mut text_items = Vec::new();
-    for (text_index, inline) in block.inlines.iter().filter_map(|i| match i {
-        Inline::Text(t) => Some(t),
-        Inline::Item(_) => None,
-    }).enumerate() {
+    for (text_index, inline) in block
+        .inlines
+        .iter()
+        .filter_map(|i| match i {
+            Inline::Text(t) => Some(t),
+            Inline::Item(_) => None,
+        })
+        .enumerate()
+    {
         let range = text_ranges[text_index].clone();
         if range.is_empty() {
             continue;
         }
-        let font_size = inline.property.font_size.unwrap_or(block.property.font_size);
+        let font_size = inline
+            .property
+            .font_size
+            .unwrap_or(block.property.font_size);
         let mut run_start = range.start as usize;
         let mut run_level = bidi_info.levels[run_start];
         for offset in range.start as usize + 1..range.end as usize {
@@ -183,9 +195,7 @@ pub(crate) fn itemize<L: LengthNum>(block: &Block<L>) -> Itemized<L> {
     // for `direction: auto` content without any strong character
     // (empty or neutral-only text), UAX#9 leaves LTR as the default;
     // prefer a guess from the content script/language instead
-    let base_direction = if block.property.direction == Direction::Auto
-        && !has_strong_char(&text)
-    {
+    let base_direction = if block.property.direction == Direction::Auto && !has_strong_char(&text) {
         script_or_language_direction(block)
     } else {
         base_direction

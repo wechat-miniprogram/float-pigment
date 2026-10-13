@@ -45,5 +45,6 @@ pub(crate) fn grapheme_boundaries(text: &str) -> impl Iterator<Item = u32> + '_ 
 /// Iterate word boundaries (UTF-8 byte offsets) of the flattened text,
 /// in order. Used by justification for word spacing and stretching.
 pub(crate) fn word_boundaries(text: &str) -> impl Iterator<Item = u32> + '_ {
-    text.split_word_bound_indices().map(|(index, _)| index as u32)
+    text.split_word_bound_indices()
+        .map(|(index, _)| index as u32)
 }

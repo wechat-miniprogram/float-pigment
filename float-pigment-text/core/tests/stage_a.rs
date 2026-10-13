@@ -5,8 +5,12 @@ mod common;
 use std::sync::Arc;
 
 use common::{build_font, FontSpec};
-use float_pigment_text_layout::font::{FamilyName, FontFace, FontProperties, FontProvider, FontQuery, Weight};
-use float_pigment_text_layout::model::{Block, BlockProperty, Inline, InlineProperty, InlineText, Spacing};
+use float_pigment_text_layout::font::{
+    FamilyName, FontFace, FontProperties, FontProvider, FontQuery, Weight,
+};
+use float_pigment_text_layout::model::{
+    Block, BlockProperty, Inline, InlineProperty, InlineText, Spacing,
+};
 use float_pigment_text_layout::rust_font::{MemoryFontProvider, ParsedFont, RustShaper};
 use float_pigment_text_layout::shaper::{Language, Script};
 use float_pigment_text_layout::ShapedBlock;
@@ -67,7 +71,12 @@ fn assert_close(a: f32, b: f32) {
 fn basic_shaping_metrics_and_flags() {
     let spec = latin_spec();
     let mut provider = MemoryFontProvider::new();
-    register(&mut provider, &spec, Box::new([FamilyName::SansSerif]), Default::default());
+    register(
+        &mut provider,
+        &spec,
+        Box::new([FamilyName::SansSerif]),
+        Default::default(),
+    );
     let shaper = RustShaper::new();
 
     let block = text_block("A A", query(Box::new([FamilyName::SansSerif])));
@@ -91,13 +100,20 @@ fn basic_shaping_metrics_and_flags() {
     assert!(glyphs[1].flags.whitespace());
     assert_eq!(glyphs[2].glyph_id, spec.glyph_id_of('A'));
     assert_eq!(glyphs[2].cluster, 2);
-    assert!(glyphs.iter().all(|g| !g.flags.missing() && !g.flags.colored()));
+    assert!(glyphs
+        .iter()
+        .all(|g| !g.flags.missing() && !g.flags.colored()));
 }
 
 #[test]
 fn missing_glyph_kept_with_flag() {
     let mut provider = MemoryFontProvider::new();
-    register(&mut provider, &latin_spec(), Box::new([FamilyName::SansSerif]), Default::default());
+    register(
+        &mut provider,
+        &latin_spec(),
+        Box::new([FamilyName::SansSerif]),
+        Default::default(),
+    );
     let shaper = RustShaper::new();
 
     let block = text_block("A中", query(Box::new([FamilyName::SansSerif])));
@@ -115,8 +131,18 @@ fn missing_glyph_kept_with_flag() {
 fn fallback_to_covering_font() {
     let cjk = cjk_spec();
     let mut provider = MemoryFontProvider::new();
-    register(&mut provider, &latin_spec(), Box::new([FamilyName::SansSerif]), Default::default());
-    register(&mut provider, &cjk, Box::new([FamilyName::Title("CJK".into())]), Default::default());
+    register(
+        &mut provider,
+        &latin_spec(),
+        Box::new([FamilyName::SansSerif]),
+        Default::default(),
+    );
+    register(
+        &mut provider,
+        &cjk,
+        Box::new([FamilyName::Title("CJK".into())]),
+        Default::default(),
+    );
     let shaper = RustShaper::new();
 
     let block = text_block("A中🙂", query(Box::new([FamilyName::SansSerif])));
@@ -143,7 +169,12 @@ fn rtl_items_have_descending_clusters() {
         ..Default::default()
     };
     let mut provider = MemoryFontProvider::new();
-    register(&mut provider, &spec, Box::new([FamilyName::SansSerif]), Default::default());
+    register(
+        &mut provider,
+        &spec,
+        Box::new([FamilyName::SansSerif]),
+        Default::default(),
+    );
     let shaper = RustShaper::new();
 
     let block = text_block("A\u{5D4}\u{5D5}", query(Box::new([FamilyName::SansSerif])));
@@ -167,7 +198,12 @@ fn colored_glyph_detected() {
         ..Default::default()
     };
     let mut provider = MemoryFontProvider::new();
-    register(&mut provider, &spec, Box::new([FamilyName::SansSerif]), Default::default());
+    register(
+        &mut provider,
+        &spec,
+        Box::new([FamilyName::SansSerif]),
+        Default::default(),
+    );
     let shaper = RustShaper::new();
 
     let block = text_block("AE", query(Box::new([FamilyName::SansSerif])));
@@ -188,9 +224,24 @@ fn font_matching_follows_css_rules() {
         weight: Weight(weight),
         stretch: Stretch::NORMAL,
     };
-    register(&mut provider, &spec, Box::new([FamilyName::Title("T".into())]), props(400.0, FontStyle::Normal));
-    register(&mut provider, &spec, Box::new([FamilyName::Title("T".into())]), props(700.0, FontStyle::Normal));
-    register(&mut provider, &spec, Box::new([FamilyName::Title("T".into())]), props(400.0, FontStyle::Italic));
+    register(
+        &mut provider,
+        &spec,
+        Box::new([FamilyName::Title("T".into())]),
+        props(400.0, FontStyle::Normal),
+    );
+    register(
+        &mut provider,
+        &spec,
+        Box::new([FamilyName::Title("T".into())]),
+        props(700.0, FontStyle::Normal),
+    );
+    register(
+        &mut provider,
+        &spec,
+        Box::new([FamilyName::Title("T".into())]),
+        props(400.0, FontStyle::Italic),
+    );
 
     let first_face_id = |p: &MemoryFontProvider, weight: f32, style: FontStyle| {
         let q = FontQuery {
@@ -226,15 +277,30 @@ fn han_fallback_prefers_content_language() {
         ..Default::default()
     };
     let mut provider = MemoryFontProvider::new();
-    register(&mut provider, &latin_spec(), Box::new([FamilyName::SansSerif]), Default::default());
+    register(
+        &mut provider,
+        &latin_spec(),
+        Box::new([FamilyName::SansSerif]),
+        Default::default(),
+    );
     // register the ja font first: naive registration order would pick it
-    register(&mut provider, &ja_spec, Box::new([FamilyName::Title("JA".into())]), Default::default());
-    register(&mut provider, &zh_spec, Box::new([FamilyName::Title("ZH".into())]), Default::default());
+    register(
+        &mut provider,
+        &ja_spec,
+        Box::new([FamilyName::Title("JA".into())]),
+        Default::default(),
+    );
+    register(
+        &mut provider,
+        &zh_spec,
+        Box::new([FamilyName::Title("ZH".into())]),
+        Default::default(),
+    );
     let shaper = RustShaper::new();
 
     let shaped_with = |language: &str| {
         let mut block = text_block("中", query(Box::new([FamilyName::SansSerif])));
-        block.property.language = Language::from_str(language);
+        block.property.language = language.parse().ok();
         ShapedBlock::<f32, ParsedFont>::new(&block, &provider, &shaper)
     };
 
@@ -266,15 +332,30 @@ fn han_fallback_distinguishes_zh_varieties() {
         ..Default::default()
     };
     let mut provider = MemoryFontProvider::new();
-    register(&mut provider, &latin_spec(), Box::new([FamilyName::SansSerif]), Default::default());
+    register(
+        &mut provider,
+        &latin_spec(),
+        Box::new([FamilyName::SansSerif]),
+        Default::default(),
+    );
     // register Hans first: variety-aware ordering must override registration order
-    register(&mut provider, &hans_spec, Box::new([FamilyName::Title("HANS".into())]), Default::default());
-    register(&mut provider, &hant_spec, Box::new([FamilyName::Title("HANT".into())]), Default::default());
+    register(
+        &mut provider,
+        &hans_spec,
+        Box::new([FamilyName::Title("HANS".into())]),
+        Default::default(),
+    );
+    register(
+        &mut provider,
+        &hant_spec,
+        Box::new([FamilyName::Title("HANT".into())]),
+        Default::default(),
+    );
     let shaper = RustShaper::new();
 
     let advance_with = |language: &str| {
         let mut block = text_block("骨", query(Box::new([FamilyName::SansSerif])));
-        block.property.language = Language::from_str(language);
+        block.property.language = language.parse().ok();
         let shaped = ShapedBlock::<f32, ParsedFont>::new(&block, &provider, &shaper);
         assert!(!shaped.glyphs()[0].flags.missing());
         shaped.glyphs()[0].advance.x
@@ -292,23 +373,28 @@ fn han_fallback_distinguishes_zh_varieties() {
 
 #[test]
 fn language_tag_validation() {
-    let lang = Language::from_str("zh-CN").unwrap();
+    let lang: Language = "zh-CN".parse().unwrap();
     assert_eq!(lang.as_str(), "zh-CN");
     assert_eq!(format!("{lang}"), "zh-CN");
-    assert!(Language::from_str("zh-Hans-CN").is_some());
-    assert!(Language::from_str("a-very-long-private-use-tag").is_none());
-    assert!(Language::from_str("中文").is_none());
+    assert!("zh-Hans-CN".parse::<Language>().is_ok());
+    assert!("a-very-long-private-use-tag".parse::<Language>().is_err());
+    assert!("中文".parse::<Language>().is_err());
 }
 
 #[test]
 fn block_script_and_language_reach_shaping() {
     let mut provider = MemoryFontProvider::new();
-    register(&mut provider, &latin_spec(), Box::new([FamilyName::SansSerif]), Default::default());
+    register(
+        &mut provider,
+        &latin_spec(),
+        Box::new([FamilyName::SansSerif]),
+        Default::default(),
+    );
     let shaper = RustShaper::new();
 
     let mut block = text_block("A", query(Box::new([FamilyName::SansSerif])));
     block.property.script = Some(Script(*b"Latn"));
-    block.property.language = Language::from_str("en-US");
+    block.property.language = "en-US".parse().ok();
     let shaped = ShapedBlock::<f32, ParsedFont>::new(&block, &provider, &shaper);
     assert_eq!(shaped.glyphs().len(), 1);
 }
