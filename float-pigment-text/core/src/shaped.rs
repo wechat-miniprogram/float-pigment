@@ -7,7 +7,45 @@ use std::sync::Arc;
 use float_pigment_css::length_num::LengthNum;
 use float_pigment_css::typing::WritingMode;
 
-use crate::model::TextOverflow;
+use crate::model::{TextOrientation, TextOverflow};
+
+/// Whether the character stays upright in vertical text with
+/// `text-orientation: mixed`, i.e. its UAX#50 Vertical_Orientation
+/// is Upright or TransformedUpright.
+fn orientation_upright(c: char) -> bool {
+    use icu_properties::props::VerticalOrientation;
+    let vo = icu_properties::CodePointMapData::<VerticalOrientation>::new().get(c);
+    matches!(
+        vo,
+        VerticalOrientation::Upright | VerticalOrientation::TransformedUpright
+    )
+}
+
+/// Split a text range into sub-ranges by orientation class
+/// (upright or sideways), for `text-orientation: mixed`.
+/// Returns `(range, vertical_shaping)` pairs.
+fn split_by_orientation_class(
+    range: Range<usize>,
+    text: &str,
+) -> Vec<(Range<usize>, bool)> {
+    let mut result = Vec::new();
+    let mut start = range.start;
+    let mut upright = None;
+    for (offset, c) in text[range.clone()].char_indices() {
+        let cur = orientation_upright(c);
+        if let Some(prev) = upright {
+            if cur != prev {
+                result.push((start..range.start + offset, prev));
+                start = range.start + offset;
+            }
+        }
+        upright = Some(cur);
+    }
+    if let Some(prev) = upright {
+        result.push((start..range.end, prev));
+    }
+    result
+}
 
 use crate::font::{FontFace, FontFaceId, FontProvider, FontQuery, ResolvedFontList};
 use crate::itemize::{itemize, TextItem};
@@ -215,7 +253,8 @@ impl<L: LengthNum, F: FontFace> ShapedBlock<L, F> {
         let itemized = itemize(block);
         let flattened = itemized.flattened;
         let vertical = !matches!(block.property.writing_mode, WritingMode::HorizontalTb)
-            && !matches!(block.property.text_orientation, crate::model::TextOrientation::Sideways);
+            && !matches!(block.property.text_orientation, TextOrientation::Sideways);
+        let mixed = matches!(block.property.text_orientation, TextOrientation::Mixed);
 
         let mut face_indexes: HashMap<FontFaceId, u16> = HashMap::new();
         let mut faces: Vec<F> = Vec::new();
@@ -267,49 +306,65 @@ impl<L: LengthNum, F: FontFace> ShapedBlock<L, F> {
                     font_size,
                     ..
                 } = item;
-                let options = ShapeOptions {
-                    size: font_size.to_f32(),
-                    direction: *direction,
-                    script: block.property.script,
-                    language: block.property.language,
-                    vertical,
+                // `text-orientation: mixed` in vertical writing shapes
+                // upright scripts vertically and horizontal scripts sideways
+                let sub_items: Vec<(Range<usize>, bool)> = if vertical && mixed {
+                    split_by_orientation_class(
+                        flattened_range.start as usize..flattened_range.end as usize,
+                        &flattened.text,
+                    )
+                } else {
+                    vec![(flattened_range.start as usize..flattened_range.end as usize, vertical)]
                 };
-                let mut item_faces = resolved_cache[cache_index].1.clone();
-                let mut runs = Vec::new();
-                shape_with_fallback(
-                    &flattened.text,
-                    flattened_range.start as usize..flattened_range.end as usize,
-                    &mut item_faces,
-                    0,
-                    provider,
-                    shaper,
-                    &options,
-                    &mut runs,
-                );
-                resolved_cache[cache_index].1 = item_faces;
-                let glyph_start = glyphs.len() as u32;
-                for run in runs {
-                    let face_index = dedup_face(&run.face, &mut face_indexes, &mut faces);
-                    for mut glyph in run.glyphs {
-                        glyph.face_index = face_index;
-                        let whitespace = flattened.text[glyph.cluster as usize..]
-                            .chars()
-                            .next()
-                            .map(|c| c.is_whitespace())
-                            .unwrap_or(false);
-                        if whitespace {
-                            glyph.flags = glyph.flags.union(GlyphFlags::WHITESPACE);
+                for (sub_range, sub_vertical) in sub_items {
+                    let options = ShapeOptions {
+                        size: font_size.to_f32(),
+                        direction: *direction,
+                        script: block.property.script,
+                        language: block.property.language,
+                        vertical: sub_vertical,
+                    };
+                    let mut item_faces = resolved_cache[cache_index].1.clone();
+                    let mut runs = Vec::new();
+                    shape_with_fallback(
+                        &flattened.text,
+                        sub_range.clone(),
+                        &mut item_faces,
+                        0,
+                        provider,
+                        shaper,
+                        &options,
+                        &mut runs,
+                    );
+                    resolved_cache[cache_index].1 = item_faces;
+                    let sideways = !sub_vertical && vertical;
+                    let glyph_start = glyphs.len() as u32;
+                    for run in runs {
+                        let face_index = dedup_face(&run.face, &mut face_indexes, &mut faces);
+                        for mut glyph in run.glyphs {
+                            glyph.face_index = face_index;
+                            let whitespace = flattened.text[glyph.cluster as usize..]
+                                .chars()
+                                .next()
+                                .map(|c| c.is_whitespace())
+                                .unwrap_or(false);
+                            if whitespace {
+                                glyph.flags = glyph.flags.union(GlyphFlags::WHITESPACE);
+                            }
+                            if sideways {
+                                glyph.flags = glyph.flags.union(GlyphFlags::SIDEWAYS);
+                            }
+                            glyphs.push(glyph);
                         }
-                        glyphs.push(glyph);
                     }
+                    items.push(ShapedTextItem {
+                        flattened_range: sub_range.start as u32..sub_range.end as u32,
+                        glyph_range: glyph_start..glyphs.len() as u32,
+                        bidi_level: *bidi_level,
+                        direction: *direction,
+                        font_size: font_size.to_f32(),
+                    });
                 }
-                items.push(ShapedTextItem {
-                    flattened_range: flattened_range.clone(),
-                    glyph_range: glyph_start..glyphs.len() as u32,
-                    bidi_level: *bidi_level,
-                    direction: *direction,
-                    font_size: font_size.to_f32(),
-                });
             }
             texts.push(ShapedText {
                 flattened_range,

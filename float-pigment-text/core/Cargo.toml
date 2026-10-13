@@ -27,6 +27,7 @@ log = "0.4"
 unicode-bidi = "0.3"
 unicode-linebreak = "0.1"
 unicode-segmentation = "1.6"
+icu_properties = { version = "2.3", features = ["compiled_data"] }
 harfrust = { version = "0.13", optional = true }
 skrifa = { version = "0.47", optional = true, default-features = false, features = ["std"] }
 read-fonts = { version = "0.44", optional = true, default-features = false, features = ["std"] }

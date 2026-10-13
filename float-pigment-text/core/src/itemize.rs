@@ -35,6 +35,40 @@ pub(crate) struct FlattenedText {
     pub(crate) text_ranges: Vec<Range<u32>>,
 }
 
+/// Whether the text contains any strong bidi character.
+fn has_strong_char(text: &str) -> bool {
+    use unicode_bidi::BidiClass;
+    text.chars().any(|c| {
+        matches!(
+            unicode_bidi::bidi_class(c),
+            BidiClass::L | BidiClass::R | BidiClass::AL
+        )
+    })
+}
+
+/// Guess the base direction from the content script or language,
+/// e.g. Arabic and Hebrew content defaults to RTL.
+fn script_or_language_direction<L: LengthNum>(block: &Block<L>) -> ResolvedDirection {
+    const RTL_SCRIPTS: [&[u8; 4]; 8] = [
+        b"Arab", b"Armi", b"Avst", b"Hebr", b"Nko ", b"Rohg", b"Syrc", b"Thaa",
+    ];
+    if let Some(script) = block.property.script {
+        if RTL_SCRIPTS.contains(&&script.0) {
+            return ResolvedDirection::RTL;
+        }
+    }
+    const RTL_LANGUAGES: [&str; 11] = [
+        "ar", "arc", "dv", "fa", "he", "ks", "nqo", "ps", "sd", "ug", "yi",
+    ];
+    if let Some(language) = block.property.language {
+        let primary = language.as_str().split(['-', ',']).next().unwrap_or_default();
+        if RTL_LANGUAGES.contains(&primary.to_ascii_lowercase().as_str()) {
+            return ResolvedDirection::RTL;
+        }
+    }
+    ResolvedDirection::LTR
+}
+
 /// The itemization result.
 #[derive(Debug, Clone)]
 pub(crate) struct Itemized<L: LengthNum> {
@@ -145,6 +179,17 @@ pub(crate) fn itemize<L: LengthNum>(block: &Block<L>) -> Itemized<L> {
             Direction::RTL => ResolvedDirection::RTL,
             _ => ResolvedDirection::LTR,
         });
+
+    // for `direction: auto` content without any strong character
+    // (empty or neutral-only text), UAX#9 leaves LTR as the default;
+    // prefer a guess from the content script/language instead
+    let base_direction = if block.property.direction == Direction::Auto
+        && !has_strong_char(&text)
+    {
+        script_or_language_direction(block)
+    } else {
+        base_direction
+    };
 
     Itemized {
         flattened: FlattenedText {

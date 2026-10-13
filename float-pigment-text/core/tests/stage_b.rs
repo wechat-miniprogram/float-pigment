@@ -13,6 +13,7 @@ use float_pigment_text_layout::model::{
     TextOverflow,
 };
 use float_pigment_text_layout::rust_font::{MemoryFontProvider, ParsedFont, RustShaper};
+use float_pigment_text_layout::shaper::{Language, Script};
 use float_pigment_text_layout::ShapedBlock;
 use float_pigment_css::typing::{Direction, Overflow, TextAlign, WhiteSpace, WordBreak, WritingMode};
 
@@ -28,6 +29,8 @@ fn spec() -> FontSpec {
             ('\u{5D4}', 500), // ה
             ('\u{5D5}', 500), // ו
             ('…', 400),
+            ('中', 500),
+            ('1', 500),
         ],
         ..Default::default()
     }
@@ -530,14 +533,31 @@ fn writing_mode_and_orientation_combinations() {
     let horizontal = layout_with_mode(WritingMode::HorizontalTb, TextOrientation::Upright, Direction::LTR);
     assert_close(horizontal.size.width, 16.0);
     assert_close(horizontal.size.height, 16.0);
-    // vertical-lr mixed: glyphs advance downward, lines stack left-to-right
-    let vlr = layout_with_mode(WritingMode::VerticalLr, TextOrientation::Mixed, Direction::LTR);
+    // vertical-lr mixed with upright content: glyphs advance downward,
+    // lines stack left-to-right
+    let vlr = layout_text(
+        &provider, &shaper, &query, "中中", 1000.0,
+        BlockProperty {
+            writing_mode: WritingMode::VerticalLr,
+            text_orientation: TextOrientation::Mixed,
+            direction: Direction::LTR,
+            ..Default::default()
+        },
+    );
     assert_eq!(vlr.lines.len(), 1);
     assert_eq!(vlr.glyphs.len(), 2);
     assert!(vlr.glyphs[1].origin.y > vlr.glyphs[0].origin.y);
     assert!(vlr.size.width > 0.0 && vlr.size.height > vlr.size.width);
     // vertical-rl mixed: the line is placed from the right edge
-    let vrl = layout_with_mode(WritingMode::VerticalRl, TextOrientation::Mixed, Direction::LTR);
+    let vrl = layout_text(
+        &provider, &shaper, &query, "中中", 1000.0,
+        BlockProperty {
+            writing_mode: WritingMode::VerticalRl,
+            text_orientation: TextOrientation::Mixed,
+            direction: Direction::LTR,
+            ..Default::default()
+        },
+    );
     assert_eq!(vrl.lines.len(), 1);
     assert_close(vrl.lines[0].baseline_offset, vrl.size.width - vlr.lines[0].baseline_offset);
     // vertical-lr sideways: horizontal shaping, advances go downward too
@@ -547,4 +567,69 @@ fn writing_mode_and_orientation_combinations() {
     // upright behaves like mixed in the current implementation
     let upright = layout_with_mode(WritingMode::VerticalLr, TextOrientation::Upright, Direction::LTR);
     assert_eq!(upright.glyphs.len(), vlr.glyphs.len());
+}
+
+
+#[test]
+fn neutral_text_direction_from_language_or_script() {
+    let (provider, shaper, query) = setup();
+    let start_x = |language: Option<Language>, script: Option<Script>| {
+        let result = layout_text(
+            &provider, &shaper, &query, "1", 100.0,
+            BlockProperty {
+                direction: Direction::Auto,
+                text_align: TextAlign::Start,
+                language,
+                script,
+                ..Default::default()
+            },
+        );
+        result.glyphs[0].origin.x
+    };
+    // neutral-only content (a digit) with no hint: LTR default
+    assert_close(start_x(None, None), 0.0);
+    // Arabic language/script hints imply RTL
+    assert_close(start_x(Language::from_str("ar"), None), 92.0);
+    assert_close(start_x(None, Some(Script(*b"Arab"))), 92.0);
+    assert_close(start_x(None, Some(Script(*b"Hebr"))), 92.0);
+    // strong content overrides the hint
+    let strong = layout_text(
+        &provider, &shaper, &query, "A", 100.0,
+        BlockProperty {
+            direction: Direction::Auto,
+            text_align: TextAlign::Start,
+            language: Language::from_str("ar"),
+            ..Default::default()
+        },
+    );
+    assert_close(strong.glyphs[0].origin.x, 0.0);
+}
+
+#[test]
+fn mixed_orientation_splits_by_script() {
+    let (provider, shaper, query) = setup();
+    let result = layout_text(
+        &provider, &shaper, &query, "A中", 1000.0,
+        BlockProperty {
+            writing_mode: WritingMode::VerticalLr,
+            text_orientation: TextOrientation::Mixed,
+            direction: Direction::LTR,
+            ..Default::default()
+        },
+    );
+    assert_eq!(result.glyphs.len(), 2);
+    let latin = result.shaped_glyph(result.glyphs[0].glyph_ref);
+    let han = result.shaped_glyph(result.glyphs[1].glyph_ref);
+    // the Latin glyph is shaped horizontally (sideways), the Han upright
+    assert!(latin.flags.sideways());
+    assert!(!han.flags.sideways());
+    // inline advance: 8px from the horizontal advance for Latin,
+    // 16px synthesized vertical advance for Han
+    assert_close(latin.advance.x, 8.0);
+    assert_close(-han.advance.y, 16.0);
+    // upright glyphs get a synthesized vertical origin offset,
+    // sideways glyphs keep horizontal offsets (zero in the test font)
+    assert_close(latin.offset.x, 0.0);
+    assert_close(latin.offset.y, 0.0);
+    assert!(han.offset.y < 0.0);
 }

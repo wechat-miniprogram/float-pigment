@@ -25,7 +25,7 @@ pub(crate) fn glyph_inline_advance<L: LengthNum, F: FontFace>(
     shaped: &ShapedBlock<L, F>,
     glyph: &ShapedGlyph,
 ) -> L {
-    if is_vertical_shaping(shaped) {
+    if is_vertical_shaping(shaped) && !glyph.flags.sideways() {
         L::from_f32(-glyph.advance.y)
     } else {
         L::from_f32(glyph.advance.x)
@@ -730,6 +730,9 @@ pub(crate) fn justify<L: LengthNum, F: FontFace>(
                     first_glyph_seen = true;
                     let glyph = &shaped.glyphs[glyph_ref as usize];
                     let origin = if horizontal {
+                        to_physical(pen + L::from_f32(glyph.offset.x), baseline - L::from_f32(glyph.offset.y))
+                    } else if glyph.flags.sideways() {
+                        // shaped horizontally: offsets map to the inline axis
                         to_physical(pen + L::from_f32(glyph.offset.x), baseline - L::from_f32(glyph.offset.y))
                     } else {
                         to_physical(pen + L::from_f32(glyph.offset.y), baseline + L::from_f32(glyph.offset.x))

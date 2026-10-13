@@ -87,6 +87,10 @@ impl GlyphFlags {
     pub const MISSING: Self = Self(1 << 1);
     /// The glyph is a whitespace.
     pub const WHITESPACE: Self = Self(1 << 2);
+    /// The glyph is shaped horizontally within vertical text
+    /// (`text-orientation: mixed` for horizontal scripts);
+    /// it should be rendered rotated 90 degrees.
+    pub const SIDEWAYS: Self = Self(1 << 3);
 
     /// Whether all markers in `other` are set.
     pub const fn contains(self, other: Self) -> bool {
@@ -111,6 +115,11 @@ impl GlyphFlags {
     /// Whether the glyph is a whitespace.
     pub const fn whitespace(self) -> bool {
         self.contains(Self::WHITESPACE)
+    }
+
+    /// Whether the glyph is sideways within vertical text.
+    pub const fn sideways(self) -> bool {
+        self.contains(Self::SIDEWAYS)
     }
 }
 
