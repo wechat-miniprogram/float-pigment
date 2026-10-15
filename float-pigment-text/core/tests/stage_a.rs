@@ -92,11 +92,11 @@ fn basic_shaping_metrics_and_flags() {
     assert_eq!(glyphs.len(), 3);
     assert_eq!(glyphs[0].glyph_id, spec.glyph_id_of('A'));
     assert_eq!(glyphs[0].cluster, 0);
-    assert_close(glyphs[0].advance.x, 9.6);
+    assert_close(glyphs[0].advance, 9.6);
     assert!(!glyphs[0].flags.whitespace());
     assert_eq!(glyphs[1].glyph_id, spec.glyph_id_of(' '));
     assert_eq!(glyphs[1].cluster, 1);
-    assert_close(glyphs[1].advance.x, 4.0);
+    assert_close(glyphs[1].advance, 4.0);
     assert!(glyphs[1].flags.whitespace());
     assert_eq!(glyphs[2].glyph_id, spec.glyph_id_of('A'));
     assert_eq!(glyphs[2].cluster, 2);
@@ -154,7 +154,7 @@ fn fallback_to_covering_font() {
     assert_eq!(glyphs[1].face_index, 1);
     assert_eq!(glyphs[1].glyph_id, cjk.glyph_id_of('中'));
     assert_eq!(glyphs[1].cluster, 1);
-    assert_close(glyphs[1].advance.x, 16.0);
+    assert_close(glyphs[1].advance, 16.0);
     // non-BMP char via format 12 cmap, 4 UTF-8 bytes
     assert_eq!(glyphs[2].face_index, 1);
     assert_eq!(glyphs[2].glyph_id, cjk.glyph_id_of('\u{1F642}'));
@@ -307,16 +307,16 @@ fn han_fallback_prefers_content_language() {
     let zh = shaped_with("zh-CN");
     assert_eq!(zh.glyphs().len(), 1);
     assert!(!zh.glyphs()[0].flags.missing());
-    assert_close(zh.glyphs()[0].advance.x, 16.0); // zh font advance 1000
+    assert_close(zh.glyphs()[0].advance, 16.0); // zh font advance 1000
 
     let ja = shaped_with("ja-JP");
     assert!(!ja.glyphs()[0].flags.missing());
-    assert_close(ja.glyphs()[0].advance.x, 14.4); // ja font advance 900
+    assert_close(ja.glyphs()[0].advance, 14.4); // ja font advance 900
 
     // non-Han content language falls back in registration order (ja first)
     let en = shaped_with("en-US");
     assert!(!en.glyphs()[0].flags.missing());
-    assert_close(en.glyphs()[0].advance.x, 14.4);
+    assert_close(en.glyphs()[0].advance, 14.4);
 }
 
 #[test]
@@ -358,7 +358,7 @@ fn han_fallback_distinguishes_zh_varieties() {
         block.property.language = language.parse().ok();
         let shaped = ShapedBlock::<f32, ParsedFont>::new(&block, &provider, &shaper);
         assert!(!shaped.glyphs()[0].flags.missing());
-        shaped.glyphs()[0].advance.x
+        shaped.glyphs()[0].advance
     };
 
     // simplified conventions: CN/SG and bare zh

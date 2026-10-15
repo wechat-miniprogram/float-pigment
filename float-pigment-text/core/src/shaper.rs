@@ -142,8 +142,10 @@ impl GlyphFlags {
 /// A shaped glyph.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShapedGlyph {
-    /// The advance of the pen position.
-    pub advance: euclid::Vector2D<f32, UnknownUnit>,
+    /// The advance of the pen position along the shaping direction:
+    /// the horizontal advance for horizontal shaping, and the negated
+    /// vertical advance (downward positive) for vertical shaping.
+    pub advance: f32,
     /// The origin offset relative to the pen position.
     pub offset: euclid::Vector2D<f32, UnknownUnit>,
     /// The UTF-8 byte offset of the cluster start in the flattened text.
@@ -161,7 +163,8 @@ pub struct ShapedGlyph {
 pub struct GlyphRun<F: FontFace> {
     /// The font face used by this run.
     pub face: F,
-    /// The glyphs of this run, in logical order.
+    /// The glyphs of this run, in the shaper output order: visual order
+    /// (descending clusters) for RTL text, logical order otherwise.
     pub glyphs: Vec<ShapedGlyph>,
 }
 

@@ -11,40 +11,68 @@ use crate::geometry::{Point, Rect, Size};
 use crate::layout::{
     LayoutResult, LineLayout, PositionedGlyph, PositionedItemRect, EXTRA_GLYPH_TAG,
 };
-use crate::model::{TextOrientation, VerticalAlign};
+use crate::model::VerticalAlign;
 use crate::shaped::ShapedBlock;
 use crate::shaper::{ResolvedDirection, ShapedGlyph};
 
-/// Whether the block is shaped vertically (vertical writing mode and not
-/// sideways orientation): glyph advances go along the block direction.
-pub(crate) fn is_vertical_shaping<L: LengthNum, F: FontFace>(shaped: &ShapedBlock<L, F>) -> bool {
-    !matches!(shaped.property.writing_mode, WritingMode::HorizontalTb)
-        && !matches!(shaped.property.text_orientation, TextOrientation::Sideways)
+/// The advance of a glyph along the inline axis.
+pub(crate) fn glyph_inline_advance<L: LengthNum>(glyph: &ShapedGlyph) -> L {
+    L::from_f32(glyph.advance)
 }
 
-/// The advance of a glyph along the inline axis.
-pub(crate) fn glyph_inline_advance<L: LengthNum, F: FontFace>(
-    shaped: &ShapedBlock<L, F>,
-    glyph: &ShapedGlyph,
-) -> L {
-    if is_vertical_shaping(shaped) && !glyph.flags.sideways() {
-        L::from_f32(-glyph.advance.y)
-    } else {
-        L::from_f32(glyph.advance.x)
+/// The content of a line atom, packed into a single u32: the top two
+/// bits are the kind tag, the rest is the payload (an index or a
+/// flattened text offset).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct AtomContent(u32);
+
+impl AtomContent {
+    const TAG_MASK: u32 = 3 << 30;
+    const TAG_GLYPH: u32 = 0;
+    const TAG_ITEM: u32 = 1 << 30;
+    const TAG_SPACING: u32 = 2 << 30;
+    const TAG_FORCED_BREAK: u32 = 3 << 30;
+
+    /// A glyph, indexing `ShapedBlock::glyphs`.
+    fn glyph(index: u32) -> Self {
+        debug_assert!(index & Self::TAG_MASK == 0);
+        Self(index)
+    }
+    /// An inline item, indexing `ShapedBlock::items`.
+    fn item(index: u32) -> Self {
+        debug_assert!(index & Self::TAG_MASK == 0);
+        Self(Self::TAG_ITEM | index)
+    }
+    /// A fixed spacing.
+    const SPACING: Self = Self(Self::TAG_SPACING);
+    /// A forced line break marker, holding the flattened text offset of
+    /// the newline character.
+    fn forced_break(offset: u32) -> Self {
+        debug_assert!(offset & Self::TAG_MASK == 0);
+        Self(Self::TAG_FORCED_BREAK | offset)
+    }
+
+    fn glyph_index(self) -> Option<u32> {
+        (self.0 & Self::TAG_MASK == Self::TAG_GLYPH).then_some(self.0)
+    }
+    fn item_index(self) -> Option<u32> {
+        (self.0 & Self::TAG_MASK == Self::TAG_ITEM).then_some(self.0 & !Self::TAG_MASK)
+    }
+    fn forced_break_offset(self) -> Option<u32> {
+        (self.0 & Self::TAG_MASK == Self::TAG_FORCED_BREAK).then_some(self.0 & !Self::TAG_MASK)
     }
 }
 
-/// The content of a line atom.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) enum AtomContent {
-    /// A glyph, indexing `ShapedBlock::glyphs`.
-    Glyph(u32),
-    /// An inline item, indexing `ShapedBlock::items`.
-    Item(u32),
-    /// A fixed spacing.
-    Spacing,
-    /// A forced line break marker (from a newline character).
-    ForcedBreak,
+const ATOM_BREAK_BEFORE: u8 = 1 << 0;
+const ATOM_EMERGENCY_BREAKABLE: u8 = 1 << 1;
+const ATOM_WORD_START: u8 = 1 << 2;
+const ATOM_TRIMMABLE: u8 = 1 << 3;
+
+fn atom_flags(break_before: bool, emergency_breakable: bool, word_start: bool, trimmable: bool) -> u8 {
+    (break_before as u8 * ATOM_BREAK_BEFORE)
+        | (emergency_breakable as u8 * ATOM_EMERGENCY_BREAKABLE)
+        | (word_start as u8 * ATOM_WORD_START)
+        | (trimmable as u8 * ATOM_TRIMMABLE)
 }
 
 /// A line-breakable unit, in abstract axis coordinates.
@@ -53,20 +81,31 @@ pub(crate) struct Atom<L: LengthNum> {
     pub(crate) content: AtomContent,
     /// The inline advance, including letter/word spacing for glyphs.
     pub(crate) advance: L,
-    /// The font size, for glyph atoms.
-    pub(crate) font_size: f32,
     /// The bidi level of the owning item.
     pub(crate) bidi_level: u8,
+    /// The `ATOM_*` markers.
+    pub(crate) flags: u8,
+}
+
+impl<L: LengthNum> Atom<L> {
     /// Whether a line break is allowed before this atom.
-    pub(crate) break_before: bool,
+    fn break_before(&self) -> bool {
+        self.flags & ATOM_BREAK_BEFORE != 0
+    }
     /// Whether an emergency break is allowed before this atom when no
     /// legal break point exists (word-break / overflow-wrap semantics,
     /// suppressed when wrapping is disabled).
-    pub(crate) emergency_breakable: bool,
+    fn emergency_breakable(&self) -> bool {
+        self.flags & ATOM_EMERGENCY_BREAKABLE != 0
+    }
     /// Whether this atom is a word start, i.e. a justification stretch point.
-    pub(crate) word_start: bool,
+    fn word_start(&self) -> bool {
+        self.flags & ATOM_WORD_START != 0
+    }
     /// Whether this atom is collapsible whitespace, trimmed at line edges.
-    pub(crate) trimmable: bool,
+    fn trimmable(&self) -> bool {
+        self.flags & ATOM_TRIMMABLE != 0
+    }
 }
 
 /// A broken line, in abstract axis coordinates.
@@ -80,10 +119,39 @@ pub(crate) struct Line<L: LengthNum> {
     pub(crate) mandatory_break: bool,
     /// Whether the line is truncated with an ellipsis.
     pub(crate) ellipsized: bool,
+    /// The flattened text offset where the line content starts,
+    /// excluding trimmed whitespace. For an empty line between newlines,
+    /// this is the position of the newline that created the line.
+    pub(crate) text_start: u32,
 }
 
 fn is_forced_break_char(c: char) -> bool {
     matches!(c, '\n' | '\r' | '\u{2028}' | '\u{2029}')
+}
+
+/// Compute the flattened text offset where the line content starts.
+/// `fallback` is used when the line has no content atoms, i.e. an empty
+/// line created by a forced break.
+fn line_text_start<L: LengthNum, F: FontFace>(
+    shaped: &ShapedBlock<L, F>,
+    atoms: &[Atom<L>],
+    fallback: Option<u32>,
+) -> u32 {
+    for atom in atoms {
+        let cluster = atom
+            .content
+            .glyph_index()
+            .map(|g| shaped.glyphs[g as usize].cluster)
+            .or_else(|| {
+                atom.content
+                    .item_index()
+                    .map(|i| shaped.items[i as usize].flattened_offset)
+            });
+        if let Some(c) = cluster {
+            return c;
+        }
+    }
+    fallback.unwrap_or(0)
 }
 
 struct AtomBuilder<'a, L: LengthNum, F: FontFace> {
@@ -96,21 +164,16 @@ impl<'a, L: LengthNum, F: FontFace> AtomBuilder<'a, L, F> {
     fn spacing(&mut self, width: L, bidi_level: u8) {
         if width > L::zero() {
             self.atoms.push(Atom {
-                content: AtomContent::Spacing,
+                content: AtomContent::SPACING,
                 advance: width,
-                font_size: 0.0,
                 bidi_level,
-                break_before: false,
-                emergency_breakable: false,
-                word_start: false,
-                trimmable: false,
+                flags: 0,
             });
         }
     }
 
     fn glyph_inline_advance(&self, glyph_index: u32) -> L {
-        let glyph = &self.shaped.glyphs[glyph_index as usize];
-        glyph_inline_advance(self.shaped, glyph)
+        glyph_inline_advance(&self.shaped.glyphs[glyph_index as usize])
     }
 
     fn text(&mut self, text_index: u32) {
@@ -147,18 +210,41 @@ impl<'a, L: LengthNum, F: FontFace> AtomBuilder<'a, L, F> {
         );
         let mut prev_whitespace = false;
         let mut prev_cluster: Option<u32> = None;
-        let mut pending_forced_break = false;
+        let mut prev_was_cr = false;
         let mut first_glyph = true;
-        for item in text.items.iter() {
+        for (item_index, item) in text.items.iter().enumerate() {
             let level = item.bidi_level;
-            for glyph_index in item.glyph_range.clone() {
+            // line breaking operates in logical order: glyphs of items
+            // shaped in visual order (horizontal RTL) are iterated reversed
+            let glyph_range = self.shaped.item_glyph_range(text_index as usize, item_index);
+            let glyph_count = glyph_range.end - glyph_range.start;
+            for k in 0..glyph_count {
+                let glyph_index = if item.visual_order {
+                    glyph_range.end - 1 - k
+                } else {
+                    glyph_range.start + k
+                };
                 let glyph = &self.shaped.glyphs[glyph_index as usize];
                 let ch = flattened[glyph.cluster as usize..].chars().next();
                 if newline_breaks && ch.map(is_forced_break_char).unwrap_or(false) {
-                    pending_forced_break = true;
+                    // each newline produces its own break marker (empty lines
+                    // between consecutive newlines are preserved), except
+                    // that "\r\n" is a single line break (CSS newline
+                    // normalization)
+                    let c = ch.unwrap_or('\n');
+                    if !(c == '\n' && prev_was_cr) {
+                        self.atoms.push(Atom {
+                            content: AtomContent::forced_break(glyph.cluster),
+                            advance: L::zero(),
+                            bidi_level: level,
+                            flags: 0,
+                        });
+                    }
+                    prev_was_cr = c == '\r';
                     prev_whitespace = true;
                     continue;
                 }
+                prev_was_cr = false;
                 let whitespace = glyph.flags.whitespace();
                 if collapse && whitespace && prev_whitespace {
                     continue;
@@ -217,20 +303,6 @@ impl<'a, L: LengthNum, F: FontFace> AtomBuilder<'a, L, F> {
                     is_start && !first_glyph
                 };
 
-                if pending_forced_break {
-                    pending_forced_break = false;
-                    self.atoms.push(Atom {
-                        content: AtomContent::ForcedBreak,
-                        advance: L::zero(),
-                        font_size: item.font_size,
-                        bidi_level: level,
-                        break_before: false,
-                        emergency_breakable: false,
-                        word_start: false,
-                        trimmable: false,
-                    });
-                }
-
                 let mut advance = self.glyph_inline_advance(glyph_index);
                 if !first_glyph {
                     advance += property.letter_spacing;
@@ -240,28 +312,17 @@ impl<'a, L: LengthNum, F: FontFace> AtomBuilder<'a, L, F> {
                 }
                 first_glyph = false;
                 self.atoms.push(Atom {
-                    content: AtomContent::Glyph(glyph_index),
+                    content: AtomContent::glyph(glyph_index),
                     advance,
-                    font_size: item.font_size,
                     bidi_level: level,
-                    break_before,
-                    emergency_breakable: property.word_break == WordBreak::BreakWord && !no_wrap,
-                    word_start,
-                    trimmable: collapse && whitespace,
+                    flags: atom_flags(
+                        break_before,
+                        property.word_break == WordBreak::BreakWord && !no_wrap,
+                        word_start,
+                        collapse && whitespace,
+                    ),
                 });
             }
-        }
-        if pending_forced_break {
-            self.atoms.push(Atom {
-                content: AtomContent::ForcedBreak,
-                advance: L::zero(),
-                font_size: 0.0,
-                bidi_level: 0,
-                break_before: false,
-                emergency_breakable: false,
-                word_start: false,
-                trimmable: false,
-            });
         }
         self.spacing(
             text.spacing.inline_end,
@@ -283,7 +344,7 @@ impl<'a, L: LengthNum, F: FontFace> AtomBuilder<'a, L, F> {
             }
             allowed
         };
-        if content.property.white_space == WhiteSpace::NoWrap {
+        if content.no_wrap {
             break_before = false;
         }
         self.spacing(content.spacing.inline_start, item.bidi_level);
@@ -293,19 +354,16 @@ impl<'a, L: LengthNum, F: FontFace> AtomBuilder<'a, L, F> {
             content.size.width
         };
         self.atoms.push(Atom {
-            content: AtomContent::Item(item_index),
+            content: AtomContent::item(item_index),
             advance,
-            font_size: 0.0,
             bidi_level: item.bidi_level,
-            break_before,
-            emergency_breakable: false,
-            word_start: false,
-            trimmable: false,
+            flags: atom_flags(break_before, false, false, false),
         });
         self.spacing(content.spacing.inline_end, item.bidi_level);
     }
 }
 
+/// Build the atom list of the block, in logical (text) order.
 fn build_atoms<L: LengthNum, F: FontFace>(shaped: &ShapedBlock<L, F>) -> Vec<Atom<L>> {
     let vertical_layout = !matches!(shaped.property.writing_mode, WritingMode::HorizontalTb);
     let mut builder = AtomBuilder {
@@ -371,7 +429,7 @@ pub(crate) fn break_lines<L: LengthNum, F: FontFace>(
             let ellipsis_advance = shaped
                 .ellipsis_glyphs
                 .as_ref()
-                .map(|glyphs| length_sum(glyphs.iter().map(|g| glyph_inline_advance(shaped, g))))
+                .map(|glyphs| length_sum(glyphs.iter().map(glyph_inline_advance)))
                 .unwrap_or(L::zero());
             Some((line_index, ellipsis_advance))
         } else {
@@ -386,6 +444,11 @@ pub(crate) fn break_lines<L: LengthNum, F: FontFace>(
     let mut trailing_trim = L::zero();
     // the last legal break point: atom index in cur, plus width snapshots
     let mut last_break: Option<(usize, L, L)> = None;
+    // the start position of the empty line created by a forced break
+    let mut forced_break_pos: Option<u32> = None;
+    // set when the last processed atom is a forced break: a trailing
+    // newline creates an empty last line
+    let mut trailing_break: Option<u32> = None;
 
     fn content_width<L: LengthNum>(total: L, trim: L) -> L {
         total - trim
@@ -395,7 +458,7 @@ pub(crate) fn break_lines<L: LengthNum, F: FontFace>(
         ($mandatory:expr, $ellipsized:expr) => {{
             // trim trailing whitespace
             while let Some(atom) = cur.last() {
-                if atom.trimmable {
+                if atom.trimmable() {
                     cur_width -= atom.advance;
                     trailing_trim -= atom.advance;
                     cur.pop();
@@ -404,11 +467,13 @@ pub(crate) fn break_lines<L: LengthNum, F: FontFace>(
                 }
             }
             if !cur.is_empty() || $mandatory {
+                let text_start = line_text_start(shaped, &cur, forced_break_pos.take());
                 lines.push(Line {
                     atoms: std::mem::take(&mut cur),
                     width: cur_width,
                     mandatory_break: $mandatory,
                     ellipsized: $ellipsized,
+                    text_start,
                 });
             }
             cur_width = L::zero();
@@ -418,10 +483,19 @@ pub(crate) fn break_lines<L: LengthNum, F: FontFace>(
     }
 
     for atom in atoms {
-        if atom.content == AtomContent::ForcedBreak {
+        if let Some(cluster) = atom.content.forced_break_offset() {
+            // the line created by this break starts right after the newline
+            let newline_len = shaped.flattened[cluster as usize..]
+                .chars()
+                .next()
+                .map(|c| c.len_utf8() as u32)
+                .unwrap_or(0);
+            forced_break_pos = Some(cluster);
+            trailing_break = Some(cluster + newline_len);
             flush!(true, false);
             continue;
         }
+        trailing_break = None;
 
         // ellipsis line: hard-truncate when exceeding the limit
         if let Some((ellipsis_line, ellipsis_advance)) = ellipsis {
@@ -431,7 +505,7 @@ pub(crate) fn break_lines<L: LengthNum, F: FontFace>(
                     // drop trailing trimmables first: their width is already
                     // excluded from the content width
                     while let Some(atom) = cur.last() {
-                        if atom.trimmable {
+                        if atom.trimmable() {
                             trailing_trim -= atom.advance;
                             cur_width -= atom.advance;
                             cur.pop();
@@ -439,11 +513,10 @@ pub(crate) fn break_lines<L: LengthNum, F: FontFace>(
                             break;
                         }
                     }
-                    let cluster_of = |atom: &Atom<L>| match atom.content {
-                        AtomContent::Glyph(glyph_ref) => {
-                            Some(shaped.glyphs[glyph_ref as usize].cluster)
-                        }
-                        _ => None,
+                    let cluster_of = |atom: &Atom<L>| {
+                        atom.content
+                            .glyph_index()
+                            .map(|glyph_ref| shaped.glyphs[glyph_ref as usize].cluster)
                     };
                     let mut width = cur_width;
                     while width + ellipsis_advance > inline_size {
@@ -473,61 +546,67 @@ pub(crate) fn break_lines<L: LengthNum, F: FontFace>(
         }
 
         // the atom may still overflow after a break: re-check in a loop
-        loop {
-            let new_content_width = content_width(cur_width, trailing_trim) + atom.advance;
-            if new_content_width <= inline_size || cur.is_empty() {
-                break;
-            }
-            // the freshest break point is right before this atom
-            if atom.break_before {
-                flush!(false, false);
-                break;
-            }
-            if let Some((break_at, width_snapshot, trim_snapshot)) = last_break {
-                let mut tail = cur.split_off(break_at);
-                // restore the width state at the break point, then flush
-                cur_width = width_snapshot;
-                trailing_trim = trim_snapshot;
-                // drop leading whitespace of the next line
-                while let Some(first) = tail.first() {
-                    if first.trimmable {
-                        tail.remove(0);
-                    } else {
-                        break;
-                    }
+        //
+        // collapsible whitespace never overflows by itself: at a line edge
+        // it is trimmed away, and otherwise its width is accounted when the
+        // following atom is checked
+        if !atom.trimmable() {
+            loop {
+                let new_content_width = content_width(cur_width, trailing_trim) + atom.advance;
+                if new_content_width <= inline_size || cur.is_empty() {
+                    break;
                 }
-                flush!(false, false);
-                // rebuild the width state from the tail
-                cur_width = length_sum(tail.iter().map(|a| a.advance));
-                trailing_trim = L::zero();
-                for a in tail.iter().rev() {
-                    if a.trimmable {
-                        trailing_trim += a.advance;
-                    } else {
-                        break;
-                    }
+                // the freshest break point is right before this atom
+                if atom.break_before() {
+                    flush!(false, false);
+                    break;
                 }
-                cur = tail;
-            } else if atom.emergency_breakable {
-                // no legal break point: emergency break before this atom,
-                // otherwise the content overflows
-                flush!(false, false);
-                break;
-            } else {
-                break;
+                if let Some((break_at, width_snapshot, trim_snapshot)) = last_break {
+                    let mut tail = cur.split_off(break_at);
+                    // restore the width state at the break point, then flush
+                    cur_width = width_snapshot;
+                    trailing_trim = trim_snapshot;
+                    // drop leading whitespace of the next line
+                    while let Some(first) = tail.first() {
+                        if first.trimmable() {
+                            tail.remove(0);
+                        } else {
+                            break;
+                        }
+                    }
+                    flush!(false, false);
+                    // rebuild the width state from the tail
+                    cur_width = length_sum(tail.iter().map(|a| a.advance));
+                    trailing_trim = L::zero();
+                    for a in tail.iter().rev() {
+                        if a.trimmable() {
+                            trailing_trim += a.advance;
+                        } else {
+                            break;
+                        }
+                    }
+                    cur = tail;
+                } else if atom.emergency_breakable() {
+                    // no legal break point: emergency break before this atom,
+                    // otherwise the content overflows
+                    flush!(false, false);
+                    break;
+                } else {
+                    break;
+                }
             }
         }
 
         // leading collapsible whitespace of a line is dropped
-        if atom.trimmable && cur.is_empty() {
+        if atom.trimmable() && cur.is_empty() {
             continue;
         }
 
-        if atom.break_before && !cur.is_empty() {
+        if atom.break_before() && !cur.is_empty() {
             last_break = Some((cur.len(), cur_width, trailing_trim));
         }
         cur_width += atom.advance;
-        if atom.trimmable {
+        if atom.trimmable() {
             trailing_trim += atom.advance;
         } else {
             trailing_trim = L::zero();
@@ -535,57 +614,58 @@ pub(crate) fn break_lines<L: LengthNum, F: FontFace>(
         cur.push(atom);
     }
     flush!(false, false);
+    // a trailing newline creates an empty last line
+    if let Some(start) = trailing_break {
+        lines.push(Line {
+            atoms: Vec::new(),
+            width: L::zero(),
+            mandatory_break: true,
+            ellipsized: false,
+            text_start: start,
+        });
+    }
     lines
 }
 
-/// Reorder atoms into visual order, at run granularity (UAX#9 L2).
+/// Reorder atoms into visual order (UAX#9 L2).
 ///
-/// Glyph sequences within one bidi run are already in visual order
-/// as produced by the shaper; only the run order is reversed.
-fn reorder_visual<L: LengthNum>(atoms: &mut Vec<Atom<L>>) {
+/// Atoms are in logical order; each contiguous sequence of atoms with
+/// level >= L is reversed, from the lowest odd level up to the max level.
+fn reorder_visual<L: LengthNum>(atoms: &mut [Atom<L>]) {
     if atoms.is_empty() {
         return;
     }
     // spacing atoms adopt the level of the following atom (or previous at end)
     let mut next_level = atoms.last().map(|a| a.bidi_level).unwrap_or(0);
     for i in (0..atoms.len()).rev() {
-        if atoms[i].content == AtomContent::Spacing {
+        if atoms[i].content == AtomContent::SPACING {
             atoms[i].bidi_level = next_level;
         } else {
             next_level = atoms[i].bidi_level;
         }
     }
-    // group consecutive same-level atoms into runs
-    let mut runs: Vec<(std::ops::Range<usize>, u8)> = Vec::new();
-    let mut start = 0;
-    for i in 1..=atoms.len() {
-        if i == atoms.len() || atoms[i].bidi_level != atoms[start].bidi_level {
-            runs.push((start..i, atoms[start].bidi_level));
-            start = i;
-        }
-    }
-    let max_level = runs.iter().map(|(_, l)| *l).max().unwrap_or(0);
-    let Some(lowest_odd) = runs.iter().map(|(_, l)| *l).filter(|l| l % 2 == 1).min() else {
+    let max_level = atoms.iter().map(|a| a.bidi_level).max().unwrap_or(0);
+    let Some(lowest_odd) = atoms
+        .iter()
+        .map(|a| a.bidi_level)
+        .filter(|l| l % 2 == 1)
+        .min()
+    else {
         return;
     };
     for level in (lowest_odd..=max_level).rev() {
         let mut i = 0;
-        while i < runs.len() {
-            if runs[i].1 >= level {
-                let seq_start = i;
-                while i < runs.len() && runs[i].1 >= level {
+        while i < atoms.len() {
+            if atoms[i].bidi_level >= level {
+                let start = i;
+                while i < atoms.len() && atoms[i].bidi_level >= level {
                     i += 1;
                 }
-                runs[seq_start..i].reverse();
+                atoms[start..i].reverse();
             } else {
                 i += 1;
             }
         }
-    }
-    // rebuild atoms in the reordered run order
-    let original: Vec<Atom<L>> = std::mem::take(atoms);
-    for (range, _) in runs {
-        atoms.extend_from_slice(&original[range]);
     }
 }
 
@@ -626,6 +706,7 @@ pub(crate) fn justify<L: LengthNum, F: FontFace>(
     for line in lines {
         let glyph_start = glyphs_out.len() as u32;
         let item_start = items_out.len() as u32;
+        let text_start = line.text_start;
 
         // line metrics
         let mut text_ascent = L::zero();
@@ -633,28 +714,39 @@ pub(crate) fn justify<L: LengthNum, F: FontFace>(
         let mut line_gap = L::zero();
         let mut inline_block_ascent = L::zero();
         let mut inline_block_descent = L::zero();
+        let mut has_text = false;
         for atom in &line.atoms {
-            match atom.content {
-                AtomContent::Glyph(glyph_ref) => {
-                    let glyph = &shaped.glyphs[glyph_ref as usize];
-                    let metrics = shaped.faces[glyph.face_index as usize].metrics(atom.font_size);
-                    // descent is negative below the baseline internally
-                    text_ascent = text_ascent.lower_bound(L::from_f32(metrics.ascent));
-                    text_descent = text_descent.upper_bound(L::from_f32(-metrics.descent));
-                    line_gap = line_gap.lower_bound(L::from_f32(metrics.line_gap));
-                }
-                AtomContent::Item(item_index) => {
-                    let item = &shaped.items[item_index as usize].item;
-                    let block_size = if horizontal {
-                        item.size.height
-                    } else {
-                        item.size.width
-                    };
-                    let ascent = item.baseline_ascent.unwrap_or(block_size);
-                    inline_block_ascent = inline_block_ascent.lower_bound(ascent);
-                    inline_block_descent = inline_block_descent.upper_bound(ascent - block_size);
-                }
-                _ => {}
+            if let Some(glyph_ref) = atom.content.glyph_index() {
+                has_text = true;
+                let glyph = &shaped.glyphs[glyph_ref as usize];
+                let font_size = shaped
+                    .item_at_glyph(glyph_ref)
+                    .map(|(_, _, item)| item.font_size)
+                    .unwrap_or(shaped.property.font_size.to_f32());
+                let metrics = shaped.faces[glyph.face_index as usize].metrics(font_size);
+                // descent is negative below the baseline internally
+                text_ascent = text_ascent.lower_bound(L::from_f32(metrics.ascent));
+                text_descent = text_descent.upper_bound(L::from_f32(-metrics.descent));
+                line_gap = line_gap.lower_bound(L::from_f32(metrics.line_gap));
+            } else if let Some(item_index) = atom.content.item_index() {
+                let item = &shaped.items[item_index as usize].item;
+                let block_size = if horizontal {
+                    item.size.height
+                } else {
+                    item.size.width
+                };
+                let ascent = item.baseline_ascent.unwrap_or(block_size);
+                inline_block_ascent = inline_block_ascent.lower_bound(ascent);
+                inline_block_descent = inline_block_descent.upper_bound(ascent - block_size);
+            }
+        }
+        // lines without text content (e.g. empty lines between newlines)
+        // take the block default font metrics as the strut
+        if !has_text {
+            if let Some(strut) = &shaped.strut_metrics {
+                text_ascent = L::from_f32(strut.ascent);
+                text_descent = L::from_f32(-strut.descent);
+                line_gap = L::from_f32(strut.line_gap);
             }
         }
         let text_line_height = text_ascent - text_descent;
@@ -690,7 +782,7 @@ pub(crate) fn justify<L: LengthNum, F: FontFace>(
                 .iter()
                 .enumerate()
                 .filter(|(i, atom)| {
-                    *i > 0 && atom.word_start && matches!(atom.content, AtomContent::Glyph(_))
+                    *i > 0 && atom.word_start() && atom.content.glyph_index().is_some()
                 })
                 .count() as i32
         } else {
@@ -726,7 +818,7 @@ pub(crate) fn justify<L: LengthNum, F: FontFace>(
             L::zero()
         };
 
-        // visual order
+        // reorder atoms from logical order into visual order
         let mut atoms = line.atoms;
         reorder_visual(&mut atoms);
 
@@ -734,65 +826,58 @@ pub(crate) fn justify<L: LengthNum, F: FontFace>(
         let mut pen = align_offset;
         let mut first_glyph_seen = false;
         for atom in &atoms {
-            match atom.content {
-                AtomContent::Glyph(glyph_ref) => {
-                    if first_glyph_seen && atom.word_start {
-                        pen += justify_space;
-                    }
-                    first_glyph_seen = true;
-                    let glyph = &shaped.glyphs[glyph_ref as usize];
-                    let origin = if horizontal {
-                        to_physical(
-                            pen + L::from_f32(glyph.offset.x),
-                            baseline - L::from_f32(glyph.offset.y),
-                        )
-                    } else if glyph.flags.sideways() {
-                        // shaped horizontally: offsets map to the inline axis
-                        to_physical(
-                            pen + L::from_f32(glyph.offset.x),
-                            baseline - L::from_f32(glyph.offset.y),
-                        )
-                    } else {
-                        to_physical(
-                            pen + L::from_f32(glyph.offset.y),
-                            baseline + L::from_f32(glyph.offset.x),
-                        )
-                    };
-                    glyphs_out.push(PositionedGlyph { origin, glyph_ref });
-                    pen += atom.advance;
+            if let Some(glyph_ref) = atom.content.glyph_index() {
+                if first_glyph_seen && atom.word_start() {
+                    pen += justify_space;
                 }
-                AtomContent::Item(item_index) => {
-                    let item = &shaped.items[item_index as usize].item;
-                    let block_size = if horizontal {
-                        item.size.height
-                    } else {
-                        item.size.width
-                    };
-                    let baseline_ascent = item.baseline_ascent.unwrap_or(block_size);
-                    let item_ascent = match item.property.vertical_align {
-                        VerticalAlign::Baseline { offset } => baseline_ascent + offset,
-                        VerticalAlign::Top => total_ascent,
-                        VerticalAlign::TextTop => text_ascent,
-                        VerticalAlign::Middle => {
-                            (text_ascent + text_descent + block_size).div_i32(2)
-                        }
-                        VerticalAlign::TextBottom => text_descent + block_size,
-                        VerticalAlign::Bottom => total_descent + block_size,
-                    };
-                    let block_start = baseline - item_ascent;
-                    let origin = to_physical(pen, block_start);
-                    let rect = if horizontal {
-                        Rect::new(origin, item.size)
-                    } else {
-                        Rect::new(origin, Size::new(item.size.height, item.size.width))
-                    };
-                    items_out.push(PositionedItemRect { rect, item_index });
-                    pen += atom.advance;
-                }
-                AtomContent::Spacing => {
-                    pen += atom.advance;
-                }
-                AtomContent::ForcedBreak => {}
+                first_glyph_seen = true;
+                let glyph = &shaped.glyphs[glyph_ref as usize];
+                let origin = if horizontal {
+                    to_physical(
+                        pen + L::from_f32(glyph.offset.x),
+                        baseline - L::from_f32(glyph.offset.y),
+                    )
+                } else if glyph.flags.sideways() {
+                    // shaped horizontally: offsets map to the inline axis
+                    to_physical(
+                        pen + L::from_f32(glyph.offset.x),
+                        baseline - L::from_f32(glyph.offset.y),
+                    )
+                } else {
+                    to_physical(
+                        pen + L::from_f32(glyph.offset.y),
+                        baseline + L::from_f32(glyph.offset.x),
+                    )
+                };
+                glyphs_out.push(PositionedGlyph { origin, glyph_ref });
+                pen += atom.advance;
+            } else if let Some(item_index) = atom.content.item_index() {
+                let item = &shaped.items[item_index as usize].item;
+                let block_size = if horizontal {
+                    item.size.height
+                } else {
+                    item.size.width
+                };
+                let baseline_ascent = item.baseline_ascent.unwrap_or(block_size);
+                let item_ascent = match item.vertical_align {
+                    VerticalAlign::Baseline { offset } => baseline_ascent + offset,
+                    VerticalAlign::Top => total_ascent,
+                    VerticalAlign::TextTop => text_ascent,
+                    VerticalAlign::Middle => (text_ascent + text_descent + block_size).div_i32(2),
+                    VerticalAlign::TextBottom => text_descent + block_size,
+                    VerticalAlign::Bottom => total_descent + block_size,
+                };
+                let block_start = baseline - item_ascent;
+                let origin = to_physical(pen, block_start);
+                let rect = if horizontal {
+                    Rect::new(origin, item.size)
+                } else {
+                    Rect::new(origin, Size::new(item.size.height, item.size.width))
+                };
+                items_out.push(PositionedItemRect { rect, item_index });
+                pen += atom.advance;
+            } else if atom.content == AtomContent::SPACING {
+                pen += atom.advance;
             }
         }
 
@@ -815,22 +900,21 @@ pub(crate) fn justify<L: LengthNum, F: FontFace>(
                         origin,
                         glyph_ref: ellipsis_base | i as u32,
                     });
-                    pen += glyph_inline_advance(shaped, glyph);
+                    pen += glyph_inline_advance(glyph);
                 }
             }
         }
 
         max_inline = max_inline.lower_bound(line.width);
-        let glyph_end = glyphs_out.len() as u32;
-        let item_end = items_out.len() as u32;
         lines_out.push(LineLayout {
             baseline_offset: baseline,
             text_ascent,
             text_descent,
             inline_start: align_offset,
             inline_end: pen,
-            glyph_range: glyph_start..glyph_end,
-            item_range: item_start..item_end,
+            glyph_start,
+            item_start,
+            text_start,
         });
         block_pen = baseline - total_descent;
     }

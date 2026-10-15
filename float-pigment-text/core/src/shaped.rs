@@ -5,7 +5,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use float_pigment_css::length_num::LengthNum;
-use float_pigment_css::typing::WritingMode;
+use float_pigment_css::typing::{WhiteSpace, WordBreak, WritingMode};
 
 use crate::model::{TextOrientation, TextOverflow};
 
@@ -44,28 +44,48 @@ fn split_by_orientation_class(range: Range<usize>, text: &str) -> Vec<(Range<usi
     result
 }
 
-use crate::font::{FontFace, FontFaceId, FontProvider, FontQuery, ResolvedFontList};
+use crate::font::{FontFace, FontFaceId, FontMetrics, FontProvider, FontQuery, ResolvedFontList};
+use crate::geometry::Size;
 use crate::itemize::{itemize, TextItem};
 use crate::layout::LayoutResult;
-use crate::model::{Block, BlockProperty, Inline, InlineItem, InlineProperty, Spacing};
+use crate::model::{Block, BlockProperty, Inline, Spacing, VerticalAlign};
 use crate::shaper::{GlyphFlags, GlyphRun, ResolvedDirection, ShapeOptions, ShapedGlyph, Shaper};
 
 /// A shaped text item (bidi- and style-uniform).
 ///
-/// `flattened_range` and `direction` are used by hit testing and selection.
-#[allow(dead_code)]
+/// Items are stored contiguously per text and texts per block, so the
+/// end of each range is the start of the successor; see
+/// `ShapedBlock::item_glyph_range` and `ShapedBlock::item_flattened_end`.
+/// The resolved direction is the parity of `bidi_level`.
 #[derive(Debug, Clone)]
 pub(crate) struct ShapedTextItem {
-    /// The UTF-8 byte range in the flattened text.
-    pub(crate) flattened_range: Range<u32>,
-    /// The glyph range in `ShapedBlock::glyphs`.
-    pub(crate) glyph_range: Range<u32>,
-    /// The bidi level resolved by UAX#9.
-    pub(crate) bidi_level: u8,
-    /// The resolved base direction.
-    pub(crate) direction: ResolvedDirection,
+    /// The UTF-8 byte offset where the item starts in the flattened text.
+    pub(crate) flattened_start: u32,
+    /// The offset of the first glyph in `ShapedBlock::glyphs`.
+    pub(crate) glyph_start: u32,
     /// The resolved font size.
     pub(crate) font_size: f32,
+    /// The bidi level resolved by UAX#9.
+    pub(crate) bidi_level: u8,
+    /// Whether the shaper emitted glyphs in visual order (descending
+    /// clusters), i.e. horizontal-shaped RTL text. Line breaking operates
+    /// in logical order, so atoms of such items are iterated in reverse.
+    pub(crate) visual_order: bool,
+}
+
+/// The subset of `InlineProperty` needed by line breaking, kept per
+/// shaped text; font- and direction-related fields are resolved during
+/// shaping and then dropped.
+#[derive(Debug, Clone)]
+pub(crate) struct ShapedTextProperty<L: LengthNum> {
+    /// The white space handling mode.
+    pub(crate) white_space: WhiteSpace,
+    /// The word breaking mode.
+    pub(crate) word_break: WordBreak,
+    /// The extra spacing between glyphs.
+    pub(crate) letter_spacing: L,
+    /// The extra spacing between words.
+    pub(crate) word_spacing: L,
 }
 
 /// A shaped `Inline::Text`.
@@ -75,10 +95,27 @@ pub(crate) struct ShapedText<L: LengthNum> {
     pub(crate) flattened_range: Range<u32>,
     /// The items of this text.
     pub(crate) items: Box<[ShapedTextItem]>,
-    /// The resolved inline property.
-    pub(crate) property: InlineProperty<L>,
+    /// The line breaking properties.
+    pub(crate) property: ShapedTextProperty<L>,
     /// The spacing around the text.
     pub(crate) spacing: Spacing<L>,
+}
+
+/// The subset of `InlineItem` needed by layout; the font- and
+/// direction-related inline properties are resolved during shaping and
+/// then dropped.
+#[derive(Debug, Clone)]
+pub(crate) struct ShapedInlineItem<L: LengthNum> {
+    /// The size of the item.
+    pub(crate) size: Size<L>,
+    /// The distance from the item top to its baseline; `None` means the item bottom.
+    pub(crate) baseline_ascent: Option<L>,
+    /// The vertical alignment relative to the line baseline.
+    pub(crate) vertical_align: VerticalAlign<L>,
+    /// The spacing around the item.
+    pub(crate) spacing: Spacing<L>,
+    /// Whether wrapping is disabled (`white-space: nowrap`).
+    pub(crate) no_wrap: bool,
 }
 
 /// An `Inline::Item` with its bidi level resolved.
@@ -89,7 +126,7 @@ pub(crate) struct PositionedInlineItem<L: LengthNum> {
     /// The UTF-8 offset of the U+FFFC placeholder character in the flattened text.
     pub(crate) flattened_offset: u32,
     /// The item content.
-    pub(crate) item: InlineItem<L>,
+    pub(crate) item: ShapedInlineItem<L>,
 }
 
 /// The content- and style-dependent layout result of a block.
@@ -111,14 +148,20 @@ pub struct ShapedBlock<L: LengthNum, F: FontFace> {
     pub(crate) items: Box<[PositionedInlineItem<L>]>,
     /// The deduplicated faces used by all glyphs.
     pub(crate) faces: Box<[F]>,
-    /// The flat glyph array of the whole block, in logical order,
-    /// indexed by `PositionedGlyph::glyph_ref`.
+    /// The flat glyph array of the whole block, indexed by
+    /// `PositionedGlyph::glyph_ref`. Items are concatenated in logical
+    /// order, but glyphs within an item keep the shaper output order
+    /// (visual for horizontal RTL items, see `ShapedTextItem::visual_order`).
     pub(crate) glyphs: Box<[ShapedGlyph]>,
     /// The resolved base direction of the block.
     pub(crate) base_direction: ResolvedDirection,
     /// The shaped ellipsis glyphs (`…`), when `text_overflow` is `Ellipsis`.
     /// Clusters are `u32::MAX` since they have no source text.
     pub(crate) ellipsis_glyphs: Option<Box<[ShapedGlyph]>>,
+    /// The metrics of the block default font at the block font size,
+    /// used as the strut for lines without content (e.g. empty lines
+    /// between newlines).
+    pub(crate) strut_metrics: Option<FontMetrics>,
 }
 
 /// Shape `text[range]`, driving font fallback through the provider.
@@ -376,10 +419,10 @@ impl<L: LengthNum, F: FontFace> ShapedBlock<L, F> {
                         }
                     }
                     items.push(ShapedTextItem {
-                        flattened_range: sub_range.start as u32..sub_range.end as u32,
-                        glyph_range: glyph_start..glyphs.len() as u32,
+                        flattened_start: sub_range.start as u32,
+                        glyph_start,
                         bidi_level: *bidi_level,
-                        direction: *direction,
+                        visual_order: !sub_vertical && *direction == ResolvedDirection::RTL,
                         font_size: font_size.to_f32(),
                     });
                 }
@@ -387,7 +430,12 @@ impl<L: LengthNum, F: FontFace> ShapedBlock<L, F> {
             texts.push(ShapedText {
                 flattened_range,
                 items: items.into_boxed_slice(),
-                property: inline_text.property.clone(),
+                property: ShapedTextProperty {
+                    white_space: inline_text.property.white_space.clone(),
+                    word_break: inline_text.property.word_break.clone(),
+                    letter_spacing: inline_text.property.letter_spacing,
+                    word_spacing: inline_text.property.word_spacing,
+                },
                 spacing: inline_text.spacing,
             });
         }
@@ -401,13 +449,19 @@ impl<L: LengthNum, F: FontFace> ShapedBlock<L, F> {
             })
             .zip(itemized.item_levels.iter())
             .zip(flattened.item_positions.iter())
-            .map(
-                |((item, bidi_level), (flattened_offset, _))| PositionedInlineItem {
+            .map(|((item, bidi_level), (flattened_offset, _))| {
+                PositionedInlineItem {
                     bidi_level: *bidi_level,
                     flattened_offset: *flattened_offset,
-                    item: item.clone(),
-                },
-            )
+                    item: ShapedInlineItem {
+                        size: item.size,
+                        baseline_ascent: item.baseline_ascent,
+                        vertical_align: item.property.vertical_align,
+                        spacing: item.spacing,
+                        no_wrap: item.property.white_space == WhiteSpace::NoWrap,
+                    },
+                }
+            })
             .collect();
 
         let ellipsis_text: Option<Box<str>> = match &block.property.text_overflow {
@@ -447,6 +501,12 @@ impl<L: LengthNum, F: FontFace> ShapedBlock<L, F> {
             ellipsis_glyphs.into_boxed_slice()
         });
 
+        let strut_metrics = provider
+            .resolve(&block.property.font_query)
+            .faces()
+            .first()
+            .map(|face| face.metrics(block.property.font_size.to_f32()));
+
         Self {
             property: block.property.clone(),
             flattened: flattened.text,
@@ -456,6 +516,7 @@ impl<L: LengthNum, F: FontFace> ShapedBlock<L, F> {
             glyphs: glyphs.into_boxed_slice(),
             base_direction: itemized.base_direction,
             ellipsis_glyphs,
+            strut_metrics,
         }
     }
 
@@ -465,7 +526,62 @@ impl<L: LengthNum, F: FontFace> ShapedBlock<L, F> {
         crate::line::justify(self, lines, inline_size)
     }
 
-    /// The flat glyph array of the whole block, in logical order.
+    /// The glyph range of a shaped item: from its start to the start of
+    /// the successor item (or the end of the whole glyph array).
+    pub(crate) fn item_glyph_range(&self, text_index: usize, item_index: usize) -> Range<u32> {
+        let text = &self.texts[text_index];
+        let start = text.items[item_index].glyph_start;
+        let end = if let Some(next) = text.items.get(item_index + 1) {
+            next.glyph_start
+        } else if let Some(first) = self
+            .texts
+            .get(text_index + 1)
+            .and_then(|text| text.items.first())
+        {
+            first.glyph_start
+        } else {
+            self.glyphs.len() as u32
+        };
+        start..end
+    }
+
+    /// The flattened text offset where a shaped item ends: the start of
+    /// the successor item, or the end of the owning text.
+    pub(crate) fn item_flattened_end(&self, text_index: usize, item_index: usize) -> u32 {
+        let text = &self.texts[text_index];
+        text.items
+            .get(item_index + 1)
+            .map(|item| item.flattened_start)
+            .unwrap_or(text.flattened_range.end)
+    }
+
+    /// The shaped item containing the given glyph, as
+    /// `(text index, item index, item)`; `None` when the glyph index is
+    /// out of any item range.
+    pub(crate) fn item_at_glyph(&self, glyph_index: u32) -> Option<(usize, usize, &ShapedTextItem)> {
+        let cluster = self.glyphs.get(glyph_index as usize)?.cluster;
+        // texts cover the flattened text in order; items within a text
+        // are ordered by glyph start
+        let text_index = self
+            .texts
+            .partition_point(|text| text.flattened_range.end <= cluster);
+        let text = self.texts.get(text_index)?;
+        let item_index = text
+            .items
+            .partition_point(|item| item.glyph_start <= glyph_index)
+            .checked_sub(1)?;
+        let item = text.items.get(item_index)?;
+        if self.item_glyph_range(text_index, item_index).contains(&glyph_index) {
+            Some((text_index, item_index, item))
+        } else {
+            None
+        }
+    }
+
+    /// The flat glyph array of the whole block.
+    ///
+    /// Items are concatenated in logical order, but glyphs within an item
+    /// keep the shaper output order (visual for horizontal RTL items).
     pub fn glyphs(&self) -> &[ShapedGlyph] {
         &self.glyphs
     }

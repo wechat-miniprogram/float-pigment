@@ -506,10 +506,11 @@ impl RustShaper {
                 let missing = info.glyph_id == 0;
                 let colored = !missing && font.is_colored_glyph(info.glyph_id as u16, options.size);
                 ShapedGlyph {
-                    advance: Vector2D::new(
-                        pos.x_advance as f32 * scale,
-                        pos.y_advance as f32 * scale,
-                    ),
+                    advance: if options.vertical {
+                        -pos.y_advance as f32 * scale
+                    } else {
+                        pos.x_advance as f32 * scale
+                    },
                     offset: Vector2D::new(pos.x_offset as f32 * scale, pos.y_offset as f32 * scale),
                     cluster: info.cluster + range.start as u32,
                     glyph_id: info.glyph_id as u16,

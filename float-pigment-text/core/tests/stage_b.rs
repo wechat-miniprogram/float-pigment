@@ -142,8 +142,8 @@ fn wraps_at_space_and_trims() {
         Default::default(),
     );
     assert_eq!(result.lines.len(), 2);
-    assert_eq!(result.lines[0].glyph_range.len(), 2);
-    assert_eq!(result.lines[1].glyph_range.len(), 2);
+    assert_eq!(result.line_glyph_range(0).len(), 2);
+    assert_eq!(result.line_glyph_range(1).len(), 2);
     assert_close(result.lines[0].inline_end, 16.0);
     assert_close(result.size.width, 16.0);
     assert_close(result.size.height, 16.0 * 2.0 + 3.2); // line gap 200 units
@@ -190,8 +190,8 @@ fn pre_keeps_whitespace_and_newline_breaks() {
     );
     // note: Pre keeps both spaces, and \n forces a break
     assert_eq!(result.lines.len(), 2);
-    assert!(result.lines[0].glyph_range.len() >= 4);
-    assert_eq!(result.lines[1].glyph_range.len(), 1);
+    assert!(result.line_glyph_range(0).len() >= 4);
+    assert_eq!(result.line_glyph_range(1).len(), 1);
 }
 
 #[test]
@@ -247,7 +247,7 @@ fn line_clamp_two_lines() {
     let result = layout_text(&provider, &shaper, &query, "AA AA AA AA", 34.0, property);
     assert_eq!(result.lines.len(), 2);
     // second line: "AA" + ellipsis
-    let second = result.lines[1].glyph_range.clone();
+    let second = result.line_glyph_range(1);
     assert_eq!(second.len(), 3);
 }
 
@@ -446,9 +446,9 @@ fn white_space_pre_wrap() {
     );
     // line 1: "A  " (16px, spaces kept), then "A" wraps, "B" after newline
     assert_eq!(result.lines.len(), 3);
-    assert_eq!(result.lines[0].glyph_range.len(), 3);
-    assert_eq!(result.lines[1].glyph_range.len(), 1);
-    assert_eq!(result.lines[2].glyph_range.len(), 1);
+    assert_eq!(result.line_glyph_range(0).len(), 3);
+    assert_eq!(result.line_glyph_range(1).len(), 1);
+    assert_eq!(result.line_glyph_range(2).len(), 1);
 }
 
 #[test]
@@ -469,7 +469,7 @@ fn white_space_pre_line() {
         inline_property.clone(),
     );
     assert_eq!(collapsed.lines.len(), 2);
-    assert_eq!(collapsed.lines[0].glyph_range.len(), 3); // "A A"
+    assert_eq!(collapsed.line_glyph_range(0).len(), 3); // "A A"
     let single = layout_text(
         &provider,
         &shaper,
@@ -499,7 +499,7 @@ fn white_space_wx_pre_edit() {
         inline_property,
     );
     assert_eq!(result.lines.len(), 1);
-    assert_eq!(result.lines[0].glyph_range.len(), 4);
+    assert_eq!(result.line_glyph_range(0).len(), 4);
     assert_close(result.size.width, 24.0);
 }
 
@@ -521,8 +521,8 @@ fn word_break_break_all() {
         inline_property,
     );
     assert_eq!(result.lines.len(), 2);
-    assert_eq!(result.lines[0].glyph_range.len(), 2);
-    assert_eq!(result.lines[1].glyph_range.len(), 2);
+    assert_eq!(result.line_glyph_range(0).len(), 2);
+    assert_eq!(result.line_glyph_range(1).len(), 2);
 }
 
 #[test]
@@ -855,8 +855,8 @@ fn mixed_orientation_splits_by_script() {
     assert!(!han.flags.sideways());
     // inline advance: 8px from the horizontal advance for Latin,
     // 16px synthesized vertical advance for Han
-    assert_close(latin.advance.x, 8.0);
-    assert_close(-han.advance.y, 16.0);
+    assert_close(latin.advance, 8.0);
+    assert_close(han.advance, 16.0);
     // upright glyphs get a synthesized vertical origin offset,
     // sideways glyphs keep horizontal offsets (zero in the test font)
     assert_close(latin.offset.x, 0.0);
