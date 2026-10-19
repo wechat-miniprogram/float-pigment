@@ -93,6 +93,16 @@ impl SerdeThreadGlobalState {
         zero_copy: Box<dyn 'static + FnOnce()>,
         f: impl FnOnce() -> R,
     ) -> R {
+        struct DropCallback(Option<Box<dyn 'static + FnOnce()>>);
+        impl Drop for DropCallback {
+            fn drop(&mut self) {
+                self.0.take().unwrap()();
+            }
+        }
+        // Keep the input alive until the deserializer has finished skipping its segments.
+        let callback = Rc::new(DropCallback(Some(zero_copy)));
+        let retained = callback.clone();
+        let zero_copy = Box::new(move || drop(retained));
         Self::get(|state| {
             let SerdeThreadGlobalState::None = state else {
                 panic!("Invalid SerdeThreadGlobalState state");
@@ -100,6 +110,9 @@ impl SerdeThreadGlobalState {
             *state = SerdeThreadGlobalState::DePrepare { zero_copy };
         });
         let ret = f();
+        if let Some(drop_callback) = Self::take_de_zero_copy() {
+            drop_callback();
+        }
         Self::get(|state| {
             *state = SerdeThreadGlobalState::None;
         });
@@ -135,16 +148,48 @@ impl SerdeThreadGlobalState {
     }
 
     #[allow(dead_code)]
-    pub(super) fn get_de_optional<R>(
-        f: impl FnOnce(Option<&mut SerdeThreadGlobalStateDe>) -> R,
-    ) -> R {
-        Self::get(|state| {
-            if let SerdeThreadGlobalState::De(de) = state {
-                f(Some(de))
-            } else {
-                f(None)
-            }
+    pub(super) fn is_de_zero_copy() -> bool {
+        Self::get(|state| match state {
+            SerdeThreadGlobalState::De(de) => de.zero_copy.is_some(),
+            SerdeThreadGlobalState::DePrepare { .. } => true,
+            _ => false,
         })
+    }
+
+    pub(super) fn take_de_zero_copy() -> Option<Box<dyn 'static + FnOnce()>> {
+        Self::get(|state| match state {
+            SerdeThreadGlobalState::De(de) => de.zero_copy.take(),
+            SerdeThreadGlobalState::DePrepare { .. } => {
+                let SerdeThreadGlobalState::DePrepare { zero_copy } =
+                    core::mem::replace(state, SerdeThreadGlobalState::None)
+                else {
+                    unreachable!();
+                };
+                Some(zero_copy)
+            }
+            _ => None,
+        })
+    }
+}
+
+pub(crate) fn deserialize_str_buffer<'de, A>(
+    seq: &mut A,
+    allow_zero_copy: bool,
+) -> Result<StrBuffer, A::Error>
+where
+    A: serde::de::SeqAccess<'de>,
+{
+    if allow_zero_copy && SerdeThreadGlobalState::is_de_zero_copy() {
+        let bytes = seq
+            .next_element::<&[u8]>()?
+            .ok_or_else(|| serde::de::Error::invalid_length(0, &"string buffer"))?;
+        let drop_callback = SerdeThreadGlobalState::take_de_zero_copy().unwrap();
+        let ptr = bytes as *const [u8];
+        Ok(unsafe { StrBuffer::new_static_borrowed(ptr, drop_callback) })
+    } else {
+        seq.next_element::<Vec<u8>>()?
+            .map(StrBuffer::new_with_buf)
+            .ok_or_else(|| serde::de::Error::invalid_length(0, &"string buffer"))
     }
 }
 
@@ -186,20 +231,26 @@ pub(crate) mod inner {
     use alloc::{boxed::Box, vec::Vec};
     use core::cell::{Cell, UnsafeCell};
 
+    enum StrBufferData {
+        Owned(Vec<u8>),
+        Borrowed {
+            ptr: *const u8,
+            len: usize,
+            drop_callback: Option<Box<dyn 'static + FnOnce()>>,
+        },
+    }
+
     pub(crate) struct StrBufferInner {
         writable: Cell<bool>,
-        static_borrowed: Option<Box<dyn 'static + FnOnce()>>,
-        buf: UnsafeCell<Vec<u8>>,
+        buf: UnsafeCell<StrBufferData>,
     }
 
     impl Drop for StrBufferInner {
         fn drop(&mut self) {
-            if let Some(f) = self.static_borrowed.take() {
-                let buf = unsafe { &mut *self.buf.get() };
-                let mut empty = vec![];
-                core::mem::swap(&mut empty, buf);
-                let _ = Box::into_raw(empty.into_boxed_slice());
-                f();
+            if let StrBufferData::Borrowed { drop_callback, .. } = self.buf.get_mut() {
+                if let Some(callback) = drop_callback.take() {
+                    callback();
+                }
             }
         }
     }
@@ -218,27 +269,29 @@ pub(crate) mod inner {
         pub(super) fn new() -> Self {
             Self {
                 writable: Cell::new(true),
-                static_borrowed: None,
-                buf: UnsafeCell::new(vec![]),
+                buf: UnsafeCell::new(StrBufferData::Owned(vec![])),
             }
         }
 
         pub(super) fn new_with_buf(buf: Vec<u8>) -> Self {
             Self {
                 writable: Cell::new(false),
-                static_borrowed: None,
-                buf: UnsafeCell::new(buf),
+                buf: UnsafeCell::new(StrBufferData::Owned(buf)),
             }
         }
 
         pub(super) unsafe fn new_static_borrowed(
-            buf: *mut [u8],
+            buf: *const [u8],
             drop_callback: Box<dyn 'static + FnOnce()>,
         ) -> Self {
+            let bytes = &*buf;
             Self {
                 writable: Cell::new(false),
-                static_borrowed: Some(Box::new(drop_callback)),
-                buf: UnsafeCell::new(Box::from_raw(buf).into_vec()),
+                buf: UnsafeCell::new(StrBufferData::Borrowed {
+                    ptr: bytes.as_ptr(),
+                    len: bytes.len(),
+                    drop_callback: Some(drop_callback),
+                }),
             }
         }
 
@@ -250,7 +303,9 @@ pub(crate) mod inner {
             if !self.writable.get() {
                 panic!("StrBuffer is not in writable stage");
             }
-            let buf = unsafe { &mut *self.buf.get() };
+            let StrBufferData::Owned(buf) = (unsafe { &mut *self.buf.get() }) else {
+                unreachable!();
+            };
             let offset = buf.len();
             buf.append(&mut Vec::from(s.as_bytes()));
             offset
@@ -260,13 +315,20 @@ pub(crate) mod inner {
             if self.writable.get() {
                 panic!("StrBuffer is not in writable stage");
             }
-            let buf = unsafe { &mut *self.buf.get() };
-            buf.as_slice()
+            match unsafe { &*self.buf.get() } {
+                StrBufferData::Owned(buf) => buf.as_slice(),
+                StrBufferData::Borrowed { ptr, len, .. } => {
+                    // The caller keeps these bytes valid until the release callback runs.
+                    unsafe { core::slice::from_raw_parts(*ptr, *len) }
+                }
+            }
         }
 
         pub(super) fn len(&self) -> usize {
-            let buf = unsafe { &mut *self.buf.get() };
-            buf.len()
+            match unsafe { &*self.buf.get() } {
+                StrBufferData::Owned(buf) => buf.len(),
+                StrBufferData::Borrowed { len, .. } => *len,
+            }
         }
     }
 }
@@ -293,7 +355,7 @@ impl StrBuffer {
     }
 
     pub(crate) unsafe fn new_static_borrowed(
-        buf: *mut [u8],
+        buf: *const [u8],
         drop_callback: Box<dyn 'static + FnOnce()>,
     ) -> Self {
         Self {
@@ -433,4 +495,34 @@ impl Debug for StrRef {
 #[cfg(debug_assertions)]
 impl crate::CompatibilityCheck for StrRef {
     fn check() {}
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::cell::Cell;
+
+    #[test]
+    fn borrowed_buffers_accept_static_and_stack_slices() {
+        let stack = *b"--stack--";
+        for bytes in [&b"static"[..], &stack[2..7], &stack[2..2]] {
+            let released = Rc::new(Cell::new(0));
+            let drop_count = released.clone();
+            let buffer = unsafe {
+                StrBuffer::new_static_borrowed(
+                    bytes as *const [u8],
+                    Box::new(move || drop_count.set(drop_count.get() + 1)),
+                )
+            };
+            assert_eq!(buffer.whole_buffer().as_ptr(), bytes.as_ptr());
+            assert_eq!(buffer.whole_buffer(), bytes);
+            let retained = buffer.clone();
+            drop(buffer);
+            assert_eq!(released.get(), 0);
+            assert_eq!(retained.whole_buffer(), bytes);
+            drop(retained);
+            assert_eq!(released.get(), 1);
+        }
+        assert_eq!(&stack, b"--stack--");
+    }
 }

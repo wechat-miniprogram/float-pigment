@@ -28,6 +28,30 @@ use serde::de::{Deserialize, DeserializeSeed, Deserializer, SeqAccess, Visitor};
 
 const LEN_SIZE: u64 = 8;
 
+#[test]
+fn truncated_unknown_fields_return_errors() {
+    #[derive(Serialize)]
+    enum Newer {
+        None,
+        V1((u8, Vec<u8>)),
+    }
+    #[derive(Debug, PartialEq, Deserialize)]
+    enum Older {
+        None,
+        V1(u8),
+    }
+
+    let encoded = serialize(&Newer::V1((7, vec![1; 32]))).unwrap();
+    assert_eq!(deserialize::<Older>(&encoded).unwrap(), Older::V1(7));
+    for length in 0..encoded.len() {
+        assert!(deserialize::<Older>(&encoded[..length]).is_err());
+    }
+    assert_eq!(
+        deserialize::<Older>(&serialize(&Newer::None).unwrap()).unwrap(),
+        Older::None
+    );
+}
+
 fn the_same_impl<V, O>(element: V, options: &mut O)
 where
     V: serde::Serialize + serde::de::DeserializeOwned + PartialEq + Debug + 'static,

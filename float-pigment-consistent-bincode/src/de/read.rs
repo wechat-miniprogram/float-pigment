@@ -181,8 +181,10 @@ impl<'storage> BincodeRead<'storage> for SliceReader<'storage> {
 
     #[inline(always)]
     fn forward_to_barrier(&mut self) -> io::Result<()> {
-        let (_, remaining) = self.slice.split_at(self.barrier_offset);
-        self.slice = remaining;
+        self.slice = self
+            .slice
+            .get(self.barrier_offset..)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::UnexpectedEof))?;
         self.barrier_offset = 0;
         Ok(())
     }

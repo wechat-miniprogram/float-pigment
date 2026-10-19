@@ -184,7 +184,12 @@ fn update_cbindgen_bindings(crate_dir: &Path) -> Result<(), BuildError> {
                     a.push(extra_struct.clone());
                 }
                 _ => {
-                    a.push(line.replace(">>", "> >"));
+                    a.push(
+                        line.replace(">>", "> >")
+                            .replace("Not_Body not;", "Not_Body not_;")
+                            .replace("And_Body and;", "And_Body and_;")
+                            .replace("Or_Body or;", "Or_Body or_;"),
+                    );
                 }
             }
         }
