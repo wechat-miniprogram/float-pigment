@@ -380,6 +380,7 @@ fn parse_length<'i, 't>(p: &mut Parser<'i, 't>) -> Result<Length, ParseError<'i,
         Token::Dimension { value, unit, .. } => {
             match_ignore_ascii_case! { unit,
                 "px" => Ok(Length::Px(*value)), "em" => Ok(Length::Em(*value)), "rem" => Ok(Length::Rem(*value)),
+                "rpx" => Ok(Length::Rpx(*value)),
                 "vw" => Ok(Length::Vw(*value)), "vh" => Ok(Length::Vh(*value)),
                 "vmin" => Ok(Length::Vmin(*value)), "vmax" => Ok(Length::Vmax(*value)),
                 "in" => Ok(Length::Px(*value * 96.)), "cm" => Ok(Length::Px(*value * 96. / 2.54)),

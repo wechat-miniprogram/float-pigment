@@ -809,6 +809,30 @@ fn em_rem_length() {
     assert_eq!(node_properties.height(), Length::Auto);
 }
 
+#[test]
+fn rpx_length() {
+    for width in [375., 750.] {
+        let status = MediaQueryStatus::default_screen_with_size(width, 600.);
+        for (condition, expected) in [
+            ("(width: 750rpx)", true),
+            ("(width: 750RPX)", true),
+            ("(width: 749rpx)", false),
+            ("(min-width: 750rpx)", true),
+            ("(max-width: 749rpx)", false),
+            ("(width < 750rpx)", false),
+            ("(height: 600rpx)", width == 750.),
+            ("(height: 1200rpx)", width == 375.),
+            ("(min-height: 1000rpx)", width == 375.),
+            ("(max-height: 1000rpx)", width == 750.),
+            ("(height >= 1000rpx)", width == 375.),
+            ("(1000rpx <= height)", width == 375.),
+            ("(500rpx < height <= 750rpx)", width == 750.),
+        ] {
+            assert_media_matches(condition, expected, &status);
+        }
+    }
+}
+
 // W3C Media Queries 4 §§2.4.3, 2.5, 3.1 and 3.2.
 #[test]
 fn mq4_conditions() {
