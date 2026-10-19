@@ -9697,17 +9697,21 @@ struct MediaExpression {
     Resolution,
     MinResolution,
     MaxResolution,
+    /// A sizing feature with a length value, e.g. `(width: 50em)`.
     Sized,
     /// A media feature that is not recognized, or whose value is invalid.
     UnknownFeature,
-    /// A known sizing feature in boolean context, e.g. `(width)`.
+    /// A sizing feature in boolean context: `(width)` or `(height)`.
+    /// Matches when the corresponding dimension is nonzero.
     Boolean,
     /// A known discrete feature in boolean context, e.g. `(orientation)`.
     AlwaysTrue,
     Not,
     And,
     Or,
+    /// A length-valued feature in a range context, e.g. `(width > 50em)`.
     Range,
+    /// A resolution comparison in range context, with its value normalized to dppx.
     ResolutionRange,
     InfiniteResolution,
   };

@@ -41,17 +41,21 @@ pub(crate) enum MediaExpression {
     Resolution(f32),
     MinResolution(f32),
     MaxResolution(f32),
+    /// A sizing feature with a length value, e.g. `(width: 50em)`.
     Sized(SizedFeature, Length),
     /// A media feature that is not recognized, or whose value is invalid.
     UnknownFeature,
-    /// A known sizing feature in boolean context, e.g. `(width)`.
+    /// A sizing feature in boolean context: `(width)` or `(height)`.
+    /// Matches when the corresponding dimension is nonzero.
     Boolean(SizedFeature),
     /// A known discrete feature in boolean context, e.g. `(orientation)`.
     AlwaysTrue,
     Not(Box<MediaExpression>),
     And(#[serde(serialize_with = "serialize_expressions")] Array<MediaExpression>),
     Or(#[serde(serialize_with = "serialize_expressions")] Array<MediaExpression>),
+    /// A length-valued feature in a range context, e.g. `(width > 50em)`.
     Range(SizedFeature, MediaComparison, Length),
+    /// A resolution comparison in range context, with its value normalized to dppx.
     ResolutionRange(MediaComparison, f32),
     InfiniteResolution(MediaComparison),
 }
@@ -862,6 +866,18 @@ mod tests {
         assert_eq!(
             options.serialize(&expressions[19]).unwrap(),
             alloc::vec![19, 3, 1, 14, 0]
+        );
+        assert_eq!(
+            serde_json::to_string(&expressions[9]).unwrap(),
+            r#"{"Theme":"Dark"}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&expressions[13]).unwrap(),
+            r#"{"Sized":["Width",{"Em":2.0}]}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&expressions[15]).unwrap(),
+            r#"{"Boolean":"Height"}"#
         );
         assert_eq!(
             serde_json::to_string(&expressions[18]).unwrap(),
