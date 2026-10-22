@@ -373,30 +373,19 @@ impl CalcExpr {
                 x - y
             }
             CalcExpr::Mul(x, y) => {
-                let x = x.resolve_to_f32(
+                // A `<number>` is only valid as the factor of a `*` or the divisor of a `/`
+                x.resolve_to_f32(
                     media_query_status,
                     relative_length,
                     length_as_parent_font_size,
-                )?;
-                let y = y.resolve_to_f32(
-                    media_query_status,
-                    relative_length,
-                    length_as_parent_font_size,
-                )?;
-                x * y
+                )? * y.resolve_number()?
             }
             CalcExpr::Div(x, y) => {
-                let x = x.resolve_to_f32(
+                x.resolve_to_f32(
                     media_query_status,
                     relative_length,
                     length_as_parent_font_size,
-                )?;
-                let y = y.resolve_to_f32(
-                    media_query_status,
-                    relative_length,
-                    length_as_parent_font_size,
-                )?;
-                x / y
+                )? / y.resolve_number()?
             }
             CalcExpr::Min(args) => {
                 let mut iter = args.iter();
@@ -456,6 +445,23 @@ impl CalcExpr {
             }
         };
         Some(ret)
+    }
+
+    /// Resolve the `<number>` operand of a `*` or a `/`.
+    ///
+    /// `<number>` is the empty type map in css-values-4 §10.9, so multiplying or dividing a
+    /// `<length>` by a `<number>` keeps the `<length>` type: `calc(0.5 * (1rem - 16px))`. The
+    /// parser folds every numeric sub-expression into a literal (`min(0.4, 0.6)` becomes `0.4`,
+    /// `2 / 4` becomes `0.5`) and rejects the other combinations, so only literals reach here.
+    fn resolve_number(&self) -> Option<f32> {
+        match self {
+            CalcExpr::Number(x) => match x.as_ref() {
+                Number::F32(x) => Some(*x),
+                Number::I32(x) => Some(*x as f32),
+                Number::Calc(x) => x.resolve_number(),
+            },
+            _ => None,
+        }
     }
 
     /// Resolve the length value to `L`.
