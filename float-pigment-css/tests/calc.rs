@@ -1,6 +1,6 @@
 #![allow(clippy::approx_constant)]
 
-use float_pigment_css::{typing::*, StyleSheet, StyleSheetGroup};
+use float_pigment_css::{typing::*, MediaQueryStatus, StyleSheet, StyleSheetGroup};
 
 mod utils;
 use utils::*;
@@ -621,4 +621,61 @@ pub fn math_function_errors() {
 pub fn calc_function_name_case_insensitive() {
     // CSS function names are ASCII case-insensitive.
     test_parse_property!(width, "width", "CALC(10px + 10px)", Length::Px(20.));
+}
+
+fn parse_width(value: &str) -> Length {
+    let mut ssg = StyleSheetGroup::new();
+    ssg.append(StyleSheet::from_str(&format!(".a{{width:{};}}", value)));
+    query(&ssg, "", "", ["a"], []).width()
+}
+
+fn resolve_width(value: &str, base_font_size: f32) -> Option<f32> {
+    let mut mqs = MediaQueryStatus::<f32>::default_screen();
+    mqs.base_font_size = base_font_size;
+    parse_width(value).resolve_length(&mqs, 16.)
+}
+
+#[test]
+pub fn calc_number_operand() {
+    // `0.5 * (...)` and `(...) * 0.5` parse into the same tree: the number is
+    // normalized into the right operand at parse time.
+    assert_eq!(
+        parse_width("calc(0.5 * (1rem - 16px))"),
+        parse_width("calc((1rem - 16px) * 0.5)")
+    );
+
+    // A `<number>` may be the factor of a `*` or the divisor of a `/`.
+    let formula = "calc(0.5 * (1rem - 16px) + 17px)";
+    assert_eq!(resolve_width(formula, 16.), Some(17.));
+    assert_eq!(resolve_width(formula, 24.), Some(21.));
+    assert_eq!(
+        resolve_width("calc((1rem - 16px) * 0.5 + 17px)", 30.),
+        Some(24.)
+    );
+    assert_eq!(
+        resolve_width("calc((1rem - 16px) / 2 + 17px)", 24.),
+        Some(21.)
+    );
+    assert_eq!(
+        resolve_width("calc(17px + 0.5 * calc(1rem - 16px))", 24.),
+        Some(21.)
+    );
+    assert_eq!(
+        resolve_width("max(0.5 * (1rem - 16px), 10px)", 24.),
+        Some(10.)
+    );
+
+    // Numeric sub-expressions are folded into literals at parse time.
+    assert_eq!(
+        resolve_width("calc((1rem - 16px) * min(0.4, 0.6))", 24.),
+        Some(3.2)
+    );
+    assert_eq!(
+        resolve_width("calc((1rem - 16px) * (2 / 4))", 24.),
+        Some(4.)
+    );
+
+    // A number cannot be added to a length, and a bare number is not a length.
+    assert_eq!(resolve_width("calc(2 + 3px)", 16.), None);
+    assert_eq!(resolve_width("calc(2 * 3)", 16.), None);
 }
