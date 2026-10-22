@@ -187,16 +187,12 @@ pub fn calc_ch_ex_lang() {
         )))
     );
 
-    // FIXME
-    // test_parse_property!(
-    //     font_size,
-    //     "font-size",
-    //     "calc(17px + 0.5 * (1rem - 16px))",
-    //     Length::new_calc_expr(CalcExpr::Plus(
-    //         Box::new(CalcExpr::Length(Length::Px(9.)))),
-    //         Box::new(CalcExpr::Length(Length::Rem(0.5))))
-    //     )))
-    // );
+    test_parse_property!(
+        font_size,
+        "font-size",
+        "calc(17px + 0.5 * (1rem - 16px))",
+        Length::Px(17.)
+    );
 }
 
 #[test]
