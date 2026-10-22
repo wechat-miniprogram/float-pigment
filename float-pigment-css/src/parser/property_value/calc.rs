@@ -521,7 +521,11 @@ fn parse_calc_sum_expr<'a, 't: 'a, 'i: 't>(
         if let Some(op) = op {
             match op {
                 Operator::Plus | Operator::Sub => {
-                    expr = combine_calc_expr(op, expr, rhs);
+                    // The units of `+` and `-` have to match, so a numeric sub-expression can be
+                    // folded right away, the same way `*` and `/` fold their numeric operands.
+                    let combined = combine_calc_expr(op, expr, rhs);
+                    expr = ComputeCalcExpr::<Number>::try_compute(&combined)
+                        .map_or(combined, |num| CalcExpr::Number(Box::new(num)));
                 }
                 _ => unreachable!(),
             }

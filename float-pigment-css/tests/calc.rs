@@ -674,6 +674,15 @@ pub fn calc_number_operand() {
         resolve_width("calc((1rem - 16px) * (2 / 4))", 24.),
         Some(4.)
     );
+    // A parenthesized sum is folded too, so `(1 + 0.5)` becomes `1.5`.
+    assert_eq!(
+        parse_width("calc((1rem - 16px) * (1 + 0.5))"),
+        parse_width("calc((1rem - 16px) * 1.5)")
+    );
+    assert_eq!(
+        resolve_width("calc((1rem - 16px) * (1 + 0.5))", 24.),
+        Some(12.)
+    );
 
     // A number cannot be added to a length, and a bare number is not a length.
     assert_eq!(resolve_width("calc(2 + 3px)", 16.), None);
