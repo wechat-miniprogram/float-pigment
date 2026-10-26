@@ -121,7 +121,9 @@ impl<'de> Deserialize<'de> for StyleSheetImportIndexV1 {
     where
         D: serde::Deserializer<'de>,
     {
-        struct StyleSheetImportIndexVisitor;
+        struct StyleSheetImportIndexVisitor {
+            zero_copy: bool,
+        }
 
         impl<'de> serde::de::Visitor<'de> for StyleSheetImportIndexVisitor {
             type Value = StyleSheetImportIndexV1;
@@ -134,20 +136,7 @@ impl<'de> Deserialize<'de> for StyleSheetImportIndexV1 {
             where
                 A: de::SeqAccess<'de>,
             {
-                let buf = SerdeThreadGlobalState::get_de_optional(|mut de| {
-                    if let Some(drop_callback) = de.as_mut().and_then(|de| de.zero_copy.take()) {
-                        seq.next_element::<&[u8]>()?
-                            .map(|x| {
-                                let ptr = x as *const [u8] as *mut [u8];
-                                unsafe { StrBuffer::new_static_borrowed(ptr, drop_callback) }
-                            })
-                            .ok_or_else(|| de::Error::invalid_length(0, &"StyleSheetImportIndex"))
-                    } else {
-                        seq.next_element::<Vec<u8>>()?
-                            .map(StrBuffer::new_with_buf)
-                            .ok_or_else(|| de::Error::invalid_length(0, &"StyleSheetImportIndex"))
-                    }
-                })?;
+                let buf = deserialize_str_buffer(&mut seq, self.zero_copy)?;
                 let deps = str_buffer_de_env(&buf, || {
                     let deps = seq
                         .next_element()?
@@ -158,6 +147,9 @@ impl<'de> Deserialize<'de> for StyleSheetImportIndexV1 {
             }
         }
 
-        de.deserialize_tuple(2, StyleSheetImportIndexVisitor)
+        let visitor = StyleSheetImportIndexVisitor {
+            zero_copy: !de.is_human_readable(),
+        };
+        de.deserialize_tuple(2, visitor)
     }
 }

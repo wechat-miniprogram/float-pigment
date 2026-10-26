@@ -32,24 +32,120 @@ pub mod borrow_resource;
 pub mod str_store;
 pub use rule::PropertyMeta;
 
+pub(crate) const MAX_RULE_NESTING_DEPTH: usize = 64;
+
+#[derive(Clone)]
+pub(crate) enum CssRule {
+    Style(Rc<Rule>),
+    Media(Rc<MediaRule>),
+    KeyFrames(Rc<KeyFrames>),
+    FontFace(Rc<FontFace>),
+    Import(Rc<ImportRule>),
+}
+
+#[derive(Clone)]
+pub(crate) struct MediaRule {
+    pub(crate) media: Rc<Media>,
+    pub(crate) rules: Vec<CssRule>,
+}
+
+#[derive(Clone)]
+pub(crate) struct ImportRule {
+    pub(crate) path: String,
+    pub(crate) media: Option<Rc<Media>>,
+}
+
+#[cfg(feature = "deserialize")]
+fn close_media_group(rules: &mut Vec<CssRule>, groups: &mut Vec<(Rc<Media>, Vec<CssRule>)>) {
+    let (media, children) = groups.pop().unwrap();
+    let rule = CssRule::Media(Rc::new(MediaRule {
+        media,
+        rules: children,
+    }));
+    groups
+        .last_mut()
+        .map_or(rules, |(_, rules)| rules)
+        .push(rule);
+}
+
+fn wrap_style_rule(rule: Rc<Rule>) -> CssRule {
+    let mut parent = rule.media.clone();
+    let mut result = CssRule::Style(rule);
+    while let Some(media) = parent {
+        parent = media.parent.clone();
+        result = CssRule::Media(Rc::new(MediaRule {
+            media,
+            rules: vec![result],
+        }));
+    }
+    result
+}
+
+fn for_each_style_rule_mut(rules: &mut [CssRule], mut f: impl FnMut(&mut Rc<Rule>)) {
+    let mut stack = vec![rules.iter_mut()];
+    while let Some(iter) = stack.last_mut() {
+        match iter.next() {
+            Some(CssRule::Style(rule)) => f(rule),
+            Some(CssRule::Media(rule)) => stack.push(Rc::make_mut(rule).rules.iter_mut()),
+            Some(_) => {}
+            None => {
+                stack.pop();
+            }
+        }
+    }
+}
+
+fn split_style_rule(rules: &mut Vec<CssRule>, index: u32) -> Option<(Vec<CssRule>, Rc<Rule>)> {
+    for position in 0..rules.len() {
+        match &mut rules[position] {
+            CssRule::Style(rule) if rule.index == index => {
+                let following = rules.split_off(position + 1);
+                let CssRule::Style(rule) = rules.pop().unwrap() else {
+                    unreachable!();
+                };
+                return Some((following, rule));
+            }
+            CssRule::Media(rule) => {
+                let rule = Rc::make_mut(rule);
+                if let Some((children, old_rule)) = split_style_rule(&mut rule.rules, index) {
+                    let following_group = (!children.is_empty()).then(|| {
+                        CssRule::Media(Rc::new(MediaRule {
+                            media: rule.media.clone(),
+                            rules: children,
+                        }))
+                    });
+                    let empty = rule.rules.is_empty();
+                    let mut following = rules.split_off(position + 1);
+                    if empty {
+                        rules.pop();
+                    }
+                    if let Some(group) = following_group {
+                        following.insert(0, group);
+                    }
+                    return Some((following, old_rule));
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct CompiledStyleSheet {
-    imports: Vec<(String, Option<Rc<Media>>)>,
     linked: bool,
     ss: Rc<RefCell<StyleSheet>>,
 }
 
 impl CompiledStyleSheet {
     pub(crate) fn new() -> Self {
+        Self::from_rules(vec![])
+    }
+
+    pub(crate) fn from_rules(rules: Vec<CssRule>) -> Self {
         Self {
-            imports: Vec::with_capacity(0),
             linked: false,
-            ss: Rc::new(RefCell::new(StyleSheet {
-                rules: vec![],
-                index: StyleSheetIndex::NeedUpdate,
-                font_face: vec![],
-                keyframes: vec![],
-            })),
+            ss: Rc::new(RefCell::new(StyleSheet::from_rules(rules))),
         }
     }
 
@@ -60,46 +156,64 @@ impl CompiledStyleSheet {
         font_face: Vec<Rc<FontFace>>,
         keyframes: Vec<Rc<KeyFrames>>,
     ) -> Self {
-        Self {
-            imports,
-            linked: false,
-            ss: Rc::new(RefCell::new(StyleSheet {
-                rules,
-                index: StyleSheetIndex::NeedUpdate,
-                font_face,
-                keyframes,
-            })),
+        let mut css_rules = imports
+            .into_iter()
+            .map(|(path, media)| CssRule::Import(Rc::new(ImportRule { path, media })))
+            .collect::<Vec<_>>();
+        let mut groups: Vec<(Rc<Media>, Vec<CssRule>)> = vec![];
+        for rule in rules {
+            let mut parents = vec![];
+            let mut media = rule.media.clone();
+            while let Some(parent) = media {
+                media = parent.parent.clone();
+                parents.push(parent);
+            }
+            parents.reverse();
+            let shared = groups
+                .iter()
+                .zip(&parents)
+                .take_while(|((media, _), parent)| Rc::ptr_eq(media, parent))
+                .count();
+            while groups.len() > shared {
+                close_media_group(&mut css_rules, &mut groups);
+            }
+            groups.extend(
+                parents
+                    .into_iter()
+                    .skip(shared)
+                    .map(|media| (media, vec![])),
+            );
+            let children = groups.last_mut().map_or(&mut css_rules, |(_, rules)| rules);
+            children.push(CssRule::Style(rule));
         }
+        while !groups.is_empty() {
+            close_media_group(&mut css_rules, &mut groups);
+        }
+        // V1 does not record media ownership for font-face or keyframes.
+        css_rules.extend(font_face.into_iter().map(CssRule::FontFace));
+        css_rules.extend(keyframes.into_iter().map(CssRule::KeyFrames));
+        Self::from_rules(css_rules)
     }
 
     pub(crate) fn list_deps(&self) -> Vec<String> {
-        self.imports.iter().map(|(s, _)| s.clone()).collect()
-    }
-
-    pub(crate) fn add_import(&mut self, path: String, media: Option<Rc<Media>>) {
-        self.imports.push((path, media));
-    }
-
-    pub(crate) fn add_rule(&mut self, rule: Box<Rule>) {
-        self.ss.borrow_mut().add_rule(rule);
-    }
-
-    pub(crate) fn add_font_face(&mut self, ff: FontFace) {
-        self.ss.borrow_mut().add_font_face(ff)
-    }
-
-    pub(crate) fn add_keyframes(&mut self, keyframes: KeyFrames) {
-        self.ss.borrow_mut().add_keyframes(keyframes)
+        self.ss
+            .borrow()
+            .index
+            .imports
+            .iter()
+            .map(|rule| rule.path.clone())
+            .collect()
     }
 
     pub(crate) fn add_tag_name_prefix(&mut self, prefix: &str) {
         let mut ss = self.ss.borrow_mut();
-        for rule in ss.rules.iter_mut() {
-            let rule = Rc::make_mut(rule);
-            for frag in rule.selector.fragments.iter_mut() {
-                frag.add_tag_name_prefix(prefix)
+        ss.index = StyleSheetIndex::default();
+        for_each_style_rule_mut(&mut ss.rules, |rule| {
+            for frag in Rc::make_mut(rule).selector.fragments.iter_mut() {
+                frag.add_tag_name_prefix(prefix);
             }
-        }
+        });
+        ss.rebuild_index();
     }
 
     pub(crate) fn link(
@@ -125,10 +239,12 @@ impl CompiledStyleSheet {
             self.ss.borrow_mut().update_index();
             self.linked = true;
         }
-        for (target_path, media) in self.imports.iter() {
+        let imports = self.ss.borrow().index.imports.clone();
+        for rule in &imports {
+            let target_path = &rule.path;
             if let Some(target) = res.refs.get(target_path) {
                 if let Ok(mut target) = target.try_borrow_mut() {
-                    let m = match media.clone() {
+                    let m = match rule.media.clone() {
                         None => parent_media.clone(),
                         Some(mut m) => {
                             Rc::make_mut(&mut m).parent.clone_from(&parent_media);
@@ -181,7 +297,7 @@ impl CompiledStyleSheet {
                 .allow_trailing_bytes()
                 .deserialize(&s);
         match s {
-            Ok(ss) => Ok(ss.into_sheet()),
+            Ok(ss) => ss.into_sheet(),
             Err(err) => Err(format!(
                 "Failed to deserialize bincode formatted style sheet: {err}"
             )),
@@ -202,7 +318,7 @@ impl CompiledStyleSheet {
                         .allow_trailing_bytes()
                         .deserialize(s);
                 match s {
-                    Ok(ss) => Ok(ss.into_sheet()),
+                    Ok(ss) => ss.into_sheet(),
                     Err(err) => Err(format!(
                         "Failed to deserialize bincode formatted style sheet: {err}"
                     )),
@@ -222,7 +338,7 @@ impl CompiledStyleSheet {
     pub(crate) fn deserialize_json(s: &str) -> Result<Self, String> {
         let s: Result<borrow::StyleSheet, _> = serde_json::from_str(s);
         match s {
-            Ok(ss) => Ok(ss.into_sheet()),
+            Ok(ss) => ss.into_sheet(),
             Err(err) => Err(format!(
                 "Failed to deserialize json formatted style sheet: {err}"
             )),
@@ -240,7 +356,7 @@ impl CompiledStyleSheet {
                 let s: Result<borrow::StyleSheet, _> =
                     serde_json::from_str(std::str::from_utf8_unchecked(s));
                 match s {
-                    Ok(ss) => Ok(ss.into_sheet()),
+                    Ok(ss) => ss.into_sheet(),
                     Err(err) => Err(format!(
                         "Failed to deserialize json formatted style sheet: {err}"
                     )),
@@ -397,15 +513,19 @@ impl LinkedStyleSheet {
         if self.scope.is_some() && self.scope != style_scope {
             return None;
         }
-        for (sheet, media) in self.sheets.iter() {
+        for (sheet, media) in self.sheets.iter().rev() {
             if let Some(media) = media {
                 if !media.is_valid(media_query_status) {
                     continue;
                 }
             }
             // TODO consider build a hashmap index
-            for k in sheet.borrow().keyframes.iter().rev() {
-                if k.ident.as_str() == name {
+            for (k, media) in sheet.borrow().index.keyframes.iter().rev() {
+                if k.ident.as_str() == name
+                    && media
+                        .as_ref()
+                        .is_none_or(|media| media.is_valid(media_query_status))
+                {
                     return Some(k.clone());
                 }
             }
@@ -422,19 +542,59 @@ impl LinkedStyleSheet {
         }
         ret
     }
+
+    /// Get font-face definitions whose media conditions match the current environment.
+    pub fn get_font_face_with_media<L: LengthNum>(
+        &self,
+        media_query_status: &MediaQueryStatus<L>,
+    ) -> Vec<Rc<FontFace>> {
+        let mut ret = vec![];
+        for (sheet, media) in &self.sheets {
+            if media
+                .as_ref()
+                .is_some_and(|media| !media.is_valid(media_query_status))
+            {
+                continue;
+            }
+            let sheet = sheet.borrow();
+            for (font_face, media) in sheet
+                .index
+                .font_face
+                .iter()
+                .zip(&sheet.index.font_face_media)
+            {
+                if media
+                    .as_ref()
+                    .is_none_or(|media| media.is_valid(media_query_status))
+                {
+                    ret.push(font_face.clone());
+                }
+            }
+        }
+        ret
+    }
 }
 
-/// A style sheet body without `@import` information.
+/// A style sheet body with grouped CSS rules.
 #[derive(Clone)]
 pub struct StyleSheet {
-    rules: Vec<Rc<Rule>>,
+    rules: Vec<CssRule>,
     index: StyleSheetIndex,
-    font_face: Vec<Rc<FontFace>>,
-    keyframes: Vec<Rc<KeyFrames>>,
 }
 
-#[derive(Clone)]
-enum StyleSheetIndex {
+#[derive(Clone, Default)]
+struct StyleSheetIndex {
+    rules: Vec<Rc<Rule>>,
+    font_face: Vec<Rc<FontFace>>,
+    font_face_media: Vec<Option<Rc<Media>>>,
+    keyframes: Vec<(Rc<KeyFrames>, Option<Rc<Media>>)>,
+    imports: Vec<Rc<ImportRule>>,
+    classes: ClassIndex,
+}
+
+#[derive(Clone, Default)]
+enum ClassIndex {
+    #[default]
     NeedUpdate,
     Updated {
         class_index: HashMap<String, Vec<Rc<Rule>>>,
@@ -442,16 +602,57 @@ enum StyleSheetIndex {
     },
 }
 
+impl StyleSheetIndex {
+    fn from_rules(rules: &mut [CssRule]) -> Self {
+        let mut index = Self::default();
+        let mut stack = vec![(rules.iter_mut(), None::<Rc<Media>>)];
+        while let Some((iter, parent)) = stack.last_mut() {
+            match iter.next() {
+                Some(CssRule::Style(rule)) => {
+                    let media_matches = match (&rule.media, &*parent) {
+                        (Some(media), Some(parent)) => Rc::ptr_eq(media, parent),
+                        (None, None) => true,
+                        _ => false,
+                    };
+                    let rule_index = index.rules.len() as u32;
+                    if rule.index != rule_index || !media_matches {
+                        let rule = Rc::make_mut(rule);
+                        rule.index = rule_index;
+                        rule.media = parent.clone();
+                    }
+                    index.rules.push(rule.clone());
+                }
+                Some(CssRule::Media(rule)) => {
+                    let rule = Rc::make_mut(rule);
+                    stack.push((rule.rules.iter_mut(), Some(rule.media.clone())));
+                }
+                Some(CssRule::KeyFrames(rule)) => {
+                    index.keyframes.push((rule.clone(), parent.clone()))
+                }
+                Some(CssRule::FontFace(rule)) => {
+                    index.font_face.push(rule.clone());
+                    index.font_face_media.push(parent.clone());
+                }
+                Some(CssRule::Import(rule)) => index.imports.push(rule.clone()),
+                None => {
+                    stack.pop();
+                }
+            }
+        }
+        index
+    }
+}
+
 impl core::fmt::Debug for StyleSheet {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "StyleSheet {{")?;
-        for rule in self.rules.iter() {
+        for rule in self.index.rules.iter() {
             write!(f, " {rule:?}")?;
         }
-        for font_face in self.font_face.iter() {
+        for font_face in self.index.font_face.iter() {
             write!(f, " {font_face:?}")?;
         }
-        for keyframes in self.keyframes.iter() {
+        for (keyframes, _) in self.index.keyframes.iter() {
             write!(f, " {keyframes:?}")?;
         }
         write!(f, " }}")
@@ -460,20 +661,47 @@ impl core::fmt::Debug for StyleSheet {
 
 impl core::fmt::Display for StyleSheet {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        for rule in self.rules.iter() {
-            write!(f, " {rule}")?;
+        fn fmt_rules(rules: &[CssRule], f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+            for rule in rules {
+                match rule {
+                    CssRule::Style(rule) => {
+                        write!(f, " ")?;
+                        rule.fmt_body(f)?;
+                    }
+                    CssRule::Media(rule) => {
+                        let queries = rule
+                            .media
+                            .media_queries
+                            .iter()
+                            .map(|query| query.to_media_query_string())
+                            .collect::<Box<[_]>>()
+                            .join(", ");
+                        write!(f, " @media {queries} {{")?;
+                        fmt_rules(&rule.rules, f)?;
+                        write!(f, " }}")?;
+                    }
+                    CssRule::FontFace(rule) => write!(f, " {rule}")?,
+                    CssRule::KeyFrames(rule) => write!(f, " {rule}")?,
+                    CssRule::Import(_) => {}
+                }
+            }
+            Ok(())
         }
-        for font_face in self.font_face.iter() {
-            write!(f, " {font_face}")?;
-        }
-        for keyframes in self.keyframes.iter() {
-            write!(f, " {keyframes}")?;
-        }
-        Ok(())
+        fmt_rules(&self.rules, f)
     }
 }
 
 impl StyleSheet {
+    fn from_rules(mut rules: Vec<CssRule>) -> Self {
+        let index = StyleSheetIndex::from_rules(&mut rules);
+        Self { rules, index }
+    }
+
+    fn rebuild_index(&mut self) {
+        self.index = StyleSheetIndex::default();
+        self.index = StyleSheetIndex::from_rules(&mut self.rules);
+    }
+
     #[doc(hidden)]
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> LinkedStyleSheet {
@@ -496,17 +724,17 @@ impl StyleSheet {
     }
 
     fn rules_count(&self) -> u32 {
-        self.rules.len().min(u32::MAX as usize) as u32
+        self.index.rules.len().min(u32::MAX as usize) as u32
     }
 
     fn get_rule(&self, rule_index: u32) -> Option<&Rc<Rule>> {
-        self.rules.get(rule_index as usize)
+        self.index.rules.get(rule_index as usize)
     }
 
     fn add_rule(&mut self, mut rule: Box<Rule>) {
-        rule.index = self.rules.len() as u32;
-        self.rules.push(Rc::from(rule));
-        self.index = StyleSheetIndex::NeedUpdate;
+        rule.index = self.index.rules.len() as u32;
+        self.rules.push(wrap_style_rule(Rc::from(rule)));
+        self.rebuild_index();
     }
 
     fn replace_rule(
@@ -514,23 +742,22 @@ impl StyleSheet {
         rule_index: u32,
         mut rule: Box<Rule>,
     ) -> Result<Rc<Rule>, Box<Rule>> {
-        let index = rule_index as usize;
-        if index < self.rules.len() {
-            rule.index = rule_index;
-            let mut rule = Rc::from(rule);
-            core::mem::swap(&mut self.rules[index], &mut rule);
-            self.index = StyleSheetIndex::NeedUpdate;
-            Ok(rule)
-        } else {
-            Err(rule)
+        if rule_index as usize >= self.index.rules.len() {
+            return Err(rule);
         }
+        rule.index = rule_index;
+        let (following, old_rule) = split_style_rule(&mut self.rules, rule_index).unwrap();
+        self.rules.push(wrap_style_rule(Rc::from(rule)));
+        self.rules.extend(following);
+        self.rebuild_index();
+        Ok(old_rule)
     }
 
     fn update_index(&mut self) {
-        if let StyleSheetIndex::NeedUpdate = &self.index {
+        if let ClassIndex::NeedUpdate = &self.index.classes {
             let mut class_index: HashMap<String, Vec<Rc<Rule>>> = HashMap::default();
             let mut class_unindexed = vec![];
-            for rule in self.rules.iter() {
+            for rule in self.index.rules.iter() {
                 let index_classes = rule.selector.get_index_classes();
                 for c in index_classes {
                     if !c.is_empty() {
@@ -541,7 +768,7 @@ impl StyleSheet {
                     }
                 }
             }
-            self.index = StyleSheetIndex::Updated {
+            self.index.classes = ClassIndex::Updated {
                 class_index,
                 class_unindexed,
             };
@@ -558,10 +785,10 @@ impl StyleSheet {
         mut f: impl FnMut(MatchedRuleRef),
     ) {
         self.update_index();
-        if let StyleSheetIndex::Updated {
+        if let ClassIndex::Updated {
             class_index,
             class_unindexed,
-        } = &self.index
+        } = &self.index.classes
         {
             if sheet_style_scope.is_none()
                 || query
@@ -608,16 +835,13 @@ impl StyleSheet {
 
     /// Add a font-face definition to the style sheet.
     pub fn add_font_face(&mut self, ff: FontFace) {
-        self.font_face.push(Rc::new(ff));
+        self.rules.push(CssRule::FontFace(Rc::new(ff)));
+        self.rebuild_index();
     }
 
     /// Get all font-face definitions.
     pub fn font_face(&self) -> &[Rc<FontFace>] {
-        &self.font_face
-    }
-
-    pub(crate) fn add_keyframes(&mut self, keyframes: KeyFrames) {
-        self.keyframes.push(Rc::new(keyframes));
+        &self.index.font_face
     }
 }
 
@@ -665,5 +889,110 @@ impl RuleWeight {
     /// Get the rule index.
     pub fn rule_index(&self) -> u32 {
         (self.0 as u32) - 1
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parsing_retains_media_children_and_empty_groups() {
+        let (sheet, warnings) = parser::parse_style_sheet(
+            "tree",
+            r#"
+            @media screen {
+                @font-face { font-family: Nested; src: local(Nested); }
+                @keyframes nested { to { opacity: 1; } }
+                @media (min-width: 300px) {}
+                .inside { width: 1px; }
+            }
+            .outside { width: 2px; }
+            "#,
+        );
+        assert!(warnings.is_empty());
+        let decoded = CompiledStyleSheet::deserialize_bincode(sheet.serialize_bincode()).unwrap();
+        for sheet in [sheet, decoded] {
+            let sheet = sheet.ss.borrow();
+            let CssRule::Media(media) = &sheet.rules[0] else {
+                panic!("media group missing");
+            };
+            assert!(matches!(media.rules[0], CssRule::FontFace(_)));
+            assert!(matches!(media.rules[1], CssRule::KeyFrames(_)));
+            let CssRule::Media(empty) = &media.rules[2] else {
+                panic!("empty media group missing");
+            };
+            assert!(empty.rules.is_empty());
+            assert!(Rc::ptr_eq(
+                empty.media.parent.as_ref().unwrap(),
+                &media.media
+            ));
+            let CssRule::Style(style) = &media.rules[3] else {
+                panic!("style rule missing");
+            };
+            assert!(Rc::ptr_eq(style, &sheet.index.rules[0]));
+            assert!(Rc::ptr_eq(style.media.as_ref().unwrap(), &media.media));
+            assert_eq!(sheet.index.rules.len(), 2);
+            assert_eq!(sheet.index.font_face.len(), 1);
+            assert_eq!(sheet.index.keyframes.len(), 1);
+        }
+    }
+
+    #[test]
+    fn media_group_depth_is_bounded() {
+        for depth in [MAX_RULE_NESTING_DEPTH, MAX_RULE_NESTING_DEPTH + 1] {
+            let source = format!(
+                "{}@keyframes deep {{ to {{ opacity: 1; }} }}{}.outside {{ width: 1px; }}",
+                "@media screen {".repeat(depth),
+                "}".repeat(depth)
+            );
+            let (mut sheet, warnings) = parser::parse_style_sheet("depth", &source);
+            assert_eq!(warnings.len(), usize::from(depth > MAX_RULE_NESTING_DEPTH));
+            let bytes = sheet.serialize_bincode();
+            let mut decoded = CompiledStyleSheet::deserialize_bincode(bytes).unwrap();
+            for sheet in [&mut sheet, &mut decoded] {
+                let (linked, _) = sheet.link(&StyleSheetResource::new(), None);
+                assert_eq!(linked.rules_count(None), Some(1));
+                assert_eq!(
+                    linked
+                        .search_keyframes(None, "deep", &MediaQueryStatus::<f32>::default_screen())
+                        .is_some(),
+                    depth == MAX_RULE_NESTING_DEPTH
+                );
+            }
+            let parts = core::iter::repeat("screen").take(depth);
+            assert_eq!(
+                Rule::from_parts_str(parts, ".deep").is_ok(),
+                depth == MAX_RULE_NESTING_DEPTH
+            );
+        }
+    }
+
+    #[test]
+    fn editing_cloned_sheet_does_not_change_original() {
+        let (sheet, _) = parser::parse_style_sheet(
+            "clone",
+            "@media screen { .a { width: 1px; } @media (min-width: 300px) { .b { width: 2px; } } }",
+        );
+        let original = sheet.ss.borrow().clone();
+        let mut edited = original.clone();
+        let replacement = edited
+            .get_rule(1)
+            .unwrap()
+            .modify_selector(".renamed")
+            .unwrap();
+        edited.replace_rule(1, replacement).unwrap();
+        edited.add_rule(Rule::new_empty());
+        assert_eq!(original.rules_count(), 2);
+        assert_eq!(original.get_rule(1).unwrap().get_selector_string(), ".b");
+        assert_eq!(edited.rules_count(), 3);
+        assert_eq!(
+            edited.get_rule(1).unwrap().get_selector_string(),
+            ".renamed"
+        );
+        assert_eq!(
+            edited.get_rule(1).unwrap().get_media_query_string_list(),
+            original.get_rule(1).unwrap().get_media_query_string_list()
+        );
     }
 }
