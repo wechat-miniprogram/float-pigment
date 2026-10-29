@@ -148,7 +148,9 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
     let min_max_limit =
         layout_unit.normalized_min_max_limit(node, *container_option_size, border, padding_border);
     let size = min_max_limit.normalized_size(OptionSize::new(width, height));
-    let max_content = min_max_limit.normalized_size(OptionSize::new(
+    // Shrink-to-fit applies to the inline axis only (CSS2.1 §10.3.7). On the block axis an
+    // abs-pos box with `height: auto` takes its content height (§10.6.4)
+    let inline_max_content = min_max_limit.normalized_size(OptionSize::new(
         OptionNum::some(size.width.unwrap_or(
             container_size.width
                 - left.or_zero()
@@ -164,6 +166,16 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
                 - margin.bottom.or_zero(),
         )),
     ));
+    let max_content = match style.writing_mode() {
+        WritingMode::HorizontalTb => Normalized(OptionSize::new(
+            inline_max_content.width,
+            size.height.or(min_max_limit.max_height),
+        )),
+        WritingMode::VerticalLr | WritingMode::VerticalRl => Normalized(OptionSize::new(
+            size.width.or(min_max_limit.max_width),
+            inline_max_content.height,
+        )),
+    };
 
     let result = if size.width.is_none() || size.height.is_none() {
         let auto_size = layout_unit
