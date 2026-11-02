@@ -734,6 +734,16 @@ impl StyleSheetGroup {
             .map(|sheet| sheet.get_font_face())
     }
 
+    /// Get font-face definitions matching the current media environment.
+    pub fn get_font_face_with_media<L: LengthNum>(
+        &self,
+        sheet_index: u16,
+        media_query_status: &MediaQueryStatus<L>,
+    ) -> Option<Vec<Rc<FontFace>>> {
+        self.style_sheet(sheet_index)
+            .map(|sheet| sheet.get_font_face_with_media(media_query_status))
+    }
+
     /// Get a rule by index.
     ///
     /// If sheet index is `TEMP_SHEET_INDEX` then the temporary style sheet will be used.

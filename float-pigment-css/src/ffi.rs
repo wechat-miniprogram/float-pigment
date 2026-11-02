@@ -353,7 +353,7 @@ pub unsafe extern "C" fn style_sheet_resource_add_bincode(
     check_null!(buffer_ptr, FfiErrorCode::BufferNullPointer, null());
     let res = raw_ptr_as_mut_ref!(this, group::StyleSheetResource);
     let bincode: *mut [u8] = core::ptr::slice_from_raw_parts_mut(buffer_ptr, buffer_len);
-    let path = CStr::from_ptr(path).to_string_lossy();
+    let path = CStr::from_ptr(path).to_string_lossy().into_owned();
     let w = res.add_bincode_zero_copy(&path, bincode, move || {
         if let Some(drop_fn) = drop_fn {
             drop_fn(drop_args);
@@ -593,7 +593,7 @@ pub unsafe extern "C" fn style_sheet_import_index_add_bincode(
     check_null!(this, FfiErrorCode::ThisNullPointer, null_mut());
     check_null!(path, FfiErrorCode::PathNullPointer, null_mut());
     check_null!(buffer_ptr, FfiErrorCode::BufferNullPointer, null_mut());
-    let path = CStr::from_ptr(path).to_string_lossy();
+    let path = CStr::from_ptr(path).to_string_lossy().into_owned();
     let sheet = de_static_ref_zero_copy_env(
         core::ptr::slice_from_raw_parts_mut(buffer_ptr, buffer_len),
         |s| {
@@ -1109,7 +1109,7 @@ pub unsafe extern "C" fn style_sheet_bincode_version(
         move || {},
     );
     let version = match sheet {
-        StyleSheet::V1(v1) => v1.version,
+        StyleSheet::V1(v1) => Box::new(StrRef::from(v1.version.to_string())),
         _ => Box::new("unknown version".into()),
     };
     FfiResult::ok(Box::into_raw(version))

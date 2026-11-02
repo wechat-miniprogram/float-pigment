@@ -263,6 +263,16 @@ impl fmt::Display for Rule {
         for media in media_queries.iter() {
             write!(f, "@media {media} {{ ")?;
         }
+        self.fmt_body(f)?;
+        for _ in media_queries.iter() {
+            write!(f, " }}")?;
+        }
+        Ok(())
+    }
+}
+
+impl Rule {
+    pub(super) fn fmt_body(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let selector = self.get_selector_string();
         write!(f, "{selector} {{ ")?;
         for prop in self.properties() {
@@ -273,15 +283,9 @@ impl fmt::Display for Rule {
                 prop.get_property_value_string()
             )?;
         }
-        write!(f, "}}")?;
-        for _ in media_queries.iter() {
-            write!(f, " }}")?;
-        }
-        Ok(())
+        write!(f, "}}")
     }
-}
 
-impl Rule {
     /// Create an empty rule.
     pub fn new_empty() -> Box<Self> {
         Box::new(Self {
@@ -348,10 +352,22 @@ impl Rule {
     ) -> Result<Box<Self>, Warning> {
         let mut media = None;
         for (index, media_str) in media_query_str_list.into_iter().enumerate() {
-            let cur_media = parser::parse_media_expression_only(media_str).map_err(|mut w| {
-                w.message = format!("{} (in media index {})", w.message.as_str(), index).into();
-                w
-            })?;
+            if index >= super::MAX_RULE_NESTING_DEPTH {
+                return Err(Warning {
+                    kind: parser::WarningKind::UnsupportedMediaSyntax,
+                    message: "Media nesting limit exceeded".into(),
+                    start_line: 0,
+                    start_col: 0,
+                    end_line: 0,
+                    end_col: 0,
+                });
+            }
+            let mut cur_media =
+                parser::parse_media_expression_only(media_str).map_err(|mut w| {
+                    w.message = format!("{} (in media index {})", w.message.as_str(), index).into();
+                    w
+                })?;
+            cur_media.parent = media;
             media = Some(Rc::new(cur_media));
         }
         let selector = parser::parse_selector_only(selector_str)?;

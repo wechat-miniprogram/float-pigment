@@ -81,7 +81,7 @@ fn main() -> Result<(), BuildError> {
                 r#"extern "C" {"# => {
                     end = true;
                 }
-                r#"} // extern "C""# => {
+                r#"} // extern "C""# | r#"}  // extern "C""# => {
                     end = false;
                 }
                 _ => {
