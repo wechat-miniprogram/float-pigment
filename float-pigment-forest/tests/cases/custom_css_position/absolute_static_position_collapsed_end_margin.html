@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<!-- Nested expectations are parent-relative; the Chrome script compares viewport coordinates. -->
+<div style="display: flow-root; width: 200px; height: 200px; position: relative;" data-chrome="false">
+  <div style="width: 200px; position: relative;" data-expect-top="10" data-expect-height="100">
+    <div style="width: 200px; height: 100px; margin-top: 10px; margin-bottom: 20px;"></div>
+    <div style="position: absolute; width: 20px; height: 20px;" data-expect-top="120"></div>
+  </div>
+  <div style="width: 200px; height: 10px;" data-expect-top="130"></div>
+</div>
