@@ -44,6 +44,38 @@ fn block_auto_offsets_follow_preceding_in_flow_siblings() {
 }
 
 #[test]
+fn inline_auto_width_updates_after_preceding_sibling_width_changes() {
+    let mut ctx = TestCtx::new();
+    let root = ctx.create_node("div");
+    ctx.set_style(root, "width: 200px; height: 200px; position: relative;");
+    let before = ctx.create_node("div");
+    ctx.set_style(before, "display: inline-block; width: 150px; height: 20px;");
+    ctx.append(root, before);
+    let absolute = ctx.create_node("text-slot");
+    ctx.set_style(absolute, "position: absolute;");
+    ctx.set_measure_text(absolute, 4, 20.);
+    ctx.append(root, absolute);
+    ctx.layout_imperative();
+    assert_eq!((ctx.left(absolute), ctx.top(absolute)), (150., 0.));
+    assert_eq!((ctx.width(absolute), ctx.height(absolute)), (40., 40.));
+
+    ctx.root = ctx.imperative_root;
+    ctx.layout(false);
+    assert_eq!((ctx.width(absolute), ctx.height(absolute)), (40., 40.));
+    unsafe {
+        let before_node = &*ctx.imperative_built[before.0];
+        before_node.set_width(DefLength::Points(Len::from_f32(100.)));
+        ctx.layout(false);
+        assert_eq!((ctx.left(absolute), ctx.top(absolute)), (100., 0.));
+        assert_eq!((ctx.width(absolute), ctx.height(absolute)), (80., 20.));
+        before_node.set_display(Display::None);
+        ctx.layout(false);
+        assert_eq!((ctx.left(absolute), ctx.top(absolute)), (0., 0.));
+        assert_eq!((ctx.width(absolute), ctx.height(absolute)), (80., 20.));
+    }
+}
+
+#[test]
 fn static_position_uses_content_origin_but_explicit_insets_use_padding_edge() {
     let mut ctx = TestCtx::new();
     let root = ctx.create_node("div");

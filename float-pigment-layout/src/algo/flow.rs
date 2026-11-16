@@ -40,6 +40,7 @@ fn position_inline_static_anchors<T: LayoutTreeNode>(
     let mut line_first = 0;
     let mut line_baseline = None;
     let mut line_start = T::Length::zero();
+    let mut first_inline_cursor = static_cross_start;
     for ((origin, result), child_node) in positions.iter().zip(nodes) {
         let (margin, _, _) = child_node
             .layout_node()
@@ -82,6 +83,13 @@ fn position_inline_static_anchors<T: LayoutTreeNode>(
                     .or_zero()
                     .cross_axis_end(axes.dir, AxisReverse::NotReversed)
         };
+        if anchors.is_empty() {
+            // A marker before the first unit starts at the aligned line edge,
+            // before that unit's margin box, in either inline direction.
+            first_inline_cursor = cursor
+                - result.size.cross_size(axes.dir)
+                - margin.or_zero().cross_axis_sum(axes.dir);
+        }
         anchors.push(InlineStaticAnchor {
             block_end,
             line_start,
@@ -99,7 +107,7 @@ fn position_inline_static_anchors<T: LayoutTreeNode>(
             line_start: T::Length::zero(),
             inline_cursor: static_cross_start,
         };
-        let anchor = anchors.get(index - 1).unwrap_or(&fallback);
+        let anchor = anchors.get(index.saturating_sub(1)).unwrap_or(&fallback);
         let inline = matches!(
             child_node.style().display(),
             Display::Inline | Display::InlineBlock | Display::InlineFlex | Display::InlineGrid
@@ -112,7 +120,9 @@ fn position_inline_static_anchors<T: LayoutTreeNode>(
             } else {
                 anchor.block_end
             };
-        let cross = if inline {
+        let cross = if inline && index == 0 {
+            first_inline_cursor
+        } else if inline {
             anchor.inline_cursor
         } else {
             static_cross_start
@@ -274,7 +284,15 @@ fn for_each_block_or_inline_series<T: LayoutTreeNode>(
                 if record_static_positions
                     && matches!(child_style.position(), Position::Absolute | Position::Fixed)
                 {
-                    if end_nodes.is_empty() {
+                    if end_nodes.is_empty()
+                        && !matches!(
+                            child_style.display(),
+                            Display::Inline
+                                | Display::InlineBlock
+                                | Display::InlineFlex
+                                | Display::InlineGrid
+                        )
+                    {
                         f(env, BlockOrInlineSeries::OutOfFlow(child_node));
                     } else {
                         // Keep the actual inline series intact. A placeholder
@@ -308,7 +326,7 @@ fn for_each_block_or_inline_series<T: LayoutTreeNode>(
                 // container box) and participates in block flow like Block.
                 // Its BFC semantics are handled by establishes_bfc().
                 Display::Block | Display::Flex | Display::Grid | Display::FlowRoot => {
-                    if !end_nodes.is_empty() {
+                    if !end_nodes.is_empty() || !out_of_flow_nodes.is_empty() {
                         f(
                             env,
                             BlockOrInlineSeries::InlineSeries {
@@ -1040,6 +1058,39 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                     });
                                 }
                             }
+                        }
+                    } else if positioning && !out_of_flow_nodes.is_empty() {
+                        // A marker-only line has zero size and must not consume
+                        // flow space or pending margins. Align its zero-width
+                        // inline position without adding a measurable unit.
+                        let cross_size = node_inner_size.cross_size(axis_info.dir).or_zero();
+                        let inline_offset = match node.style().text_align() {
+                            TextAlign::Center => cross_size.div_i32(2),
+                            TextAlign::End => cross_size,
+                            TextAlign::Right
+                                if static_axes.cross_dir_rev == AxisReverse::NotReversed =>
+                            {
+                                cross_size
+                            }
+                            TextAlign::Left
+                                if static_axes.cross_dir_rev == AxisReverse::Reversed =>
+                            {
+                                cross_size
+                            }
+                            _ => T::Length::zero(),
+                        };
+                        let main = padding_border
+                            .main_axis_start(axis_info.dir, axis_info.main_dir_rev)
+                            + total_main_size
+                            + prev_sibling_collapsed_margin
+                                .filter(|(_, through)| !through)
+                                .map_or(T::Length::zero(), |(margin, _)| margin.solve());
+                        let cross = static_cross_start + inline_offset;
+                        for (_, child_node) in out_of_flow_nodes {
+                            child_node.layout_node().unit().result.origin = match axis_info.dir {
+                                AxisDirection::Vertical => Point::new(cross, main),
+                                AxisDirection::Horizontal => Point::new(main, cross),
+                            };
                         }
                     }
                     if request.kind == ComputeRequestKind::Position {

@@ -168,23 +168,60 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
     let min_max_limit =
         layout_unit.normalized_min_max_limit(node, *container_option_size, border, padding_border);
     let size = min_max_limit.normalized_size(OptionSize::new(width, height));
+    let static_position = parent.static_position.map(|(anchor, axes)| {
+        let (x_reverse, y_reverse) = match axes.dir {
+            AxisDirection::Horizontal => (axes.main_dir_rev, axes.cross_dir_rev),
+            AxisDirection::Vertical => (axes.cross_dir_rev, axes.main_dir_rev),
+        };
+        (anchor, x_reverse, y_reverse)
+    });
+    let mut available_size = Size::new(
+        container_size.width
+            - left.or_zero()
+            - right.or_zero()
+            - margin.left.or_zero()
+            - margin.right.or_zero(),
+        container_size.height
+            - top.or_zero()
+            - bottom.or_zero()
+            - margin.top.or_zero()
+            - margin.bottom.or_zero(),
+    );
+    if let Some((anchor, x_reverse, y_reverse)) = static_position {
+        // Resolve the static start inset before shrink-to-fit (CSS 2.1 10.3.7).
+        // Anchors are relative to the parent's border box, while absolute
+        // insets start at its padding edge; fixed insets start at the viewport.
+        let container_origin = if position == Position::Fixed {
+            Point::zero()
+        } else {
+            Point::new(parent.border.left, parent.border.top)
+        };
+        if left.is_none() && right.is_none() {
+            let inset = match x_reverse {
+                AxisReverse::NotReversed => anchor.x - container_origin.x,
+                AxisReverse::Reversed => {
+                    container_origin.x + container_size.width - parent.compute_result.size.width
+                        + anchor.x
+                }
+            };
+            available_size.width = (available_size.width - inset).max(T::Length::zero());
+        }
+        if top.is_none() && bottom.is_none() {
+            let inset = match y_reverse {
+                AxisReverse::NotReversed => anchor.y - container_origin.y,
+                AxisReverse::Reversed => {
+                    container_origin.y + container_size.height - parent.compute_result.size.height
+                        + anchor.y
+                }
+            };
+            available_size.height = (available_size.height - inset).max(T::Length::zero());
+        }
+    }
     // Shrink-to-fit applies to the inline axis only (CSS2.1 §10.3.7). On the block axis an
     // abs-pos box with `height: auto` takes its content height (§10.6.4)
     let inline_max_content = min_max_limit.normalized_size(OptionSize::new(
-        OptionNum::some(size.width.unwrap_or(
-            container_size.width
-                - left.or_zero()
-                - right.or_zero()
-                - margin.left.or_zero()
-                - margin.right.or_zero(),
-        )),
-        OptionNum::some(size.height.unwrap_or(
-            container_size.height
-                - top.or_zero()
-                - bottom.or_zero()
-                - margin.top.or_zero()
-                - margin.bottom.or_zero(),
-        )),
+        OptionNum::some(size.width.unwrap_or(available_size.width)),
+        OptionNum::some(size.height.unwrap_or(available_size.height)),
     ));
     let max_content = match style.writing_mode() {
         WritingMode::HorizontalTb => Normalized(OptionSize::new(
@@ -490,14 +527,10 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
 
     layout_unit.gen_origin(axis_info, **parent.inner_size, offset_main, offset_cross);
 
-    if let Some((anchor, axes)) = parent.static_position {
+    if let Some((anchor, x_reverse, y_reverse)) = static_position {
         // CSS 2.1 10.3.7 / 10.6.4: only an axis with BOTH auto insets
         // uses the static position. The anchor is a margin-box edge; auto
         // margins are zero and do not collapse with surrounding flow margins.
-        let (x_reverse, y_reverse) = match axes.dir {
-            AxisDirection::Horizontal => (axes.main_dir_rev, axes.cross_dir_rev),
-            AxisDirection::Vertical => (axes.cross_dir_rev, axes.main_dir_rev),
-        };
         if left.is_none() && right.is_none() {
             layout_unit.result.origin.x = match x_reverse {
                 AxisReverse::NotReversed => anchor.x + margin.left.or_zero(),
