@@ -2,6 +2,14 @@ use float_pigment_css::num_traits::Zero;
 
 use crate::*;
 
+#[derive(Clone, Copy)]
+pub(crate) enum StaticPositionSource {
+    /// Flow layout recorded a logical margin-box anchor in each out-of-flow row.
+    Flow(AxisInfo),
+    /// Flex and grid use their existing alignment-based static positions.
+    Alignment,
+}
+
 /// Returns if the node has a special position, e.g. `display: none` or `position: absolute`.
 #[inline]
 pub fn is_independent_positioning<T: LayoutTreeNode>(node: &T) -> bool {
@@ -25,7 +33,7 @@ pub(crate) fn compute_special_position_children<T: LayoutTreeNode>(
     border: Edge<T::Length>,
     padding_border: Edge<T::Length>,
     axis_info: AxisInfo,
-    accept_flex_props: bool,
+    static_position_source: StaticPositionSource,
 ) {
     let style: &<T as LayoutTreeNode>::Style = node.style();
     let node_size = node_result.size.0;
@@ -46,6 +54,16 @@ pub(crate) fn compute_special_position_children<T: LayoutTreeNode>(
             child.clear_display_none_result(child_node);
             return;
         }
+        // Capture before computing the child: its own layout may reset origin,
+        // including when a position request reuses the child's cached sizes.
+        let static_position = match static_position_source {
+            StaticPositionSource::Flow(axes)
+                if matches!(child_style.position(), Position::Absolute | Position::Fixed) =>
+            {
+                Some((child_node.layout_node().unit().result.origin, axes))
+            }
+            _ => None,
+        };
         compute_special_position(
             env,
             child_node,
@@ -56,9 +74,10 @@ pub(crate) fn compute_special_position_children<T: LayoutTreeNode>(
                 inner_option_size: &node_inner_option_size,
                 border: &border,
                 padding_border: &padding_border,
+                static_position,
             },
             axis_info,
-            accept_flex_props,
+            matches!(static_position_source, StaticPositionSource::Alignment),
             child_style.position(),
         );
     };
@@ -73,6 +92,7 @@ pub(crate) struct ParentInfo<'a, T: LayoutTreeNode> {
     pub(crate) inner_option_size: &'a Normalized<OptionSize<T::Length>>,
     pub(crate) border: &'a Edge<T::Length>,
     pub(crate) padding_border: &'a Edge<T::Length>,
+    pub(crate) static_position: Option<(Point<T::Length>, AxisInfo)>,
 }
 
 #[inline]
@@ -469,4 +489,36 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
     };
 
     layout_unit.gen_origin(axis_info, **parent.inner_size, offset_main, offset_cross);
+
+    if let Some((anchor, axes)) = parent.static_position {
+        // CSS 2.1 10.3.7 / 10.6.4: only an axis with BOTH auto insets
+        // uses the static position. The anchor is a margin-box edge; auto
+        // margins are zero and do not collapse with surrounding flow margins.
+        let (x_reverse, y_reverse) = match axes.dir {
+            AxisDirection::Horizontal => (axes.main_dir_rev, axes.cross_dir_rev),
+            AxisDirection::Vertical => (axes.cross_dir_rev, axes.main_dir_rev),
+        };
+        if left.is_none() && right.is_none() {
+            layout_unit.result.origin.x = match x_reverse {
+                AxisReverse::NotReversed => anchor.x + margin.left.or_zero(),
+                AxisReverse::Reversed => {
+                    parent.compute_result.size.width
+                        - anchor.x
+                        - result.size.width
+                        - margin.right.or_zero()
+                }
+            };
+        }
+        if top.is_none() && bottom.is_none() {
+            layout_unit.result.origin.y = match y_reverse {
+                AxisReverse::NotReversed => anchor.y + margin.top.or_zero(),
+                AxisReverse::Reversed => {
+                    parent.compute_result.size.height
+                        - anchor.y
+                        - result.size.height
+                        - margin.bottom.or_zero()
+                }
+            };
+        }
+    }
 }

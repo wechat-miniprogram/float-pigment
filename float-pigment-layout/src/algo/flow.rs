@@ -4,10 +4,124 @@ use float_pigment_css::num_traits::{Signed, Zero};
 
 enum BlockOrInlineSeries<'a, T: LayoutTreeNode> {
     Block(&'a T),
+    OutOfFlow(&'a T),
     InlineSeries {
         end_nodes: Vec<&'a T>,
         middle_nodes: Vec<&'a T>,
+        out_of_flow_nodes: Vec<(usize, &'a T)>,
     },
+}
+
+struct InlineStaticAnchor<L> {
+    block_end: L,
+    line_start: L,
+    inline_cursor: L,
+}
+
+// Positions use the tuple payload returned by the public InlineMeasure API.
+#[allow(clippy::type_complexity)]
+fn position_inline_static_anchors<T: LayoutTreeNode>(
+    nodes: &[&T],
+    positions: &[(Point<T::Length>, MeasureResult<T::Length>)],
+    markers: Vec<(usize, &T)>,
+    inner_size: OptionSize<T::Length>,
+    padding_border: Edge<T::Length>,
+    axes: AxisInfo,
+    series: Rect<T::Length>,
+) {
+    let main_offset = series.origin.main_axis(axes.dir);
+    let cross_offset = series.origin.cross_axis(axes.dir);
+    let block_size = series.size;
+    let static_cross_start = padding_border.cross_axis_start(axes.dir, axes.cross_dir_rev);
+    // Prefix extents and line cursors are built once:
+    // interleaved inline/absolute nodes stay O(n).
+    let mut anchors: Vec<InlineStaticAnchor<T::Length>> = Vec::with_capacity(positions.len());
+    let mut block_end = T::Length::zero();
+    let mut line_first = 0;
+    let mut line_baseline = None;
+    let mut line_start = T::Length::zero();
+    for ((origin, result), child_node) in positions.iter().zip(nodes) {
+        let (margin, _, _) = child_node
+            .layout_node()
+            .unit()
+            .margin_border_padding(child_node, inner_size);
+        let baseline =
+            origin.main_axis(axes.dir) + result.first_baseline_ascent.main_axis(axes.dir);
+        let start = origin.main_axis(axes.dir)
+            - margin
+                .or_zero()
+                .main_axis_start(axes.dir, axes.main_dir_rev);
+        if line_baseline == Some(baseline) {
+            line_start = line_start.min(start);
+        } else {
+            for anchor in &mut anchors[line_first..] {
+                anchor.line_start = line_start;
+            }
+            line_first = anchors.len();
+            line_baseline = Some(baseline);
+            line_start = start;
+        }
+        block_end = block_end.max(
+            origin.main_axis(axes.dir)
+                + result.size.main_size(axes.dir)
+                + margin.or_zero().main_axis_end(axes.dir, axes.main_dir_rev),
+        );
+        let cursor = if axes.cross_dir_rev == AxisReverse::Reversed {
+            let parent_cross =
+                inner_size.cross_size(axes.dir).or_zero() + padding_border.cross_axis_sum(axes.dir);
+            parent_cross
+                - (cross_offset + origin.cross_axis(axes.dir)
+                    - margin
+                        .or_zero()
+                        .cross_axis_start(axes.dir, AxisReverse::NotReversed))
+        } else {
+            cross_offset
+                + origin.cross_axis(axes.dir)
+                + result.size.cross_size(axes.dir)
+                + margin
+                    .or_zero()
+                    .cross_axis_end(axes.dir, AxisReverse::NotReversed)
+        };
+        anchors.push(InlineStaticAnchor {
+            block_end,
+            line_start,
+            inline_cursor: cursor,
+        });
+    }
+    for anchor in &mut anchors[line_first..] {
+        anchor.line_start = line_start;
+    }
+    for (index, child_node) in markers {
+        // Follow the existing zip-based handling of
+        // hosts that omit detailed inline positions.
+        let fallback = InlineStaticAnchor {
+            block_end: block_size.main_size(axes.dir),
+            line_start: T::Length::zero(),
+            inline_cursor: static_cross_start,
+        };
+        let anchor = anchors.get(index - 1).unwrap_or(&fallback);
+        let inline = matches!(
+            child_node.style().display(),
+            Display::Inline | Display::InlineBlock | Display::InlineFlex | Display::InlineGrid
+        );
+        let main = main_offset
+            + if inline {
+                anchor.line_start
+            } else if index == nodes.len() {
+                block_size.main_size(axes.dir)
+            } else {
+                anchor.block_end
+            };
+        let cross = if inline {
+            anchor.inline_cursor
+        } else {
+            static_cross_start
+        };
+        child_node.layout_node().unit().result.origin = match axes.dir {
+            AxisDirection::Vertical => Point::new(cross, main),
+            AxisDirection::Horizontal => Point::new(main, cross),
+        };
+    }
 }
 
 /// No content separating parent and descendants
@@ -136,20 +250,38 @@ pub(crate) fn establishes_bfc<T: LayoutTreeNode>(node: &T) -> bool {
 fn for_each_block_or_inline_series<T: LayoutTreeNode>(
     env: &mut T::Env,
     node: &T,
+    record_static_positions: bool,
     mut f: impl FnMut(&mut T::Env, BlockOrInlineSeries<T>),
 ) {
     let mut end_nodes = vec![];
     let mut middle_nodes = vec![];
+    let mut out_of_flow_nodes = vec![];
     fn search_inline_rec<'a, T: LayoutTreeNode>(
         env: &mut T::Env,
         node: &'a T,
         f: &mut impl FnMut(&mut T::Env, BlockOrInlineSeries<T>),
         end_nodes: &mut Vec<&'a T>,
         middle_nodes: &mut Vec<&'a T>,
+        out_of_flow_nodes: &mut Vec<(usize, &'a T)>,
+        record_static_positions: bool,
     ) {
         node.tree_visitor().for_each_child(|child_node, _| {
             let child_style = child_node.style();
-            if is_display_none::<T>(child_style) || is_out_of_flow::<T>(child_style) {
+            if is_display_none::<T>(child_style) {
+                return;
+            }
+            if is_out_of_flow::<T>(child_style) {
+                if record_static_positions
+                    && matches!(child_style.position(), Position::Absolute | Position::Fixed)
+                {
+                    if end_nodes.is_empty() {
+                        f(env, BlockOrInlineSeries::OutOfFlow(child_node));
+                    } else {
+                        // Keep the actual inline series intact. A placeholder
+                        // records its cursor without adding a measurable unit.
+                        out_of_flow_nodes.push((end_nodes.len(), child_node));
+                    }
+                }
                 return;
             }
             match child_style.display() {
@@ -157,7 +289,15 @@ fn for_each_block_or_inline_series<T: LayoutTreeNode>(
                     if child_node.should_measure(env) {
                         end_nodes.push(child_node);
                     } else {
-                        search_inline_rec(env, child_node, f, end_nodes, middle_nodes);
+                        search_inline_rec(
+                            env,
+                            child_node,
+                            f,
+                            end_nodes,
+                            middle_nodes,
+                            out_of_flow_nodes,
+                            record_static_positions,
+                        );
                         middle_nodes.push(child_node);
                     }
                 }
@@ -174,6 +314,7 @@ fn for_each_block_or_inline_series<T: LayoutTreeNode>(
                             BlockOrInlineSeries::InlineSeries {
                                 end_nodes: core::mem::take(end_nodes),
                                 middle_nodes: core::mem::take(middle_nodes),
+                                out_of_flow_nodes: core::mem::take(out_of_flow_nodes),
                             },
                         );
                     }
@@ -183,12 +324,21 @@ fn for_each_block_or_inline_series<T: LayoutTreeNode>(
             }
         });
     }
-    search_inline_rec(env, node, &mut f, &mut end_nodes, &mut middle_nodes);
+    search_inline_rec(
+        env,
+        node,
+        &mut f,
+        &mut end_nodes,
+        &mut middle_nodes,
+        &mut out_of_flow_nodes,
+        record_static_positions,
+    );
     f(
         env,
         BlockOrInlineSeries::InlineSeries {
             end_nodes,
             middle_nodes,
+            out_of_flow_nodes,
         },
     );
 }
@@ -368,7 +518,10 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                     cross_dir_rev: AxisReverse::NotReversed,
                     ..axis_info
                 },
-                false,
+                StaticPositionSource::Flow(AxisInfo::from_writing_mode_and_direction(
+                    style.writing_mode(),
+                    style.direction(),
+                )),
             );
             self.result = Rect::new(Point::zero(), ret.size.0);
             self.cache.write_position(node, &request, ret);
@@ -414,9 +567,35 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                 .main_axis_start(axis_info.dir, axis_info.main_dir_rev),
         );
         let mut prev_sibling_collapsed_margin: Option<(CollapsedMargin<T::Length>, bool)> = None;
+        let positioning = request.kind == ComputeRequestKind::Position;
+        let static_axes = if positioning {
+            AxisInfo::from_writing_mode_and_direction(
+                node.style().writing_mode(),
+                node.style().direction(),
+            )
+        } else {
+            axis_info
+        };
+        let static_cross_start =
+            padding_border.cross_axis_start(axis_info.dir, static_axes.cross_dir_rev);
 
-        for_each_block_or_inline_series(env, node, |env, block_or_inline_series| {
+        for_each_block_or_inline_series(env, node, positioning, |env, block_or_inline_series| {
             match block_or_inline_series {
+                BlockOrInlineSeries::OutOfFlow(child_node) => {
+                    if request.kind == ComputeRequestKind::Position {
+                        let pending_margin = prev_sibling_collapsed_margin
+                            .filter(|(_, through)| !through)
+                            .map_or(T::Length::zero(), |(margin, _)| margin.solve());
+                        let main = padding_border
+                            .main_axis_start(axis_info.dir, axis_info.main_dir_rev)
+                            + total_main_size
+                            + pending_margin;
+                        child_node.layout_node().unit().result.origin = match axis_info.dir {
+                            AxisDirection::Vertical => Point::new(static_cross_start, main),
+                            AxisDirection::Horizontal => Point::new(main, static_cross_start),
+                        };
+                    }
+                }
                 // for child block
                 BlockOrInlineSeries::Block(child_node) => {
                     let mut child = child_node.layout_node().unit();
@@ -693,6 +872,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                 BlockOrInlineSeries::InlineSeries {
                     end_nodes,
                     middle_nodes,
+                    out_of_flow_nodes,
                 } => {
                     if !end_nodes.is_empty() {
                         let inline_units = end_nodes
@@ -797,6 +977,27 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                         total_main_size += block_size.main_size(axis_info.dir);
                         max_cross_size = max_cross_size.max(block_size.cross_size(axis_info.dir));
                         if request.kind == ComputeRequestKind::Position {
+                            if !out_of_flow_nodes.is_empty() {
+                                position_inline_static_anchors(
+                                    &end_nodes,
+                                    &positions,
+                                    out_of_flow_nodes,
+                                    node_inner_size,
+                                    padding_border,
+                                    static_axes,
+                                    Rect::new(
+                                        match axis_info.dir {
+                                            AxisDirection::Vertical => {
+                                                Point::new(cross_offset, main_offset)
+                                            }
+                                            AxisDirection::Horizontal => {
+                                                Point::new(main_offset, cross_offset)
+                                            }
+                                        },
+                                        block_size,
+                                    ),
+                                );
+                            }
                             let mut baseline_diff = Vector::zero();
                             baseline_diff.set_main_axis(axis_info.dir, main_offset);
                             baseline_diff.set_cross_axis(axis_info.dir, cross_offset);
@@ -855,9 +1056,45 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                             middle_node_layout_unit.result = merged_rect;
                             middle_node_layout_unit.cache.touch(middle_node);
                             let child_diff = merged_rect.origin.to_vector();
+                            // Out-of-flow origins are logical anchors until the
+                            // final positioning pass. Translate those using the
+                            // formatting context's axes, not the inline wrapper's.
+                            let parent_size = node_inner_size.or_zero()
+                                + Size::new(padding_border.horizontal(), padding_border.vertical());
+                            let main_diff = match static_axes.main_dir_rev {
+                                AxisReverse::NotReversed => {
+                                    merged_rect.origin.main_axis(axis_info.dir)
+                                }
+                                AxisReverse::Reversed => {
+                                    parent_size.main_size(axis_info.dir)
+                                        - merged_rect.origin.main_axis(axis_info.dir)
+                                        - merged_rect.size.main_size(axis_info.dir)
+                                }
+                            };
+                            let cross_diff = match static_axes.cross_dir_rev {
+                                AxisReverse::NotReversed => {
+                                    merged_rect.origin.cross_axis(axis_info.dir)
+                                }
+                                AxisReverse::Reversed => {
+                                    parent_size.cross_size(axis_info.dir)
+                                        - merged_rect.origin.cross_axis(axis_info.dir)
+                                        - merged_rect.size.cross_size(axis_info.dir)
+                                }
+                            };
+                            let static_diff = match axis_info.dir {
+                                AxisDirection::Vertical => Vector::new(cross_diff, main_diff),
+                                AxisDirection::Horizontal => Vector::new(main_diff, cross_diff),
+                            };
                             middle_node.tree_visitor().for_each_child(|child_node, _| {
                                 let mut child = child_node.layout_node().unit();
-                                child.result.origin -= child_diff;
+                                if matches!(
+                                    child_node.style().position(),
+                                    Position::Absolute | Position::Fixed
+                                ) {
+                                    child.result.origin -= static_diff;
+                                } else {
+                                    child.result.origin -= child_diff;
+                                }
                             });
                             middle_node_layout_unit.save_all_results(
                                 middle_node,
@@ -881,7 +1118,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                 border,
                                 padding_border,
                                 axis_info,
-                                false,
+                                StaticPositionSource::Flow(static_axes),
                             )
                         }
                     }

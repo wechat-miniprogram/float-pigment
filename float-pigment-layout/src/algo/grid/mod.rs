@@ -792,7 +792,7 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
                     main_dir_rev: axis_info.main_dir_rev,
                     cross_dir_rev: axis_info.cross_dir_rev,
                 },
-                true,
+                crate::StaticPositionSource::Alignment,
             );
             self.result = Rect::new(Point::zero(), ret.size.0);
             self.cache.write_position(node, &request, ret);
