@@ -1495,7 +1495,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                 .unwrap_or_else(|| container_size.to_vector()),
             collapsed_margin,
         };
-        compute_special_position_children(
+        self.has_deferred_fixed_descendants = compute_special_position_children(
             env,
             node,
             &ret,

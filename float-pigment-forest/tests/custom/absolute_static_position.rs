@@ -3,6 +3,84 @@ use crate::*;
 use float_pigment_css::typing::{Direction, Position};
 
 #[test]
+fn fixed_static_position_updates_after_ancestor_moves() {
+    let mut ctx = TestCtx::new();
+    let root = ctx.create_node("div");
+    ctx.set_style(root, "width: 375px; height: 750px;");
+    let parent = ctx.create_node("div");
+    ctx.set_style(
+        parent,
+        "position: relative; margin-left: 100px; width: 200px; height: 200px; direction: rtl;",
+    );
+    ctx.append(root, parent);
+    let fixed = ctx.create_node("text-slot");
+    ctx.set_style(fixed, "position: fixed;");
+    ctx.set_measure_text(fixed, 15, 20.);
+    ctx.append(parent, fixed);
+    ctx.layout_imperative();
+    assert_eq!(
+        (ctx.left(fixed), ctx.width(fixed), ctx.height(fixed)),
+        (0., 300., 20.)
+    );
+
+    ctx.root = ctx.imperative_root;
+    ctx.layout(false);
+    assert_eq!(
+        (ctx.left(fixed), ctx.width(fixed), ctx.height(fixed)),
+        (0., 300., 20.)
+    );
+    unsafe {
+        let parent_node = &*ctx.imperative_built[parent.0];
+        parent_node.set_margin_left(DefLength::Points(Len::from_f32(50.)));
+        ctx.layout(false);
+        assert_eq!(
+            (ctx.left(fixed), ctx.width(fixed), ctx.height(fixed)),
+            (10., 240., 40.)
+        );
+        parent_node.set_margin_left(DefLength::Points(Len::from_f32(100.)));
+        parent_node.set_left(DefLength::Points(Len::from_f32(50.)));
+        ctx.layout(false);
+        assert_eq!(
+            (ctx.left(fixed), ctx.width(fixed), ctx.height(fixed)),
+            (50., 300., 20.)
+        );
+        parent_node.set_display(Display::None);
+        ctx.layout(false);
+        assert_eq!((ctx.width(fixed), ctx.height(fixed)), (0., 0.));
+        parent_node.set_display(Display::Block);
+        ctx.layout(false);
+        assert_eq!(
+            (ctx.left(fixed), ctx.width(fixed), ctx.height(fixed)),
+            (50., 300., 20.)
+        );
+        parent_node.set_direction(Direction::LTR);
+        ctx.layout(false);
+        assert_eq!((ctx.left(fixed), ctx.width(fixed)), (150., 220.));
+
+        // Keep the root's layout request unchanged while only the viewport
+        // grows: a cached normal subtree must still resolve fixed constraints.
+        (*ctx.root.unwrap()).layout(
+            OptionSize::new(
+                OptionNum::some(Len::from_f32(375.)),
+                OptionNum::some(Len::from_f32(750.)),
+            ),
+            Size::new(Len::from_f32(500.), Len::from_f32(750.)),
+        );
+        assert_eq!((ctx.left(fixed), ctx.width(fixed)), (150., 300.));
+        ctx.layout(false);
+        assert_eq!((ctx.left(fixed), ctx.width(fixed)), (150., 220.));
+
+        let fixed_node = &*ctx.imperative_built[fixed.0];
+        fixed_node.set_position(Position::Absolute);
+        ctx.layout(false);
+        assert_eq!((ctx.left(fixed), ctx.width(fixed)), (0., 200.));
+        fixed_node.set_position(Position::Fixed);
+        ctx.layout(false);
+        assert_eq!((ctx.left(fixed), ctx.width(fixed)), (150., 220.));
+    }
+}
+
+#[test]
 fn block_auto_offsets_follow_preceding_in_flow_siblings() {
     let mut ctx = TestCtx::new();
     let root = ctx.create_node("div");

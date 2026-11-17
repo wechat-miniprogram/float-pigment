@@ -9,6 +9,8 @@ pub(crate) struct LayoutUnit<T: LayoutTreeNode> {
     pub(crate) result_content_rect: Rect<T::Length>,
     pub(crate) computed_style: ComputedStyle<T::Length>,
     pub(crate) layout_algorithm: LayoutAlgorithm,
+    pub(crate) deferred_fixed_position: Option<Box<DeferredFixedPosition<T::Length>>>,
+    pub(crate) has_deferred_fixed_descendants: bool,
 }
 
 impl<T: LayoutTreeNode> LayoutUnit<T> {
@@ -20,6 +22,8 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
             result_content_rect: Rect::zero(),
             computed_style: ComputedStyle::default(),
             layout_algorithm: LayoutAlgorithm::None,
+            deferred_fixed_position: None,
+            has_deferred_fixed_descendants: false,
         }
     }
 
@@ -133,6 +137,8 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
         self.result_padding_rect = Rect::zero();
         self.result_content_rect = Rect::zero();
         self.layout_algorithm = LayoutAlgorithm::None;
+        self.deferred_fixed_position = None;
+        self.has_deferred_fixed_descendants = false;
         node.tree_visitor().for_each_child(|child_node, _| {
             child_node
                 .layout_node()
@@ -166,6 +172,9 @@ impl<T: LayoutTreeNode> LayoutUnit<T> {
             r
         } else {
             // do request
+            if request.kind == ComputeRequestKind::Position {
+                self.has_deferred_fixed_descendants = false;
+            }
             // info!("!!! {:p} req {:?}", self, request);
             let (margin, border, padding_border) =
                 self.margin_border_padding(node, *request.parent_inner_size);

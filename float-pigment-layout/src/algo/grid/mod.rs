@@ -781,7 +781,7 @@ impl<T: LayoutTreeNode> GridContainer<T> for LayoutUnit<T> {
         if request.kind != ComputeRequestKind::Position {
             self.cache.write_all_size(node, &request, ret);
         } else {
-            compute_special_position_children(
+            self.has_deferred_fixed_descendants = compute_special_position_children(
                 env,
                 node,
                 &ret,

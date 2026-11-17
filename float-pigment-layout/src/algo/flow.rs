@@ -526,7 +526,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
         };
 
         if request.kind == ComputeRequestKind::Position {
-            compute_special_position_children(
+            self.has_deferred_fixed_descendants = compute_special_position_children(
                 env,
                 node,
                 &ret,
@@ -1043,6 +1043,7 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                                 last_baseline_ascent_option =
                                     Some(child_res.last_baseline_ascent + baseline_diff);
                                 if child_node.should_measure(env) {
+                                    child.has_deferred_fixed_descendants = false;
                                     child.save_all_results(
                                         child_node,
                                         env,
@@ -1155,22 +1156,23 @@ impl<T: LayoutTreeNode> Flow<T> for LayoutUnit<T> {
                             );
                             let (_, border, padding_border) = middle_node_layout_unit
                                 .margin_border_padding(middle_node, node_inner_size);
-                            compute_special_position_children(
-                                env,
-                                middle_node,
-                                &ComputeResult {
-                                    size: Normalized(merged_rect.size),
-                                    collapsed_margin: CollapsedBlockMargin::zero(),
-                                    first_baseline_ascent: first_baseline_ascent_option
-                                        .unwrap_or_else(|| merged_rect.size.to_vector()),
-                                    last_baseline_ascent: last_baseline_ascent_option
-                                        .unwrap_or_else(|| merged_rect.size.to_vector()),
-                                },
-                                border,
-                                padding_border,
-                                axis_info,
-                                StaticPositionSource::Flow(static_axes),
-                            )
+                            middle_node_layout_unit.has_deferred_fixed_descendants =
+                                compute_special_position_children(
+                                    env,
+                                    middle_node,
+                                    &ComputeResult {
+                                        size: Normalized(merged_rect.size),
+                                        collapsed_margin: CollapsedBlockMargin::zero(),
+                                        first_baseline_ascent: first_baseline_ascent_option
+                                            .unwrap_or_else(|| merged_rect.size.to_vector()),
+                                        last_baseline_ascent: last_baseline_ascent_option
+                                            .unwrap_or_else(|| merged_rect.size.to_vector()),
+                                    },
+                                    border,
+                                    padding_border,
+                                    axis_info,
+                                    StaticPositionSource::Flow(static_axes),
+                                )
                         }
                     }
                 }

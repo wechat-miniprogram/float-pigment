@@ -366,7 +366,8 @@ impl<T: LayoutTreeNode> LayoutNode<T> {
     /// The `env` will be received in measure functions.
     #[inline]
     pub fn update(&self, env: &mut T::Env, node: &T, available_size: OptionSize<T::Length>) {
-        self.unit.borrow_mut().compute(env, node, available_size)
+        self.unit.borrow_mut().compute(env, node, available_size);
+        resolve_fixed_static_positions(env, node, Point::zero());
     }
 
     /// Check all nodes that has been `mark_dirty`, and update the layout results of the whole tree with container size given.
@@ -388,7 +389,8 @@ impl<T: LayoutTreeNode> LayoutNode<T> {
             node,
             available_size,
             containing_size,
-        )
+        );
+        resolve_fixed_static_positions(env, node, Point::zero());
     }
 
     #[inline]
