@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<!-- text-slot uses synthetic text measurement, absent in Chrome. -->
+<div style="display: flow-root; width: 375px; height: 750px;" data-chrome="false">
+  <div style="position: relative; left: 40px; width: 335px; height: 200px;">
+    <div style="position: relative; margin-left: 60px; width: 200px; height: 200px; direction: rtl;">
+      <text-slot len="15" fontSize="20" style="position: fixed;"
+                 data-expect-left="0" data-expect-top="0" data-expect-width="300" data-expect-height="20"></text-slot>
+    </div>
+  </div>
+</div>

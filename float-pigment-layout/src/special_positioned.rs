@@ -2,6 +2,21 @@ use float_pigment_css::num_traits::Zero;
 
 use crate::*;
 
+#[derive(Clone, Copy)]
+pub(crate) enum StaticPositionSource {
+    /// Flow layout recorded a logical margin-box anchor in each out-of-flow row.
+    Flow(AxisInfo),
+    /// Flex and grid use their existing alignment-based static positions.
+    Alignment,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct DeferredFixedPosition<L> {
+    anchor: Point<L>,
+    axes: AxisInfo,
+    parent_axes: AxisInfo,
+}
+
 /// Returns if the node has a special position, e.g. `display: none` or `position: absolute`.
 #[inline]
 pub fn is_independent_positioning<T: LayoutTreeNode>(node: &T) -> bool {
@@ -25,8 +40,8 @@ pub(crate) fn compute_special_position_children<T: LayoutTreeNode>(
     border: Edge<T::Length>,
     padding_border: Edge<T::Length>,
     axis_info: AxisInfo,
-    accept_flex_props: bool,
-) {
+    static_position_source: StaticPositionSource,
+) -> bool {
     let style: &<T as LayoutTreeNode>::Style = node.style();
     let node_size = node_result.size.0;
     let node_inner_size = Normalized(Size::new(
@@ -39,13 +54,24 @@ pub(crate) fn compute_special_position_children<T: LayoutTreeNode>(
     ));
 
     // TODO relative to non-static
-    let mut f = move |child_node: &T| {
+    let mut has_deferred_fixed = false;
+    let mut f = |child_node: &T| {
         let child_style = child_node.style();
         if child_style.display() == Display::None {
             let mut child = child_node.layout_node().unit();
             child.clear_display_none_result(child_node);
             return;
         }
+        // Capture before computing the child: its own layout may reset origin,
+        // including when a position request reuses the child's cached sizes.
+        let static_position = match static_position_source {
+            StaticPositionSource::Flow(axes)
+                if matches!(child_style.position(), Position::Absolute | Position::Fixed) =>
+            {
+                Some((child_node.layout_node().unit().result.origin, axes))
+            }
+            _ => None,
+        };
         compute_special_position(
             env,
             child_node,
@@ -56,14 +82,84 @@ pub(crate) fn compute_special_position_children<T: LayoutTreeNode>(
                 inner_option_size: &node_inner_option_size,
                 border: &border,
                 padding_border: &padding_border,
+                static_position,
+                fixed_parent_origin: None,
             },
             axis_info,
-            accept_flex_props,
+            matches!(static_position_source, StaticPositionSource::Alignment),
             child_style.position(),
         );
+        let child = child_node.layout_node().unit();
+        has_deferred_fixed |=
+            child.deferred_fixed_position.is_some() || child.has_deferred_fixed_descendants;
     };
     node.tree_visitor()
         .for_each_child(|child_node, _| f(child_node));
+    has_deferred_fixed
+}
+
+// Fixed static positions depend on ancestor positions, which are assigned only
+// after their children have been laid out. Resolve them top-down once normal
+// layout is complete. Cached subtrees keep their original local anchors.
+pub(crate) fn resolve_fixed_static_positions<T: LayoutTreeNode>(
+    env: &mut T::Env,
+    node: &T,
+    parent_origin: Point<T::Length>,
+) {
+    let unit = node.layout_node().unit();
+    if !unit.has_deferred_fixed_descendants {
+        return;
+    }
+    let origin = if node.style().position() == Position::Fixed {
+        unit.result.origin
+    } else {
+        parent_origin + unit.result.origin.to_vector()
+    };
+    let node_result = ComputeResult {
+        size: Normalized(unit.result.size),
+        first_baseline_ascent: Vector::zero(),
+        last_baseline_ascent: Vector::zero(),
+        collapsed_margin: CollapsedBlockMargin::zero(),
+    };
+    let border = unit.computed_style.border;
+    let padding_border = border + unit.computed_style.padding;
+    let inner_size = Normalized(Size::new(
+        unit.result.size.width - border.horizontal(),
+        unit.result.size.height - border.vertical(),
+    ));
+    let inner_option_size = Normalized(OptionSize::new(
+        OptionNum::some(inner_size.width),
+        OptionNum::some(inner_size.height),
+    ));
+    drop(unit);
+    node.tree_visitor().for_each_child(|child_node, _| {
+        let deferred = child_node
+            .layout_node()
+            .unit()
+            .deferred_fixed_position
+            .as_deref()
+            .copied();
+        if let Some(deferred) = deferred {
+            compute_special_position(
+                env,
+                child_node,
+                ParentInfo {
+                    compute_result: &node_result,
+                    style: node.style(),
+                    inner_size: &inner_size,
+                    inner_option_size: &inner_option_size,
+                    border: &border,
+                    padding_border: &padding_border,
+                    static_position: Some((deferred.anchor, deferred.axes)),
+                    fixed_parent_origin: Some(origin),
+                },
+                deferred.parent_axes,
+                false,
+                Position::Fixed,
+            );
+        }
+        resolve_fixed_static_positions(env, child_node, origin);
+    });
 }
 
 pub(crate) struct ParentInfo<'a, T: LayoutTreeNode> {
@@ -73,6 +169,8 @@ pub(crate) struct ParentInfo<'a, T: LayoutTreeNode> {
     pub(crate) inner_option_size: &'a Normalized<OptionSize<T::Length>>,
     pub(crate) border: &'a Edge<T::Length>,
     pub(crate) padding_border: &'a Edge<T::Length>,
+    pub(crate) static_position: Option<(Point<T::Length>, AxisInfo)>,
+    pub(crate) fixed_parent_origin: Option<Point<T::Length>>,
 }
 
 #[inline]
@@ -85,10 +183,14 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
     position: Position,
 ) {
     if position == Position::Static {
+        node.layout_node().unit().deferred_fixed_position = None;
         return;
     }
     let mut layout_unit = node.layout_node().unit();
     let style = node.style();
+    if position != Position::Fixed || parent.static_position.is_none() {
+        layout_unit.deferred_fixed_position = None;
+    }
 
     let container_size = if position == Position::Fixed {
         Size::new(env.screen_width(), env.screen_height())
@@ -123,6 +225,25 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
         return;
     }
 
+    if position == Position::Fixed && parent.fixed_parent_origin.is_none() {
+        if let Some((anchor, axes)) = parent.static_position {
+            if (left.is_none() && right.is_none()) || (top.is_none() && bottom.is_none()) {
+                let deferred = DeferredFixedPosition {
+                    anchor,
+                    axes,
+                    parent_axes: axis_info,
+                };
+                if let Some(info) = layout_unit.deferred_fixed_position.as_deref_mut() {
+                    *info = deferred;
+                } else {
+                    layout_unit.deferred_fixed_position = Some(Box::new(deferred));
+                }
+                return;
+            }
+        }
+        layout_unit.deferred_fixed_position = None;
+    }
+
     let (margin, border, padding_border) =
         layout_unit.margin_border_padding(node, *container_option_size);
     let css_size =
@@ -148,23 +269,67 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
     let min_max_limit =
         layout_unit.normalized_min_max_limit(node, *container_option_size, border, padding_border);
     let size = min_max_limit.normalized_size(OptionSize::new(width, height));
+    let static_position = parent.static_position.map(|(anchor, axes)| {
+        let (x_reverse, y_reverse) = match axes.dir {
+            AxisDirection::Horizontal => (axes.main_dir_rev, axes.cross_dir_rev),
+            AxisDirection::Vertical => (axes.cross_dir_rev, axes.main_dir_rev),
+        };
+        let mut edge = Point::new(
+            match x_reverse {
+                AxisReverse::NotReversed => anchor.x,
+                AxisReverse::Reversed => parent.compute_result.size.width - anchor.x,
+            },
+            match y_reverse {
+                AxisReverse::NotReversed => anchor.y,
+                AxisReverse::Reversed => parent.compute_result.size.height - anchor.y,
+            },
+        );
+        if let Some(origin) = parent.fixed_parent_origin {
+            edge += origin.to_vector();
+        }
+        (edge, x_reverse, y_reverse)
+    });
+    let mut available_size = Size::new(
+        container_size.width
+            - left.or_zero()
+            - right.or_zero()
+            - margin.left.or_zero()
+            - margin.right.or_zero(),
+        container_size.height
+            - top.or_zero()
+            - bottom.or_zero()
+            - margin.top.or_zero()
+            - margin.bottom.or_zero(),
+    );
+    if let Some((anchor, x_reverse, y_reverse)) = static_position {
+        // Resolve the static start inset before shrink-to-fit (CSS 2.1 10.3.7).
+        // Anchors are relative to the parent's border box, while absolute
+        // insets start at its padding edge; fixed insets start at the viewport.
+        let container_origin = if position == Position::Fixed {
+            Point::zero()
+        } else {
+            Point::new(parent.border.left, parent.border.top)
+        };
+        if left.is_none() && right.is_none() {
+            let inset = match x_reverse {
+                AxisReverse::NotReversed => anchor.x - container_origin.x,
+                AxisReverse::Reversed => container_origin.x + container_size.width - anchor.x,
+            };
+            available_size.width = (available_size.width - inset).max(T::Length::zero());
+        }
+        if top.is_none() && bottom.is_none() {
+            let inset = match y_reverse {
+                AxisReverse::NotReversed => anchor.y - container_origin.y,
+                AxisReverse::Reversed => container_origin.y + container_size.height - anchor.y,
+            };
+            available_size.height = (available_size.height - inset).max(T::Length::zero());
+        }
+    }
     // Shrink-to-fit applies to the inline axis only (CSS2.1 §10.3.7). On the block axis an
     // abs-pos box with `height: auto` takes its content height (§10.6.4)
     let inline_max_content = min_max_limit.normalized_size(OptionSize::new(
-        OptionNum::some(size.width.unwrap_or(
-            container_size.width
-                - left.or_zero()
-                - right.or_zero()
-                - margin.left.or_zero()
-                - margin.right.or_zero(),
-        )),
-        OptionNum::some(size.height.unwrap_or(
-            container_size.height
-                - top.or_zero()
-                - bottom.or_zero()
-                - margin.top.or_zero()
-                - margin.bottom.or_zero(),
-        )),
+        OptionNum::some(size.width.unwrap_or(available_size.width)),
+        OptionNum::some(size.height.unwrap_or(available_size.height)),
     ));
     let max_content = match style.writing_mode() {
         WritingMode::HorizontalTb => Normalized(OptionSize::new(
@@ -469,4 +634,22 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
     };
 
     layout_unit.gen_origin(axis_info, **parent.inner_size, offset_main, offset_cross);
+
+    if let Some((anchor, x_reverse, y_reverse)) = static_position {
+        // CSS 2.1 10.3.7 / 10.6.4: only an axis with BOTH auto insets
+        // uses the static position. The anchor is a physical margin-box edge; auto
+        // margins are zero and do not collapse with surrounding flow margins.
+        if left.is_none() && right.is_none() {
+            layout_unit.result.origin.x = match x_reverse {
+                AxisReverse::NotReversed => anchor.x + margin.left.or_zero(),
+                AxisReverse::Reversed => anchor.x - result.size.width - margin.right.or_zero(),
+            };
+        }
+        if top.is_none() && bottom.is_none() {
+            layout_unit.result.origin.y = match y_reverse {
+                AxisReverse::NotReversed => anchor.y + margin.top.or_zero(),
+                AxisReverse::Reversed => anchor.y - result.size.height - margin.bottom.or_zero(),
+            };
+        }
+    }
 }

@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<!-- text-slot uses the harness's synthetic text measurement, absent in Chrome. -->
+<div style="box-sizing: border-box; width: 240px; height: 200px; position: relative; padding-left: 10px; padding-right: 20px; border-left: 3px solid; border-right: 3px solid; font-size: 0; line-height: 0;" data-chrome="false">
+  <div style="display: inline-block; width: 150px; height: 20px;"></div>
+  <text-slot len="4" fontSize="20" style="position: absolute; margin-left: 7px; margin-right: 5px;"
+             data-expect-left="170" data-expect-top="0" data-expect-width="60" data-expect-height="40"></text-slot>
+  <text-slot len="4" fontSize="20" style="position: absolute; left: 160px; margin-left: 7px; margin-right: 5px;"
+             data-expect-left="170" data-expect-top="0" data-expect-width="60" data-expect-height="40"></text-slot>
+</div>
