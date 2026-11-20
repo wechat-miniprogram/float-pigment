@@ -177,7 +177,8 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
         )),
     };
 
-    let result = if size.width.is_none() || size.height.is_none() {
+    let block_axis = AxisInfo::from_writing_mode(style.writing_mode());
+    let position_size = if size.cross_size(block_axis.dir).is_none() {
         let auto_size = layout_unit
             .compute_internal(
                 env,
@@ -191,36 +192,45 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
                     sizing_mode: SizingMode::Normal,
                 },
             )
-            .size;
-        layout_unit.compute_internal(
-            env,
-            node,
-            ComputeRequest {
-                size: Normalized(OptionSize::new(
-                    OptionNum::some(auto_size.width),
-                    OptionNum::some(auto_size.height),
-                )),
-                parent_inner_size: container_option_size,
-                max_content,
-                kind: ComputeRequestKind::Position,
-                parent_is_block: false,
-                sizing_mode: SizingMode::Normal,
-            },
-        )
+            .size
+            .0;
+        // CSS2.1 §10.3.7: an abs-pos box with auto inline size is shrink-to-fit. AllSize returns
+        // max-content (inline = cross axis), so clamp it and re-measure an auto block. Flex is
+        // exempt (its intrinsic pass already fits content); grid keeps max-content because
+        // clamping below a track's min-content would be wrong.
+        let available_inline = inline_max_content
+            .cross_size(block_axis.dir)
+            .or_zero()
+            .max(T::Length::zero());
+        let is_independent_intrinsic = matches!(
+            style.display(),
+            Display::Flex | Display::InlineFlex | Display::Grid | Display::InlineGrid
+        );
+        let auto_inline = auto_size.cross_size(block_axis.dir);
+        Normalized(OptionSize::new_with_dir(
+            block_axis.dir,
+            size.main_size(block_axis.dir),
+            OptionNum::some(if is_independent_intrinsic {
+                auto_inline
+            } else {
+                auto_inline.min(available_inline)
+            }),
+        ))
     } else {
-        layout_unit.compute_internal(
-            env,
-            node,
-            ComputeRequest {
-                size,
-                parent_inner_size: container_option_size,
-                max_content,
-                kind: ComputeRequestKind::Position,
-                parent_is_block: false,
-                sizing_mode: SizingMode::Normal,
-            },
-        )
+        size
     };
+    let result = layout_unit.compute_internal(
+        env,
+        node,
+        ComputeRequest {
+            size: position_size,
+            parent_inner_size: container_option_size,
+            max_content,
+            kind: ComputeRequestKind::Position,
+            parent_is_block: false,
+            sizing_mode: SizingMode::Normal,
+        },
+    );
     let free_space = container_size - result.size.0;
     let parent_free_space = **parent.inner_size - result.size.0;
     let (main_start, main_end, cross_start, cross_end) =
