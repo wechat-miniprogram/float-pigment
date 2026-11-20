@@ -195,17 +195,22 @@ pub(crate) fn compute_special_position<T: LayoutTreeNode>(
             .size
             .0;
         // CSS2.1 §10.3.7: an abs-pos box with auto inline size is shrink-to-fit. AllSize returns
-        // max-content (inline = cross axis), so clamp it and re-measure an auto block; flex is exempt.
+        // max-content (inline = cross axis), so clamp it and re-measure an auto block. Flex is
+        // exempt (its intrinsic pass already fits content); grid keeps max-content because
+        // clamping below a track's min-content would be wrong.
         let available_inline = inline_max_content
             .cross_size(block_axis.dir)
             .or_zero()
             .max(T::Length::zero());
-        let is_flex_container = matches!(style.display(), Display::Flex | Display::InlineFlex);
+        let is_independent_intrinsic = matches!(
+            style.display(),
+            Display::Flex | Display::InlineFlex | Display::Grid | Display::InlineGrid
+        );
         let auto_inline = auto_size.cross_size(block_axis.dir);
         Normalized(OptionSize::new_with_dir(
             block_axis.dir,
             size.main_size(block_axis.dir),
-            OptionNum::some(if is_flex_container {
+            OptionNum::some(if is_independent_intrinsic {
                 auto_inline
             } else {
                 auto_inline.min(available_inline)
