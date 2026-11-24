@@ -228,7 +228,6 @@ impl fmt::Display for MaskModeItem {
     }
 }
 
-
 impl fmt::Display for Content {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -335,7 +334,6 @@ impl fmt::Display for WillChange {
     }
 }
 
-
 impl fmt::Display for TrackSize {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -346,4 +344,3 @@ impl fmt::Display for TrackSize {
         }
     }
 }
-

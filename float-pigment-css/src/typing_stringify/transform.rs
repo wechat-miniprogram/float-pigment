@@ -85,7 +85,6 @@ impl fmt::Display for TransformItem {
     }
 }
 
-
 impl fmt::Display for TransformOrigin {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut tmp = String::new();
@@ -136,4 +135,3 @@ impl fmt::Display for TransformOrigin {
         )
     }
 }
-

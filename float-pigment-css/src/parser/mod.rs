@@ -8,11 +8,11 @@ use alloc::{
     vec::Vec,
 };
 
+use cssparser::CowRcStr;
 use cssparser::{
     parse_important, Delimiter, ParseError, ParseErrorKind, Parser, ParserInput, SourceLocation,
     SourcePosition, Token,
 };
-use cssparser::CowRcStr;
 
 use self::property_value::font::{font_display, font_face_src, font_family_name};
 use crate::property::*;
@@ -333,7 +333,6 @@ pub fn parse_property_value_string(
     );
     (properties, state.warnings)
 }
-
 
 pub(crate) fn parse_media_expression_only(source: &str) -> Result<Media, Warning> {
     let mut parser_input = ParserInput::new(source);
@@ -991,7 +990,6 @@ fn parse_rule<'a, 't: 'a, 'i: 't>(
         }),
     }
 }
-
 
 #[inline(always)]
 fn parse_property_list<'a, 't: 'a, 'i: 't>(

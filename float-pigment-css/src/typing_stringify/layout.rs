@@ -410,7 +410,6 @@ impl fmt::Display for Scrollbar {
     }
 }
 
-
 impl fmt::Display for Float {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -489,7 +488,6 @@ impl fmt::Display for Contain {
     }
 }
 
-
 impl fmt::Display for Gap {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -498,7 +496,6 @@ impl fmt::Display for Gap {
         }
     }
 }
-
 
 impl fmt::Display for GridTemplate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -90,7 +90,6 @@ impl fmt::Display for Length {
     }
 }
 
-
 impl fmt::Display for Angle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -114,4 +113,3 @@ impl fmt::Display for Angle {
         )
     }
 }
-

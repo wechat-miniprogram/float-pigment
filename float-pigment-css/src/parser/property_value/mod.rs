@@ -527,13 +527,19 @@ pub(crate) fn number<'a, 't: 'a, 'i: 't>(
                 || n.eq_ignore_ascii_case("max")
                 || n.eq_ignore_ascii_case("clamp")
             {
-                return parse_math_function_body(parser, properties, st, ExpectValueType::Number, n)
-                    .map(|ret| {
-                        if let Some(r) = ComputeCalcExpr::<Number>::try_compute(&ret) {
-                            return r;
-                        }
-                        Number::Calc(Box::new(ret))
-                    });
+                return parse_math_function_body(
+                    parser,
+                    properties,
+                    st,
+                    ExpectValueType::Number,
+                    n,
+                )
+                .map(|ret| {
+                    if let Some(r) = ComputeCalcExpr::<Number>::try_compute(&ret) {
+                        return r;
+                    }
+                    Number::Calc(Box::new(ret))
+                });
             }
         }
         _ => {}

@@ -534,11 +534,13 @@ pub fn calc_min_max_length() {
         width,
         "width",
         "calc(min(10px, 5vw))",
-        Length::new_calc_expr(Box::new(CalcExpr::Min(vec![
-            CalcExpr::Length(Length::Px(10.)),
-            CalcExpr::Length(Length::Vw(5.)),
-        ]
-        .into())))
+        Length::new_calc_expr(Box::new(CalcExpr::Min(
+            vec![
+                CalcExpr::Length(Length::Px(10.)),
+                CalcExpr::Length(Length::Vw(5.)),
+            ]
+            .into()
+        )))
     );
 }
 
@@ -546,7 +548,12 @@ pub fn calc_min_max_length() {
 pub fn calc_min_max_number_angle() {
     // number, parse-time fold
     test_parse_property!(flex_grow, "flex-grow", "calc(max(1, 2))", Number::F32(2.));
-    test_parse_property!(flex_grow, "flex-grow", "calc(min(3, 2, 1))", Number::F32(1.));
+    test_parse_property!(
+        flex_grow,
+        "flex-grow",
+        "calc(min(3, 2, 1))",
+        Number::F32(1.)
+    );
     // angle, parse-time fold
     test_parse_property!(
         transform,
@@ -559,11 +566,31 @@ pub fn calc_min_max_number_angle() {
 #[test]
 pub fn calc_clamp() {
     // parse-time fold (all literals, same unit)
-    test_parse_property!(width, "width", "calc(clamp(10px, 50px, 100px))", Length::Px(50.));
-    test_parse_property!(width, "width", "calc(clamp(10px, 5px, 100px))", Length::Px(10.));
-    test_parse_property!(width, "width", "calc(clamp(10px, 500px, 100px))", Length::Px(100.));
+    test_parse_property!(
+        width,
+        "width",
+        "calc(clamp(10px, 50px, 100px))",
+        Length::Px(50.)
+    );
+    test_parse_property!(
+        width,
+        "width",
+        "calc(clamp(10px, 5px, 100px))",
+        Length::Px(10.)
+    );
+    test_parse_property!(
+        width,
+        "width",
+        "calc(clamp(10px, 500px, 100px))",
+        Length::Px(100.)
+    );
     // number
-    test_parse_property!(flex_grow, "flex-grow", "calc(clamp(0, 2, 1))", Number::F32(1.));
+    test_parse_property!(
+        flex_grow,
+        "flex-grow",
+        "calc(clamp(0, 2, 1))",
+        Number::F32(1.)
+    );
     // runtime resolve (val contains vw)
     test_parse_property!(
         width,
@@ -584,11 +611,13 @@ pub fn math_function_standalone() {
         width,
         "width",
         "min(10px, 5vw)",
-        Length::new_calc_expr(Box::new(CalcExpr::Min(vec![
-            CalcExpr::Length(Length::Px(10.)),
-            CalcExpr::Length(Length::Vw(5.)),
-        ]
-        .into())))
+        Length::new_calc_expr(Box::new(CalcExpr::Min(
+            vec![
+                CalcExpr::Length(Length::Px(10.)),
+                CalcExpr::Length(Length::Vw(5.)),
+            ]
+            .into()
+        )))
     );
     test_parse_property!(width, "width", "max(10px, 20px)", Length::Px(20.));
     // standalone number

@@ -4,7 +4,8 @@
 use crate::{NodeHandle, TestCtx};
 
 const PILL: &str = "height: 28px; display: flex; align-items: center; padding: 0 6px; box-sizing: border-box; align-self: flex-start;";
-const FLOATING: &str = "position: absolute; left: 16px; right: 16px; bottom: 200px; display: flex; align-items: end;";
+const FLOATING: &str =
+    "position: absolute; left: 16px; right: 16px; bottom: 200px; display: flex; align-items: end;";
 
 /// bottom bar (height 0) > floating area (abs-pos) > column flex > [pill, info]
 fn build(ctx: &mut TestCtx, floating_style: &str) -> (NodeHandle, NodeHandle, NodeHandle) {
@@ -32,7 +33,10 @@ fn build(ctx: &mut TestCtx, floating_style: &str) -> (NodeHandle, NodeHandle, No
     ctx.set_style(text, "font-size: 14px; line-height: 18px;");
     ctx.append(pill, text);
     let info = ctx.create_node("div");
-    ctx.set_style(info, "height: 18px; margin-top: 8px; align-self: flex-start;");
+    ctx.set_style(
+        info,
+        "height: 18px; margin-top: 8px; align-self: flex-start;",
+    );
     ctx.append(column, info);
     (floating, column, pill)
 }
@@ -111,7 +115,10 @@ fn abs_auto_height_is_not_capped_by_remaining_space() {
     ctx.set_style(text, "font-size: 14px; line-height: 18px;");
     ctx.append(pill, text);
     let info = ctx.create_node("div");
-    ctx.set_style(info, "height: 18px; margin-top: 8px; align-self: flex-start;");
+    ctx.set_style(
+        info,
+        "height: 18px; margin-top: 8px; align-self: flex-start;",
+    );
     ctx.append(column, info);
     ctx.layout_imperative();
 

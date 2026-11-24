@@ -1,12 +1,11 @@
 use super::*;
 
-
-    // 0x60 & 0x61 & 0x62 & 0x63 & 0x64 & 0x65 & 0x66 & 0x67 & 0x68 & 0x69 & 0x6a & 0x6b
-    #[test]
-    fn border() {
-        let mut ssg = StyleSheetGroup::new();
-        let ss = StyleSheet::from_str(
-            r#"
+// 0x60 & 0x61 & 0x62 & 0x63 & 0x64 & 0x65 & 0x66 & 0x67 & 0x68 & 0x69 & 0x6a & 0x6b
+#[test]
+fn border() {
+    let mut ssg = StyleSheetGroup::new();
+    let ss = StyleSheet::from_str(
+        r#"
             .a { 
                 border: 20px solid red;
             }
@@ -26,118 +25,118 @@ use super::*;
                 border: 2px 2px 2px 2px black solid;
             }
         "#,
-        );
-        ssg.append(ss);
-        let np = query(&ssg, "", "", ["a"], []);
-        assert_eq!(np.border_left_width(), Length::Px(20.));
-        assert_eq!(np.border_right_width(), Length::Px(20.));
-        assert_eq!(np.border_top_width(), Length::Px(20.));
-        assert_eq!(np.border_bottom_width(), Length::Px(20.));
+    );
+    ssg.append(ss);
+    let np = query(&ssg, "", "", ["a"], []);
+    assert_eq!(np.border_left_width(), Length::Px(20.));
+    assert_eq!(np.border_right_width(), Length::Px(20.));
+    assert_eq!(np.border_top_width(), Length::Px(20.));
+    assert_eq!(np.border_bottom_width(), Length::Px(20.));
 
-        assert_eq!(np.border_left_style(), BorderStyle::Solid);
-        assert_eq!(np.border_right_style(), BorderStyle::Solid);
-        assert_eq!(np.border_top_style(), BorderStyle::Solid);
-        assert_eq!(np.border_bottom_style(), BorderStyle::Solid);
+    assert_eq!(np.border_left_style(), BorderStyle::Solid);
+    assert_eq!(np.border_right_style(), BorderStyle::Solid);
+    assert_eq!(np.border_top_style(), BorderStyle::Solid);
+    assert_eq!(np.border_bottom_style(), BorderStyle::Solid);
 
-        assert_eq!(np.border_left_color(), Color::Specified(255, 0, 0, 255));
-        assert_eq!(np.border_right_color(), Color::Specified(255, 0, 0, 255));
-        assert_eq!(np.border_top_color(), Color::Specified(255, 0, 0, 255));
-        assert_eq!(np.border_bottom_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_left_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_right_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_top_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_bottom_color(), Color::Specified(255, 0, 0, 255));
 
-        let np = query(&ssg, "", "", ["b"], []);
-        assert_eq!(np.border_left_width(), Length::Px(12.));
-        assert_eq!(np.border_right_width(), Length::Px(12.));
-        assert_eq!(np.border_top_width(), Length::Px(12.));
-        assert_eq!(np.border_bottom_width(), Length::Px(12.));
+    let np = query(&ssg, "", "", ["b"], []);
+    assert_eq!(np.border_left_width(), Length::Px(12.));
+    assert_eq!(np.border_right_width(), Length::Px(12.));
+    assert_eq!(np.border_top_width(), Length::Px(12.));
+    assert_eq!(np.border_bottom_width(), Length::Px(12.));
 
-        assert_eq!(np.border_left_style(), BorderStyle::Dashed);
-        assert_eq!(np.border_right_style(), BorderStyle::Dashed);
-        assert_eq!(np.border_top_style(), BorderStyle::Dashed);
-        assert_eq!(np.border_bottom_style(), BorderStyle::Dashed);
+    assert_eq!(np.border_left_style(), BorderStyle::Dashed);
+    assert_eq!(np.border_right_style(), BorderStyle::Dashed);
+    assert_eq!(np.border_top_style(), BorderStyle::Dashed);
+    assert_eq!(np.border_bottom_style(), BorderStyle::Dashed);
 
-        assert_eq!(np.border_left_color(), Color::Specified(255, 0, 0, 255));
-        assert_eq!(np.border_right_color(), Color::Specified(255, 0, 0, 255));
-        assert_eq!(np.border_top_color(), Color::Specified(255, 0, 0, 255));
-        assert_eq!(np.border_bottom_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_left_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_right_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_top_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_bottom_color(), Color::Specified(255, 0, 0, 255));
 
-        let np = query(&ssg, "", "", ["c"], []);
-        assert_eq!(np.border_left_width(), Length::Px(3.));
-        assert_eq!(np.border_right_width(), Length::Px(3.));
-        assert_eq!(np.border_top_width(), Length::Px(3.));
-        assert_eq!(np.border_bottom_width(), Length::Px(3.));
+    let np = query(&ssg, "", "", ["c"], []);
+    assert_eq!(np.border_left_width(), Length::Px(3.));
+    assert_eq!(np.border_right_width(), Length::Px(3.));
+    assert_eq!(np.border_top_width(), Length::Px(3.));
+    assert_eq!(np.border_bottom_width(), Length::Px(3.));
 
-        assert_eq!(np.border_left_style(), BorderStyle::Dotted);
-        assert_eq!(np.border_right_style(), BorderStyle::Dotted);
-        assert_eq!(np.border_top_style(), BorderStyle::Dotted);
-        assert_eq!(np.border_bottom_style(), BorderStyle::Dotted);
+    assert_eq!(np.border_left_style(), BorderStyle::Dotted);
+    assert_eq!(np.border_right_style(), BorderStyle::Dotted);
+    assert_eq!(np.border_top_style(), BorderStyle::Dotted);
+    assert_eq!(np.border_bottom_style(), BorderStyle::Dotted);
 
-        assert_eq!(np.border_left_color(), Color::Specified(255, 0, 0, 255));
-        assert_eq!(np.border_right_color(), Color::Specified(255, 0, 0, 255));
-        assert_eq!(np.border_top_color(), Color::Specified(255, 0, 0, 255));
-        assert_eq!(np.border_bottom_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_left_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_right_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_top_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_bottom_color(), Color::Specified(255, 0, 0, 255));
 
-        let np = query(&ssg, "", "", ["d"], []);
-        assert_eq!(np.border_left_width_type(), LengthType::Initial);
-        assert_eq!(np.border_right_width_type(), LengthType::Initial);
-        assert_eq!(np.border_top_width_type(), LengthType::Initial);
-        assert_eq!(np.border_bottom_width_type(), LengthType::Initial);
+    let np = query(&ssg, "", "", ["d"], []);
+    assert_eq!(np.border_left_width_type(), LengthType::Initial);
+    assert_eq!(np.border_right_width_type(), LengthType::Initial);
+    assert_eq!(np.border_top_width_type(), LengthType::Initial);
+    assert_eq!(np.border_bottom_width_type(), LengthType::Initial);
 
-        assert_eq!(np.border_left_style(), BorderStyle::None);
-        assert_eq!(np.border_right_style(), BorderStyle::None);
-        assert_eq!(np.border_top_style(), BorderStyle::None);
-        assert_eq!(np.border_bottom_style(), BorderStyle::None);
+    assert_eq!(np.border_left_style(), BorderStyle::None);
+    assert_eq!(np.border_right_style(), BorderStyle::None);
+    assert_eq!(np.border_top_style(), BorderStyle::None);
+    assert_eq!(np.border_bottom_style(), BorderStyle::None);
 
-        assert_eq!(np.border_left_color_type(), ColorType::Initial);
-        assert_eq!(np.border_right_color_type(), ColorType::Initial);
-        assert_eq!(np.border_top_color_type(), ColorType::Initial);
-        assert_eq!(np.border_bottom_color_type(), ColorType::Initial);
+    assert_eq!(np.border_left_color_type(), ColorType::Initial);
+    assert_eq!(np.border_right_color_type(), ColorType::Initial);
+    assert_eq!(np.border_top_color_type(), ColorType::Initial);
+    assert_eq!(np.border_bottom_color_type(), ColorType::Initial);
 
-        let np = query(&ssg, "", "", ["e"], []);
-        assert_eq!(np.border_left_width(), Length::Px(1.));
-        assert_eq!(np.border_right_width(), Length::Px(1.));
-        assert_eq!(np.border_top_width(), Length::Px(1.));
-        assert_eq!(np.border_bottom_width(), Length::Px(1.));
+    let np = query(&ssg, "", "", ["e"], []);
+    assert_eq!(np.border_left_width(), Length::Px(1.));
+    assert_eq!(np.border_right_width(), Length::Px(1.));
+    assert_eq!(np.border_top_width(), Length::Px(1.));
+    assert_eq!(np.border_bottom_width(), Length::Px(1.));
 
-        assert_eq!(np.border_left_style(), BorderStyle::None);
-        assert_eq!(np.border_right_style(), BorderStyle::None);
-        assert_eq!(np.border_top_style(), BorderStyle::None);
-        assert_eq!(np.border_bottom_style(), BorderStyle::None);
+    assert_eq!(np.border_left_style(), BorderStyle::None);
+    assert_eq!(np.border_right_style(), BorderStyle::None);
+    assert_eq!(np.border_top_style(), BorderStyle::None);
+    assert_eq!(np.border_bottom_style(), BorderStyle::None);
 
-        assert_eq!(np.border_left_color_type(), ColorType::Initial);
-        assert_eq!(np.border_right_color_type(), ColorType::Initial);
-        assert_eq!(np.border_top_color_type(), ColorType::Initial);
-        assert_eq!(np.border_bottom_color_type(), ColorType::Initial);
+    assert_eq!(np.border_left_color_type(), ColorType::Initial);
+    assert_eq!(np.border_right_color_type(), ColorType::Initial);
+    assert_eq!(np.border_top_color_type(), ColorType::Initial);
+    assert_eq!(np.border_bottom_color_type(), ColorType::Initial);
 
-        let np = query(&ssg, "", "", ["f"], []);
-        assert_eq!(np.border_left_width(), Length::Px(3.));
-        assert_eq!(np.border_right_width(), Length::Px(3.));
-        assert_eq!(np.border_top_width(), Length::Px(3.));
-        assert_eq!(np.border_bottom_width(), Length::Px(3.));
-    }
+    let np = query(&ssg, "", "", ["f"], []);
+    assert_eq!(np.border_left_width(), Length::Px(3.));
+    assert_eq!(np.border_right_width(), Length::Px(3.));
+    assert_eq!(np.border_top_width(), Length::Px(3.));
+    assert_eq!(np.border_bottom_width(), Length::Px(3.));
+}
 
-    #[test]
-    fn border_width() {
-        test_parse_property!(
-            border_left_width,
-            "border-left-width",
-            "thin",
-            Length::Px(1.)
-        );
-        test_parse_property!(
-            border_top_width,
-            "border-top-width",
-            "medium",
-            Length::Px(3.)
-        );
-        test_parse_property!(
-            border_bottom_width,
-            "border-bottom-width",
-            "thick",
-            Length::Px(5.)
-        );
-        let mut ssg = StyleSheetGroup::new();
-        let ss = StyleSheet::from_str(
-            r#"
+#[test]
+fn border_width() {
+    test_parse_property!(
+        border_left_width,
+        "border-left-width",
+        "thin",
+        Length::Px(1.)
+    );
+    test_parse_property!(
+        border_top_width,
+        "border-top-width",
+        "medium",
+        Length::Px(3.)
+    );
+    test_parse_property!(
+        border_bottom_width,
+        "border-bottom-width",
+        "thick",
+        Length::Px(5.)
+    );
+    let mut ssg = StyleSheetGroup::new();
+    let ss = StyleSheet::from_str(
+        r#"
         .a { 
             border-left-width: 200px; 
             border-right-width: 100px;
@@ -157,40 +156,40 @@ use super::*;
             border-width: 100px;
         }
     "#,
-        );
-        ssg.append(ss);
-        let np = query(&ssg, "", "", ["a"], []);
-        assert_eq!(np.border_left_width(), Length::Px(200.));
-        assert_eq!(np.border_right_width(), Length::Px(100.));
-        assert_eq!(np.border_top_width(), Length::Px(20.));
-        assert_eq!(np.border_bottom_width(), Length::Px(8.));
-        let np = query(&ssg, "", "", ["b"], []);
-        assert_eq!(np.border_left_width(), Length::Px(8.));
-        assert_eq!(np.border_right_width(), Length::Px(20.));
-        assert_eq!(np.border_top_width(), Length::Px(100.));
-        assert_eq!(np.border_bottom_width(), Length::Px(30.));
-        let np = query(&ssg, "", "", ["c"], []);
-        assert_eq!(np.border_left_width(), Length::Px(20.));
-        assert_eq!(np.border_right_width(), Length::Px(20.));
-        assert_eq!(np.border_top_width(), Length::Px(100.));
-        assert_eq!(np.border_bottom_width(), Length::Px(8.));
-        let np = query(&ssg, "", "", ["d"], []);
-        assert_eq!(np.border_left_width(), Length::Px(8.));
-        assert_eq!(np.border_right_width(), Length::Px(8.));
-        assert_eq!(np.border_top_width(), Length::Px(100.));
-        assert_eq!(np.border_bottom_width(), Length::Px(100.));
-        let np = query(&ssg, "", "", ["e"], []);
-        assert_eq!(np.border_left_width(), Length::Px(100.));
-        assert_eq!(np.border_right_width(), Length::Px(100.));
-        assert_eq!(np.border_top_width(), Length::Px(100.));
-        assert_eq!(np.border_bottom_width(), Length::Px(100.));
-    }
+    );
+    ssg.append(ss);
+    let np = query(&ssg, "", "", ["a"], []);
+    assert_eq!(np.border_left_width(), Length::Px(200.));
+    assert_eq!(np.border_right_width(), Length::Px(100.));
+    assert_eq!(np.border_top_width(), Length::Px(20.));
+    assert_eq!(np.border_bottom_width(), Length::Px(8.));
+    let np = query(&ssg, "", "", ["b"], []);
+    assert_eq!(np.border_left_width(), Length::Px(8.));
+    assert_eq!(np.border_right_width(), Length::Px(20.));
+    assert_eq!(np.border_top_width(), Length::Px(100.));
+    assert_eq!(np.border_bottom_width(), Length::Px(30.));
+    let np = query(&ssg, "", "", ["c"], []);
+    assert_eq!(np.border_left_width(), Length::Px(20.));
+    assert_eq!(np.border_right_width(), Length::Px(20.));
+    assert_eq!(np.border_top_width(), Length::Px(100.));
+    assert_eq!(np.border_bottom_width(), Length::Px(8.));
+    let np = query(&ssg, "", "", ["d"], []);
+    assert_eq!(np.border_left_width(), Length::Px(8.));
+    assert_eq!(np.border_right_width(), Length::Px(8.));
+    assert_eq!(np.border_top_width(), Length::Px(100.));
+    assert_eq!(np.border_bottom_width(), Length::Px(100.));
+    let np = query(&ssg, "", "", ["e"], []);
+    assert_eq!(np.border_left_width(), Length::Px(100.));
+    assert_eq!(np.border_right_width(), Length::Px(100.));
+    assert_eq!(np.border_top_width(), Length::Px(100.));
+    assert_eq!(np.border_bottom_width(), Length::Px(100.));
+}
 
-    #[test]
-    fn border_style() {
-        let mut ssg = StyleSheetGroup::new();
-        let ss = StyleSheet::from_str(
-            r#"
+#[test]
+fn border_style() {
+    let mut ssg = StyleSheetGroup::new();
+    let ss = StyleSheet::from_str(
+        r#"
         .a { 
           border-left-style: hidden; 
           border-right-style: dotted;
@@ -210,40 +209,40 @@ use super::*;
           border-style: solid;
         }
     "#,
-        );
-        ssg.append(ss);
-        let np = query(&ssg, "", "", ["a"], []);
-        assert_eq!(np.border_left_style(), BorderStyle::Hidden);
-        assert_eq!(np.border_right_style(), BorderStyle::Dotted);
-        assert_eq!(np.border_top_style(), BorderStyle::Dashed);
-        assert_eq!(np.border_bottom_style(), BorderStyle::Solid);
-        let np = query(&ssg, "", "", ["b"], []);
-        assert_eq!(np.border_left_style(), BorderStyle::Solid);
-        assert_eq!(np.border_right_style(), BorderStyle::Dotted);
-        assert_eq!(np.border_top_style(), BorderStyle::Hidden);
-        assert_eq!(np.border_bottom_style(), BorderStyle::Dashed);
-        let np = query(&ssg, "", "", ["c"], []);
-        assert_eq!(np.border_left_style(), BorderStyle::Dotted);
-        assert_eq!(np.border_right_style(), BorderStyle::Dotted);
-        assert_eq!(np.border_top_style(), BorderStyle::Solid);
-        assert_eq!(np.border_bottom_style(), BorderStyle::Dashed);
-        let np = query(&ssg, "", "", ["d"], []);
-        assert_eq!(np.border_left_style(), BorderStyle::Dotted);
-        assert_eq!(np.border_right_style(), BorderStyle::Dotted);
-        assert_eq!(np.border_top_style(), BorderStyle::Solid);
-        assert_eq!(np.border_bottom_style(), BorderStyle::Solid);
-        let np = query(&ssg, "", "", ["e"], []);
-        assert_eq!(np.border_left_style(), BorderStyle::Solid);
-        assert_eq!(np.border_right_style(), BorderStyle::Solid);
-        assert_eq!(np.border_top_style(), BorderStyle::Solid);
-        assert_eq!(np.border_bottom_style(), BorderStyle::Solid);
-    }
+    );
+    ssg.append(ss);
+    let np = query(&ssg, "", "", ["a"], []);
+    assert_eq!(np.border_left_style(), BorderStyle::Hidden);
+    assert_eq!(np.border_right_style(), BorderStyle::Dotted);
+    assert_eq!(np.border_top_style(), BorderStyle::Dashed);
+    assert_eq!(np.border_bottom_style(), BorderStyle::Solid);
+    let np = query(&ssg, "", "", ["b"], []);
+    assert_eq!(np.border_left_style(), BorderStyle::Solid);
+    assert_eq!(np.border_right_style(), BorderStyle::Dotted);
+    assert_eq!(np.border_top_style(), BorderStyle::Hidden);
+    assert_eq!(np.border_bottom_style(), BorderStyle::Dashed);
+    let np = query(&ssg, "", "", ["c"], []);
+    assert_eq!(np.border_left_style(), BorderStyle::Dotted);
+    assert_eq!(np.border_right_style(), BorderStyle::Dotted);
+    assert_eq!(np.border_top_style(), BorderStyle::Solid);
+    assert_eq!(np.border_bottom_style(), BorderStyle::Dashed);
+    let np = query(&ssg, "", "", ["d"], []);
+    assert_eq!(np.border_left_style(), BorderStyle::Dotted);
+    assert_eq!(np.border_right_style(), BorderStyle::Dotted);
+    assert_eq!(np.border_top_style(), BorderStyle::Solid);
+    assert_eq!(np.border_bottom_style(), BorderStyle::Solid);
+    let np = query(&ssg, "", "", ["e"], []);
+    assert_eq!(np.border_left_style(), BorderStyle::Solid);
+    assert_eq!(np.border_right_style(), BorderStyle::Solid);
+    assert_eq!(np.border_top_style(), BorderStyle::Solid);
+    assert_eq!(np.border_bottom_style(), BorderStyle::Solid);
+}
 
-    #[test]
-    fn border_color() {
-        let mut ssg = StyleSheetGroup::new();
-        let ss = StyleSheet::from_str(
-            r#"
+#[test]
+fn border_color() {
+    let mut ssg = StyleSheetGroup::new();
+    let ss = StyleSheet::from_str(
+        r#"
         .a { 
           border-left-color: rgba(255, 0, 0, 255); 
           border-right-color: rgba(255, 255, 0, 255);
@@ -263,44 +262,44 @@ use super::*;
           border-color: red;
         }
     "#,
-        );
-        ssg.append(ss);
-        let np = query(&ssg, "", "", ["a"], []);
-        assert_eq!(np.border_top_color(), Color::Specified(255, 255, 255, 255));
-        assert_eq!(np.border_right_color(), Color::Specified(255, 255, 0, 255));
-        assert_eq!(np.border_bottom_color(), Color::Specified(0, 0, 0, 255));
-        assert_eq!(np.border_left_color(), Color::Specified(255, 0, 0, 255));
-        let np = query(&ssg, "", "", ["b"], []);
-        assert_eq!(np.border_top_color(), Color::Specified(255, 0, 0, 255));
-        assert_eq!(np.border_right_color(), Color::Specified(0, 0, 255, 255));
-        assert_eq!(np.border_bottom_color(), Color::Specified(0, 255, 0, 255));
-        assert_eq!(np.border_left_color(), Color::Specified(255, 255, 255, 255));
-        let np = query(&ssg, "", "", ["c"], []);
-        assert_eq!(np.border_top_color(), Color::Specified(255, 0, 0, 255));
-        assert_eq!(np.border_right_color(), Color::Specified(0, 0, 255, 255));
-        assert_eq!(np.border_bottom_color(), Color::Specified(0, 255, 0, 255));
-        assert_eq!(np.border_left_color(), Color::Specified(0, 0, 255, 255));
-        let np = query(&ssg, "", "", ["d"], []);
-        assert_eq!(np.border_top_color(), Color::Specified(255, 0, 0, 255));
-        assert_eq!(
-            np.border_right_color(),
-            Color::Specified(255, 255, 255, 255)
-        );
-        assert_eq!(np.border_bottom_color(), Color::Specified(255, 0, 0, 255));
-        assert_eq!(np.border_left_color(), Color::Specified(255, 255, 255, 255));
-        let np = query(&ssg, "", "", ["e"], []);
-        assert_eq!(np.border_top_color(), Color::Specified(255, 0, 0, 255));
-        assert_eq!(np.border_right_color(), Color::Specified(255, 0, 0, 255));
-        assert_eq!(np.border_bottom_color(), Color::Specified(255, 0, 0, 255));
-        assert_eq!(np.border_left_color(), Color::Specified(255, 0, 0, 255));
-    }
+    );
+    ssg.append(ss);
+    let np = query(&ssg, "", "", ["a"], []);
+    assert_eq!(np.border_top_color(), Color::Specified(255, 255, 255, 255));
+    assert_eq!(np.border_right_color(), Color::Specified(255, 255, 0, 255));
+    assert_eq!(np.border_bottom_color(), Color::Specified(0, 0, 0, 255));
+    assert_eq!(np.border_left_color(), Color::Specified(255, 0, 0, 255));
+    let np = query(&ssg, "", "", ["b"], []);
+    assert_eq!(np.border_top_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_right_color(), Color::Specified(0, 0, 255, 255));
+    assert_eq!(np.border_bottom_color(), Color::Specified(0, 255, 0, 255));
+    assert_eq!(np.border_left_color(), Color::Specified(255, 255, 255, 255));
+    let np = query(&ssg, "", "", ["c"], []);
+    assert_eq!(np.border_top_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_right_color(), Color::Specified(0, 0, 255, 255));
+    assert_eq!(np.border_bottom_color(), Color::Specified(0, 255, 0, 255));
+    assert_eq!(np.border_left_color(), Color::Specified(0, 0, 255, 255));
+    let np = query(&ssg, "", "", ["d"], []);
+    assert_eq!(np.border_top_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(
+        np.border_right_color(),
+        Color::Specified(255, 255, 255, 255)
+    );
+    assert_eq!(np.border_bottom_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_left_color(), Color::Specified(255, 255, 255, 255));
+    let np = query(&ssg, "", "", ["e"], []);
+    assert_eq!(np.border_top_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_right_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_bottom_color(), Color::Specified(255, 0, 0, 255));
+    assert_eq!(np.border_left_color(), Color::Specified(255, 0, 0, 255));
+}
 
-    // 0x6c
-    #[test]
-    fn box_shadow() {
-        let mut ssg = StyleSheetGroup::new();
-        let ss = StyleSheet::from_str(
-            r#"
+// 0x6c
+#[test]
+fn box_shadow() {
+    let mut ssg = StyleSheetGroup::new();
+    let ss = StyleSheet::from_str(
+        r#"
         .a {
             box-shadow: 10px 5px 5px black;
         }
@@ -320,89 +319,89 @@ use super::*;
             box-shadow: 10px 40px -10px;
             }
         "#,
-        );
-        ssg.append(ss);
-        let np = query(&ssg, "", "", ["a"], []);
-        assert_eq!(
-            np.box_shadow(),
-            BoxShadow::List(
-                vec![BoxShadowItem::List(
-                    vec![
-                        ShadowItemType::OffsetX(Length::Px(10.)),
-                        ShadowItemType::OffsetY(Length::Px(5.)),
-                        ShadowItemType::BlurRadius(Length::Px(5.)),
-                        ShadowItemType::SpreadRadius(Length::Px(0.0)),
-                        ShadowItemType::Color(Color::Specified(0, 0, 0, 255))
-                    ]
-                    .into()
-                ),]
-                .into()
-            )
-        );
-        let np = query(&ssg, "", "", ["b"], []);
-        assert_eq!(
-            np.box_shadow(),
-            BoxShadow::List(
+    );
+    ssg.append(ss);
+    let np = query(&ssg, "", "", ["a"], []);
+    assert_eq!(
+        np.box_shadow(),
+        BoxShadow::List(
+            vec![BoxShadowItem::List(
                 vec![
-                    BoxShadowItem::List(
-                        vec![
-                            ShadowItemType::Inset,
-                            ShadowItemType::OffsetX(Length::Px(3.)),
-                            ShadowItemType::OffsetY(Length::Px(3.)),
-                            ShadowItemType::BlurRadius(Length::Px(0.)),
-                            ShadowItemType::SpreadRadius(Length::Px(0.0)),
-                            ShadowItemType::Color(Color::Specified(255, 0, 0, 255))
-                        ]
-                        .into(),
-                    ),
-                    BoxShadowItem::List(
-                        vec![
-                            ShadowItemType::OffsetX(Length::Px(-16.)),
-                            ShadowItemType::OffsetY(Length::Px(0.)),
-                            ShadowItemType::BlurRadius(Length::Px(6.4)),
-                            ShadowItemType::SpreadRadius(Length::Px(5.)),
-                            ShadowItemType::Color(Color::Specified(0, 128, 0, 255))
-                        ]
-                        .into(),
-                    )
+                    ShadowItemType::OffsetX(Length::Px(10.)),
+                    ShadowItemType::OffsetY(Length::Px(5.)),
+                    ShadowItemType::BlurRadius(Length::Px(5.)),
+                    ShadowItemType::SpreadRadius(Length::Px(0.0)),
+                    ShadowItemType::Color(Color::Specified(0, 0, 0, 255))
                 ]
                 .into()
-            )
-        );
-        let np = query(&ssg, "", "", ["c"], []);
-        assert_eq!(np.box_shadow(), BoxShadow::None,);
-        let np = query(&ssg, "", "", ["d"], []);
-        assert_eq!(
-            np.box_shadow(),
-            BoxShadow::List(
-                vec![BoxShadowItem::List(
+            ),]
+            .into()
+        )
+    );
+    let np = query(&ssg, "", "", ["b"], []);
+    assert_eq!(
+        np.box_shadow(),
+        BoxShadow::List(
+            vec![
+                BoxShadowItem::List(
                     vec![
-                        ShadowItemType::OffsetX(Length::Px(10.)),
-                        ShadowItemType::OffsetY(Length::Px(4.)),
+                        ShadowItemType::Inset,
+                        ShadowItemType::OffsetX(Length::Px(3.)),
+                        ShadowItemType::OffsetY(Length::Px(3.)),
                         ShadowItemType::BlurRadius(Length::Px(0.)),
                         ShadowItemType::SpreadRadius(Length::Px(0.0)),
-                        ShadowItemType::Color(Color::Specified(0, 0, 255, 255))
+                        ShadowItemType::Color(Color::Specified(255, 0, 0, 255))
                     ]
-                    .into()
-                ),]
-                .into()
-            )
-        );
-        let np = query(&ssg, "", "", ["e"], []);
-        assert_eq!(
-            np.box_shadow(),
-            BoxShadow::List(
-                vec![BoxShadowItem::List(
+                    .into(),
+                ),
+                BoxShadowItem::List(
                     vec![
-                        ShadowItemType::OffsetX(Length::Px(10.)),
-                        ShadowItemType::OffsetY(Length::Px(4.)),
-                        ShadowItemType::BlurRadius(Length::Px(0.)),
-                        ShadowItemType::SpreadRadius(Length::Px(0.0)),
-                        ShadowItemType::Color(Color::CurrentColor)
+                        ShadowItemType::OffsetX(Length::Px(-16.)),
+                        ShadowItemType::OffsetY(Length::Px(0.)),
+                        ShadowItemType::BlurRadius(Length::Px(6.4)),
+                        ShadowItemType::SpreadRadius(Length::Px(5.)),
+                        ShadowItemType::Color(Color::Specified(0, 128, 0, 255))
                     ]
-                    .into()
-                ),]
+                    .into(),
+                )
+            ]
+            .into()
+        )
+    );
+    let np = query(&ssg, "", "", ["c"], []);
+    assert_eq!(np.box_shadow(), BoxShadow::None,);
+    let np = query(&ssg, "", "", ["d"], []);
+    assert_eq!(
+        np.box_shadow(),
+        BoxShadow::List(
+            vec![BoxShadowItem::List(
+                vec![
+                    ShadowItemType::OffsetX(Length::Px(10.)),
+                    ShadowItemType::OffsetY(Length::Px(4.)),
+                    ShadowItemType::BlurRadius(Length::Px(0.)),
+                    ShadowItemType::SpreadRadius(Length::Px(0.0)),
+                    ShadowItemType::Color(Color::Specified(0, 0, 255, 255))
+                ]
                 .into()
-            )
-        );
-    }
+            ),]
+            .into()
+        )
+    );
+    let np = query(&ssg, "", "", ["e"], []);
+    assert_eq!(
+        np.box_shadow(),
+        BoxShadow::List(
+            vec![BoxShadowItem::List(
+                vec![
+                    ShadowItemType::OffsetX(Length::Px(10.)),
+                    ShadowItemType::OffsetY(Length::Px(4.)),
+                    ShadowItemType::BlurRadius(Length::Px(0.)),
+                    ShadowItemType::SpreadRadius(Length::Px(0.0)),
+                    ShadowItemType::Color(Color::CurrentColor)
+                ]
+                .into()
+            ),]
+            .into()
+        )
+    );
+}

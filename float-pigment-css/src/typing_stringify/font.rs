@@ -120,4 +120,3 @@ impl fmt::Display for FontFeatureSettings {
         write!(f, "{}", ret.join(","))
     }
 }
-
