@@ -1,4 +1,5 @@
 mod abs_auto_height;
+mod absolute_static_position;
 mod cache;
 mod css_inline;
 mod css_margin;

@@ -1495,7 +1495,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                 .unwrap_or_else(|| container_size.to_vector()),
             collapsed_margin,
         };
-        compute_special_position_children(
+        self.has_deferred_fixed_descendants = compute_special_position_children(
             env,
             node,
             &ret,
@@ -1506,7 +1506,7 @@ impl<T: LayoutTreeNode> FlexBox<T> for LayoutUnit<T> {
                 main_dir_rev,
                 cross_dir_rev: AxisReverse::NotReversed,
             },
-            true,
+            StaticPositionSource::Alignment,
         );
         self.result = Rect::new(Point::zero(), ret.size.0);
         self.cache.write_position(node, &request, ret);
